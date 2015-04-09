@@ -1,0 +1,43 @@
+600
+MIXER2
+1 
+5
+2
+NON-SH-SH-Idl
+4
+
+"Output from Mixer2, FHI polarization - horizontal, DM3 - closed"
+Mixer2 rotation axis - vertical (when cover is up).
+If FHI is used in your applications - proper wavelength separator should be mounted on Mixer2 to reflect FHI downwards
+0
+789.000000
+1
+0.000000
+1
+816.100000	408	1	128.654167	
+NON-SH-NON-Sig
+4
+
+"Output from Mixer2, SHS polarization - horizontal, DM3 - closed"
+If SHS is used in your applications - proper wavelength separator should be mounted on Mixer2 to reflect SHS downwards
+			
+0
+795.000000
+1
+0.000000
+15
+1140.200000	569.3	1	234.917759	
+1173.028571	588.5	1	235.223332	
+1205.857143	604.8	1	234.704409	
+1238.685714	620.8	1	234.285673	
+1271.514286	636.5	1	233.996290	
+1304.342857	653.2	1	233.665539	
+1337.171429	670.9	1	233.408368	
+1370.000000	687.3	1	233.217482	
+1402.828571	703.3	1	232.973264	
+1435.657143	718.8	1	232.953020	
+1468.485714	735.3	1	232.866014	
+1501.314286	752.1	1	232.881078	
+1534.142857	770.9	1	232.927267	
+1566.971429	808.5	1	232.700848	
+1599.700000	809.1	1	232.525736

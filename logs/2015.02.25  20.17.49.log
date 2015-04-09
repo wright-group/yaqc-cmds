@@ -1,0 +1,12 @@
+2015.02.25 20:17:49.677 | CPU ?? RAM 37 | INFO     | Thread 6064  | project_globals      | Debug                | PyCMDS is in debug mode
+2015.02.25 20:17:49.680 | CPU ?? RAM 37 | INFO     | Thread 6064  | PyCMDS_ui            | Startup              | PyCMDS is attempting startup
+2015.02.25 20:17:50.680 | CPU ?? RAM 38 | INFO     | Thread 5232  | InGaAs               | InGaAs initializing  | 
+2015.02.25 20:17:50.680 | CPU ?? RAM 38 | INFO     | Thread 5232  | InGaAs               | InGaAs initializing  | 
+2015.02.25 20:17:50.683 | CPU ?? RAM 38 | INFO     | Thread 7812  | daq                  | DAQ initializing     | 
+2015.02.25 20:17:51.052 | CPU ?? RAM 38 | INFO     | Thread 6064  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.25 20:17:51.052 | CPU ?? RAM 38 | INFO     | Thread 6064  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.25 20:17:51.055 | CPU ?? RAM 38 | INFO     | Thread 7388  | MicroHR              | MicroHR initializing | 
+2015.02.25 20:17:56.907 | CPU ?? RAM 38 | INFO     | Thread 6064  | PyCMDS_ui            | Shutdown             | PyCMDS is attempting shutdown
+2015.02.25 20:17:56.910 | CPU ?? RAM 38 | INFO     | Thread 6064  | InGaAs               | InGaAs shutdown      | 
+2015.02.25 20:17:57.039 | CPU ?? RAM 38 | INFO     | Thread 6064  | daq                  | DAQ shutdown         | 
+2015.02.25 20:17:57.052 | CPU ?? RAM 38 | INFO     | Thread 6064  | MicroHR              | MicroHR shutdown     | 

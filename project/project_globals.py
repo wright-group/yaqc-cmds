@@ -1,0 +1,300 @@
+import time
+
+from PyQt4 import QtGui, QtCore
+
+#order sensitive globals########################################################
+
+class main_dir:
+    def __init__(self):
+        import os 
+        self.value = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = str(value)
+main_dir = main_dir()
+
+import ini_handler as ini #must come after main_dir has been defined
+
+class debug():    
+    def __init__(self):
+        self.get_saved()
+    def read(self):
+        return self.value    
+    def write(self, value):
+        self.value = value        
+    def get_saved(self):
+        self.value = ini.read('main', 'misc', 'debug')
+        return self.value    
+    def save(self, value = None):
+        if not value == None: self.value = value
+        ini.write('main', 'misc', 'debug', self.value)        
+debug = debug()
+
+class poll_timer:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+    def connect_to_timeout(self, slot):
+        QtGui.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
+poll_timer = poll_timer()
+
+class logger: #must come before other globals
+    def __init__(self):
+        pass
+    def load(self):
+        import logging_handler
+        self.value = logging_handler.log
+        if debug.read(): self.log('info', 'Debug', 'PyCMDS is in debug mode')
+        if offline.read(): self.log('info', 'Offline', 'PyCMDS is offline')
+    def log(self, level, name, message = '', origin = 'name'):
+        '''
+        wrapper of logging method for PyCMDS
+
+        accepts strings
+        
+        levels: debug, info, warning, error, critical
+        '''
+        self.value(level, name, message, origin)
+logger = logger()
+
+#other globals##################################################################
+
+class app:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+app = app()
+
+class colors_dict:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+colors_dict = colors_dict()
+
+class current_slice_widget:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+current_slice_widget = current_slice_widget()
+
+class daq_widget:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+daq_widget = daq_widget()
+
+class daq_array_widget:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+daq_array_widget = daq_array_widget()
+
+class daq_plot_widget:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+daq_plot_widget = daq_plot_widget()
+
+class hardware_advanced_widget:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+hardware_advanced_widget = hardware_advanced_widget()
+
+class hardware_widget:
+    def __init__(self):
+        self.value = None
+        self.number_of_widgets = 0
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+        self.value.setLayout(QtGui.QVBoxLayout())
+        self.value.layout().setMargin(5)
+        self.value.layout().addStretch(1)
+    def add_to(self, widget):
+        self.value.layout().takeAt(self.number_of_widgets)
+        self.value.layout().addWidget(widget)
+        self.number_of_widgets += 1
+        self.value.layout().addStretch(1)
+hardware_widget = hardware_widget()
+
+class main_thread:
+    def __init__(self):
+        self.value = QtCore.QThread.currentThread()
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = str(value)
+main_thread = main_thread()
+
+class main_window:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+main_window = main_window()
+
+class module_advanced_widget:
+    def __init__(self):
+        self.value = None
+        self.child = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+    def add_child(self, widget): 
+        self.value.setLayout(QtGui.QVBoxLayout())
+        self.child = widget
+        self.value.layout().setMargin(0)
+        self.value.layout().addWidget(self.child)
+module_advanced_widget = module_advanced_widget()
+
+class module_combobox:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+    def add_module(self, name, show_frame_method):
+        '''
+        name: string
+        '''
+        self.value.addItem(name)
+        self.value.currentIndexChanged.connect(show_frame_method)
+    def get_text(self):
+        return self.value.currentText()
+module_combobox = module_combobox()
+
+class module_control:
+    '''
+    holds a boolean
+    '''
+    def __init__(self):
+        self.value = None
+        self.widgets_to_disable = []
+    def read(self):
+        return self.value
+    def write(self, value):
+        for widget in self.widgets_to_disable: widget.setDisabled(value)
+        self.value = value
+        main_window.read().module_control.emit()
+    def disable_when_true(self, widget):
+        self.widgets_to_disable.append(widget)
+module_control = module_control()
+
+class module_widget:
+    def __init__(self):
+        self.value = None
+        self.child = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+    def add_child(self, widget): 
+        self.value.setLayout(QtGui.QVBoxLayout())
+        self.child = widget
+        self.value.layout().setMargin(0)
+        self.value.layout().addWidget(self.child)
+module_widget = module_widget()
+
+class offline():    
+    def __init__(self):
+        self.get_saved()
+    def read(self):
+        return self.value    
+    def write(self, value):
+        self.value = value        
+    def get_saved(self):
+        self.value = ini.read('main', 'misc', 'offline')
+        return self.value    
+    def save(self, value = None):
+        if not value == None: self.value = value
+        ini.write('main', 'misc', 'offline', self.value)        
+offline = offline()
+
+class progress_bar:
+    def __init__(self):
+        self.value = None
+    def write(self, value):  
+        self.value = value
+    def give_time_display_elements(self, time_elapsed, time_remaining):
+        self.time_elapsed = time_elapsed
+        self.time_remaining = time_remaining
+    def begin_new_scan_timer(self):
+        self.start_time = time.time()
+    def set_fraction(self, fraction):
+        self.value.setValue(fraction*100)
+        #time elapsed
+        time_elapsed = time.time() - self.start_time
+        m, s = divmod(time_elapsed, 60)
+        h, m = divmod(m, 60)
+        self.time_elapsed.setText('%02d:%02d:%02d' % (h, m, s))
+        #time remaining 
+        if fraction == 0: 
+            self.time_remaining.setText('??:??:??')
+        else:
+            time_remaining = (time_elapsed / fraction) - time_elapsed
+            m, s = divmod(time_remaining, 60)
+            h, m = divmod(m, 60)
+            self.time_remaining.setText('%02d:%02d:%02d' % (h, m, s))
+progress_bar = progress_bar()
+
+class scan_thread:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+scan_thread = scan_thread()    
+
+class shutdown:
+    '''
+    holds the reference of MainWindow.shutdown Qt signal
+    
+    during startup, add your shutdown method to this object using the 'add_method' method it will be called upon shutdown. 
+    your method must not have any arguments
+    '''
+    def __init__(self):
+        self.value = False
+        self.methods = []
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+    def add_method(self, method):
+        self.methods.append(method)
+    def fire(self):
+        for method in self.methods:
+            method()
+        main_window.read().close()
+shutdown = shutdown()

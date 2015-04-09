@@ -1,0 +1,41 @@
+600
+MIXER1
+1 
+4
+3
+NON-NON-SF-Sig
+4
+
+"Output from Mixer1, SFS polarization - vertical, DM3 - open"
+Mixer1 rotation axis - horizontal (when motor is down).
+If SFS is used in your applications - proper wavelength separator should be mounted on Mixer2 to reflect SFS sidewards
+1
+795.000000
+1
+0.000000
+1
+1147	474.5914	1	237.412
+NON-NON-SH-Idl
+4
+
+"Output from Mixer1, SHI polarization - vertical, DM3 - closed"
+Mixer1 rotation axis - horizontal (when motor is down).
+If SHI is used in your applications - proper wavelength separator should be mounted  on Mixer2 to reflect SHI sidewards
+1
+795.000000
+1
+0.000000
+1
+2280.000000	1140.000000	1	120.000167	
+NON-NON-SF-Idl
+4
+
+"Output from Mixer1, SFI polarization - vertical, DM3 - open"
+Mixer1 rotation axis - horizontal (when motor is down).
+If SFI is used in your applications - proper wavelength separator should be mounted on Mixer2 to reflect SFI sidewards
+1
+795.000000
+1
+0.000000
+1
+1603.000000	540.000000	1	123.446000		

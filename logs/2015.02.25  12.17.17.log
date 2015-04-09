@@ -1,0 +1,15 @@
+2015.02.25 12:17:17.046 | CPU ?? RAM 36 | INFO     | Thread 7616  | project_globals      | Debug                | PyCMDS is in debug mode
+2015.02.25 12:17:17.048 | CPU ?? RAM 36 | INFO     | Thread 7616  | PyCMDS_ui            | Startup              | PyCMDS is attempting startup
+2015.02.25 12:17:18.046 | CPU ?? RAM 36 | INFO     | Thread 4136  | InGaAs               | InGaAs initializing  | 
+2015.02.25 12:17:18.046 | CPU ?? RAM 36 | INFO     | Thread 4136  | InGaAs               | InGaAs initializing  | 
+2015.02.25 12:17:18.048 | CPU ?? RAM 36 | INFO     | Thread 6624  | daq                  | DAQ initializing     | 
+2015.02.25 12:17:18.380 | CPU ?? RAM 36 | INFO     | Thread 6184  | MicroHR              | MicroHR initializing | 
+2015.02.25 12:17:18.395 | CPU ?? RAM 36 | INFO     | Thread 7616  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.25 12:17:32.812 | CPU 31 RAM 37 | INFO     | Thread 3504  | template             | Scan begun           | some info describing this scan
+2015.02.25 12:17:42.822 | CPU 21 RAM 37 | WARNING  | Thread 3504  | MicroHR              | Wait until done timed out | timeout set to 10 seconds
+2015.02.25 12:17:44.213 | CPU 21 RAM 37 | INFO     | Thread 3504  | template             | Scan done            | some info describing this scan
+2015.02.25 12:17:45.661 | CPU 21 RAM 37 | INFO     | Thread 7616  | PyCMDS_ui            | Shutdown             | PyCMDS is attempting shutdown
+2015.02.25 12:17:45.664 | CPU 21 RAM 37 | INFO     | Thread 7616  | InGaAs               | InGaAs shutdown      | 
+2015.02.25 12:17:45.670 | CPU 21 RAM 37 | INFO     | Thread 7616  | daq                  | DAQ shutdown         | 
+2015.02.25 12:17:45.703 | CPU 21 RAM 37 | INFO     | Thread 7616  | MicroHR              | MicroHR shutdown     | 
+2015.02.25 12:17:55.707 | CPU 21 RAM 37 | WARNING  | Thread 7616  | MicroHR              | Wait until done timed out | timeout set to 10 seconds

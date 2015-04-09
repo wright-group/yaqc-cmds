@@ -1,0 +1,16 @@
+2015.02.26 11:27:40.630 | CPU ?? RAM 38 | INFO     | Thread 6564  | project_globals      | Debug                | PyCMDS is in debug mode
+2015.02.26 11:27:40.631 | CPU ?? RAM 38 | INFO     | Thread 6564  | PyCMDS_ui            | Startup              | PyCMDS is attempting startup
+2015.02.26 11:27:42.114 | CPU ?? RAM 38 | INFO     | Thread 6564  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.26 11:27:42.114 | CPU ?? RAM 38 | INFO     | Thread 6564  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.26 11:27:42.114 | CPU ?? RAM 38 | INFO     | Thread 6564  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.26 11:27:42.114 | CPU ?? RAM 38 | INFO     | Thread 6564  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.26 11:27:42.135 | CPU ?? RAM 38 | INFO     | Thread 6776  | MicroHR              | MicroHR initializing | 
+2015.02.26 11:27:42.135 | CPU ?? RAM 38 | INFO     | Thread 6776  | MicroHR              | MicroHR initializing | 
+2015.02.26 11:27:42.135 | CPU ?? RAM 38 | INFO     | Thread 6776  | MicroHR              | MicroHR initializing | 
+2015.02.26 11:27:42.138 | CPU ?? RAM 38 | INFO     | Thread 720   | daq                  | DAQ initializing     | 
+2015.02.26 11:27:42.138 | CPU ?? RAM 38 | INFO     | Thread 720   | daq                  | DAQ initializing     | 
+2015.02.26 11:27:42.138 | CPU ?? RAM 38 | INFO     | Thread 2924  | daq                  | DAQ initializing     | 
+2015.02.26 11:28:09.924 | CPU 08 RAM 38 | INFO     | Thread 6564  | PyCMDS_ui            | Shutdown             | PyCMDS is attempting shutdown
+2015.02.26 11:28:09.928 | CPU 08 RAM 38 | INFO     | Thread 6564  | InGaAs               | InGaAs shutdown      | 
+2015.02.26 11:28:10.026 | CPU 08 RAM 38 | INFO     | Thread 6564  | daq                  | DAQ shutdown         | 
+2015.02.26 11:28:10.039 | CPU 08 RAM 38 | INFO     | Thread 6564  | MicroHR              | MicroHR shutdown     | 

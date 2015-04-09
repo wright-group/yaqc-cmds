@@ -1,0 +1,14 @@
+2015.03.23 14:53:30.559 | CPU ?? RAM 72 | INFO     | Thread 4596  | project_globals      | Debug                | PyCMDS is in debug mode
+2015.03.23 14:53:30.562 | CPU ?? RAM 72 | INFO     | Thread 4596  | project_globals      | Offline              | PyCMDS is offline
+2015.03.23 14:53:30.563 | CPU ?? RAM 72 | INFO     | Thread 4596  | PyCMDS_ui            | Startup              | PyCMDS is attempting startup
+2015.03.23 14:53:30.864 | CPU ?? RAM 73 | INFO     | Thread 5952  | daq                  | DAQ initializing     | 
+2015.03.23 14:53:30.864 | CPU ?? RAM 73 | INFO     | Thread 5932  | daq                  | DAQ initializing     | 
+2015.03.23 14:53:31.046 | CPU ?? RAM 73 | INFO     | Thread 6228  | delays               | MicroHR initializing | 
+2015.03.23 14:53:31.062 | CPU ?? RAM 73 | INFO     | Thread 6364  | spectrometers        | MicroHR initializing | 
+2015.03.23 14:53:31.101 | CPU ?? RAM 73 | INFO     | Thread 4596  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.03.23 14:53:32.852 | CPU ?? RAM 73 | INFO     | Thread 4596  | PyCMDS_ui            | Shutdown             | PyCMDS is attempting shutdown
+2015.03.23 14:53:32.858 | CPU ?? RAM 73 | INFO     | Thread 4596  | InGaAs               | InGaAs shutdown      | 
+2015.03.23 14:53:42.864 | CPU ?? RAM 73 | WARNING  | Thread 4596  | InGaAs               | wait until done timed out | timeout set to 10 seconds
+2015.03.23 14:53:42.982 | CPU ?? RAM 73 | INFO     | Thread 4596  | daq                  | DAQ shutdown         | 
+2015.03.23 14:53:42.996 | CPU ?? RAM 73 | INFO     | Thread 4596  | delays               | MicroHR shutdown     | 
+2015.03.23 14:53:43.012 | CPU ?? RAM 73 | INFO     | Thread 4596  | spectrometers        | MicroHR shutdown     | 

@@ -1,0 +1,24 @@
+2015.02.25 16:54:21.607 | CPU ?? RAM 37 | INFO     | Thread 6192  | project_globals      | Debug                | PyCMDS is in debug mode
+2015.02.25 16:54:21.608 | CPU ?? RAM 37 | INFO     | Thread 6192  | PyCMDS_ui            | Startup              | PyCMDS is attempting startup
+2015.02.25 16:54:22.538 | CPU ?? RAM 38 | INFO     | Thread 7860  | daq                  | DAQ initializing     | 
+2015.02.25 16:54:22.539 | CPU ?? RAM 38 | INFO     | Thread 4192  | daq                  | DAQ initializing     | 
+2015.02.25 16:54:22.538 | CPU ?? RAM 38 | INFO     | Thread 7860  | daq                  | DAQ initializing     | 
+2015.02.25 16:54:22.539 | CPU ?? RAM 38 | INFO     | Thread 4192  | daq                  | DAQ initializing     | 
+2015.02.25 16:54:22.799 | CPU ?? RAM 38 | INFO     | Thread 4688  | MicroHR              | MicroHR initializing | 
+2015.02.25 16:54:22.805 | CPU ?? RAM 38 | INFO     | Thread 6192  | PyCMDS_ui            | Startup              | PyCMDS MainWindow __init__ finished
+2015.02.25 16:54:22.957 | CPU ?? RAM 38 | ERROR    | Thread 4192  | daq                  | Error in timing definition | Minimum is greater than or equal to the maximum. Ensure the maximum value is greater than the minimum value. If using a custom scale, ensure that the scaled maximum is greater than the scaled minimum.
+Property: DAQmx_AI_Min
+Corresponding Value:  2.000000
+
+Property: DAQmx_AI_Max
+Corresponding Value:  2.000000
+
+Channel Name: channel_904
+
+Task Name: _unnamedTask<0>
+
+Status Code: -200082
+ in function DAQmxStartTask
+2015.02.25 16:54:22.987 | CPU ?? RAM 38 | ERROR    | Thread 4192  | daq                  | Error in timing definition | Task specified is invalid or does not exist.
+Status Code: -200088
+ in function DAQmxStartTask

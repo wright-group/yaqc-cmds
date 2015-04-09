@@ -1,0 +1,28 @@
+600
+MIXER3
+3
+6	7	8	
+2
+DF1-NON-NON-Sig
+3
+WARNING!!! IT IS EXTREMELY IMPORTANT TO ENSURE THAT DM3 IS CLOSED BEFORE OPENING THE SHUTTER
+IF DM3 IS OPEN WHILE WORKING WITH DFG - RESIDUAL PUMP FROM TOPAS-C WILL DAMAGE DFG CRYSTALS!!!
+Output from NDFG stage, DFG1 polarization - horizontal, DM3 - CLOSED
+0
+796.500000
+3
+-0.605000	0.458000	-0.312000	
+1
+1488.048828	11000.000000	3	128.854996	-0.274190	2.984188	
+SH-SH-NON-Sig
+4
+Output from Mixer2, FHS polarization - vertical, DM3 - closed
+Mixer2 rotation axis - horizontal (when motor is down). 
+If FHS is used in your applications - proper wavelength separator should be mounted on Mixer2 to reflect FHS sidewards
+
+1
+796.000000
+1
+-1.583000	
+1
+570.000000	285.000000	1	223.945496	
