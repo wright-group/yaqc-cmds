@@ -1,6 +1,6 @@
 # PyCMDS
 
-A collection of tools to make diagrams commonly used by the Wright group. __In progress - not ready for use currently.__
+A collection of tools to make diagrams commonly used by the Wright group. __In progress.__
 
 Dependencies:
 - comtypes
