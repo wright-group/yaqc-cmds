@@ -23,7 +23,7 @@ import project.project_globals as g
 app = g.app.read()
 import project.custom_widgets as custom_widgets
 
-import packages.serial as serial
+import serial
 
 ### globals#####################################################################
 

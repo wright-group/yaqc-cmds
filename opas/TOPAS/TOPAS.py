@@ -258,7 +258,7 @@ class TOPAS():
 
 if __name__ == '__main__':
 
-    ini_filepath = r'C:\Users\John\Desktop\PyCMDS 00.02\opas\configuration\10743.ini'
+    ini_filepath = r'C:\Users\John\Desktop\COLORS\OPAs\configuration\10743.ini'    #r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS\10743.ini'
     OPA1 = TOPAS(ini_filepath)
     print OPA1.set_shutter(False)
     print OPA1._get_motor_position(0)

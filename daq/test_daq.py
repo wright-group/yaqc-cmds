@@ -2,8 +2,10 @@ from PyDAQmx import *
 import numpy
 import time
 
+import numpy as np
 import os
-os.chdir(r'C:\Users\John\Desktop\PyCMDS 00.01')
+
+os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 
 #user inputs-------------------------------------------------------------------
 

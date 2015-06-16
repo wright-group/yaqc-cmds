@@ -38,10 +38,6 @@ $RECYCLE.BIN/
 # Python compiled files
 *.pyc
 
-# Ignore some folders
-_data/
-logs/
-
 # Directories potentially created on remote AFP share
 .AppleDB
 .AppleDesktop
