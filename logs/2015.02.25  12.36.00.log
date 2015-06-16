@@ -1,6 +1,0 @@
-2015.02.25 12:36:00.028 | CPU ?? RAM 35 | INFO     | Thread 6788  | project_globals      | Debug                | PyCMDS is in debug mode
-2015.02.25 12:36:00.029 | CPU ?? RAM 35 | INFO     | Thread 6788  | PyCMDS_ui            | Startup              | PyCMDS is attempting startup
-2015.02.25 12:36:00.986 | CPU ?? RAM 35 | INFO     | Thread 6572  | daq                  | DAQ initializing     | 
-2015.02.25 12:36:00.986 | CPU ?? RAM 35 | INFO     | Thread 6572  | daq                  | DAQ initializing     | 
-2015.02.25 12:36:00.986 | CPU ?? RAM 35 | INFO     | Thread 976   | daq                  | DAQ initializing     | 
-2015.02.25 12:36:01.315 | CPU ?? RAM 35 | INFO     | Thread 7696  | MicroHR              | MicroHR initializing | 
