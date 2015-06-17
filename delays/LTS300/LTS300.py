@@ -161,9 +161,8 @@ class APTMotor(wx.lib.activex.ActiveXCtrl):
         
 ### control address object #####################################################
 
-
-
 class control(wx.App):
+    
     def __init__(self):
         wx.App.__init__(self, redirect=False)
         
@@ -193,6 +192,7 @@ class control(wx.App):
         returns the current position of the motor in mm
         '''
         return self.motor_control.GetPosition()
+        
 control = control()
 
 ### testing ####################################################################

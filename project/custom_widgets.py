@@ -3,8 +3,8 @@
 import numpy as np
 
 from PyQt4 import QtGui, QtCore
-import packages.pyqtgraph.pyqtgraph as pg
-import packages.pyqtgraph.pyqtgraph.exporters
+import pyqtgraph as pg
+from pyqtgraph import exporters
 
 import project_globals as g
 
