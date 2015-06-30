@@ -2,23 +2,63 @@
 
 ### import######################################################################
 
+import os
 import sys
 import time
+
+import imp
 
 import numpy as np
 
 from PyQt4 import QtCore, QtGui
 
 import project.project_globals as g
+main_dir = g.main_dir.read()
 app = g.app.read()
 import project.custom_widgets as custom_widgets
 import project.ini_handler as ini
+import project.global_classes as gc
 
 ### hardware import ############################################################
 
-#import LTS300
+class delay():
+    def __init__(self, name, script_path):
+        #name
+        self.name = name
+        #import control
+        full_path = os.path.join(main_dir, script_path)
+        self.control = imp.load_source('control', full_path)
+        #create globals
+        self.create_globals()
+    def create_globals(self):
+        #position
+        self.current_position = gc.number(initial_value = np.nan, display = True, units_kind = 'delay', ini = ['delays', self.name, 'position (nm)'], save_to_ini_at_shutdown = True)
+        self.destination = gc.number(units_kind = 'delay', ini = ['delays', self.name, 'position (mm)'], import_from_ini = True)
+    def on_set(self):
+        print 'on set!!'
+        self.control.move_absolute(10)
+        self.control.move_absolute(30)
+    def close(self):
+        pass
+    
+#get vals from ini file
+names = ['SMC100 1', 'SMC100 2', 'LTS300', 'ps homemade']
+use_bools = [ini.read('delays', name, 'use') for name in names]
+script_paths = [ini.read('delays', name, 'script') for name in names]
+ini_vals = zip(names, use_bools, script_paths)
 
-### special globals#############################################################
+#load in delays
+'''
+delays = []
+for name, use, script_path in ini_vals:
+    if use:
+        new_delay = delay(name, script_path)
+        delays.append(new_delay)
+'''
+#import LTS300.control as control
+delays = []
+
+### special globals ############################################################
 
 class busy(QtCore.QMutex):
     def __init__(self):
@@ -71,21 +111,6 @@ class truing_enabled(QtCore.QObject):
         ini.write('spectrometers', 'Spec', 'truing enabled', self.value)       
 truing_enabled = truing_enabled()
 
-### gui globals#################################################################
-
-import project.global_classes as gc
-
-#color position
-current_color = gc.number(initial_value = np.nan, display = True, units_kind = 'color', ini = ['spectrometers', 'Spec', 'position (nm)'], save_to_ini_at_shutdown = True)
-color_destination = gc.number(units_kind = 'color', ini = ['spectrometers', 'Spec', 'position (nm)'], import_from_ini = True)
-
-#grating position
-grating_tool_tip = '1: 150 grooves/mm, 1200 nm blaze\n2: 300 grooves/mm, 600 nm blaze'
-current_grating = gc.string(initial_value = '?', display = True, ini = ['spectrometers', 'Spec', 'grating'], save_to_ini_at_shutdown = True)
-current_grating.set_tool_tip(grating_tool_tip)
-grating_destination = gc.combo(['1', '2'], ini = ['spectrometers', 'Spec', 'grating'], import_from_ini = True)
-grating_destination.set_tool_tip(grating_tool_tip)
-
 ### address#####################################################################
 
 class address(QtCore.QObject):
@@ -130,8 +155,6 @@ class address(QtCore.QObject):
         if g.debug.read(): print 'MicroHR initializing'
         g.logger.log('info', 'MicroHR initializing')
         #current_position.write(destination.read())
-        current_grating.write(grating_destination.read())
-        current_color.write(color_destination.read())
     
     def go_to(self, inputs):
         ''' 
@@ -228,8 +251,13 @@ class gui(QtCore.QObject):
         layout = layout_widget.layout()
 
         input_table = custom_widgets.input_table(125)
+        for delay in delays:
+            input_table.add(delay.name, None)
+            input_table.add('Current', delay.current_position)
+            input_table.add('Destination', delay.destination)
+            
         layout.addWidget(input_table)
-
+    
         layout_widget.add_buttons(self.on_set, self.show_advanced)
         
         g.hardware_widget.add_to(layout_widget)
@@ -239,8 +267,8 @@ class gui(QtCore.QObject):
         pass
         
     def on_set(self):
-        print 'on_set'
-        control.set_hardware(destination.read())
+        for delay in delays:
+            delay.on_set()
     
     def show_advanced(self):
         pass
