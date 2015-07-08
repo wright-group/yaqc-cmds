@@ -667,7 +667,7 @@ class control():
     def initialize_hardware(self):
         q('initialize')
         #tell the array to begin initialization
-        import InGaAs_array_detector.InGaAs as array_detector
+        import InGaAs_array.InGaAs as array_detector
         array_detector_reference.write(array_detector)
         
         

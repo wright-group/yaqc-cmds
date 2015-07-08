@@ -128,7 +128,7 @@ class address(QtCore.QObject):
         
         self.serial_port = serial.Serial()
         self.serial_port.baudrate = 9600
-        self.serial_port.port = 'COM8'
+        self.serial_port.port = 'COM16'
         
         #initialize arrays for later use----------------------------------------
         

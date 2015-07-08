@@ -1,9 +1,5 @@
 ### import #####################################################################
 
-import time
-
-from PyQt4 import QtCore, QtGui
-
 import wx
 from wx.lib.pubsub import Publisher
 import wx.lib.activex
@@ -192,12 +188,15 @@ class control(wx.App):
         returns the current position of the motor in mm
         '''
         return self.motor_control.GetPosition()
-        
+
 control = control()
+print control.get_current_position(), '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 
 ### testing ####################################################################
 
 if __name__ == '__main__':
+    import os 
+    os.chdir('C:\Users\John\Desktop\PyCMDS')
 
     print 'test'
 
@@ -206,11 +205,3 @@ if __name__ == '__main__':
     control.move_absolute(10)
 
     control.move_absolute(30)
-
-
-
-
-
-
-
-
