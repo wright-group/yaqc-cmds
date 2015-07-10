@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 class curve:
     
-    def __init__(self, filepath, n = 2):
+    def __init__(self, filepath, n = 4):
         '''
         filepath string \n
         n integer degree of polynomial fit
