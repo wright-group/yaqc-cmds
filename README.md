@@ -16,9 +16,4 @@ Dependencies:
 - scipy
 - serial
 - win32, win32com, win32comext
-
-Hardware supported:
-- [ ] TopasC
-- [ ] Thorlabs LTS300
-- [ ] Newport SMC100
-- [ ] Horiba MicroHR
+- [PMC motion control API Python Library](http://pmccorp.com/support/downloads.php)

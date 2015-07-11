@@ -661,13 +661,3 @@ NamesToIIDMap = {
 	'IJYMonoReqd' : '{7963F672-D074-4F67-B15C-AF022065927E}',
 	'_IJYDeviceReqdEvents' : '{A2C81A78-CA13-4A39-8FCB-CD51BD4E9376}',
 }
-
-
-if __name__ == '__main__':
-    #blaise messing around
-    MicroHR = Monochromator()
-    print MicroHR
-    MicroHR.Uniqueid = 'Mono1'
-    MicroHR.Load()
-    MicroHR.OpenCommunications()
-    MicroHR.Initialize()
