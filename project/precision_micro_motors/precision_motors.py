@@ -38,9 +38,7 @@ class Motor():
     def move_relative(self, distance):
         pass
     
-
 ### testing ####################################################################
-
 
 if __name__ == '__main__':
     

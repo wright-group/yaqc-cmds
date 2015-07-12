@@ -133,12 +133,11 @@ class MainWindow(QtGui.QMainWindow):
         #create widgets
         hardware_advanced_widget = QtGui.QWidget()
         g.hardware_advanced_widget.write(hardware_advanced_widget)
+        comove_widget = QtGui.QWidget()
         module_advanced_widget = QtGui.QWidget()
         g.module_advanced_widget.write(module_advanced_widget)
         daq_single_widget = QtGui.QWidget()
         g.daq_widget.write(daq_single_widget)
-        daq_array_widget = QtGui.QWidget()
-        g.daq_array_widget.write(daq_array_widget)
         current_slice_widget = QtGui.QWidget()
         g.current_slice_widget.write(current_slice_widget)
         daq_plot_widget = QtGui.QWidget()
@@ -147,13 +146,13 @@ class MainWindow(QtGui.QMainWindow):
         #tab widget
         daq_tabs = QtGui.QTabWidget()
         daq_tabs.addTab(hardware_advanced_widget, 'HARDWARE')
+        daq_tabs.addTab(comove_widget, 'COMOVE')
         daq_tabs.addTab(module_advanced_widget, 'MODULE')
         daq_tabs.addTab(daq_single_widget, 'DAQ')
-        daq_tabs.addTab(daq_array_widget, 'ARRAY')
         daq_tabs.addTab(current_slice_widget, 'CURRENT')
         daq_tabs.addTab(daq_plot_widget, 'PLOT')
-        daq_tabs.setCurrentIndex(2)
-        daq_box.addWidget(daq_tabs)        
+        daq_tabs.setCurrentIndex(3) #start on DAQ tab
+        daq_box.addWidget(daq_tabs)    
         
         #vertical stretch
         daq_box.addStretch(1)
@@ -194,11 +193,11 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read(): print 'initialize hardware'
         
         #import
-        import daq.daq
-        import delays.delays
-        import spectrometers.spectrometers
+        #import daq.daq
+        #import delays.delays
+        #import spectrometers.spectrometers
         
-        self.daq = daq.daq
+        #self.daq = daq.daq
     
     def _load_modules(self):
         
@@ -216,7 +215,7 @@ class MainWindow(QtGui.QMainWindow):
         
         #import modules---------------------------------------------------------
         
-        import modules.template
+        #import modules.template
         import modules.custom
         
     def _shutdown(self):

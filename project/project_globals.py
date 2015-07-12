@@ -2,7 +2,34 @@ import time
 
 from PyQt4 import QtGui, QtCore
 
-#order sensitive globals########################################################
+### global classes #############################################################
+
+class simple_global:
+    def __init__(self):
+        self.value = None
+    def read(self):
+        return self.value
+    def write(self, value):  
+        self.value = value
+
+class global_with_ini():    
+    def __init__(self, ini, section, option):
+        self.ini = ini
+        self.section = section
+        self.option = option
+        self.get_saved()
+    def read(self):
+        return self.value    
+    def write(self, value):
+        self.value = value        
+    def get_saved(self):
+        self.value = self.ini.read(self.section, self.option)
+        return self.value    
+    def save(self, value = None):
+        if not value == None: self.value = value
+        self.ini.write(self.section, self.option, self.value)
+
+### order sensitive globals  ###################################################
 
 class main_dir:
     def __init__(self):
@@ -16,20 +43,7 @@ main_dir = main_dir()
 
 import ini_handler as ini #must come after main_dir has been defined
 
-class debug():    
-    def __init__(self):
-        self.get_saved()
-    def read(self):
-        return self.value    
-    def write(self, value):
-        self.value = value        
-    def get_saved(self):
-        self.value = ini.read('main', 'misc', 'debug')
-        return self.value    
-    def save(self, value = None):
-        if not value == None: self.value = value
-        ini.write('main', 'misc', 'debug', self.value)        
-debug = debug()
+debug = global_with_ini(ini.main, 'misc', 'debug')
 
 class poll_timer:
     def __init__(self):
@@ -61,34 +75,16 @@ class logger: #must come before other globals
         self.value(level, name, message, origin)
 logger = logger()
 
-#other globals##################################################################
+### other globals ##############################################################
+#alphabetical
 
-class app:
-    def __init__(self):
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-app = app()
+app = simple_global()
 
-class colors_dict:
-    def __init__(self):
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-colors_dict = colors_dict()
+colors_dict = simple_global()
 
-class current_slice_widget:
-    def __init__(self):
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-current_slice_widget = current_slice_widget()
+comove_widget = simple_global()
+
+current_slice_widget = simple_global()
 
 class daq_widget:
     def __init__(self):
@@ -225,21 +221,8 @@ class module_widget:
         self.value.layout().setMargin(0)
         self.value.layout().addWidget(self.child)
 module_widget = module_widget()
-
-class offline():    
-    def __init__(self):
-        self.get_saved()
-    def read(self):
-        return self.value    
-    def write(self, value):
-        self.value = value        
-    def get_saved(self):
-        self.value = ini.read('main', 'misc', 'offline')
-        return self.value    
-    def save(self, value = None):
-        if not value == None: self.value = value
-        ini.write('main', 'misc', 'offline', self.value)        
-offline = offline()
+      
+offline = global_with_ini(ini.main, 'misc', 'offline')
 
 class progress_bar:
     def __init__(self):

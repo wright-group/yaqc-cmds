@@ -3,6 +3,7 @@
 __In progress.__
 
 Dependencies:
+- [WrightTools](https://github.com/wright-group/WrightTools)
 - comtypes
 - matplotlib
 - numpy

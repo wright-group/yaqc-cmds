@@ -10,8 +10,8 @@ import time
 
 import project.project_globals as g
 main_dir = g.main_dir.read()
-import project.ini_handler as ini
-ini_path = os.path.join(main_dir, 'spectrometers', 'MicroHR', 'MicroHR.ini')
+import project
+ini = project.ini_handler.Ini(os.path.join(main_dir, 'spectrometers', 'MicroHR', 'MicroHR.ini'))
 
 import spectrometers.MicroHR.gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
 import spectrometers.MicroHR.gen_py.JYMono as JYMono
@@ -21,7 +21,7 @@ import spectrometers.MicroHR.gen_py.JYMono as JYMono
 # CRITICAL:
 # FOR SOME REASON THE PHYSICAL USB KEY IS NEEDED FOR THIS CODE TO WORK
 
-class MicroHR:  
+class MicroHR:
     def __init__(self):
         #open control
         self.ctrl = JYMono.Monochromator()
@@ -38,8 +38,8 @@ class MicroHR:
         self.serial_number = self.ctrl.SerialNumber
         self.current_wavelength = self.ctrl.GetCurrentWavelength()
         #import information from ini
-        init_grating_index = ini.read(ini_path, 'main', 'grating index')
-        init_wavelength = ini.read(ini_path, 'main', 'position (nm)')
+        init_grating_index = ini.read('main', 'grating index')
+        init_wavelength = ini.read('main', 'position (nm)')
         #go to old position after initialization is done
         while self.is_busy(): time.sleep(1)
         self.set_turret(init_grating_index)
@@ -48,8 +48,8 @@ class MicroHR:
         #close control
         self.ctrl.CloseCommunications()
         #save current position to ini
-        ini.write(ini_path, 'main', 'grating index', self.grating_index)
-        ini.write(ini_path, 'main', 'position (nm)', self.current_wavelength)
+        ini.write('main', 'grating index', self.grating_index)
+        ini.write('main', 'position (nm)', self.current_wavelength)
     def get_position(self):
         self.current_wavelength = self.ctrl.GetCurrentWavelength()
         return self.current_wavelength

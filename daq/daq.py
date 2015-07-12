@@ -35,6 +35,7 @@ import project.project_globals as g
 app = g.app.read()
 import project.custom_widgets as custom_widgets
 import project.ini_handler as ini
+daq_ini = ini.daq
 
 if not g.offline.read(): from PyDAQmx import *
 
@@ -168,58 +169,58 @@ us_per_sample = us_per_sample()
 
 ### gui globals ################################################################
 
-import project.global_classes as gc
+import project.classes as pc
 
 #daq
-shots = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'Shots'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
+shots = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'Shots'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
 
 #graph and big #
-freerun = gc.boolean(initial_value = True)
-tab_channel = gc.combo(['vai0', 'vai1', 'vai2', 'vai3', 'vai4'], ini = ['daq', 'DAQ', 'Tab channel'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_timescale = gc.combo(['Shots', 'Samples'], ini = ['daq', 'DAQ', 'Tab timescale'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_property = gc.combo(['Mean', 'Variance', 'Differential'], ini = ['daq', 'DAQ', 'Tab property'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_trigger = gc.combo(['TDG', 'Chopper (High)'], ini = ['daq', 'DAQ', 'Tab trigger'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_shots = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'Tab shots'], import_from_ini = True, save_to_ini_at_shutdown = True, min_value = 0, max_value = 1000, decimals = 0)
+freerun = pc.boolean(initial_value = True)
+tab_channel = pc.combo(['vai0', 'vai1', 'vai2', 'vai3', 'vai4'], ini = [daq_ini, 'DAQ', 'Tab channel'], import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_timescale = pc.combo(['Shots', 'Samples'], ini = [daq_ini, 'DAQ', 'Tab timescale'], import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_property = pc.combo(['Mean', 'Variance', 'Differential'], ini = [daq_ini, 'DAQ', 'Tab property'], import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_trigger = pc.combo(['TDG', 'Chopper (High)'], ini = [daq_ini, 'DAQ', 'Tab trigger'], import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_shots = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'Tab shots'], import_from_ini = True, save_to_ini_at_shutdown = True, min_value = 0, max_value = 1000, decimals = 0)
 
 #channel timing
-num_samples = gc.number(initial_value = np.nan, display = True, decimals = 0)
-vai0_first_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai0 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai0_last_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai0 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai1_first_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai1 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai1_last_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai1 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai2_first_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai2 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai2_last_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai2 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai3_first_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai3 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai3_last_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai3 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai4_first_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai4 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai4_last_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai4 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vdi0_first_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vdi0 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vdi0_last_sample = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vdi0 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+num_samples = pc.number(initial_value = np.nan, display = True, decimals = 0)
+vai0_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai0 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai0_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai0 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai1_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai1 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai1_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai1 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai2_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai2 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai2_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai2 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai3_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai3 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai3_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai3 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai4_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai4 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vai4_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai4 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vdi0_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vdi0 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+vdi0_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vdi0 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
 analog_channels.sample_indicies = [[vai0_first_sample.read(), vai0_last_sample.read()], [vai1_first_sample.read(), vai1_last_sample.read()], [vai2_first_sample.read(), vai2_last_sample.read()], [vai3_first_sample.read(), vai3_last_sample.read()], [vai4_first_sample.read(), vai4_last_sample.read()]]
 digital_channels.sample_indicies = [[vdi0_first_sample.read(), vdi0_last_sample.read()]]
 
 #analog channels
-vai0_channel = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai0 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai1_channel = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai1 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai2_channel = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai2 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai3_channel = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai3 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai4_channel = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vai4 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-analog_min = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'analog min'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
-analog_max = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'analog max'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
+vai0_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai0 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
+vai1_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai1 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
+vai2_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai2 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
+vai3_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai3 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
+vai4_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai4 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
+analog_min = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'analog min'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
+analog_max = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'analog max'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
 analog_channels.physical_asignments = [vai0_channel.read(), vai1_channel.read(), vai2_channel.read(), vai3_channel.read(), vai4_channel.read()]
 analog_channels.limits = [analog_min.read(), analog_max.read()]
 
 #digital channels
-vdi0_channel = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'vdi0 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-digital_min = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'digital min'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
-digital_max = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'digital max'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
-digital_cutoff = gc.number(initial_value = np.nan, ini = ['daq', 'DAQ', 'digital cutoff'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
+vdi0_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vdi0 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
+digital_min = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'digital min'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
+digital_max = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'digital max'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
+digital_cutoff = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'digital cutoff'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
 digital_channels.physical_asignments = [vdi0_channel.read()]
 analog_channels.limits = [digital_min.read(), digital_max.read(), digital_cutoff.read()]
 
 #additional
-seconds_since_last_task = gc.number(initial_value = np.nan, display = True, decimals = 3)
-seconds_for_acquisition = gc.number(initial_value = np.nan, display = True, decimals = 3)
+seconds_since_last_task = pc.number(initial_value = np.nan, display = True, decimals = 3)
+seconds_for_acquisition = pc.number(initial_value = np.nan, display = True, decimals = 3)
 
 
 ### dictionaries################################################################
@@ -425,11 +426,11 @@ class address(QtCore.QObject):
         if not self.task_created: return
         start_time = time.time()
         
-        array_detector = array_detector_reference.read()
+        #array_detector = array_detector_reference.read()
         
         #tell array detector to begin-------------------------------------------
         
-        array_detector.control.read()   
+        #array_detector.control.read()   
         
         #collect samples array--------------------------------------------------
         
@@ -455,7 +456,7 @@ class address(QtCore.QObject):
             
         #wait for array detector to finish--------------------------------------
             
-        array_detector.control.wait_until_done()
+        #array_detector.control.wait_until_done()
             
         seconds_for_acquisition.write(time.time() - start_time)
             
@@ -667,8 +668,8 @@ class control():
     def initialize_hardware(self):
         q('initialize')
         #tell the array to begin initialization
-        import InGaAs_array.InGaAs as array_detector
-        array_detector_reference.write(array_detector)
+        #import InGaAs_array.InGaAs as array_detector
+        #array_detector_reference.write(array_detector)
         
         
     def update_task(self):
