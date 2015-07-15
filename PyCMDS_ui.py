@@ -24,7 +24,7 @@ g.logger.log('info', 'Startup', 'PyCMDS is attempting startup')
 
 
 import project.style as style
-import project.custom_widgets as custom_widgets
+import project.widgets as custom_widgets
 
 #main window####################################################################
 
@@ -173,19 +173,19 @@ class MainWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_frame)
 
     def _begin_poll_loop(self):
-        
+        # polling is done by a q timer
         timer = QtCore.QTimer()
-        timer.start(10000)
+        timer.start(10000)  # milliseconds
         self.shutdown.connect(timer.stop)
         g.poll_timer.write(timer)
+        # connect MainWindow poll method to pool timeout
         g.poll_timer.connect_to_timeout(self.poll)
-        
+        # now we can begin the CPU watcher (which is triggered by poll)
         import project.logging_handler as logging_handler
         logging_handler.begin_cpu_watcher()
         
     def poll(self):
-        
-        print 'poll'
+        pass
         
     def _initialize_hardware(self):
         
@@ -195,7 +195,7 @@ class MainWindow(QtGui.QMainWindow):
         #import
         #import daq.daq
         #import delays.delays
-        #import spectrometers.spectrometers
+        import spectrometers.spectrometers
         
         #self.daq = daq.daq
     
@@ -215,7 +215,7 @@ class MainWindow(QtGui.QMainWindow):
         
         #import modules---------------------------------------------------------
         
-        #import modules.template
+        import modules.template
         import modules.custom
         
     def _shutdown(self):

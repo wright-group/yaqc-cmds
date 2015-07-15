@@ -15,7 +15,7 @@ import classes as pc
 class Ini():
     def __init__(self, filepath):
         self.filepath = filepath
-        self.busy = pc.busy()
+        self.busy = pc.Busy()
         self.busy.write(False)
         self.config = ConfigParser.SafeConfigParser()
     def read(self, section, option):   

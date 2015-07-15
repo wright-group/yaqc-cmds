@@ -1,34 +1,36 @@
-# http://stackoverflow.com/questions/12039174/python-activex-automation
-# need to create py_gen...
+### import ####################################################################
 
-### import #####################################################################
 
 import os
-if __name__ == '__main__': os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 
 import time
+
+from PyQt4 import QtGui, QtCore
 
 import project.project_globals as g
 main_dir = g.main_dir.read()
 import project
 ini = project.ini_handler.Ini(os.path.join(main_dir, 'spectrometers', 'MicroHR', 'MicroHR.ini'))
 
-import spectrometers.MicroHR.gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
-import spectrometers.MicroHR.gen_py.JYMono as JYMono
+import gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
+import gen_py.JYMono as JYMono
 
-### mono object ################################################################
+
+### mono object ###############################################################
+
 
 # CRITICAL:
 # FOR SOME REASON THE PHYSICAL USB KEY IS NEEDED FOR THIS CODE TO WORK
 
 class MicroHR:
-    def __init__(self):
-        #open control
+    
+    def __init__(self, inputs=[]):
+        # open control
         self.ctrl = JYMono.Monochromator()
         self.ctrl.Uniqueid = 'Mono1'
         self.ctrl.Load()
         self.ctrl.OpenCommunications()
-        #initialize hardware
+        # initialize hardware
         forceInit = True #this toggles mono homing behavior
         emulate = False 
         notThreaded = True
@@ -44,37 +46,62 @@ class MicroHR:
         while self.is_busy(): time.sleep(1)
         self.set_turret(init_grating_index)
         self.set_position(init_wavelength)
+        
     def close(self):
-        #close control
+        # close control
         self.ctrl.CloseCommunications()
-        #save current position to ini
+        # save current position to ini
         ini.write('main', 'grating index', self.grating_index)
         ini.write('main', 'position (nm)', self.current_wavelength)
+        
     def get_position(self):
         self.current_wavelength = self.ctrl.GetCurrentWavelength()
         return self.current_wavelength
+        
     def is_busy(self):
         return self.ctrl.IsBusy()
+        
     def set_position(self, destination):
         self.ctrl.MovetoWavelength(destination)
         self.get_position()
+        
     def set_turret(self, destination_index):
         #turret index on ActiveX call starts from zero
         destination_index_zero_based = destination_index - 1
         self.ctrl.MovetoTurret(destination_index_zero_based)
         self.grating_index = destination_index
+        
     def stop(self):
         self.ctrl.Stop()
-MicroHR = MicroHR()
-        
-### advanced gui ###############################################################
 
-### testing ####################################################################
+### advanced gui ##############################################################
+
+class gui(QtCore.QObject):
+
+    def __init__(self):
+        QtCore.QObject.__init__(self)
+        
+    def create_frame(self):
+        pass
+    
+    def update(self):
+        pass
+        
+    def on_set(self):
+        pass
+    
+    def show_advanced(self):
+        pass
+              
+    def stop(self):
+        pass
+
+### testing ###################################################################
 
 if __name__ == '__main__':
     
     
-    
+    MicroHR = MicroHR()
     #wait for initialization to complete
     while MicroHR.is_busy():
         time.sleep(1)

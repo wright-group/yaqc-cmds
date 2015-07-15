@@ -485,7 +485,29 @@ class _IJYConfigBrowerInterfaceEvents:
 	# If you create handlers, they should have the following prototypes:
 
 
-from win32com.client import CoClassBaseClass
+class CoClassBaseClass:
+	def __init__(self, oobj=None):
+         pythoncom.CoInitialize()
+         if oobj is None: oobj = pythoncom.new(self.CLSID)
+         self.__dict__["_dispobj_"] = self.default_interface(oobj)
+	def __repr__(self):
+		return "<win32com.gen_py.%s.%s>" % (__doc__, self.__class__.__name__)
+
+	def __getattr__(self, attr):
+		d=self.__dict__["_dispobj_"]
+		if d is not None: return getattr(d, attr)
+		raise AttributeError(attr)
+	def __setattr__(self, attr, value):
+		if attr in self.__dict__: self.__dict__[attr] = value; return
+		try:
+			d=self.__dict__["_dispobj_"]
+			if d is not None:
+				d.__setattr__(attr, value)
+				return
+		except AttributeError:
+			pass
+		self.__dict__[attr] = value
+  
 # This CoClass is known by the name 'JYConfigBrowserComponent.JYConfigBrowerInterface.1'
 class JYConfigBrowerInterface(CoClassBaseClass): # A CoClass
 	# JYConfigBrowerInterface Class

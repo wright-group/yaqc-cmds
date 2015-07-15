@@ -12,12 +12,12 @@ scan_thread = g.scan_thread.read()
 from PyQt4 import QtCore, QtGui
 app = g.app.read()
 
-import project.custom_widgets as custom_widgets     
+import project.widgets as custom_widgets     
 
 #import hardware control########################################################
 
 import spectrometers.spectrometers as mono
-import daq.daq as daq
+#import daq.daq as daq
 
 #scan globals###################################################################
 
@@ -167,8 +167,8 @@ class gui(QtCore.QObject):
         layout.setMargin(5)
         
         #daq widget
-        daq_widget = daq.widget()
-        layout.addWidget(daq_widget)
+        #daq_widget = daq.widget()
+        #layout.addWidget(daq_widget)
         
         #go button
         self.go_button = custom_widgets.module_go_button()
