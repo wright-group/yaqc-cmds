@@ -91,7 +91,7 @@ class MainWindow(QtGui.QMainWindow):
         hardware_box = QtGui.QVBoxLayout()
         
         #exit button
-        exit_button = custom_widgets.shutdown_button()
+        exit_button = custom_widgets.Shutdown_button()
         exit_button.setMinimumWidth(300)
         exit_button.setMinimumHeight(30)
         exit_button.shutdown_go.connect(self._shutdown)
@@ -145,12 +145,12 @@ class MainWindow(QtGui.QMainWindow):
         
         #tab widget
         daq_tabs = QtGui.QTabWidget()
-        daq_tabs.addTab(hardware_advanced_widget, 'HARDWARE')
-        daq_tabs.addTab(comove_widget, 'COMOVE')
-        daq_tabs.addTab(module_advanced_widget, 'MODULE')
+        daq_tabs.addTab(hardware_advanced_widget, 'Hardware')
+        daq_tabs.addTab(comove_widget, 'Comove')
+        daq_tabs.addTab(module_advanced_widget, 'Module')
         daq_tabs.addTab(daq_single_widget, 'DAQ')
-        daq_tabs.addTab(current_slice_widget, 'CURRENT')
-        daq_tabs.addTab(daq_plot_widget, 'PLOT')
+        daq_tabs.addTab(current_slice_widget, 'Current')
+        daq_tabs.addTab(daq_plot_widget, 'Plot')
         daq_tabs.setCurrentIndex(3) #start on DAQ tab
         daq_box.addWidget(daq_tabs)    
         
