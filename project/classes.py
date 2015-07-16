@@ -476,6 +476,7 @@ class Hardware(QtCore.QObject):
         self.name = name
         # create mutexes
         # BASED ON SOMETHING YET TO BE WRITTEN INSIDE OF CONTROL CLASS
+        # Is the control class also going to be in this file? Or is the control class specific to each hardware? ~NNM
         self._create_mutexes()
         # create objects
         self.thread = QtCore.QThread()
@@ -483,12 +484,12 @@ class Hardware(QtCore.QObject):
         self.busy = Busy()
         self.address = address_class(self.enqueued, self.busy,
                                      name, control_class)
-        self.exposed = self.address.exposed
-        self.gui = self.address.gui
-        self.native_units = self.address.native_units
-        self.q = Q(self.enqueued, self.busy, self.address)
+        self.exposed = self.address.exposed #### Where is this?
+        self.gui = self.address.gui ### I don't understand this either
+        self.native_units = self.address.native_units # or this
+        self.q = Q(self.enqueued, self.busy, self.address) # What is q (vs Q)?
         # start thread
-        self.address.moveToThread(self.thread)
+        self.address.moveToThread(self.thread) 
         self.thread.start()
         # connect to address object signals
         self.address.update_ui.connect(self.update)
