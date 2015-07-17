@@ -8,7 +8,7 @@ from PyQt4 import QtCore
 
 import project.project_globals as g
 main_dir = g.main_dir.read()
-app = g.app.read()
+app = g.app.read() # What is this used for? Why redudantly defined?
 import project.widgets as pw
 import project.ini_handler as ini
 spectrometers_ini = ini.spectrometers
@@ -35,7 +35,7 @@ hardwares = [hardware]
 ### gui #######################################################################
 
 
-class Gui(QtCore.QObject):
+class Gui(QtCore.QObject): # different from gui?
 
     def __init__(self):
         QtCore.QObject.__init__(self)
