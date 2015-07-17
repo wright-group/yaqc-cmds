@@ -29,18 +29,23 @@ import gen_py.JYMono as JYMono
 
 class MicroHR:
 
-    def __init__(self):
+    def __init__(self, busy_method=None):
+        self.busy_method = busy_method
         # list of objects to be exposed to PyCMDS
         self.native_units = 'nm'
-        self.current_position = pc.Number(ini=ini, import_from_ini=True,
+        self.limits = pc.NumberLimits(min_value=0, max_value=20000, units='nm')
+        self.current_position = pc.Number(name='Color',
+                                          ini=ini, import_from_ini=True,
                                           section='main',
                                           option='position (nm)',
-                                          min_value=0, max_value=20000,
-                                          units='nm', display=True)
-        self.grating_index = pc.Number(ini=ini, import_from_ini=True,
-                                       section='main',
-                                       option='grating index',
-                                       decimals=0, display=True)
+                                          limits=self.limits,
+                                          units='nm', display=True,
+                                          set_method='set_position')
+        self.grating_index = pc.Combo(name='Grating', allowed_values=[1, 2],
+                                      ini=ini, section='main',
+                                      option='grating index',
+                                      import_from_ini=True, display=True,
+                                      set_method='set_turret')
         self.exposed = [self.current_position, self.grating_index]
         self.gui = gui()
 
@@ -65,7 +70,7 @@ class MicroHR:
         # initialize hardware
         forceInit = True  # this toggles mono homing behavior
         emulate = False
-        notThreaded = True
+        notThreaded = True  # no idea what this does...
         self.ctrl.Initialize(forceInit, emulate, notThreaded)
         # import some information from control
         self.description = self.ctrl.Description
@@ -84,17 +89,24 @@ class MicroHR:
         return self.ctrl.IsBusy()
 
     def set_position(self, destination):
-        print destination
+        if type(destination) == list:
+            destination = destination[0]
         self.ctrl.MovetoWavelength(destination)
         while self.is_busy():
             time.sleep(0.01)
         self.get_position()
 
     def set_turret(self, destination_index):
+        if type(destination_index) == list:
+            destination_index = destination_index[0]
         # turret index on ActiveX call starts from zero
         destination_index_zero_based = destination_index - 1
         self.ctrl.MovetoTurret(destination_index_zero_based)
         self.grating_index.write(destination_index)
+        while self.is_busy():
+            time.sleep(0.01)
+        # set position for new grating
+        self.set_position(self.current_position.read(self.native_units))
 
     def stop(self):
         self.ctrl.Stop()
@@ -107,10 +119,20 @@ class gui(QtCore.QObject):
 
     def __init__(self):
         QtCore.QObject.__init__(self)
-        
+
     def create_frame(self):
-        pass
-    
+        layout = QtGui.QVBoxLayout()
+        layout.setMargin(5)
+       
+        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by MicroHR')
+        my_widget.setAutoFillBackground(True)
+        layout.addWidget(my_widget)
+        
+        self.advanced_frame = QtGui.QWidget()   
+        self.advanced_frame.setLayout(layout)
+        
+        g.module_advanced_widget.add_child(self.advanced_frame)
+
     def update(self):
         pass
         
@@ -132,7 +154,7 @@ if __name__ == '__main__':
     
     MicroHR = MicroHR()
     MicroHR.initialize()
-    #wait for initialization to complete
+    # wait for initialization to complete
     while MicroHR.is_busy():
         time.sleep(1)
     

@@ -20,7 +20,7 @@ import copy
 ### address ###################################################################
 
 
-class Delay(pc.Address):
+class OPA(pc.Address):
 
     def dummy(self):
         print 'hello world im a dummy method'
@@ -29,4 +29,5 @@ hardwares = []
 
 ### gui #######################################################################
 
-gui = pw.HardwareFrontPanel(hardwares, name='Delays')
+
+gui = pw.HardwareFrontPanel(hardwares, name='OPAs')
