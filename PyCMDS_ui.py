@@ -192,10 +192,11 @@ class MainWindow(QtGui.QMainWindow):
         g.offline.get_saved()
         if g.debug.read(): print 'initialize hardware'
         
-        #import
-        #import daq.daq
-        #import delays.delays
+        # import
+        import opas.opas
         import spectrometers.spectrometers
+        import delays.delays
+        #import daq.daq
         
         #self.daq = daq.daq
     

@@ -3,6 +3,7 @@
 #import#########################################################################
 
 import sys
+import time
 
 import numpy as np
 
@@ -16,10 +17,14 @@ import project.widgets as custom_widgets
 
 #import hardware control########################################################
 
-import spectrometers.spectrometers as mono
+import spectrometers.spectrometers as spec
+MicroHR = spec.hardwares[0]
 #import daq.daq as daq
 
 #scan globals###################################################################
+
+# These scan globals are used to communicated between the gui and the scan,
+# which are running in different threads. All are mutex for this reason.
 
 class fraction_complete:
     def __init__(self):
@@ -96,28 +101,34 @@ class scan(QtCore.QObject):
     @QtCore.pyqtSlot(list)
     def run(self, inputs):
 
-        #startup----------------------------------------------------------------
-
-        g.module_control.write(True)
-        going.write(True)
+        #startup---------------------------------------------------------------
+        # Leave this alone.
+        g.module_control.write(True)    # Disables GUI, gives control to module
+        going.write(True)               # communication, see above
         fraction_complete.write(0.)
         g.logger.log('info', 'Scan begun', 'some info describing this scan')
 
-        #scan-------------------------------------------------------------------
+        #scan------------------------------------------------------------------
 
         destinations = np.linspace(1140, 1600, 50)
 
         for i in range(len(destinations)):
 
-            mono.control.set_hardware(destinations[i])
-            mono.control.wait_until_done()
+            print i
+
+            MicroHR.set_position(destinations[i], 'nm')
+            MicroHR.wait_until_still()
+            time.sleep(1) # for now we don't want hardware to go too crazy
+            # This is where the DAQ will go
             
-            #check in with the rest of the program
+            # check in with the rest of the program
+            # This is the code for the stop/pause button
+            # Leave it in the innermost loop
             fraction_complete.write(float(i+1)/float(len(destinations)))
             self.update_ui.emit()
             if not self.check_continue(): break
             
-        #end--------------------------------------------------------------------
+        #end-------------------------------------------------------------------
 
         print 'end'
         fraction_complete.write(1.)    
@@ -136,14 +147,10 @@ class scan(QtCore.QObject):
         
         for loops, use it as follows: if not self.check_continue(): break
         '''
-        print '1'
         while pause.read(): 
             paused.write(True)
-            print '2'
             pause.wait_for_update()
-            print '3'
         paused.write(False)
-        print '4'
         return go.read()
         
 #move scan to own thread      
