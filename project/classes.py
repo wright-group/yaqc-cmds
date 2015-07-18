@@ -42,12 +42,17 @@ class PyCMDS_Object(QtCore.QObject):
     def __init__(self, initial_value=None,
                  ini=None, section='', option='',
                  import_from_ini=False, save_to_ini_at_shutdown=False,
-                 display=False, name=''):
+                 display=False, name='', label = '', set_method=None):
         QtCore.QObject.__init__(self)
         self.has_widget = False
         self.tool_tip = ''
         self.value = Value(initial_value)
         self.display = display
+        self.set_method = set_method
+        if self.display:
+            self.disabled = True
+        else:
+            self.disabled = False
         # ini
         if ini:
             self.has_ini = True
@@ -60,6 +65,13 @@ class PyCMDS_Object(QtCore.QObject):
             self.get_saved()
         if save_to_ini_at_shutdown:
             g.shutdown.add_method(self.save)
+        # name
+        self.name = name
+        if not label == '':
+            pass
+        else:
+            self.label = self.name
+            
 
     def read(self):
         return self.value.read()
@@ -120,23 +132,35 @@ class Bool(PyCMDS_Object):
 
 
 class Combo(PyCMDS_Object):
-    '''
-    holds 'value' (str) - the combobox displayed text
-    
-    holds 'allowed_values' (list of str)
-    '''
-    updated = QtCore.pyqtSignal()
-    disabled = False
-    def __init__(self, allowed_values, initial_value = None, ini = None, import_from_ini = False, save_to_ini_at_shutdown = False):
-        gui_object.__init__(self, initial_value = initial_value, ini_inputs = ini, import_from_ini = import_from_ini, save_to_ini_at_shutdown = save_to_ini_at_shutdown)
+
+    def __init__(self, allowed_values, initial_value=None, 
+                 ini=None, section=None, option=None, import_from_ini = False, 
+                 save_to_ini_at_shutdown = False, display=False, name='',
+                 set_method=None):
+        
+        PyCMDS_Object.__init__(self, initial_value=initial_value,
+                               ini=ini, section=section, option=option,
+                               import_from_ini=import_from_ini,
+                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
+                               display=display, name=name, 
+                               set_method=set_method)
+        self.type = 'combo'
         self.allowed_values = allowed_values
+        self.data_type = type(allowed_values[0])
+        
+    def write(self, value):
+        # value will be maintained as original data type
+        value = self.data_type(value)
+        PyCMDS_Object.write(self, value)
+
     def give_control(self, control_widget):
         self.widget = control_widget
-        #fill out items
-        self.widget.addItems(self.allowed_values)
-        self.widget.setCurrentIndex(self.allowed_values.index(self.read()))       
-        #connect signals and slots
-        self.updated.connect(lambda: self.widget.setCurrentIndex(self.allowed_values.index(self.read())))
+        # fill out items
+        allowed_values_strings = [str(value) for value in self.allowed_values]
+        self.widget.addItems(allowed_values_strings)
+        self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))       
+        # connect signals and slots
+        self.updated.connect(lambda: self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read()))))
         self.widget.currentIndexChanged.connect(lambda: self.write(self.widget.currentText()))
         self.widget.setToolTip(self.tool_tip)
         self.widget.setDisabled(self.disabled)
@@ -165,22 +189,55 @@ class Filepath(PyCMDS_Object):
     def give_button(self, button_widget):
         self.button = button_widget
 
-          
+
+class NumberLimits(PyCMDS_Object):
+
+    def __init__(self, min_value=-1000000., max_value=1000000., units=None):
+        '''
+        not appropriate for use as a gui element - only for backend use
+        units must never change for this kind of object
+        '''
+        PyCMDS_Object.__init__(self)
+        PyCMDS_Object.write(self, [min_value, max_value])
+        self.units = units
+
+    def read(self, output_units='same'):
+        min_value, max_value = PyCMDS_Object.read(self)
+        if output_units == 'same':
+            pass
+        else:
+            min_value = wt_units.converter(min_value, self.units, output_units)
+            max_value = wt_units.converter(max_value, self.units, output_units)
+        # ensure order
+        min_value, max_value = [min([min_value, max_value]),
+                                max([min_value, max_value])]
+        return [min_value, max_value]
+
+    def write(self, min_value, max_value, input_units='same'):
+        if input_units == 'same':
+            pass
+        else:
+            min_value = wt_units.converter(min_value, input_units, self.units)
+            max_value = wt_units.converter(min_value, input_units, self.units)
+        # ensure order
+        min_value, max_value = [min([min_value, max_value]),
+                                max([min_value, max_value])]
+        PyCMDS_Object.write(self, [min_value, max_value])
+
+
 class Number(PyCMDS_Object):
     
-    def __init__(self, initial_value = np.nan, display=False, name='',
-                 ini = None, section='', option='',
-                 import_from_ini = False, save_to_ini_at_shutdown = False,
-                 units = None, 
-                 min_value = -1000000., 
-                 max_value = 1000000.,
-                 single_step = 1.,
-                 decimals = 2):
-        PyCMDS_Object.__init__(self, initial_value=initial_value, 
+    def __init__(self, initial_value=np.nan, display=False, name='',
+                 ini=None, section='', option='',
+                 import_from_ini=False, save_to_ini_at_shutdown=False,
+                 units=None, limits=NumberLimits(),
+                 single_step=1., decimals=2, set_method=None):
+        PyCMDS_Object.__init__(self, initial_value=initial_value,
                                ini=ini, section=section, option=option,
-                               import_from_ini=import_from_ini, 
-                               save_to_ini_at_shutdown=save_to_ini_at_shutdown, 
-                               display=display, name=name)
+                               import_from_ini=import_from_ini,
+                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
+                               display=display, name=name, 
+                               set_method=set_method)
         self.type = 'number'
         self.single_step = single_step
         self.decimals = decimals
@@ -192,21 +249,28 @@ class Number(PyCMDS_Object):
             if self.units in dic.keys():
                 self.units_dic = dic
                 self.units_kind = dic['kind']
-        self.set_limits(min_value, max_value, units)
-        
+        # limits
+        self.limits = limits
+        self._set_limits()
+        self.limits.updated.connect(lambda: self._set_limits())
+
     def convert(self, destination_units):
         # value
         old_val = self.value.read()
-        new_val = wt_units.converter(old_val, self.units, str(destination_units))        
+        new_val = wt_units.converter(old_val, self.units, str(destination_units))
         self.value.write(new_val)
-        # min and max
-        val1 = wt_units.converter(self.min_value, self.units, str(destination_units))
-        val2 = wt_units.converter(self.max_value, self.units, str(destination_units))
-        new_min, new_max = [min([val1, val2]), max([val1, val2])]
-        self.set_limits(new_min, new_max)
         # commit and signal
         self.units = str(destination_units)
+        self._set_limits()
         self.updated.emit()
+
+    def read(self, output_units='same'):
+        value = PyCMDS_Object.read(self)
+        if output_units == 'same':
+            pass
+        else:
+            value = wt_units.converter(value, self.units, output_units)
+        return value
 
     def set_control_steps(self, single_step=None, decimals=None):
         limits = [self.single_step, self.decimals]
@@ -218,24 +282,11 @@ class Number(PyCMDS_Object):
                 if self.has_widget:
                     getattr(self.widget, widget_methods[i])(limits[i])
 
-    def set_limits(self, min_value=None, max_value=None, input_units='same'):
-        if input_units == 'same':
-            input_units = self.units
-        self.min_value = wt_units.converter(min_value, input_units, self.units)
-        self.max_value = wt_units.converter(max_value, input_units, self.units)
-        if self.has_widget:
-            self.widget.setMinimum(self.min_value)
-            self.widget.setMaximum(self.max_value)
-        if not self.display:
-            print self.min_value, self.max_value
-            self.set_tool_tip('min: ' + str(self.min_value) + '\n' +
-                              'max: ' + str(self.max_value))
-
     def give_control(self, control_widget):
         self.widget = control_widget
         # set values
-        self.widget.setMinimum(self.min_value)
-        self.widget.setMaximum(self.max_value)
+        #self.widget.setMinimum(self.min_value.read())
+        #self.widget.setMaximum(self.max_value.read())
         self.widget.setDecimals(self.decimals)
         self.widget.setSingleStep(self.single_step)
         self.widget.setValue(self.value.read())
@@ -245,7 +296,7 @@ class Number(PyCMDS_Object):
         # finish
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True
-        self.set_limits(self.min_value, self.max_value)
+        self._set_limits()
         
     def give_units_combo(self, units_combo_widget):
         self.units_widget = units_combo_widget
@@ -265,6 +316,21 @@ class Number(PyCMDS_Object):
             value = wt_units.converter(value, input_units, self.units)
         PyCMDS_Object.write(self, value)
 
+    def _set_limits(self):
+        min_value, max_value = self.limits.read()
+        limits_units = self.limits.units
+        min_value = wt_units.converter(min_value, limits_units, self.units)
+        max_value = wt_units.converter(max_value, limits_units, self.units)
+        # ensure order
+        min_value, max_value = [min([min_value, max_value]),
+                                max([min_value, max_value])]
+        if self.has_widget:
+            self.widget.setMinimum(min_value)
+            self.widget.setMaximum(max_value)
+        if not self.display:
+            self.set_tool_tip('min: ' + str(min_value) + '\n' +
+                              'max: ' + str(max_value))
+
 
 class String(PyCMDS_Object):
     '''
@@ -283,32 +349,34 @@ class String(PyCMDS_Object):
         self.has_widget = True    
 
 
-def attach_object(obj, display=None):
+def attach_object(obj, display=None, pre_name=''):
     '''
     does not attach new object to ini
     '''
-    if display is not None:
-        pass
-    else:
+    # display
+    if display is None:
         display = obj.display
+    # name
+    name = pre_name + obj.name
     # each object in turn
+    new_obj = None
     if obj.type == 'bool':
         pass
     elif obj.type == 'combo':
-        pass
+        new_obj = Combo(initial_value=obj.read(), display=display,
+                        allowed_values=obj.allowed_values, name=name)
     elif obj.type == 'filepath':
         pass
     elif obj.type == 'number':
         new_obj = Number(initial_value=obj.read(), display=display,
-                         units=obj.units, min_value=obj.min_value,
-                         max_value=obj.max_value, single_step=obj.single_step,
-                         decimals=obj.decimals)
-        return new_obj
+                         units=obj.units, limits=obj.limits,
+                         single_step=obj.single_step,
+                         decimals=obj.decimals, name=name)
     elif obj.type == 'string':
         pass
     else:
         print 'object type {} not recognized'.format(obj.type)
-        return
+    return new_obj
     
 ### hardware ##################################################################
 
@@ -360,10 +428,17 @@ class Address(QtCore.QObject):
         self.enqueued = enqueued_obj
         self.busy = busy_obj
         self.name = name
-        self.ctrl = ctrl_class()
+        self.ctrl = ctrl_class(self.check_busy)
         self.exposed = self.ctrl.exposed
+        for obj in self.exposed:
+            if hasattr(self, obj.set_method):
+                pass  # don't allow overwriting of address methods
+            else:
+                additional_method = getattr(self.ctrl, obj.set_method)
+                setattr(self, obj.set_method, additional_method)
         self.gui = self.ctrl.gui
         self.native_units = self.ctrl.native_units
+        self.limits = self.ctrl.limits
   
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
@@ -396,6 +471,7 @@ class Address(QtCore.QObject):
             self.busy.write(True)
         else:
             self.busy.write(False)
+            self.update_ui.emit()
 
     def get_position(self, inputs):
         self.ctrl.get_position()
@@ -474,22 +550,20 @@ class Hardware(QtCore.QObject):
         '''
         QtCore.QObject.__init__(self)
         self.name = name
-        # create mutexes
-        # BASED ON SOMETHING YET TO BE WRITTEN INSIDE OF CONTROL CLASS
-        # Is the control class also going to be in this file? Or is the control class specific to each hardware? ~NNM
-        self._create_mutexes()
         # create objects
         self.thread = QtCore.QThread()
         self.enqueued = Enqueued()
         self.busy = Busy()
         self.address = address_class(self.enqueued, self.busy,
                                      name, control_class)
-        self.exposed = self.address.exposed #### Where is this?
-        self.gui = self.address.gui ### I don't understand this either
-        self.native_units = self.address.native_units # or this
-        self.q = Q(self.enqueued, self.busy, self.address) # What is q (vs Q)?
+        self.exposed = self.address.exposed
+        self.current_position = self.exposed[0]
+        self.gui = self.address.gui
+        self.native_units = self.address.native_units
+        self.limits = self.address.limits
+        self.q = Q(self.enqueued, self.busy, self.address)
         # start thread
-        self.address.moveToThread(self.thread) 
+        self.address.moveToThread(self.thread)
         self.thread.start()
         # connect to address object signals
         self.address.update_ui.connect(self.update)
@@ -524,9 +598,18 @@ class Hardware(QtCore.QObject):
     def get_position(self):
         return self.current_position.read()
 
-    def is_valid(self):
-        # placeholder
-        return True
+    def is_valid(self, destination, input_units=None):
+        if input_units is None:
+            pass
+        else:
+            destination = wt_units.converter(destination,
+                                             input_units,
+                                             self.native_units)
+        min_value, max_value = self.limits.read(self.native_units)
+        if min_value <= destination <= max_value:
+            return True
+        else:
+            return False
 
     def poll(self, force=False):
         if force:
@@ -551,5 +634,6 @@ class Hardware(QtCore.QObject):
     def update(self):
         self.update_ui.emit()
 
-    def _create_mutexes(self):
-        self.current_position = Number()
+    def wait_until_still(self):
+        while self.busy.read():
+            self.busy.wait_for_update()
