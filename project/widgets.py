@@ -279,6 +279,13 @@ class InputTable(QtGui.QWidget):
         self.controls.append(container_widget)
         self.row_number += 1
 
+class SetButton(QtGui.QPushButton):
+    def __init__(self, text):
+        QtGui.QPushButton.__init__(self)
+        self.setText(text)
+        self.setMinimumHeight(25)
+        StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['go'])
+        self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
 
@@ -403,6 +410,7 @@ class HardwareLayoutWidget(QtGui.QGroupBox):
         for hardware in hardwares:
             set_button.setDisabled(hardware.busy.read())  # first time
             hardware.update_ui.connect(lambda: set_button_decide(set_button, hardware))
+        return [advanced_button, set_button]
             
 
 def set_button_decide(set_button, hardware):
@@ -413,6 +421,7 @@ def set_button_decide(set_button, hardware):
 
 
 class HardwareFrontPanel(QtCore.QObject):
+    advanced = QtCore.pyqtSignal()
 
     def __init__(self, hardwares, name='Hardware'):
         QtCore.QObject.__init__(self)
@@ -436,16 +445,19 @@ class HardwareFrontPanel(QtCore.QObject):
             self.destination_objects = []
             for obj in self.current_objects:
                 input_table.add(obj.label, obj)
-                dest_obj = pc.attach_object(obj, display=False, pre_name='Dest. ')
+                dest_obj = obj.associate(display=False, pre_name='Dest. ')
                 self.destination_objects.append(dest_obj)
             for obj in self.destination_objects:
                 input_table.add(obj.label, obj)
         layout.addWidget(input_table)
-        layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)        
+        self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)        
         g.hardware_widget.add_to(layout_widget)
 
     def update(self):
         pass
+
+    def show_advanced(self):
+        self.advanced.emit()
 
     def on_set(self):
         # placeholder
@@ -455,11 +467,46 @@ class HardwareFrontPanel(QtCore.QObject):
             else:
                 self.hardwares[0].q.push(current_obj.set_method, [destination_obj.read()])
 
-    def show_advanced(self):
-        pass
-
     def stop(self):
         pass
+
+
+hardware_advanced_panels = []
+
+class HardwareAdvancedPanel(QtCore.QObject):
+
+    def __init__(self, hardwares, advanced_button):
+        QtCore.QObject.__init__(self)
+
+        self.tabs = QtGui.QTabWidget()
+
+        for hardware in hardwares:
+            widget = QtGui.QWidget()
+            box = QtGui.QVBoxLayout()
+            hardware.gui.create_frame(box)
+            widget.setLayout(box)
+            self.tabs.addTab(widget, hardware.name)
+
+        # box
+        self.box = QtGui.QVBoxLayout()
+        hardware_advanced_box = g.hardware_advanced_box.read()
+        hardware_advanced_box.addWidget(self.tabs)
+
+        # link into advanced button press
+        self.advanced_button = advanced_button
+        self.advanced_button.clicked.connect(self.on_advanced)
+        hardware_advanced_panels.append(self)
+        self.hide()
+
+    def hide(self):
+        self.tabs.hide()
+        self.advanced_button.setDisabled(False)
+
+    def on_advanced(self):
+        for panel in hardware_advanced_panels:
+            panel.hide()
+        self.tabs.show()
+        self.advanced_button.setDisabled(True)
 
 
 ### module ####################################################################

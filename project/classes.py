@@ -71,7 +71,6 @@ class PyCMDS_Object(QtCore.QObject):
             pass
         else:
             self.label = self.name
-            
 
     def read(self):
         return self.value.read()
@@ -86,7 +85,6 @@ class PyCMDS_Object(QtCore.QObject):
         self.updated.emit()
         return self.value.read()
         
-
     def save(self, value=None):
         if value is not None:
             self.value.write(value)
@@ -112,18 +110,20 @@ class Bool(PyCMDS_Object):
     '''
     
     def __init__(self, initial_value = False, 
-                 ini = None, section='', option='',
+                 ini = None, section='', option='', display=False, name='',
                  import_from_ini = False, save_to_ini_at_shutdown = False):
-        PyCMDS_Object.__init__(self, initial_value = False, 
-                               ini = None, section='', option='',
-                               import_from_ini = False, 
-                               save_to_ini_at_shutdown = False)
+        PyCMDS_Object.__init__(self, initial_value=initial_value,
+                               ini=ini, section=section, option=option,
+                               import_from_ini=import_from_ini,
+                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
+                               display=display, name=name)
+        self.type = 'checkbox'
     def give_control(self, control_widget):
         self.widget = control_widget
         #set
-        self.widget.setChecked(self.value)   
+        self.widget.setChecked(self.value.read())   
         #connect signals and slots
-        self.updated.connect(lambda: self.widget.setChecked(self.value))
+        self.updated.connect(lambda: self.widget.setChecked(self.value.read()))
         self.widget.stateChanged.connect(lambda: self.write(self.widget.checkState()))
         #finish
         self.widget.setToolTip(self.tool_tip)
@@ -137,7 +137,6 @@ class Combo(PyCMDS_Object):
                  ini=None, section=None, option=None, import_from_ini = False, 
                  save_to_ini_at_shutdown = False, display=False, name='',
                  set_method=None):
-        
         PyCMDS_Object.__init__(self, initial_value=initial_value,
                                ini=ini, section=section, option=option,
                                import_from_ini=import_from_ini,
@@ -147,7 +146,24 @@ class Combo(PyCMDS_Object):
         self.type = 'combo'
         self.allowed_values = allowed_values
         self.data_type = type(allowed_values[0])
-        
+
+    def associate(self, display=None, pre_name=''):
+        # display
+        if display is None:
+            display = self.display
+        # name
+        name = pre_name + self.name
+        # new object
+        new_obj = Combo(initial_value=self.read(), display=display,
+                        allowed_values=self.allowed_values, name=name)
+        return new_obj
+
+    def save(self, value=None):
+        if value is not None:
+            self.value.write(value)
+        if self.has_ini:
+            self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
+
     def write(self, value):
         # value will be maintained as original data type
         value = self.data_type(value)
@@ -173,6 +189,7 @@ class Filepath(PyCMDS_Object):
     '''
     def __init__(self, initial_value = None, ini = None, import_from_ini = False, save_to_ini_at_shutdown = False):
         gui_object.__init__(self, initial_value = initial_value, ini_inputs = ini, import_from_ini = import_from_ini, save_to_ini_at_shutdown = save_to_ini_at_shutdown)
+        self.type = 'filepath'
     def give_control(self, control_widget):
         self.widget = control_widget
         '''
@@ -218,11 +235,12 @@ class NumberLimits(PyCMDS_Object):
             pass
         else:
             min_value = wt_units.converter(min_value, input_units, self.units)
-            max_value = wt_units.converter(min_value, input_units, self.units)
+            max_value = wt_units.converter(max_value, input_units, self.units)
         # ensure order
         min_value, max_value = [min([min_value, max_value]),
                                 max([min_value, max_value])]
         PyCMDS_Object.write(self, [min_value, max_value])
+        self.updated.emit()
 
 
 class Number(PyCMDS_Object):
@@ -253,6 +271,19 @@ class Number(PyCMDS_Object):
         self.limits = limits
         self._set_limits()
         self.limits.updated.connect(lambda: self._set_limits())
+
+    def associate(self, display=None, pre_name=''):
+        # display
+        if display is None:
+            display = self.display
+        # name
+        name = pre_name + self.name
+        # new object
+        new_obj = Number(initial_value=self.read(), display=display,
+                         units=self.units, limits=self.limits,
+                         single_step=self.single_step,
+                         decimals=self.decimals, name=name)
+        return new_obj
 
     def convert(self, destination_units):
         # value
@@ -348,35 +379,6 @@ class String(PyCMDS_Object):
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True    
 
-
-def attach_object(obj, display=None, pre_name=''):
-    '''
-    does not attach new object to ini
-    '''
-    # display
-    if display is None:
-        display = obj.display
-    # name
-    name = pre_name + obj.name
-    # each object in turn
-    new_obj = None
-    if obj.type == 'bool':
-        pass
-    elif obj.type == 'combo':
-        new_obj = Combo(initial_value=obj.read(), display=display,
-                        allowed_values=obj.allowed_values, name=name)
-    elif obj.type == 'filepath':
-        pass
-    elif obj.type == 'number':
-        new_obj = Number(initial_value=obj.read(), display=display,
-                         units=obj.units, limits=obj.limits,
-                         single_step=obj.single_step,
-                         decimals=obj.decimals, name=name)
-    elif obj.type == 'string':
-        pass
-    else:
-        print 'object type {} not recognized'.format(obj.type)
-    return new_obj
     
 ### hardware ##################################################################
 
@@ -486,6 +488,7 @@ class Address(QtCore.QObject):
 
     def initialize(self, inputs):
         self.ctrl.initialize(inputs)
+        g.logger.log('info', self.name + ' Initializing', message=str(inputs))
         if g.debug.read():
             print self.name, 'initialization complete'
 
@@ -575,6 +578,7 @@ class Hardware(QtCore.QObject):
         # integrate close into PyCMDS shutdown
         self.shutdown_timeout = 30  # seconds
         g.shutdown.add_method(self.close)
+        g.hardware_waits.add(self.wait_until_still)
 
     def close(self):
         # begin hardware shutdown

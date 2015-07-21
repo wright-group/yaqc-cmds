@@ -4,7 +4,7 @@ from PyQt4 import QtGui, QtCore
 
 ### global classes #############################################################
 
-class simple_global:
+class SimpleGlobal:
     def __init__(self):
         self.value = None
     def read(self):
@@ -12,7 +12,7 @@ class simple_global:
     def write(self, value):  
         self.value = value
 
-class global_with_ini():    
+class GlobalWithIni():    
     def __init__(self, ini, section, option):
         self.ini = ini
         self.section = section
@@ -43,7 +43,7 @@ main_dir = main_dir()
 
 import ini_handler as ini #must come after main_dir has been defined
 
-debug = global_with_ini(ini.main, 'misc', 'debug')
+debug = GlobalWithIni(ini.main, 'misc', 'debug')
 
 class poll_timer:
     def __init__(self):
@@ -78,13 +78,13 @@ logger = logger()
 ### other globals ##############################################################
 #alphabetical
 
-app = simple_global()
+app = SimpleGlobal()
 
-colors_dict = simple_global()
+colors_dict = SimpleGlobal()
 
-comove_widget = simple_global()
+comove_widget = SimpleGlobal()
 
-current_slice_widget = simple_global()
+current_slice_widget = SimpleGlobal()
 
 class daq_widget:
     def __init__(self):
@@ -113,14 +113,20 @@ class daq_plot_widget:
         self.value = value
 daq_plot_widget = daq_plot_widget()
 
-class hardware_advanced_widget:
+hardware_advanced_box = SimpleGlobal()
+
+class hardware_waits:
     def __init__(self):
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-hardware_advanced_widget = hardware_advanced_widget()
+        '''
+        holds value, a list of hardware wait_until_still methods
+        '''
+        self.value = []
+    def add(self, method):
+        self.value.append(method)
+    def wait(self):  
+        for method in self.value:
+            method()
+hardware_waits = hardware_waits()
 
 class hardware_widget:
     def __init__(self):
@@ -222,7 +228,7 @@ class module_widget:
         self.value.layout().addWidget(self.child)
 module_widget = module_widget()
       
-offline = global_with_ini(ini.main, 'misc', 'offline')
+offline = GlobalWithIni(ini.main, 'misc', 'offline')
 
 class progress_bar:
     def __init__(self):

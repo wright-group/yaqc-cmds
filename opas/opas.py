@@ -31,3 +31,5 @@ hardwares = []
 
 
 gui = pw.HardwareFrontPanel(hardwares, name='OPAs')
+
+advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

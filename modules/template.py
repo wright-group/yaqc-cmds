@@ -117,7 +117,7 @@ class scan(QtCore.QObject):
             print i
 
             MicroHR.set_position(destinations[i], 'nm')
-            MicroHR.wait_until_still()
+            g.hardware_waits.wait()
             time.sleep(1) # for now we don't want hardware to go too crazy
             # This is where the DAQ will go
             

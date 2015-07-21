@@ -9,16 +9,16 @@ os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 
 #user inputs-------------------------------------------------------------------
 
-daq_analog_physical_channels = [0, 7, 5, 1, 2]
+daq_analog_physical_channels = [0, 1, 2, 3, 4]
 daq_analog_min = -1.0
 daq_analog_max = 2.0
 
-daq_digital_physical_channels = [3]
+daq_digital_physical_channels = [5]
 daq_digital_min = -1.0
 daq_digital_max = 10.0
 daq_digital_cutoff = 2.25
 
-shots = 20.
+shots = 20
 digitize = False
 
 #initialize DAQ----------------------------------------------------------------
@@ -30,17 +30,17 @@ num_analog_channels = len(daq_analog_physical_channels)
 num_digital_channels = len(daq_digital_physical_channels)
 num_channels = num_analog_channels + num_digital_channels
 
-conversions_per_second = 1000000. #a property of the DAQ card
+conversions_per_second = 1e6 #a property of the DAQ card
 shots_per_second = 1100. #from laser
 virtual_samples = int(conversions_per_second/(shots_per_second*num_channels))
-us_per_virtual_sample = (1/conversions_per_second)*10**6
-#print us_per_virtual_sample 
+us_per_virtual_sample = (1./conversions_per_second)*1e6
+print us_per_virtual_sample 
 
 shots = long(shots)
 
 try:
     #task
-    DAQmxCreateTask('',byref(task_handle))
+    DAQmxCreateTask('', byref(task_handle))
     
     #create global channels
     total_virtual_channels = 0
@@ -70,7 +70,7 @@ try:
     #timing             
     DAQmxCfgSampClkTiming(task_handle,           #task handle
                           '/Dev1/PFI0',          #sorce terminal
-                          1000.0,               #sampling rate (samples per second per channel) (float 64)
+                          1000.0,                #sampling rate (samples per second per channel) (float 64)
                           DAQmx_Val_Rising,      #acquire samples on the rising edges of the sample clock
                           DAQmx_Val_FiniteSamps, #acquire a finite number of samples
                           shots)                 #number of samples per global channel (unsigned integer 64)
@@ -79,6 +79,7 @@ except DAQError as err:
     print "DAQmx Error: %s"%err
     DAQmxStopTask(task_handle)
     DAQmxClearTask(task_handle)
+
 
 #get data----------------------------------------------------------------------
 
@@ -141,10 +142,10 @@ def get_plot_arrays(channel):
 import matplotlib.pyplot as plt
 plt.close()
 
-x, y = get_plot_arrays(0)
+x, y = get_plot_arrays(1)
 plt.scatter(x, y, c='r')
 x, y = get_plot_arrays(4)
-plt.scatter(x, y, c='g')
+#plt.scatter(x, y, c='g')
 if digitize: plt.ylim(-0.5, 1.5)
 plt.grid()
 plt.xlabel('us')

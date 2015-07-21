@@ -1,26 +1,4 @@
-#to do##########################################################################
-
-#[ ] daq tab
-#  [ ] setting settings settings
-#[ ] single channel tab
-#  [ ] decide on what the display type will look like (skinned progress bar?)
-#  [ ] display all channels
-#[ ] current slice tab
-#  [ ] two modes - last x pixels and last x slices
-#  [ ] support to display at least two channels (including array channels)
-#  [ ] must have 'new slice' call handable to modules or maybe some other implementation
-#[ ] daq settings widget for scan modules
-#  [ ] programatically construct widget so that changes can be made easily in future
-#  [ ] accept parameters from array
-#  [ ] object can be initialized by a scan gui and handed right back to daq control cleanly
-#[ ] timing and communication
-#  [ ] can do array, daq, or both
-#    [ ] daq address method also communicates to array
-#[ ] how to decide which array to load in
-#  [ ] have a pulldown menu that allows you to choose between hardcoded options
-#      simply point to files
-
-### import #####################################################################
+### import ####################################################################
 
 import sys
 import time
@@ -33,13 +11,13 @@ from PyQt4 import QtCore, QtGui
 
 import project.project_globals as g
 app = g.app.read()
-import project.custom_widgets as custom_widgets
+import project.widgets as custom_widgets
 import project.ini_handler as ini
 daq_ini = ini.daq
 
 if not g.offline.read(): from PyDAQmx import *
 
-### special globals ############################################################
+### special globals ###########################################################
 
 class analog_channels():
     physical_asignments = None
@@ -167,63 +145,63 @@ class us_per_sample:
         self.value = value
 us_per_sample = us_per_sample()
 
-### gui globals ################################################################
+### gui globals ###############################################################
 
 import project.classes as pc
 
 #daq
-shots = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'Shots'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
+shots = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
 
 #graph and big #
-freerun = pc.boolean(initial_value = True)
-tab_channel = pc.combo(['vai0', 'vai1', 'vai2', 'vai3', 'vai4'], ini = [daq_ini, 'DAQ', 'Tab channel'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_timescale = pc.combo(['Shots', 'Samples'], ini = [daq_ini, 'DAQ', 'Tab timescale'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_property = pc.combo(['Mean', 'Variance', 'Differential'], ini = [daq_ini, 'DAQ', 'Tab property'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_trigger = pc.combo(['TDG', 'Chopper (High)'], ini = [daq_ini, 'DAQ', 'Tab trigger'], import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_shots = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'Tab shots'], import_from_ini = True, save_to_ini_at_shutdown = True, min_value = 0, max_value = 1000, decimals = 0)
+freerun = pc.Bool(initial_value=True)
+tab_channel = pc.Combo(['vai0', 'vai1', 'vai2', 'vai3', 'vai4'], ini=daq_ini, section='DAQ', option='Tab channel', import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_timescale = pc.Combo(['Shots', 'Samples'], ini=daq_ini, section='DAQ', option='Tab timescale', import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_property = pc.Combo(['Mean', 'Variance', 'Differential'], ini=daq_ini, section='DAQ', option='Tab property', import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_trigger = pc.Combo(['TDG', 'Chopper (High)'], ini=daq_ini, section='DAQ', option='Tab trigger', import_from_ini = True, save_to_ini_at_shutdown = True)
+tab_shots = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='Tab shots', import_from_ini = True, save_to_ini_at_shutdown = True, limits=pc.NumberLimits(0, 1000, None), decimals = 0)
 
 #channel timing
-num_samples = pc.number(initial_value = np.nan, display = True, decimals = 0)
-vai0_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai0 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai0_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai0 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai1_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai1 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai1_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai1 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai2_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai2 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai2_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai2 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai3_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai3 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai3_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai3 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai4_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai4 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vai4_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai4 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vdi0_first_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vdi0 first sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
-vdi0_last_sample = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vdi0 last sample'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, min_value = 0, max_value = 160)
+num_samples = pc.Number(initial_value=np.nan, display=True, decimals=0)
+vai0_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai0 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai0_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai0 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai1_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai1 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai1_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai1 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai2_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai2 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai2_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai2 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai3_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai3 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai3_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai3 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai4_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai4 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vai4_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai4 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vdi0_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vdi0 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
+vdi0_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vdi0 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
 analog_channels.sample_indicies = [[vai0_first_sample.read(), vai0_last_sample.read()], [vai1_first_sample.read(), vai1_last_sample.read()], [vai2_first_sample.read(), vai2_last_sample.read()], [vai3_first_sample.read(), vai3_last_sample.read()], [vai4_first_sample.read(), vai4_last_sample.read()]]
 digital_channels.sample_indicies = [[vdi0_first_sample.read(), vdi0_last_sample.read()]]
 
 #analog channels
-vai0_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai0 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai1_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai1 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai2_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai2 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai3_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai3 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-vai4_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vai4 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-analog_min = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'analog min'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
-analog_max = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'analog max'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
+vai0_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai0 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
+vai1_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai1 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
+vai2_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai2 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
+vai3_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai3 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
+vai4_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai4 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
+analog_min = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='analog min', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
+analog_max = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='analog max', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
 analog_channels.physical_asignments = [vai0_channel.read(), vai1_channel.read(), vai2_channel.read(), vai3_channel.read(), vai4_channel.read()]
 analog_channels.limits = [analog_min.read(), analog_max.read()]
 
 #digital channels
-vdi0_channel = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'vdi0 channel'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, max_value = 8)
-digital_min = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'digital min'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
-digital_max = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'digital max'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
-digital_cutoff = pc.number(initial_value = np.nan, ini = [daq_ini, 'DAQ', 'digital cutoff'], import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, min_value = -10, max_value = 10)
+vdi0_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vdi0 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
+digital_min = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='digital min', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
+digital_max = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='digital max', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
+digital_cutoff = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='digital cutoff', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
 digital_channels.physical_asignments = [vdi0_channel.read()]
 analog_channels.limits = [digital_min.read(), digital_max.read(), digital_cutoff.read()]
 
 #additional
-seconds_since_last_task = pc.number(initial_value = np.nan, display = True, decimals = 3)
-seconds_for_acquisition = pc.number(initial_value = np.nan, display = True, decimals = 3)
+seconds_since_last_task = pc.Number(initial_value = np.nan, display = True, decimals = 3)
+seconds_for_acquisition = pc.Number(initial_value = np.nan, display = True, decimals = 3)
 
 
-### dictionaries################################################################
+### dictionaries###############################################################
 
 channels = collections.OrderedDict()
 channels['vai0'] = [0, [analog_channels, 'sample_indicies', 0], [analog_channels, 'limits']]
@@ -238,7 +216,7 @@ properties['Mean'] =         [0]
 properties['Variance'] =     [1]
 properties['Differential'] = [2]
 
-### DAQ address#################################################################
+### DAQ address################################################################
 
 class address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
@@ -521,7 +499,7 @@ def q(method, inputs = []):
     #send Qt SIGNAL to address thread
     queue.invokeMethod(address_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
     
-### DATA address################################################################
+### DATA address###############################################################
     
 class data(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
@@ -650,7 +628,7 @@ def data_q(method, inputs = []):
     #send Qt SIGNAL to address thread
     data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
-### control#####################################################################
+### control####################################################################
 
 class control():
     
@@ -727,7 +705,7 @@ class control():
     
 control = control()
 
-### gui#########################################################################
+### gui########################################################################
 
 class widget(QtGui.QWidget):
     def __init__(self):
@@ -843,7 +821,7 @@ class gui(QtCore.QObject):
         layout.addWidget(settings_scroll_area)
                 
         #input table one
-        input_table = custom_widgets.input_table()
+        input_table = custom_widgets.InputTable()
         input_table.add('Display', None)
         input_table.add('Shots', shots)
         input_table.add('Free run', freerun)
@@ -860,7 +838,7 @@ class gui(QtCore.QObject):
         settings_layout.addWidget(line)
         
         #input table two
-        input_table = custom_widgets.input_table()
+        input_table = custom_widgets.InputTable()
         input_table.add('Channel Timing', None)
         input_table.add('Samples', num_samples)
         input_table.add('vai0 first sample', vai0_first_sample)
@@ -892,7 +870,7 @@ class gui(QtCore.QObject):
         g.module_control.disable_when_true(input_table)        
         
         #set button
-        apply_channels_button = custom_widgets.set_button('APPLY CHANNEL SETTINGS')        
+        apply_channels_button = custom_widgets.SetButton('APPLY CHANNEL SETTINGS')        
         settings_layout.addWidget(apply_channels_button)
         apply_channels_button.clicked.connect(self.on_apply_channels)
         g.module_control.disable_when_true(apply_channels_button)
@@ -902,7 +880,7 @@ class gui(QtCore.QObject):
         settings_layout.addWidget(line)
         
         #debug tools
-        input_table = custom_widgets.input_table()
+        input_table = custom_widgets.InputTable()
         input_table.add('Debug', None)
         input_table.add('Loop time', seconds_since_last_task)
         input_table.add('Acquisiton time', seconds_for_acquisition)

@@ -35,3 +35,6 @@ hardwares = [hardware]
 ### gui #######################################################################
 
 gui = pw.HardwareFrontPanel(hardwares, name='Spectrometers')
+
+advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
+

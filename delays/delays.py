@@ -30,3 +30,5 @@ hardwares = []
 ### gui #######################################################################
 
 gui = pw.HardwareFrontPanel(hardwares, name='Delays')
+
+advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

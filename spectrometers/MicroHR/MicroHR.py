@@ -105,6 +105,11 @@ class MicroHR:
         self.grating_index.write(destination_index)
         while self.is_busy():
             time.sleep(0.01)
+        # update own limits
+        if self.grating_index.read() == 1:
+            self.limits.write(0, 1500, 'nm')
+        elif self.grating_index.read() == 2:
+            self.limits.write(0, 15000, 'nm')
         # set position for new grating
         self.set_position(self.current_position.read(self.native_units))
 
@@ -120,8 +125,7 @@ class gui(QtCore.QObject):
     def __init__(self):
         QtCore.QObject.__init__(self)
 
-    def create_frame(self):
-        layout = QtGui.QVBoxLayout()
+    def create_frame(self, layout):
         layout.setMargin(5)
        
         my_widget = QtGui.QLineEdit('this is a placeholder widget produced by MicroHR')
@@ -132,7 +136,7 @@ class gui(QtCore.QObject):
         self.advanced_frame.setLayout(layout)
         
         g.module_advanced_widget.add_child(self.advanced_frame)
-
+        
     def update(self):
         pass
         
