@@ -1,0 +1,107 @@
+### import ####################################################################
+
+
+import os
+
+import time
+
+from PyQt4 import QtGui, QtCore
+
+import WrightTools.units as wt_units
+
+import project
+import project.classes as pc
+import project.project_globals as g
+main_dir = g.main_dir.read()
+ini = project.ini_handler.Ini(os.path.join(main_dir, 'delays',
+                                                     'pico',
+                                                     'pico_delay.ini'))
+                                                     
+import project.precision_micro_motors.precision_motors as motors
+
+ps_per_mm = 6.671281903963041 # a mm on the delay stage (factor of 2)
+
+
+### delay object ##############################################################
+
+
+class Delay:
+
+    def __init__(self):
+        # list of objects to be exposed to PyCMDS
+        self.native_units = 'ps'
+        self.limits = pc.NumberLimits(min_value=-10, max_value=10, units='ps')
+        self.current_position = pc.Number(name='Delay', initial_value=0.,
+                                          limits=self.limits,
+                                          units='ps', display=True,
+                                          set_method='set_position')
+        self.exposed = [self.current_position]
+        self.gui = gui()
+
+    def close(self):
+        self.motor.close()
+
+    def get_position(self):
+        position = self.motor.get_position('mm')
+        delay = (self.zero - position) * ps_per_mm
+        self.current_position.write(delay, 'ps')
+        return delay
+
+    def initialize(self, inputs=[]):
+        self.index = inputs[0]
+        motor_identity = motors.identity['D%d'%self.index]
+        self.motor = motors.Motor(motor_identity)
+        self.zero = ini.read('D%d'%self.index, 'zero position (mm)')
+
+    def is_busy(self):
+        return not self.motor.is_stopped()
+
+    def set_position(self, destination):
+        destination_mm = destination/ps_per_mm + self.zero
+        print destination_mm
+        self.motor.move_absolute(destination_mm, 'mm')
+        self.motor.wait_until_still()
+        self.get_position()
+        
+
+
+### advanced gui ##############################################################
+
+
+class gui(QtCore.QObject):
+
+    def __init__(self):
+        QtCore.QObject.__init__(self)
+
+    def create_frame(self, layout):
+        layout.setMargin(5)
+       
+        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by ps delay')
+        my_widget.setAutoFillBackground(True)
+        layout.addWidget(my_widget)
+        
+        self.advanced_frame = QtGui.QWidget()   
+        self.advanced_frame.setLayout(layout)
+        
+        g.module_advanced_widget.add_child(self.advanced_frame)
+        
+    def update(self):
+        pass
+        
+    def on_set(self):
+        pass
+    
+    def show_advanced(self):
+        pass
+              
+    def stop(self):
+        pass
+
+
+### testing ###################################################################
+
+
+if __name__ == '__main__':
+    
+    
+    pass

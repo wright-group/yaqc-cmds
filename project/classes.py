@@ -430,7 +430,7 @@ class Address(QtCore.QObject):
         self.enqueued = enqueued_obj
         self.busy = busy_obj
         self.name = name
-        self.ctrl = ctrl_class(self.check_busy)
+        self.ctrl = ctrl_class()
         self.exposed = self.ctrl.exposed
         for obj in self.exposed:
             if hasattr(self, obj.set_method):

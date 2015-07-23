@@ -17,8 +17,8 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'spectrometers',
                                                      'MicroHR',
                                                      'MicroHR.ini'))
 
-import gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
-import gen_py.JYMono as JYMono
+import spectrometers.MicroHR.gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
+import spectrometers.MicroHR.gen_py.JYMono as JYMono
 
 
 ### mono object ###############################################################
@@ -29,8 +29,7 @@ import gen_py.JYMono as JYMono
 
 class MicroHR:
 
-    def __init__(self, busy_method=None):
-        self.busy_method = busy_method
+    def __init__(self):
         # list of objects to be exposed to PyCMDS
         self.native_units = 'nm'
         self.limits = pc.NumberLimits(min_value=0, max_value=20000, units='nm')

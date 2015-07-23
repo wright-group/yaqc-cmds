@@ -439,15 +439,18 @@ class HardwareFrontPanel(QtCore.QObject):
         # layout table
         input_table = InputTable(125)
         # INPUT TABLE GETS TO OWN OBJECTS!!!
+        self.current_objects = []
+        self.destination_objects = []
         for hardware in self.hardwares:
             input_table.add(hardware.name, hardware.busy)
-            self.current_objects = hardware.exposed
-            self.destination_objects = []
-            for obj in self.current_objects:
+            self.current_objects += hardware.exposed
+            dest_objects_to_add = []
+            for obj in hardware.exposed:
                 input_table.add(obj.label, obj)
                 dest_obj = obj.associate(display=False, pre_name='Dest. ')
                 self.destination_objects.append(dest_obj)
-            for obj in self.destination_objects:
+                dest_objects_to_add.append(dest_obj)
+            for obj in dest_objects_to_add:
                 input_table.add(obj.label, obj)
         layout.addWidget(input_table)
         self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)        
@@ -463,6 +466,7 @@ class HardwareFrontPanel(QtCore.QObject):
         # placeholder
         for current_obj, destination_obj in zip(self.current_objects, self.destination_objects):
             if current_obj.set_method == 'set_position':
+                print destination_obj.read(), destination_obj.units
                 self.hardwares[0].set_position(destination_obj.read(), destination_obj.units)
             else:
                 self.hardwares[0].q.push(current_obj.set_method, [destination_obj.read()])

@@ -1,3 +1,4 @@
+import sys
 import time
 
 from PyQt4 import QtGui, QtCore
@@ -35,6 +36,7 @@ class main_dir:
     def __init__(self):
         import os 
         self.value = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, self.value)
     def read(self):
         return self.value
     def write(self, value):  
