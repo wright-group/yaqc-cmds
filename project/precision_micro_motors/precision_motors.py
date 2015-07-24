@@ -60,8 +60,6 @@ class Motor():
     
     def __init__(self, ini_section):
         # import from ini
-        print 'ini section', ini_section
-        print type(ini_section)
         self.ini_section = ini_section
         self.name = ini.read(self.ini_section, 'name')
         controller_index = ini.read(self.ini_section, 'controller')
@@ -69,6 +67,7 @@ class Motor():
         initial_position = ini.read(self.ini_section, 'current_position')
         # set conditions for motor
         self.ctrl = controllers[controller_index]
+        self.ctrl.EnableAxis(self.axis, True)
         self.filter = MCFILTEREX()
         self.filter.Gain = gain
         self.filter.IntegralGain = 0.
@@ -91,9 +90,9 @@ class Motor():
         self.ctrl.SetGain(self.axis, gain)
         self.ctrl.SetVelocity(self.axis, velocity)
         self.ctrl.SetPosition(self.axis, initial_position)
-        self.ctrl.EnableAxis(self.axis, True)
         # add to list of initialized motors
         initialized_motors.append(self)
+        self.open = True
         
     def close(self, close_controllers_if_last=True):
         '''
@@ -110,39 +109,57 @@ class Motor():
             time.sleep(0.01)
             if len(initialized_motors) == 0:
                 close_controllers()
+        self.open = False
         
-    def get_position(self, returned_units='counts'):
+    def get_position(self, returned_units='mm'):
         self.current_position = self.ctrl.GetPositionEx(self.axis)
         ini.write(self.ini_section, 'current_position', int(self.current_position))
         if returned_units == 'counts':
             return self.current_position
         elif returned_units == 'mm':
-            return counts_per_mm*self.current_position
+            return 50. - self.current_position/counts_per_mm
         else:
             print 'returned_units kind', returned_units, 'not recognized in precision_motors.get_position'
             
     def is_stopped(self, timeout=60):
-        return bool(self.ctrl.IsStopped(self.axis, timeout))
+        if self.open:
+            return bool(self.ctrl.IsStopped(self.axis, timeout))
+        else:
+            return True
         
-    def move_absolute(self, destination, input_units='counts', wait=False):
+    def move_absolute(self, destination, input_units='mm', wait=False):
         if input_units == 'counts':
             pass
+        elif input_units == 'mm':
+            destination = 50*counts_per_mm - destination*counts_per_mm
         else:
-            destination *= counts_per_mm
+            print 'input_units kind', input_units, 'not recognized in precision_motors.move_absolute'
         self.ctrl.MoveAbsolute(self.axis, destination)
         if wait:
             self.wait_until_still()
     
-    def move_relative(self, distance, wait=False):
-        '''
-        int distance steps
-        '''
+    def move_relative(self, distance, input_units='mm', wait=False):
+        if input_units == 'counts':
+            pass
+        elif input_units == 'mm':
+            distance = - distance*counts_per_mm
+        else:
+            print 'input_units kind', input_units, 'not recognized in precision_motors.move_relative'
         self.ctrl.MoveRelative(self.axis, distance)
         if wait:
             self.wait_until_still()
     
     def wait_until_still(self):
-        self.ctrl.WaitForStop(self.axis, dwell)
+        while not self.is_stopped():
+            time.sleep(0.01)
+            print 'wait bitch'
+        # self.ctrl.WaitForStop(self.axis, dwell)
+        # the wait for stop method on the controller stops coms for all motors
+        # connected to the board which isn't what we want here
+        self.get_position()
+        
+    def stop(self):
+        self.ctrl.Stop(self.axis)
         self.get_position()
             
 
@@ -151,8 +168,8 @@ class Motor():
 if __name__ == '__main__':
     
     if True:
-        #move all motors to a destination
-        motor_sections = ['motor0', 'motor1', 'motor8', 'motor9', 'motor10']
+        # move all motors to a destination
+        motor_sections = ['motor0', 'motor1']
         
         # initialize motors
         motors = []
@@ -160,27 +177,32 @@ if __name__ == '__main__':
             motors.append(Motor(section))
             
         # set motors
-        destination = int(counts_per_mm*25)
         for motor in motors:
-            motor.move_absolute(destination, wait=False)
+            motor.move_absolute(30, 'mm', wait=False)
             
         # wait
         for motor in motors:
             motor.wait_until_still()
             
-        for motor in motors:
-            print motor.is_stopped()
-            
         # close
         for motor in motors:
-            print motor.get_position()
+            print motor.get_position('mm')
             motor.close()
         
     if False:
         #mess with a single motor
-        motor = Motor('motor10')
-        distance = int(1*counts_per_mm)
-        motor.move_relative(distance)
+        motor = Motor('motor1')
+        motor.move_absolute(20, 'mm')
         motor.wait_until_still()
+        print motor.is_stopped()
+        print motor.get_position('mm')
+        motor.close()
+        
+    if False:
+        # move a single motor relative
+        motor = Motor('motor8')
+        motor.move_relative(1, 'mm')
+        motor.wait_until_still()
+        print motor.get_position('mm')
         motor.close()
         

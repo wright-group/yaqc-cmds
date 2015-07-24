@@ -19,7 +19,10 @@ import project.widgets as custom_widgets
 
 import spectrometers.spectrometers as spec
 MicroHR = spec.hardwares[0]
-#import daq.daq as daq
+import delays.delays as delay
+D1 = delay.hardwares[0]
+D2 = delay.hardwares[1]
+import daq.daq as daq
 
 #scan globals###################################################################
 
@@ -92,7 +95,7 @@ class paused(QtCore.QMutex):
         if self.value: return self.WaitCondition.wait(self, msecs=timeout)
 paused = paused()
 
-#scan object####################################################################
+### scan object ###############################################################
 
 class scan(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
@@ -110,21 +113,24 @@ class scan(QtCore.QObject):
 
         #scan------------------------------------------------------------------
 
-        destinations = np.linspace(1140, 1600, 50)
+        npts = 50
+        spec_destinations = np.linspace(600, 1200, npts)
+        D1_destinations = np.linspace(-10, 10, npts)
+        D2_destinations = np.linspace(5, -15, npts)
 
-        for i in range(len(destinations)):
+        for i in range(npts):
 
             print i
 
-            MicroHR.set_position(destinations[i], 'nm')
+            MicroHR.set_position(spec_destinations[i], 'nm')
+            D1.set_position(D1_destinations[i], 'ps')
+            D2.set_position(D2_destinations[i], 'ps')
             g.hardware_waits.wait()
-            time.sleep(1) # for now we don't want hardware to go too crazy
-            # This is where the DAQ will go
+            time.sleep(1)
             
-            # check in with the rest of the program
-            # This is the code for the stop/pause button
-            # Leave it in the innermost loop
-            fraction_complete.write(float(i+1)/float(len(destinations)))
+            
+
+            fraction_complete.write(float(i+1)/float(npts))
             self.update_ui.emit()
             if not self.check_continue(): break
             
@@ -173,7 +179,7 @@ class gui(QtCore.QObject):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
         
-        #daq widget
+        # daq widget
         #daq_widget = daq.widget()
         #layout.addWidget(daq_widget)
         

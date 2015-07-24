@@ -1,7 +1,10 @@
-### import #####################################################################
+### import ####################################################################
+
 
 import os
 import ast
+import time
+
 import ConfigParser
 
 from PyQt4 import QtCore
@@ -10,35 +13,59 @@ import project_globals as g
 main_dir = g.main_dir.read()
 import classes as pc
 
-### ini class ##################################################################
-             
-class Ini():
+
+### ini class #################################################################
+
+
+class Ini(QtCore.QMutex):
+
     def __init__(self, filepath):
+        QtCore.QMutex.__init__(self)
         self.filepath = filepath
-        self.busy = pc.Busy()
-        self.busy.write(False)
         self.config = ConfigParser.SafeConfigParser()
-    def read(self, section, option):   
-        self.config.read(self.filepath)
-        return ast.literal_eval(self.config.get(section, option))    
-    def write(self, section, option, value, with_apostrophe = False):
-        #don't want write to be running in two threads at the same time
-        while self.busy.read():
-            self.busy.wait_for_update()
-        self.busy.write(True)
-        #ensure value is a string
-        value = str(value) 
-        if with_apostrophe: 
-            value = '\'' + value + '\''
-        self.config.read(self.filepath)
-        #update
-        self.config.set(section, option, value)  
-        #save
-        with open(self.filepath, 'w') as configfile: 
-            self.config.write(configfile)        
-        self.busy.write(False)
         
-### shared inis initialized here ###############################################
+    def _do(self, operation, section, option, value, with_apostrophe):
+        '''
+        put all interaction with ini file itself behind a 'busy' to make
+        it a psuedo-Mutex. prevents bizzare race conditions that I don't 
+        understand
+        '''
+        self.lock()
+        if operation == 'read':
+            self.config.read(self.filepath)
+            raw = self.config.get(section, option, raw=False)
+            self.unlock()
+            return ast.literal_eval(raw)
+        elif operation == 'write':
+            # ensure value is a string
+            value = str(value) 
+            if with_apostrophe: 
+                value = '\'' + value + '\''
+            self.config.read(self.filepath)
+            # update
+            self.config.set(section, option, value)  
+            # save
+            with open(self.filepath, 'w') as configfile: 
+                self.config.write(configfile)
+            self.unlock()
+
+    def read(self, section, option):
+        return self._do('read', 
+                        section=section, 
+                        option=option, 
+                        value=None,
+                        with_apostrophe=False)
+
+    def write(self, section, option, value, with_apostrophe=False):
+        self._do('write', 
+                 section=section, 
+                 option=option, 
+                 value=value,
+                 with_apostrophe=with_apostrophe)
+
+
+### shared inis initialized here ##############################################
+
 
 main = Ini(os.path.join(main_dir, 'project', 'PyCMDS.ini'))
 daq = Ini(os.path.join(main_dir, 'daq', 'daq.ini'))

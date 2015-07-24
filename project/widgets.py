@@ -409,15 +409,18 @@ class HardwareLayoutWidget(QtGui.QGroupBox):
         set_button.clicked.connect(set_method)
         for hardware in hardwares:
             set_button.setDisabled(hardware.busy.read())  # first time
-            hardware.update_ui.connect(lambda: set_button_decide(set_button, hardware))
+            hardware.update_ui.connect(lambda: set_button_decide(set_button, hardwares))
         return [advanced_button, set_button]
             
 
-def set_button_decide(set_button, hardware):
+def set_button_decide(set_button, hardwares):
     if g.module_control.read():
         set_button.setDisabled(True)
     else:
-        set_button.setDisabled(hardware.busy.read())
+        set_button.setDisabled(False)
+        for hardware in hardwares:
+            if hardware.busy.read():
+                set_button.setDisabled(hardware.busy.read())
 
 
 class HardwareFrontPanel(QtCore.QObject):
@@ -438,20 +441,18 @@ class HardwareFrontPanel(QtCore.QObject):
         layout = layout_widget.layout()
         # layout table
         input_table = InputTable(125)
-        # INPUT TABLE GETS TO OWN OBJECTS!!!
-        self.current_objects = []
-        self.destination_objects = []
+        self.front_panel_elements = []
         for hardware in self.hardwares:
             input_table.add(hardware.name, hardware.busy)
-            self.current_objects += hardware.exposed
-            dest_objects_to_add = []
+            current_objects = hardware.exposed
+            destination_objects = []
             for obj in hardware.exposed:
                 input_table.add(obj.label, obj)
                 dest_obj = obj.associate(display=False, pre_name='Dest. ')
-                self.destination_objects.append(dest_obj)
-                dest_objects_to_add.append(dest_obj)
-            for obj in dest_objects_to_add:
+                destination_objects.append(dest_obj)
+            for obj in destination_objects:
                 input_table.add(obj.label, obj)
+            self.front_panel_elements.append([current_objects, destination_objects])
         layout.addWidget(input_table)
         self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)        
         g.hardware_widget.add_to(layout_widget)
@@ -464,12 +465,12 @@ class HardwareFrontPanel(QtCore.QObject):
 
     def on_set(self):
         # placeholder
-        for current_obj, destination_obj in zip(self.current_objects, self.destination_objects):
-            if current_obj.set_method == 'set_position':
-                print destination_obj.read(), destination_obj.units
-                self.hardwares[0].set_position(destination_obj.read(), destination_obj.units)
-            else:
-                self.hardwares[0].q.push(current_obj.set_method, [destination_obj.read()])
+        for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
+            for current_object, destination_object in zip(front_panel_elements[0], front_panel_elements[1]):
+                if current_object.set_method == 'set_position':
+                    hardware.set_position(destination_object.read(), destination_object.units)
+                else:
+                    hardware.q.push(current_object.set_method, [destination_object.read()])
 
     def stop(self):
         pass

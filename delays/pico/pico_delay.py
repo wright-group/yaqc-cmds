@@ -30,7 +30,7 @@ class Delay:
     def __init__(self):
         # list of objects to be exposed to PyCMDS
         self.native_units = 'ps'
-        self.limits = pc.NumberLimits(min_value=-10, max_value=10, units='ps')
+        self.limits = pc.NumberLimits(min_value=-100, max_value=100, units='ps')
         self.current_position = pc.Number(name='Delay', initial_value=0.,
                                           limits=self.limits,
                                           units='ps', display=True,
@@ -43,26 +43,42 @@ class Delay:
 
     def get_position(self):
         position = self.motor.get_position('mm')
-        delay = (self.zero - position) * ps_per_mm
+        delay = (position - self.zero) * ps_per_mm
         self.current_position.write(delay, 'ps')
         return delay
 
     def initialize(self, inputs=[]):
         self.index = inputs[0]
-        motor_identity = motors.identity['D%d'%self.index]
+        motor_identity = motors.identity['D{}'.format(self.index)]
         self.motor = motors.Motor(motor_identity)
-        self.zero = ini.read('D%d'%self.index, 'zero position (mm)')
+        self.zero = ini.read('D{}'.format(self.index), 'zero position (mm)')
+        self.get_position()
+        self.set_zero(self.zero)
 
     def is_busy(self):
         return not self.motor.is_stopped()
 
     def set_position(self, destination):
-        destination_mm = destination/ps_per_mm + self.zero
-        print destination_mm
+        destination_mm = self.zero + destination/ps_per_mm  
         self.motor.move_absolute(destination_mm, 'mm')
-        self.motor.wait_until_still()
+        if True:#g.module_control.read():
+            self.motor.wait_until_still()
+        else:
+            while self.is_busy():
+                print 'hola'
+                time.sleep(0.1)
+                print 'hello'
+                print self.get_position()
         self.get_position()
         
+    def set_zero(self, zero):
+        '''
+        float zero mm
+        '''
+        self.zero = zero
+        min_value = -self.zero * ps_per_mm
+        max_value = (50. - self.zero) * ps_per_mm        
+        self.limits.write(min_value, max_value, 'ps') 
 
 
 ### advanced gui ##############################################################
@@ -102,6 +118,5 @@ class gui(QtCore.QObject):
 
 
 if __name__ == '__main__':
-    
     
     pass

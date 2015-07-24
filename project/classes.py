@@ -585,10 +585,9 @@ class Hardware(QtCore.QObject):
         self.q.push('close')
         # wait for hardware shutdown to complete
         start_time = time.time()
+        self.q.push('check_busy')
         while self.busy.read():
             if time.time()-start_time < self.shutdown_timeout:
-                if not self.enqueued.read():
-                    self.q.push('check_busy')
                 self.busy.wait_for_update()
             else:
                 g.logger.log('warning',

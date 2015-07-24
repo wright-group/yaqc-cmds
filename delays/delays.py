@@ -3,6 +3,7 @@
 
 import os
 import imp
+import time
 
 from PyQt4 import QtCore
 
@@ -38,6 +39,7 @@ for key in hardware_dict.keys():
         hardware_class = getattr(hardware_module, lis[2])
         hardware_obj = pc.Hardware(hardware_class, lis[3], Delay, key, True)
         hardwares.append(hardware_obj)
+        time.sleep(1)
 
 ### gui #######################################################################
 
