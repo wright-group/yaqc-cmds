@@ -65,9 +65,7 @@ class Delay:
             self.motor.wait_until_still()
         else:
             while self.is_busy():
-                print 'hola'
                 time.sleep(0.1)
-                print 'hello'
                 print self.get_position()
         self.get_position()
         

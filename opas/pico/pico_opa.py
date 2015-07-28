@@ -18,7 +18,7 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'delays',
                                                      'pico_delay.ini'))
 
 
-### OPA object ##############################################################
+### OPA object ################################################################
 
 
 class OPA:
@@ -37,7 +37,13 @@ class OPA:
     def close(self):
         pass
 
+    def get_curve(self):
+        pass
+
     def get_position(self):
+        pass
+    
+    def get_motor_positions(self):
         pass
 
     def initialize(self, inputs=[]):
@@ -45,9 +51,15 @@ class OPA:
 
     def is_busy(self):
         return False
+        
+    def set_curve(self):
+        pass
 
     def set_position(self, destination):
         self.current_position.write(destination)
+        
+    def set_motors(self):
+        pass #send motors to positions
 
 
 ### advanced gui ##############################################################

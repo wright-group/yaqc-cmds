@@ -167,7 +167,7 @@ class Motor():
 
 if __name__ == '__main__':
     
-    if True:
+    if False:
         # move all motors to a destination
         motor_sections = ['motor0', 'motor1']
         
@@ -198,10 +198,10 @@ if __name__ == '__main__':
         print motor.get_position('mm')
         motor.close()
         
-    if False:
+    if True:
         # move a single motor relative
         motor = Motor('motor8')
-        motor.move_relative(1, 'mm')
+        motor.move_relative(16.44, 'mm')
         motor.wait_until_still()
         print motor.get_position('mm')
         motor.close()

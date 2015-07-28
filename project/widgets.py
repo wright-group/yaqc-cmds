@@ -123,7 +123,10 @@ class InputTable(QtGui.QWidget):
     def busy(self, name, global_object):
         # heading
         heading = QtGui.QLabel(name)
-        StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
+        if name in ['DAQ', 'Data']:
+            StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
+        else:
+            StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         # control
@@ -578,7 +581,7 @@ class module_go_button(QtGui.QPushButton):
         self.clicked.disconnect(self.update)
         self.setText('WAIT')
         g.app.read().processEvents()
-        print 'here', self.paused_object.read()
+        print 'here is wait_for_scan_to_pause', self.paused_object.read()
         while not self.paused_object.read(): self.paused_object.wait_for_update()
         self.clicked.connect(self.update)
     def scan_complete(self):

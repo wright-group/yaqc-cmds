@@ -10,9 +10,10 @@ import numpy as np
 from PyQt4 import QtCore, QtGui
 
 import project.project_globals as g
-app = g.app.read()
+import project.classes as pc
 import project.widgets as custom_widgets
 import project.ini_handler as ini
+app = g.app.read()
 daq_ini = ini.daq
 
 if not g.offline.read(): from PyDAQmx import *
@@ -34,37 +35,9 @@ class array_detector_reference:
         self.value = value
 array_detector_reference = array_detector_reference()
 
-class busy(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=5000):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-busy = busy()
+busy = pc.Busy()
 
-class data_busy(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=5000):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-data_busy = data_busy()
+data_busy = pc.Busy()
 
 class digital_channels():
     physical_asignments = None
@@ -147,8 +120,6 @@ us_per_sample = us_per_sample()
 
 ### gui globals ###############################################################
 
-import project.classes as pc
-
 #daq
 shots = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
 
@@ -201,7 +172,7 @@ seconds_since_last_task = pc.Number(initial_value = np.nan, display = True, deci
 seconds_for_acquisition = pc.Number(initial_value = np.nan, display = True, decimals = 3)
 
 
-### dictionaries###############################################################
+### dictionaries ##############################################################
 
 channels = collections.OrderedDict()
 channels['vai0'] = [0, [analog_channels, 'sample_indicies', 0], [analog_channels, 'limits']]
@@ -216,11 +187,12 @@ properties['Mean'] =         [0]
 properties['Variance'] =     [1]
 properties['Differential'] = [2]
 
-### DAQ address################################################################
+### DAQ address ###############################################################
 
-class address(QtCore.QObject):
+class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
+    running = False
     
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
@@ -245,7 +217,10 @@ class address(QtCore.QObject):
         '''
         #simply check if additional actions are enqueued
         if enqueued_actions.read():
-            time.sleep(0.1)
+            time.sleep(0.01)
+            busy.write(True)
+        elif self.running:
+            time.sleep(0.01)
             busy.write(True)
         else:
             busy.write(False)
@@ -388,6 +363,11 @@ class address(QtCore.QObject):
         self.task_created = True
             
     def run_task(self, inputs):
+
+        self.running = True  
+        self.check_busy([])
+        self.update_ui.emit()
+        
         if g.offline.read():            
             #fake readings
             out = np.random.rand(self.shots, self.virtual_samples, self.num_channels)
@@ -472,6 +452,8 @@ class address(QtCore.QObject):
         
         seconds_since_last_task.write(time.time() - self.previous_time)
         self.previous_time = time.time()
+        
+        self.running = False
             
     def shutdown(self, inputs):
          '''
@@ -485,7 +467,7 @@ class address(QtCore.QObject):
 
 #begin address object in seperate thread
 address_thread = QtCore.QThread()
-address_obj = address()
+address_obj = Address()
 address_obj.moveToThread(address_thread)
 address_thread.start()
 
@@ -495,7 +477,7 @@ def q(method, inputs = []):
     #add to friendly queue list 
     enqueued_actions.push([method, time.time()])
     #busy
-    if not busy.read(): busy.write(True)
+    busy.write(True)
     #send Qt SIGNAL to address thread
     queue.invokeMethod(address_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
     
@@ -630,18 +612,23 @@ def data_q(method, inputs = []):
 
 ### control####################################################################
 
-class control():
+class Control():
     
     def __init__(self):
         self.ready = False
         print 'control.__init__'
         g.shutdown.add_method(self.shutdown)
         self.initialize_hardware()
-        #setup freerun
+        # setup freerun
         freerun.updated.connect(lambda: q('loop'))
         if freerun.read(): q('loop')
-        #other controls
+        # other controls
         shots.updated.connect(self.update_task)
+        g.main_window.read().module_control.connect(self.module_control_update)
+        
+    def acquire(self):
+        print 'daq control acquire'
+        q('run_task')
         
     def initialize_hardware(self):
         q('initialize')
@@ -649,13 +636,20 @@ class control():
         #import InGaAs_array.InGaAs as array_detector
         #array_detector_reference.write(array_detector)
         
+    def module_control_update(self):
+        if g.module_control.read():
+            freerun.write(False)
+            self.wait_until_done()
+        else:
+            freerun.write(True)
         
     def update_task(self):
-        if freerun:
+        if freerun.read():
             return_to_freerun = True
             freerun.write(False)
             self.wait_until_done()
-        else: return_to_freerun = False
+        else: 
+            return_to_freerun = False
         q('create_task')
         if return_to_freerun: freerun.write(True)
     
@@ -703,23 +697,24 @@ class control():
         #close gui
         gui.stop()
     
-control = control()
+control = Control()
 
 ### gui########################################################################
 
-class widget(QtGui.QWidget):
+class Widget(QtGui.QWidget):
+
     def __init__(self):
         QtGui.QWidget.__init__(self)
         layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
-        input_table = custom_widgets.input_table()
+        input_table = custom_widgets.InputTable()
         input_table.add('DAQ', None)
-        self.shots = gc.number(initial_value = 200, decimals = 0)
+        self.shots = pc.Number(initial_value = 200, decimals = 0)
         input_table.add('Shots', self.shots)
         layout.addWidget(input_table)
         
-class gui(QtCore.QObject):
+class Gui(QtCore.QObject):
 
     def __init__(self):
         QtCore.QObject.__init__
@@ -869,19 +864,23 @@ class gui(QtCore.QObject):
         settings_layout.addWidget(input_table)
         g.module_control.disable_when_true(input_table)        
         
-        #set button
+        # set button
         apply_channels_button = custom_widgets.SetButton('APPLY CHANNEL SETTINGS')        
         settings_layout.addWidget(apply_channels_button)
         apply_channels_button.clicked.connect(self.on_apply_channels)
         g.module_control.disable_when_true(apply_channels_button)
         
-        #horizontal line
+        # horizontal line
         line = custom_widgets.line('H')      
         settings_layout.addWidget(line)
         
-        #debug tools
+        # debug tools
         input_table = custom_widgets.InputTable()
         input_table.add('Debug', None)
+        busy.update_signal = address_obj.update_ui
+        input_table.add('DAQ', busy)
+        data_busy.update_signal = data_obj.update_ui
+        input_table.add('Data', data_busy)
         input_table.add('Loop time', seconds_since_last_task)
         input_table.add('Acquisiton time', seconds_for_acquisition)
         settings_layout.addWidget(input_table)
@@ -892,7 +891,7 @@ class gui(QtCore.QObject):
         
     def create_current_frame(self):
         
-        #get parent widget------------------------------------------------------
+        # get parent widget ---------------------------------------------------
         
         parent_widget = g.current_slice_widget.read()
         parent_widget.setLayout(QtGui.QVBoxLayout())
@@ -988,5 +987,5 @@ class gui(QtCore.QObject):
     def stop(self):
         pass
         
-gui = gui()
+gui = Gui()
 

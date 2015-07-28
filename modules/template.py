@@ -15,7 +15,7 @@ app = g.app.read()
 
 import project.widgets as custom_widgets     
 
-#import hardware control########################################################
+#import hardware control#######################################################
 
 import spectrometers.spectrometers as spec
 MicroHR = spec.hardwares[0]
@@ -24,7 +24,7 @@ D1 = delay.hardwares[0]
 D2 = delay.hardwares[1]
 import daq.daq as daq
 
-#scan globals###################################################################
+#scan globals##################################################################
 
 # These scan globals are used to communicated between the gui and the scan,
 # which are running in different threads. All are mutex for this reason.
@@ -121,18 +121,27 @@ class scan(QtCore.QObject):
         for i in range(npts):
 
             print i
-
+            
+            # set hardwares
+            print i, 'one'
             MicroHR.set_position(spec_destinations[i], 'nm')
             D1.set_position(D1_destinations[i], 'ps')
             D2.set_position(D2_destinations[i], 'ps')
             g.hardware_waits.wait()
-            time.sleep(1)
             
+            print i, 'two'
             
+            # read from daq
+            daq.control.acquire()
+            daq.control.wait_until_done()
+            
+            print i, 'three'
 
             fraction_complete.write(float(i+1)/float(npts))
             self.update_ui.emit()
             if not self.check_continue(): break
+                
+            print i, 'four'
             
         #end-------------------------------------------------------------------
 
@@ -163,7 +172,7 @@ class scan(QtCore.QObject):
 scan_obj = scan()
 scan_obj.moveToThread(scan_thread)
  
-### gui
+### gui #######################################################################
 
 class gui(QtCore.QObject):
 
@@ -180,8 +189,8 @@ class gui(QtCore.QObject):
         layout.setMargin(5)
         
         # daq widget
-        #daq_widget = daq.widget()
-        #layout.addWidget(daq_widget)
+        daq_widget = daq.Widget()
+        layout.addWidget(daq_widget)
         
         #go button
         self.go_button = custom_widgets.module_go_button()
