@@ -592,7 +592,7 @@ class module_go_button(QtGui.QPushButton):
 ### plotting ##################################################################
 
 
-class plot_1D(pg.GraphicsView):
+class Plot1D(pg.GraphicsView):
     
     def __init__(self, title = None):
         pg.GraphicsView.__init__(self)
@@ -609,7 +609,7 @@ class plot_1D(pg.GraphicsView):
         if title: 
             self.plot_object.setTitle(title)
             
-    def add_scatter(self, color = 'c', size = 3, symbol = 'o'):
+    def add_scatter(self, color='c', size=3, symbol='o'):
         curve = pg.ScatterPlotItem(symbol=symbol, pen=(color), brush=(color), size=size)
         self.plot_object.addItem(curve)
         return curve 
@@ -617,9 +617,14 @@ class plot_1D(pg.GraphicsView):
     def add_curve(self, color = 'c', size = 3):
         curve = pg.PlotCurveItem(pen=(color), brush=(color), size=size)
         self.plot_object.addItem(curve)
+        return curve
+        
+    def add_line(self, color='c', size=3, symbol='o'):
+        curve = pg.PlotCurveItem(symbol=symbol, pen=(color), brush=(color), size=size)
+        self.plot_object.addItem(curve)
         return curve 
         
-    def add_line(self, color = 'y', angle = 90, movable = False):
+    def add_infinite_line(self, color = 'y', angle = 90, movable = False):
         '''
         returns a hidden InfiniteLine object \n
         useful methods of returned object: setValue(), show(), hide()

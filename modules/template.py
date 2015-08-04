@@ -104,19 +104,28 @@ class scan(QtCore.QObject):
     @QtCore.pyqtSlot(list)
     def run(self, inputs):
 
-        #startup---------------------------------------------------------------
-        # Leave this alone.
-        g.module_control.write(True)    # Disables GUI, gives control to module
-        going.write(True)               # communication, see above
+        # startup -------------------------------------------------------------
+
+        g.module_control.write(True)
+        going.write(True)
         fraction_complete.write(0.)
         g.logger.log('info', 'Scan begun', 'some info describing this scan')
+        
+        # wait for DAQ to finish whatever it might be doing
+        #daq.control.wait_until_done()
+        #daq.control.wait_until_data_done()
+        
+        # start new slice
+        daq.control.index_slice(col='MicroHR')
 
-        #scan------------------------------------------------------------------
+        # scan ----------------------------------------------------------------
 
         npts = 50
-        spec_destinations = np.linspace(600, 1200, npts)
+        spec_destinations = np.linspace(545, 575, npts)
         D1_destinations = np.linspace(-10, 10, npts)
         D2_destinations = np.linspace(5, -15, npts)
+        
+        daq.data_q('create_data')  # hack for now
 
         for i in range(npts):
 
@@ -126,7 +135,7 @@ class scan(QtCore.QObject):
             print i, 'one'
             MicroHR.set_position(spec_destinations[i], 'nm')
             D1.set_position(D1_destinations[i], 'ps')
-            D2.set_position(D2_destinations[i], 'ps')
+            #D2.set_position(D2_destinations[i], 'ps')
             g.hardware_waits.wait()
             
             print i, 'two'

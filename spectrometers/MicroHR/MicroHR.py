@@ -158,20 +158,20 @@ if __name__ == '__main__':
     MicroHR = MicroHR()
     MicroHR.initialize()
     # wait for initialization to complete
-    while MicroHR.is_busy():
-        time.sleep(1)
+#    while MicroHR.is_busy():
+#        time.sleep(1)
     
-    print MicroHR.get_position()
+#    print MicroHR.get_position()
     
-    MicroHR.set_position(1000)
+#    MicroHR.set_position(1000)
     
-    while MicroHR.is_busy():
-        time.sleep(1)
+#    while MicroHR.is_busy():
+#        time.sleep(1)
     
-    if False:
-        MicroHR.set_position(1000)
-        time.sleep(5)
-        print MicroHR.get_position()
-        MicroHR.set_position(1300)
+#    if False:
+#        MicroHR.set_position(1000)
+#        time.sleep(5)
+#        print MicroHR.get_position()
+#        MicroHR.set_position(1300)
     
-    MicroHR.close()
+#    MicroHR.close()

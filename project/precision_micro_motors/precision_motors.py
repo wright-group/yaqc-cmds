@@ -198,10 +198,10 @@ if __name__ == '__main__':
         print motor.get_position('mm')
         motor.close()
         
-    if True:
+    if False:
         # move a single motor relative
-        motor = Motor('motor8')
-        motor.move_relative(16.44, 'mm')
+        motor = Motor('motor9')
+        motor.move_relative(-0.5, 'mm')
         motor.wait_until_still()
         print motor.get_position('mm')
         motor.close()

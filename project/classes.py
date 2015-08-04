@@ -383,6 +383,27 @@ class String(PyCMDS_Object):
 ### hardware ##################################################################
 
 
+class Mutex(QtCore.QMutex):
+    
+    def __init__(self):
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.value = None
+        
+    def read(self):
+        return self.value
+        
+    def write(self, value):
+        self.lock()
+        self.value = value
+        self.WaitCondition.wakeAll()
+        self.unlock()
+        
+    def wait_for_update(self, timeout=5000):
+        if self.value:
+            return self.WaitCondition.wait(self, msecs=timeout)
+
+
 class Busy(QtCore.QMutex):
 
     def __init__(self):
