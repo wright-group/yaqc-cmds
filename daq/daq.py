@@ -8,7 +8,7 @@ import collections
 
 import numpy as np
 
-from scipy.optimize import leastsq
+import scipy
 
 from PyQt4 import QtCore, QtGui
 
@@ -102,6 +102,7 @@ us_per_sample = pc.Mutex()
 
 #daq
 shots = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
+index = pc.Number(initial_value=0)
 
 #graph and big #
 freerun = pc.Bool(initial_value=True)
@@ -208,8 +209,8 @@ class Data(QtCore.QObject):
             
     def create_data(self, inputs):
         # filename
-        self.current_data_path = os.path.join(main_dir, 'data', str(int(time.time())) + ' test.data')
         self.file_timestamp = wt.kit.get_timestamp()
+        self.current_data_path = os.path.join(main_dir, 'data', self.file_timestamp + '.data')    
         # generate header
         origin = None
         axes = ['d1', 'd2']
@@ -232,9 +233,9 @@ class Data(QtCore.QObject):
         np.savetxt(self.current_data_path, [], header=header_str)
         
     def create_fit(self, inputs):
+        # create fit must always be called after create data
         # filename
-        self.current_fit_path = os.path.join(main_dir, 'data', str(int(time.time())) + ' test.fit')
-        self.file_timestamp = wt.kit.get_timestamp()
+        self.current_fit_path = os.path.join(main_dir, 'data', self.file_timestamp + ' fitted.data')
         # generate header
         origin = None
         axes = ['d1', 'd2']
@@ -254,22 +255,25 @@ class Data(QtCore.QObject):
         for item in header_items:
             header_str += item + '\n'
         header_str = header_str[:-1]  # remove final newline charachter
-        np.savetxt(self.current_data_path, [], header=header_str)    
+        np.savetxt(self.current_fit_path, [], header=header_str)    
         
     def fit(self, inputs):
-        '''
-        inputs = [xkey, ykey, CurrentSlice list]
-        '''
         # functions
-        gaussian = wt.fit.gaussian
+        def gaussian(p, x):
+            '''
+            p = [amplitude, center, FWHM, offset]
+            '''
+            print p
+            a, b, c, d = p
+            return a*np.exp(-(x-b)**2/(2*np.abs(c/(2*np.sqrt(2*np.log(2))))**2))+d
         def residuals(p, y, x):
             return y - gaussian(p, x)
         # inputs
         xkey = inputs[0]
-        ykey = inputs[1]
+        zkey = inputs[1]
         data = np.array(inputs[2])
         xcol = data_cols.read()[xkey]['index']
-        zcol = data_cols.read()[xkey]['index']
+        zcol = data_cols.read()[zkey]['index']
         xi = data[:, xcol]
         zi = data[:, zcol]
         # guess
@@ -279,19 +283,37 @@ class Data(QtCore.QObject):
         offset_guess = zi.min()
         p0 = [amplitude_guess, center_guess, FWHM_guess, offset_guess]
         # fit
-        out = leastsq(residuals, p0, args=[zi, xi])        
+        from scipy import optimize
+        out = optimize.leastsq(residuals, p0, args=(zi, xi))[0]
+        # assemble array
+        arr = np.full(len(fit_cols.read()), np.nan)
+        for col in fit_cols.read():
+            index = fit_cols.read()[col]['index']
+            if col == 'amplitude':
+                arr[index] = out[0]
+            elif col == 'center':
+                arr[index] = out[1]
+            elif col == 'FWHM':
+                arr[index] = out[2]
+            elif col == 'offset':
+                arr[index] = out[3]
+            elif col == xcol:
+                arr[index] = np.nan
+            else:
+                # it's a hardware column
+                arr[index] = data[0, index]
         # write
-        self.write_fit(out)
+        self.write_fit(arr)
             
     def write_data(self, inputs):
         data_file = open(self.current_data_path, 'a')
-        np.savetxt(data_file, inputs, fmt='%8.4f', delimiter='\t', newline = '\t')
+        np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
         data_file.write('\n')
         data_file.close()
         
     def write_fit(self, inputs):
         data_file = open(self.current_fit_path, 'a')
-        np.savetxt(data_file, inputs, fmt='%8.4f', delimiter='\t', newline = '\t')
+        np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
         data_file.write('\n')
         data_file.close()
 
@@ -580,7 +602,7 @@ class DAQ(QtCore.QObject):
         
         if self.save:
             row = np.full(len(data_cols.read()), np.nan)
-            row[0] = np.nan
+            row[0] = index.read()
             row[1] = time.time()
             i = 2
             # hardware
@@ -596,6 +618,9 @@ class DAQ(QtCore.QObject):
             # output
             data_q('write_data', [row])
             current_slice.append(row)
+            
+            # index
+            index.write(index.read()+1)
         
         # update timer --------------------------------------------------------
         
@@ -623,14 +648,14 @@ address_thread.start()
 # create queue to communiate with address thread
 queue = QtCore.QMetaObject()
 def q(method, inputs = []):
-    #print 'q1', method
     # add to friendly queue list 
     enqueued_actions.push([method, time.time()])
     # busy
+    #busy.unlock()
     busy.write(True)
     # send Qt SIGNAL to address thread    
     queue.invokeMethod(address_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
-    #print 'q2', method
+
 
 ### control####################################################################
 
@@ -653,31 +678,46 @@ class Control():
         
     def acquire(self):
         q('run_task', inputs=[True])
+        
+    def fit(self, xkey, zkey):
+        data_q('fit', [xkey, zkey, current_slice.read()])
     
     def freerun(self):
         if freerun.read():
             print 'Control freerun'
             q('loop')
             
-    def index_slice(self, col='index', fit=None):
+    def index_slice(self, col='index'):
         '''
         tell DAQ to start a new slice \n
         '''
-        if fit == True:
-            data_q('fit', ['MicorHR', 'vai0 Mean', current_slice.read()])
         current_slice.clear()
         current_slice.col = col
         
     def initialize_hardware(self):
         q('initialize')
-        #tell the array to begin initialization
-        #import InGaAs_array.InGaAs as array_detector
-        #array_detector_reference.write(array_detector)
+
+    def initialize_scan(self, widget, fit=False):
+        '''
+        prepare environment for scanning
+        '''
+        # set index back to zero
+        index.write(0)
+        # get params from widget
+        shots.write(widget.shots.read())
+        # create data file(s)
+        data_q('create_data')
+        if fit:
+            data_q('create_fit')
+        # wait until daq is done before letting module continue        
+        self.wait_until_daq_done()
+        self.wait_until_data_done()
         
     def module_control_update(self):
         if g.module_control.read():
             freerun.write(False)
-            self.wait_until_done()
+            self.wait_until_daq_done()
+            print 'module control update done'
         else:
             freerun.write(True)
             
@@ -719,15 +759,22 @@ class Control():
             for prop in properties:
                 dictionary = collections.OrderedDict()
                 name = channel + ' ' + prop
-                dictionary['index'] = len(cols)
+                dictionary['index'] = len(new_data_cols)
                 dictionary['units'] = 'V'
                 dictionary['tolerance'] = None
                 dictionary['label'] = ''
                 dictionary['get_method'] = None
                 new_data_cols[name] = dictionary
         # fit
-        # NOTHING FOR NOW
-        # write
+        for prop in ['amplitude', 'center', 'FWHM', 'offset']:
+            dictionary = collections.OrderedDict()
+            name = prop
+            dictionary['index'] = len(new_fit_cols)
+            dictionary['units'] = 'V'
+            dictionary['tolerance'] = None
+            dictionary['label'] = ''
+            dictionary['get_method'] = None
+            new_fit_cols[name] = dictionary
         data_cols.write(new_data_cols)
         fit_cols.write(new_fit_cols)
         
@@ -735,19 +782,21 @@ class Control():
         if freerun.read():
             return_to_freerun = True
             freerun.write(False)
-            self.wait_until_done()
+            self.wait_until_daq_done()
         else: 
             return_to_freerun = False
         q('create_task')
-        if return_to_freerun: freerun.write(True)
+        if return_to_freerun: 
+            freerun.write(True)
     
-    def wait_until_done(self, timeout = 10):
+    def wait_until_daq_done(self, timeout=10):
         '''
         timeout in seconds
         
         will only refer to timeout when busy.wait_for_update fires
         '''
         start_time = time.time()
+        q('check_busy')
         while busy.read():
             if time.time()-start_time < timeout:
                 if not enqueued_actions.read(): 
@@ -766,7 +815,8 @@ class Control():
         start_time = time.time()
         while data_busy.read():
             if time.time()-start_time < timeout:
-                if not enqueued_data.read(): data_q('check_busy')
+                if not enqueued_data.read(): 
+                    data_q('check_busy')
                 data_busy.wait_for_update()
             else: 
                 g.logger.log('warning', 'Data wait until done timed out', 'timeout set to {} seconds'.format(timeout))
@@ -781,7 +831,7 @@ class Control():
         # shutdown other threads
         q('shutdown')
         data_q('shutdown')
-        self.wait_until_done()
+        self.wait_until_daq_done()
         self.wait_until_data_done()
         address_thread.quit()
         data_thread.quit()
@@ -819,9 +869,9 @@ class Gui(QtCore.QObject):
         tab_property.updated.connect(self.update)
         tab_trigger.updated.connect(self.update)
         tab_shots.updated.connect(self.update)
-        self.create_daq_frame()
+        self.create_frame()
         
-    def create_daq_frame(self):
+    def create_frame(self):
         
         # get parent widget ---------------------------------------------------
         
@@ -918,7 +968,6 @@ class Gui(QtCore.QObject):
         input_table.add('Trigger', tab_trigger)
         input_table.add('Shots', tab_shots)        
         settings_layout.addWidget(input_table)
-        g.module_control.disable_when_true(input_table)
         
         # horizontal line
         line = custom_widgets.line('H')      

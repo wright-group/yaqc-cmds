@@ -227,6 +227,7 @@ class MainWindow(QtGui.QMainWindow):
         #import modules---------------------------------------------------------
         
         import modules.template
+        import modules.mono_slice
         import modules.custom
         
     def _shutdown(self):

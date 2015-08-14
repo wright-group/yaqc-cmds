@@ -20,6 +20,10 @@ if not g.offline.read():
     
 import daq
 
+### objects ###################################################################
+
+tab_channel = pc.Combo(['vai0', 'vai1', 'vai2', 'vai3', 'vai4'], ini=daq_ini, section='DAQ', option='Tab channel', import_from_ini = True)
+tab_property = pc.Combo(['Mean', 'Variance', 'Differential'], ini=daq_ini, section='DAQ', option='Tab property', import_from_ini = True)
 
 ### gui #######################################################################
 
@@ -29,7 +33,9 @@ class Gui(QtCore.QObject):
     def __init__(self):
         QtCore.QObject.__init__(self)
         self.create_frame()
-        daq.address_obj.update_ui.connect(self.update)
+        daq.address_obj.update_ui.connect(lambda: self.update(True))
+        tab_channel.updated.connect(self.update)
+        tab_property.updated.connect(self.update)
         self.xi = []
         self.yi = []
         
@@ -73,18 +79,37 @@ class Gui(QtCore.QObject):
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
         
-    def update(self):
-        if g.module_control.read():
-            vals = np.array(daq.current_slice.read())
-            xcol = daq.data_cols.read()[daq.current_slice.col]['index']
-            ycol = daq.data_cols.read()['vai0 Mean']['index']
-            self.xi = vals[:, xcol]
-            self.yi = vals[:, ycol]
-            self.plot()
+        # input table one
+        input_table = pw.InputTable()
+        input_table.add('Display', None)
+        input_table.add('Channel', tab_channel)
+        input_table.add('Property', tab_property)
+        settings_layout.addWidget(input_table)
+        
+        # streach
+        settings_layout.addStretch(1)
+        
+    def update(self, check_for_control=False):
+        if check_for_control:
+            if not g.module_control.read():
+                return
+        vals = np.array(daq.current_slice.read())
+        xcol = daq.data_cols.read()[daq.current_slice.col]['index']
+        ycol_key = tab_channel.read() + ' ' + tab_property.read()
+        ycol = daq.data_cols.read()[ycol_key]['index']
+        self.xi = vals[:, xcol]
+        self.yi = vals[:, ycol]
+        self.plot()
         
     def plot(self):
         self.plot_curve.clear()
         self.plot_curve.setData(self.xi, self.yi)
+        
+    def set_xlim(self, xmin, xmax):
+        self.plot_widget.set_xlim(xmin, xmax)
+        
+    def set_ylim(self, ymin, ymax):
+        self.plot_widget.set_ylim(ymin, ymax)
 
     def stop(self):
         pass

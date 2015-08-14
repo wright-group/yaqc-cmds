@@ -152,7 +152,6 @@ class Motor():
     def wait_until_still(self):
         while not self.is_stopped():
             time.sleep(0.01)
-            print 'wait bitch'
         # self.ctrl.WaitForStop(self.axis, dwell)
         # the wait for stop method on the controller stops coms for all motors
         # connected to the board which isn't what we want here
