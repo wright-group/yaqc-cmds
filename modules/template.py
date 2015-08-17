@@ -3,6 +3,7 @@
 #import#########################################################################
 
 import sys
+import time
 
 import numpy as np
 
@@ -14,12 +15,19 @@ app = g.app.read()
 
 import project.widgets as custom_widgets     
 
-#import hardware control########################################################
+#import hardware control#######################################################
 
-import spectrometers.spectrometers as mono
-#import daq.daq as daq
+import spectrometers.spectrometers as spec
+MicroHR = spec.hardwares[0]
+import delays.delays as delay
+D1 = delay.hardwares[0]
+D2 = delay.hardwares[1]
+import daq.daq as daq
 
-#scan globals###################################################################
+#scan globals##################################################################
+
+# These scan globals are used to communicated between the gui and the scan,
+# which are running in different threads. All are mutex for this reason.
 
 class fraction_complete:
     def __init__(self):
@@ -87,7 +95,7 @@ class paused(QtCore.QMutex):
         if self.value: return self.WaitCondition.wait(self, msecs=timeout)
 paused = paused()
 
-#scan object####################################################################
+### scan object ###############################################################
 
 class scan(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
@@ -96,28 +104,46 @@ class scan(QtCore.QObject):
     @QtCore.pyqtSlot(list)
     def run(self, inputs):
 
-        #startup----------------------------------------------------------------
-
-        g.module_control.write(True)
-        going.write(True)
+        #startup---------------------------------------------------------------
+        # Leave this alone.
+        g.module_control.write(True)    # Disables GUI, gives control to module
+        going.write(True)               # communication, see above
         fraction_complete.write(0.)
         g.logger.log('info', 'Scan begun', 'some info describing this scan')
 
-        #scan-------------------------------------------------------------------
+        #scan------------------------------------------------------------------
 
-        destinations = np.linspace(1140, 1600, 50)
+        npts = 50
+        spec_destinations = np.linspace(600, 1200, npts)
+        D1_destinations = np.linspace(-10, 10, npts)
+        D2_destinations = np.linspace(5, -15, npts)
 
-        for i in range(len(destinations)):
+        for i in range(npts):
 
-            mono.control.set_hardware(destinations[i])
-            mono.control.wait_until_done()
+            print i
             
-            #check in with the rest of the program
-            fraction_complete.write(float(i+1)/float(len(destinations)))
+            # set hardwares
+            print i, 'one'
+            MicroHR.set_position(spec_destinations[i], 'nm')
+            D1.set_position(D1_destinations[i], 'ps')
+            D2.set_position(D2_destinations[i], 'ps')
+            g.hardware_waits.wait()
+            
+            print i, 'two'
+            
+            # read from daq
+            daq.control.acquire()
+            daq.control.wait_until_done()
+            
+            print i, 'three'
+
+            fraction_complete.write(float(i+1)/float(npts))
             self.update_ui.emit()
             if not self.check_continue(): break
+                
+            print i, 'four'
             
-        #end--------------------------------------------------------------------
+        #end-------------------------------------------------------------------
 
         print 'end'
         fraction_complete.write(1.)    
@@ -136,21 +162,17 @@ class scan(QtCore.QObject):
         
         for loops, use it as follows: if not self.check_continue(): break
         '''
-        print '1'
         while pause.read(): 
             paused.write(True)
-            print '2'
             pause.wait_for_update()
-            print '3'
         paused.write(False)
-        print '4'
         return go.read()
         
 #move scan to own thread      
 scan_obj = scan()
 scan_obj.moveToThread(scan_thread)
  
-### gui
+### gui #######################################################################
 
 class gui(QtCore.QObject):
 
@@ -166,9 +188,9 @@ class gui(QtCore.QObject):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
         
-        #daq widget
-        #daq_widget = daq.widget()
-        #layout.addWidget(daq_widget)
+        # daq widget
+        daq_widget = daq.Widget()
+        layout.addWidget(daq_widget)
         
         #go button
         self.go_button = custom_widgets.module_go_button()

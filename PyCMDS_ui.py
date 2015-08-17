@@ -107,7 +107,7 @@ class MainWindow(QtGui.QMainWindow):
         hardware_scroll_area.setWidget(hardware_widget)
         hardware_box.addWidget(hardware_scroll_area)        
 
-        #daq--------------------------------------------------------------------    
+        # daq -----------------------------------------------------------------
         
         daq_box = QtGui.QVBoxLayout()
         daq_box.setMargin(0)
@@ -132,7 +132,10 @@ class MainWindow(QtGui.QMainWindow):
         
         #create widgets
         hardware_advanced_widget = QtGui.QWidget()
-        g.hardware_advanced_widget.write(hardware_advanced_widget)
+        hardware_advanced_box = QtGui.QVBoxLayout()
+        hardware_advanced_box.setContentsMargins(0, 10, 0, 0)
+        hardware_advanced_widget.setLayout(hardware_advanced_box)
+        g.hardware_advanced_box.write(hardware_advanced_box)
         comove_widget = QtGui.QWidget()
         module_advanced_widget = QtGui.QWidget()
         g.module_advanced_widget.write(module_advanced_widget)
@@ -152,12 +155,13 @@ class MainWindow(QtGui.QMainWindow):
         daq_tabs.addTab(current_slice_widget, 'Current')
         daq_tabs.addTab(daq_plot_widget, 'Plot')
         daq_tabs.setCurrentIndex(3) #start on DAQ tab
+        daq_tabs.setContentsMargins(0., 0., 0., 0.)
         daq_box.addWidget(daq_tabs)    
         
         #vertical stretch
         daq_box.addStretch(1)
         
-        #frame------------------------------------------------------------------
+        # frame ---------------------------------------------------------------
 
         hbox = QtGui.QHBoxLayout()
         
@@ -192,10 +196,11 @@ class MainWindow(QtGui.QMainWindow):
         g.offline.get_saved()
         if g.debug.read(): print 'initialize hardware'
         
-        #import
-        #import daq.daq
-        #import delays.delays
+        # import
+        import opas.opas
         import spectrometers.spectrometers
+        import delays.delays
+        import daq.daq
         
         #self.daq = daq.daq
     

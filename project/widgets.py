@@ -8,6 +8,8 @@ import pyqtgraph as pg
 from pyqtgraph import exporters
 
 import project_globals as g
+import project
+import classes as pc
 
 colors = g.colors_dict.read()
 
@@ -121,7 +123,10 @@ class InputTable(QtGui.QWidget):
     def busy(self, name, global_object):
         # heading
         heading = QtGui.QLabel(name)
-        StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
+        if name in ['DAQ', 'Data']:
+            StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
+        else:
+            StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         # control
@@ -213,9 +218,16 @@ class InputTable(QtGui.QWidget):
         self.layout().addWidget(heading, self.row_number, 0)
         #control
         control = QtGui.QComboBox()
-        StyleSheet = 'QComboBox{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
-        StyleSheet += 'QComboBox:disabled{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_disabled']).replace('custom_color_2', colors['widget_background'])
-        StyleSheet += 'QAbstractItemView{color: custom_color_1; font: 50px solid white;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])       
+        if global_object.display:
+            control.setDisabled(True)
+            StyleSheet = 'QComboBox{color: custom_color_1; font: bold 14px; border: 0px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
+            #StyleSheet += 'QComboBox:disabled{color: custom_color_1; font: 14px; border: 0px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_disabled']).replace('custom_color_2', colors['widget_background'])
+            StyleSheet += 'QAbstractItemView{color: custom_color_1; font: 50px solid white; border: 0px white}'.replace('custom_color_1', colors['widget_background']).replace('custom_color_2', colors['widget_background'])
+            StyleSheet += 'QComboBox::drop-down{border: 0;}'
+        else:         
+            StyleSheet = 'QComboBox{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
+            StyleSheet += 'QComboBox:disabled{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_disabled']).replace('custom_color_2', colors['widget_background'])
+            StyleSheet += 'QAbstractItemView{color: custom_color_1; font: 50px solid white;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])       
         control.setStyleSheet(StyleSheet)
         global_object.give_control(control)      
         #finish
@@ -270,6 +282,13 @@ class InputTable(QtGui.QWidget):
         self.controls.append(container_widget)
         self.row_number += 1
 
+class SetButton(QtGui.QPushButton):
+    def __init__(self, text):
+        QtGui.QPushButton.__init__(self)
+        self.setText(text)
+        self.setMinimumHeight(25)
+        StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['go'])
+        self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
 
@@ -350,7 +369,7 @@ class Hardware_control_table(QtGui.QWidget):
 
 class HardwareLayoutWidget(QtGui.QGroupBox):
 
-    def __init__(self, name, update_signal):
+    def __init__(self, name):
         QtGui.QGroupBox.__init__(self)
         # layout
         self.setLayout(QtGui.QVBoxLayout())
@@ -393,8 +412,110 @@ class HardwareLayoutWidget(QtGui.QGroupBox):
         set_button.clicked.connect(set_method)
         for hardware in hardwares:
             set_button.setDisabled(hardware.busy.read())  # first time
-            hardware.update_ui.connect(lambda: set_button.setDisabled(hardware.busy.read()))
+            hardware.update_ui.connect(lambda: set_button_decide(set_button, hardwares))
+        return [advanced_button, set_button]
             
+
+def set_button_decide(set_button, hardwares):
+    if g.module_control.read():
+        set_button.setDisabled(True)
+    else:
+        set_button.setDisabled(False)
+        for hardware in hardwares:
+            if hardware.busy.read():
+                set_button.setDisabled(hardware.busy.read())
+
+
+class HardwareFrontPanel(QtCore.QObject):
+    advanced = QtCore.pyqtSignal()
+
+    def __init__(self, hardwares, name='Hardware'):
+        QtCore.QObject.__init__(self)
+        self.name = name
+        # link hardware object signals
+        self.hardwares = hardwares
+        for hardware in self.hardwares:
+            hardware.update_ui.connect(self.update)
+        # create gui
+        self.create_frame()
+
+    def create_frame(self):
+        layout_widget = HardwareLayoutWidget(self.name)
+        layout = layout_widget.layout()
+        # layout table
+        input_table = InputTable(125)
+        self.front_panel_elements = []
+        for hardware in self.hardwares:
+            input_table.add(hardware.name, hardware.busy)
+            current_objects = hardware.exposed
+            destination_objects = []
+            for obj in hardware.exposed:
+                input_table.add(obj.label, obj)
+                dest_obj = obj.associate(display=False, pre_name='Dest. ')
+                destination_objects.append(dest_obj)
+            for obj in destination_objects:
+                input_table.add(obj.label, obj)
+            self.front_panel_elements.append([current_objects, destination_objects])
+        layout.addWidget(input_table)
+        self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)        
+        g.hardware_widget.add_to(layout_widget)
+
+    def update(self):
+        pass
+
+    def show_advanced(self):
+        self.advanced.emit()
+
+    def on_set(self):
+        # placeholder
+        for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
+            for current_object, destination_object in zip(front_panel_elements[0], front_panel_elements[1]):
+                if current_object.set_method == 'set_position':
+                    hardware.set_position(destination_object.read(), destination_object.units)
+                else:
+                    hardware.q.push(current_object.set_method, [destination_object.read()])
+
+    def stop(self):
+        pass
+
+
+hardware_advanced_panels = []
+
+class HardwareAdvancedPanel(QtCore.QObject):
+
+    def __init__(self, hardwares, advanced_button):
+        QtCore.QObject.__init__(self)
+
+        self.tabs = QtGui.QTabWidget()
+
+        for hardware in hardwares:
+            widget = QtGui.QWidget()
+            box = QtGui.QVBoxLayout()
+            hardware.gui.create_frame(box)
+            widget.setLayout(box)
+            self.tabs.addTab(widget, hardware.name)
+
+        # box
+        self.box = QtGui.QVBoxLayout()
+        hardware_advanced_box = g.hardware_advanced_box.read()
+        hardware_advanced_box.addWidget(self.tabs)
+
+        # link into advanced button press
+        self.advanced_button = advanced_button
+        self.advanced_button.clicked.connect(self.on_advanced)
+        hardware_advanced_panels.append(self)
+        self.hide()
+
+    def hide(self):
+        self.tabs.hide()
+        self.advanced_button.setDisabled(False)
+
+    def on_advanced(self):
+        for panel in hardware_advanced_panels:
+            panel.hide()
+        self.tabs.show()
+        self.advanced_button.setDisabled(True)
+
 
 ### module ####################################################################
         
@@ -460,7 +581,7 @@ class module_go_button(QtGui.QPushButton):
         self.clicked.disconnect(self.update)
         self.setText('WAIT')
         g.app.read().processEvents()
-        print 'here', self.paused_object.read()
+        print 'here is wait_for_scan_to_pause', self.paused_object.read()
         while not self.paused_object.read(): self.paused_object.wait_for_update()
         self.clicked.connect(self.update)
     def scan_complete(self):

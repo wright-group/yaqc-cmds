@@ -1,4 +1,0 @@
-import MotionControl
-
-class OPA():
-    
