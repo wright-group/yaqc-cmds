@@ -54,17 +54,25 @@ class MicroHR:
         # save current position to ini
         ini.write('main', 'grating index', self.grating_index.read())
         ini.write('main', 'position (nm)', self.current_position.read())
+        
+    def get_grating_details(self):
+        '''
+        grating density
+        blaze, description
+        '''
+        return self.ctrl.GetCurrentGratingWithDetails()
 
     def get_position(self):
         native_position = self.ctrl.GetCurrentWavelength()
         self.current_position.write(native_position, self.native_units)
         return self.current_position.read()
 
-    def initialize(self, inputs=[]):
+    def initialize(self, inputs, address):
+        self.address = address
         # open control
         self.ctrl = JYMono.Monochromator()
-        self.ctrl.Uniqueid = 'Mono1'
-        self.ctrl.Load()
+        self.ctrl.Uniqueid = 'Mono2'
+        self.ctrl.Load()    
         self.ctrl.OpenCommunications()
         # initialize hardware
         forceInit = True  # this toggles mono homing behavior
@@ -155,23 +163,16 @@ class gui(QtCore.QObject):
 if __name__ == '__main__':
     
     
-    MicroHR = MicroHR()
-    MicroHR.initialize()
-    # wait for initialization to complete
-    while MicroHR.is_busy():
-        time.sleep(1)
+    mono = MicroHR()
+    mono.initialize()
+    print mono.description
+    print mono.serial_number
+    print mono.get_grating_details()
     
-    print MicroHR.get_position()
+    mono.close()
     
-    MicroHR.set_position(1000)
     
-    while MicroHR.is_busy():
-        time.sleep(1)
     
-    if False:
-        MicroHR.set_position(1000)
-        time.sleep(5)
-        print MicroHR.get_position()
-        MicroHR.set_position(1300)
     
-    MicroHR.close()
+    
+    

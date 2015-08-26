@@ -152,7 +152,6 @@ class Motor():
     def wait_until_still(self):
         while not self.is_stopped():
             time.sleep(0.01)
-            print 'wait bitch'
         # self.ctrl.WaitForStop(self.axis, dwell)
         # the wait for stop method on the controller stops coms for all motors
         # connected to the board which isn't what we want here
@@ -198,10 +197,10 @@ if __name__ == '__main__':
         print motor.get_position('mm')
         motor.close()
         
-    if True:
+    if False:
         # move a single motor relative
-        motor = Motor('motor8')
-        motor.move_relative(16.44, 'mm')
+        motor = Motor('motor9')
+        motor.move_relative(-0.5, 'mm')
         motor.wait_until_still()
         print motor.get_position('mm')
         motor.close()

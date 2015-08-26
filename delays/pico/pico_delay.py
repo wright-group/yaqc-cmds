@@ -47,7 +47,8 @@ class Delay:
         self.current_position.write(delay, 'ps')
         return delay
 
-    def initialize(self, inputs=[]):
+    def initialize(self, inputs, address):
+        self.address = address
         self.index = inputs[0]
         motor_identity = motors.identity['D{}'.format(self.index)]
         self.motor = motors.Motor(motor_identity)
@@ -61,7 +62,7 @@ class Delay:
     def set_position(self, destination):
         destination_mm = self.zero + destination/ps_per_mm  
         self.motor.move_absolute(destination_mm, 'mm')
-        if True:#g.module_control.read():
+        if g.module_control.read():
             self.motor.wait_until_still()
         else:
             while self.is_busy():

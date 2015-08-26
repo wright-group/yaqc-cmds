@@ -1,5 +1,6 @@
 ### import ####################################################################
 
+import os
 import sys
 import time
 
@@ -7,18 +8,30 @@ import collections
 
 import numpy as np
 
+import scipy
+
 from PyQt4 import QtCore, QtGui
+
+import WrightTools as wt
 
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as custom_widgets
 import project.ini_handler as ini
+import opas.opas as opas
+import spectrometers.spectrometers as spectrometers
+import delays.delays as delays
+hardware_modules = [opas, spectrometers, delays]
 app = g.app.read()
+main_dir = g.main_dir.read()
 daq_ini = ini.daq
 
-if not g.offline.read(): from PyDAQmx import *
+if not g.offline.read(): 
+    from PyDAQmx import *
 
-### special globals ###########################################################
+
+### special objects ###########################################################
+
 
 class analog_channels():
     physical_asignments = None
@@ -26,16 +39,41 @@ class analog_channels():
     sample_indicies = None
 analog_channels = analog_channels()
 
-class array_detector_reference:
-    def __init__(self):
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-array_detector_reference = array_detector_reference()
+array_detector_reference = pc.Mutex()
 
 busy = pc.Busy()
+
+class CurrentSlice(QtCore.QMutex):
+    
+    def __init__(self):
+        '''
+        a list of numpy arrays
+        '''
+        QtCore.QMutex.__init__(self)
+        self.value = []
+        self.col = 'index'
+        
+    def col(self, col):
+        '''
+        give the slice a col, corresponding to key in data_cols
+        '''
+        self.col = col
+        
+    def read(self):
+        return self.value
+        
+    def append(self, row):
+        self.lock()
+        self.value.append(row)
+        self.unlock()
+        
+    def clear(self):
+        self.lock()
+        self.value = []
+        self.unlock()        
+        
+current_slice = CurrentSlice()  # a list of numpy arrays
+
 
 data_busy = pc.Busy()
 
@@ -45,83 +83,26 @@ class digital_channels():
     sample_indicies = None
 digital_channels = digital_channels()
 
-class enqueued_actions(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.value = []
-    def read(self):
-        return self.value
-    def push(self, value):  
-        self.lock()
-        self.value.append(value)
-        self.unlock()
-    def pop(self):
-        self.lock()
-        self.value = self.value[1:]
-        self.unlock()
-enqueued_actions = enqueued_actions()
+enqueued_actions = pc.Enqueued()
 
-class enqueued_data(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.value = []
-    def read(self):
-        return self.value
-    def push(self, value):  
-        self.lock()
-        self.value.append(value)
-        self.unlock()
-    def pop(self):
-        self.lock()
-        self.value = self.value[1:]
-        self.unlock()
-enqueued_data = enqueued_data()
+enqueued_data = pc.Enqueued()
 
-class last_samples(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=5000):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-last_samples = last_samples()
+last_samples = pc.Mutex()
 
-class last_analog_data(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=5000):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-last_analog_data = last_analog_data()
+last_analog_data = pc.Mutex()
 
-class us_per_sample:
-    def __init__(self):
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-us_per_sample = us_per_sample()
+us_per_sample = pc.Mutex()
 
-### gui globals ###############################################################
+
+
+
+
+### gui objects ###############################################################
+
 
 #daq
 shots = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
+index = pc.Number(initial_value=0)
 
 #graph and big #
 freerun = pc.Bool(initial_value=True)
@@ -174,6 +155,7 @@ seconds_for_acquisition = pc.Number(initial_value = np.nan, display = True, deci
 
 ### dictionaries ##############################################################
 
+
 channels = collections.OrderedDict()
 channels['vai0'] = [0, [analog_channels, 'sample_indicies', 0], [analog_channels, 'limits']]
 channels['vai1'] = [1, [analog_channels, 'sample_indicies', 1], [analog_channels, 'limits']]
@@ -187,9 +169,183 @@ properties['Mean'] =         [0]
 properties['Variance'] =     [1]
 properties['Differential'] = [2]
 
+# column dictionaries
+data_cols = pc.Mutex()
+fit_cols = pc.Mutex()
+
+
+### DATA address ##############################################################
+
+
+class Data(QtCore.QObject):
+    update_ui = QtCore.pyqtSignal()
+    queue_emptied = QtCore.pyqtSignal()
+    
+    @QtCore.pyqtSlot(str, list)
+    def dequeue(self, method, inputs):
+        '''
+        accepts queued signals from 'queue' (address using q method)
+        method must be string, inputs must be list
+        '''
+        #DO NOT CHANGE THIS METHOD UNLESS YOU ~REALLY~ KNOW WHAT YOU ARE DOING!
+        if g.debug.read(): print 'data dequeue:', method
+        getattr(self, str(method))(inputs) #method passed as qstring
+        enqueued_data.pop()
+        if not enqueued_data.read(): 
+            self.queue_emptied.emit()
+            self.check_busy([])
+            
+    def check_busy(self, inputs):
+        '''
+        must always write busy whether answer is True or False
+        should include a sleep if answer is True to prevent very fast loops: time.sleep(0.1)
+        '''
+        if enqueued_data.read():
+            time.sleep(0.01)
+            data_busy.write(True)
+        else:
+            time.sleep(0.01)
+            data_busy.write(False)
+            
+    def create_data(self, inputs):
+        # filename
+        self.file_timestamp = wt.kit.get_timestamp()
+        self.current_data_path = os.path.join(main_dir, 'data', self.file_timestamp + '.data')    
+        # generate header
+        origin = None
+        axes = ['d1', 'd2']
+        units_list = [col['units'] for col in data_cols.read().values()]
+        tolerance_list = [col['tolerance'] for col in data_cols.read().values()]
+        label_list = [col['label'] for col in data_cols.read().values()]
+        name_list = data_cols.read().keys()
+        header_items = ['file created ' + self.file_timestamp]
+        header_items += ['origin ' + str(origin)]
+        header_items += ['axes ' + str(axes)]
+        header_items += ['units ' + str(units_list)]
+        header_items += ['tolerance ' + str(tolerance_list)]
+        header_items += ['label ' + str(label_list)]
+        header_items += ['name ' + str(name_list)]    
+        # add header string
+        header_str = ''
+        for item in header_items:
+            header_str += item + '\n'
+        header_str = header_str[:-1]  # remove final newline charachter
+        np.savetxt(self.current_data_path, [], header=header_str)
+        
+    def create_fit(self, inputs):
+        # create fit must always be called after create data
+        # filename
+        self.current_fit_path = os.path.join(main_dir, 'data', self.file_timestamp + ' fitted.data')
+        # generate header
+        origin = None
+        axes = ['d1', 'd2']
+        units_list = [col['units'] for col in fit_cols.read().values()]
+        tolerance_list = [col['tolerance'] for col in fit_cols.read().values()]
+        label_list = [col['label'] for col in fit_cols.read().values()]
+        name_list = fit_cols.read().keys()
+        header_items = ['file created ' + self.file_timestamp]
+        header_items += ['origin ' + str(origin)]
+        header_items += ['axes ' + str(axes)]
+        header_items += ['units ' + str(units_list)]
+        header_items += ['tolerance ' + str(tolerance_list)]
+        header_items += ['label ' + str(label_list)]
+        header_items += ['name ' + str(name_list)]    
+        # add header string
+        header_str = ''
+        for item in header_items:
+            header_str += item + '\n'
+        header_str = header_str[:-1]  # remove final newline charachter
+        np.savetxt(self.current_fit_path, [], header=header_str)    
+        
+    def fit(self, inputs):
+        # functions
+        def gaussian(p, x):
+            '''
+            p = [amplitude, center, FWHM, offset]
+            '''
+            print p
+            a, b, c, d = p
+            return a*np.exp(-(x-b)**2/(2*np.abs(c/(2*np.sqrt(2*np.log(2))))**2))+d
+        def residuals(p, y, x):
+            return y - gaussian(p, x)
+        # inputs
+        xkey = inputs[0]
+        zkey = inputs[1]
+        data = np.array(inputs[2])
+        xcol = data_cols.read()[xkey]['index']
+        zcol = data_cols.read()[zkey]['index']
+        xi = data[:, xcol]
+        zi = data[:, zcol]
+        # guess
+        amplitude_guess = zi.max() - zi.min()
+        center_guess = xi[np.where(zi == zi.max())]
+        FWHM_guess = abs(xi[5] - xi[0])
+        offset_guess = zi.min()
+        p0 = [amplitude_guess, center_guess, FWHM_guess, offset_guess]
+        # fit
+        from scipy import optimize
+        out = optimize.leastsq(residuals, p0, args=(zi, xi))[0]
+        # assemble array
+        arr = np.full(len(fit_cols.read()), np.nan)
+        for col in fit_cols.read():
+            index = fit_cols.read()[col]['index']
+            if col == 'amplitude':
+                arr[index] = out[0]
+            elif col == 'center':
+                arr[index] = out[1]
+            elif col == 'FWHM':
+                arr[index] = out[2]
+            elif col == 'offset':
+                arr[index] = out[3]
+            elif col == xcol:
+                arr[index] = np.nan
+            else:
+                # it's a hardware column
+                arr[index] = data[0, index]
+        # write
+        self.write_fit(arr)
+            
+    def write_data(self, inputs):
+        data_file = open(self.current_data_path, 'a')
+        np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
+        data_file.write('\n')
+        data_file.close()
+        
+    def write_fit(self, inputs):
+        data_file = open(self.current_fit_path, 'a')
+        np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
+        data_file.write('\n')
+        data_file.close()
+
+    def initialize(self, inputs):
+        pass
+                      
+    def shutdown(self, inputs):
+        #cleanly shut down
+        #all hardware classes must have this
+        pass
+
+#begin address object in seperate thread
+data_thread = QtCore.QThread()
+data_obj = Data()
+data_obj.moveToThread(data_thread)
+data_thread.start()
+
+#create queue to communiate with address thread
+data_queue = QtCore.QMetaObject()
+def data_q(method, inputs = []):
+    #add to friendly queue list 
+    enqueued_data.push([method, time.time()])
+    #busy
+    data_busy.write(True)
+    #send Qt SIGNAL to address thread
+    data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
+
+
 ### DAQ address ###############################################################
 
-class Address(QtCore.QObject):
+
+class DAQ(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     running = False
@@ -201,7 +357,7 @@ class Address(QtCore.QObject):
         method must be string, inputs must be list
         '''
         #DO NOT CHANGE THIS METHOD UNLESS YOU ~REALLY~ KNOW WHAT YOU ARE DOING!
-        busy.write(True)
+        #busy.write(True)
         if g.debug.read(): print 'daq dequeue:', method, inputs
         enqueued_actions.pop()
         getattr(self, str(method))(inputs) #method passed as qstring
@@ -227,7 +383,7 @@ class Address(QtCore.QObject):
             
     def loop(self, inputs):
         while freerun.read():
-            self.run_task([])
+            self.run_task([False])
             
     def initialize(self, inputs):
         self.task_created = False
@@ -265,15 +421,15 @@ class Address(QtCore.QObject):
         self.num_digital_channels = len(daq_digital_physical_channels)
         self.num_channels = self.num_analog_channels + self.num_digital_channels
         
-        #calculate the number of 'virtual samples' to take----------------------
+        # calculate the number of 'virtual samples' to take -------------------
         
-        conversions_per_second = 1000000. #a property of the DAQ card
-        shots_per_second = 1100. #from laser (max value - if there are more shots than this we are in big trouble!!!)
+        conversions_per_second = 1000000. # a property of the DAQ card
+        shots_per_second = 1100. # from laser (max value - if there are more shots than this we are in big trouble!!!)
         self.virtual_samples = int(conversions_per_second/(shots_per_second*self.num_channels))
         num_samples.write(self.virtual_samples)
         us_per_sample.write((1/conversions_per_second)*10**6)
         
-        #create task------------------------------------------------------------
+        # create task ---------------------------------------------------------
         
         try:
             self.task_handle = TaskHandle()
@@ -286,20 +442,20 @@ class Address(QtCore.QObject):
             DAQmxClearTask(self.task_handle)
             return
 
-        #initialize channels----------------------------------------------------
+        # initialize channels -------------------------------------------------
 
-        #The daq is addressed in a somewhat non-standard way. A total of ~1000 
-        #virtual channels are initialized (depends on DAQ speed and laser rep 
-        #rate). These virtual channels are evenly distributed over the physical
-        #channels addressed by the software. When the task is run, it round
-        #robins over all the virtual channels, essentially oversampling the
-        #analog physical channels.
+        # The daq is addressed in a somewhat non-standard way. A total of ~1000 
+        # virtual channels are initialized (depends on DAQ speed and laser rep 
+        # rate). These virtual channels are evenly distributed over the physical
+        # channels addressed by the software. When the task is run, it round
+        # robins over all the virtual channels, essentially oversampling the
+        # analog physical channels.
 
-        #self.virtual_samples contains the oversampling factor.
+        # self.virtual_samples contains the oversampling factor.
 
-        #Each virtual channel must have a unique name.
+        # Each virtual channel must have a unique name.
 
-        #The sample clock is supplied by the laser output trigger.
+        # The sample clock is supplied by the laser output trigger.
 
         try:
             
@@ -363,34 +519,30 @@ class Address(QtCore.QObject):
         self.task_created = True
             
     def run_task(self, inputs):
+        '''
+        inputs[0] bool save
+        '''
 
         self.running = True  
         self.check_busy([])
         self.update_ui.emit()
+
+        self.save = inputs[0]
         
         if g.offline.read():            
-            #fake readings
-            out = np.random.rand(self.shots, self.virtual_samples, self.num_channels)
-            self.analog_data[i, 0] = np.mean(out[:, 0, i]) #average
-            self.analog_data[i, 1] = np.var(out[:, 0, i]) #variance
-            self.analog_data[i, 2] = np.mean(out[:, 0, i]*diff_weights) #differential
-            last_samples.write(out)
-            last_analog_data.write(self.analog_data)
-            self.update_ui.emit()
-            time.sleep(self.shots / 1000)
-            seconds_since_last_task.write(time.time() - self.previous_time)
-            self.previous_time = time.time()            
+            # fake readings
+            pass          
         
         if not self.task_created: return
         start_time = time.time()
         
         #array_detector = array_detector_reference.read()
         
-        #tell array detector to begin-------------------------------------------
+        # tell array detector to begin ----------------------------------------
         
         #array_detector.control.read()   
         
-        #collect samples array--------------------------------------------------
+        # collect samples array -----------------------------------------------
         
         try:
             DAQmxStartTask(self.task_handle)
@@ -412,43 +564,65 @@ class Address(QtCore.QObject):
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
             
-        #wait for array detector to finish--------------------------------------
+        # wait for array detector to finish -----------------------------------
             
         #array_detector.control.wait_until_done()
             
         seconds_for_acquisition.write(time.time() - start_time)
             
-        #do math----------------------------------------------------------------
+        # do math -------------------------------------------------------------
         
         out = np.copy(self.samples)
         out.shape = (self.shots, self.virtual_samples, self.num_channels)
         
-        #'digitize' digital channels
+        # 'digitize' digital channels
         for i in range(self.num_analog_channels, self.num_analog_channels+self.num_digital_channels):
             low_value_indicies = out[:, :, i] < self.digital_cutoff
             high_value_indicies = out[:, :, i] >= self.digital_cutoff
             out[low_value_indicies, i] = 0
             out[high_value_indicies, i] = 1
         
-        #create differential multiplication array
+        # create differential multiplication array
         chopper_index = 5
         diff_weights = out[:, 0, chopper_index]
         diff_weights[out[:, 0, chopper_index] == 0] = -1
         diff_weights[out[:, 0, chopper_index] == 1] = 1
         
-        #get statistics
+        # get statistics
         for i in range(self.num_analog_channels):
-            self.analog_data[i, 0] = np.mean(out[:, 0, i]) #average
-            self.analog_data[i, 1] = np.var(out[:, 0, i]) #variance
-            self.analog_data[i, 2] = np.mean(out[:, 0, i]*diff_weights) #differential
+            self.analog_data[i, 0] = np.mean(out[:, 0, i])  # average
+            self.analog_data[i, 1] = np.var(out[:, 0, i])  # variance
+            self.analog_data[i, 2] = np.mean(out[:, 0, i]*diff_weights)  # differential
         
-        #export data------------------------------------------------------------        
+        # export data ---------------------------------------------------------        
         
         last_samples.write(out)
         last_analog_data.write(self.analog_data)
         self.update_ui.emit()
         
-        #update timer-----------------------------------------------------------
+        if self.save:
+            row = np.full(len(data_cols.read()), np.nan)
+            row[0] = index.read()
+            row[1] = time.time()
+            i = 2
+            # hardware
+            for module in hardware_modules:
+                for hardware in module.hardwares:
+                    row[i] = hardware.get_position()
+                    i += 1
+            # values
+            for channel_idx in range(5):
+                for property_idx in range(3):
+                    row[i] = self.analog_data[channel_idx, property_idx]
+                    i += 1
+            # output
+            data_q('write_data', [row])
+            current_slice.append(row)
+            
+            # index
+            index.write(index.read()+1)
+        
+        # update timer --------------------------------------------------------
         
         seconds_since_last_task.write(time.time() - self.previous_time)
         self.previous_time = time.time()
@@ -465,152 +639,26 @@ class Address(QtCore.QObject):
              DAQmxStopTask(self.task_handle)
              DAQmxClearTask(self.task_handle)
 
-#begin address object in seperate thread
+# begin address object in seperate thread
 address_thread = QtCore.QThread()
-address_obj = Address()
+address_obj = DAQ()
 address_obj.moveToThread(address_thread)
 address_thread.start()
 
-#create queue to communiate with address thread
+# create queue to communiate with address thread
 queue = QtCore.QMetaObject()
 def q(method, inputs = []):
-    #add to friendly queue list 
+    # add to friendly queue list 
     enqueued_actions.push([method, time.time()])
-    #busy
+    # busy
+    #busy.unlock()
     busy.write(True)
-    #send Qt SIGNAL to address thread
+    # send Qt SIGNAL to address thread    
     queue.invokeMethod(address_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
-    
-### DATA address###############################################################
-    
-class data(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
-    
-    @QtCore.pyqtSlot(str, list)
-    def dequeue(self, method, inputs):
-        '''
-        accepts queued signals from 'queue' (address using q method)
-        method must be string, inputs must be list
-        '''
-        #DO NOT CHANGE THIS METHOD UNLESS YOU ~REALLY~ KNOW WHAT YOU ARE DOING!
-        if g.debug.read(): print 'data dequeue:', method, inputs
-        getattr(self, str(method))(inputs) #method passed as qstring
-        enqueued_data.pop()
-        if not enqueued_data.read(): 
-            self.queue_emptied.emit()
-            self.check_busy([])
-            
-    def check_busy(self, inputs):
-        '''
-        must always write busy whether answer is True or False
-        should include a sleep if answer is True to prevent very fast loops: time.sleep(0.1)
-        '''
-        if enqueued_data.read():
-            time.sleep(0.1)
-            busy.write(True)
-        else:
-            busy.write(False)
-            
-    def create_dat(self, inputs):
-        '''
-        dat headers
-        name
-        daq parameters
-        dimensions
-        
-        '''
-        #generate header
-        mydict = {"foo":[1,2], "bar":[3,4], "asdf":[5,6]}
-        header_items = ['file created ' + time.strftime('%Y.%m.%d %H:%M:%S'), 'columns [a, b, c, d]', str(mydict)]
-        header_str = ''
-        for item in header_items: header_str += item + '\n' 
-        header_str[-2]
-        np.savetxt(output_file, [], header=header_str[:-1])
-            
-    def write_dat(self, inputs):
-        '''
-        dat columns:                                  \n
-        00) index                                     \n
-        01) time (seconds since epoch)                \n
-        02) OPA1 shutter state (0 = closed, 1 = open) \n
-        03) OPA1 color (nm)                           \n
-        04) OPA2 shutter state (0 = closed, 1 = open) \n
-        05) OPA2 color (nm)                           \n
-        06) ND1 position (%T)                         \n
-        07) ND1 position (steps)                      \n
-        08) ND2 position (%T)                         \n
-        09) ND2 position (steps)                      \n
-        10) ND3 position (%T)                         \n
-        11) ND3 position (steps)                      \n
-        12) D1 position (fs)                          \n
-        13) D1 position (mm)                          \n
-        14) D2 position (fs)                          \n
-        15) D2 position (mm)                          \n
-        16) D3 position (fs)                          \n
-        17) D3 position (mm)                          \n
-        18) mono color (nm)                           \n
-        19) array dimension 0 map value               \n
-        20) array dimension 1 map value               \n
-        21) AI0                                       \n
-        22) AI1                                       \n
-        23) AI2                                       \n
-        24) AI3                                       \n
-        25) AI4                                       \n
-        26) array value                               \n
-        '''
-        import os
-        import time
-        import numpy as np
 
-        dat_file = open(output_file, 'a')
-        my_row = np.full(26, np.nan)
-        my_row[0] = i+1
-        my_row[1] = time.time()
-        my_row[2] = 1
-        my_row[3] = 1300
-        my_row[4] = 1
-        my_row[5] = 1300
-        np.savetxt(dat_file, my_row, fmt='%8.4f', delimiter='\t', newline = '\t')
-        dat_file.write('\n')
-        dat_file.close()
-
-    def create_fit(self, inputs):
-        pass
-        
-    def write_fit(self, inputs):
-        '''
-        fit columns:                                  \n
-        00) index                                     \n
-        01) time (seconds since epoch)                \n
-        '''
-        pass
-           
-    def initialize(self, inputs):
-        pass
-                      
-    def shutdown(self, inputs):
-         #cleanly shut down
-         #all hardware classes must have this
-         pass
-
-#begin address object in seperate thread
-data_thread = QtCore.QThread()
-data_obj = data()
-data_obj.moveToThread(data_thread)
-data_thread.start()
-
-#create queue to communiate with address thread
-data_queue = QtCore.QMetaObject()
-def data_q(method, inputs = []):
-    #add to friendly queue list 
-    enqueued_actions.push([method, time.time()])
-    #busy
-    if not busy.read(): busy.write(True)
-    #send Qt SIGNAL to address thread
-    data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
 ### control####################################################################
+
 
 class Control():
     
@@ -620,49 +668,139 @@ class Control():
         g.shutdown.add_method(self.shutdown)
         self.initialize_hardware()
         # setup freerun
-        freerun.updated.connect(lambda: q('loop'))
-        if freerun.read(): q('loop')
+        freerun.updated.connect(self.freerun)
+        self.freerun()
         # other controls
         shots.updated.connect(self.update_task)
         g.main_window.read().module_control.connect(self.module_control_update)
+        # initialize format
+        self.update_cols()
         
     def acquire(self):
-        print 'daq control acquire'
-        q('run_task')
+        q('run_task', inputs=[True])
+        
+    def fit(self, xkey, zkey):
+        data_q('fit', [xkey, zkey, current_slice.read()])
+    
+    def freerun(self):
+        if freerun.read():
+            print 'Control freerun'
+            q('loop')
+            
+    def index_slice(self, col='index'):
+        '''
+        tell DAQ to start a new slice \n
+        '''
+        current_slice.clear()
+        current_slice.col = col
         
     def initialize_hardware(self):
         q('initialize')
-        #tell the array to begin initialization
-        #import InGaAs_array.InGaAs as array_detector
-        #array_detector_reference.write(array_detector)
+
+    def initialize_scan(self, widget, fit=False):
+        '''
+        prepare environment for scanning
+        '''
+        # set index back to zero
+        index.write(0)
+        # get params from widget
+        shots.write(widget.shots.read())
+        # create data file(s)
+        data_q('create_data')
+        if fit:
+            data_q('create_fit')
+        # wait until daq is done before letting module continue        
+        self.wait_until_daq_done()
+        self.wait_until_data_done()
         
     def module_control_update(self):
         if g.module_control.read():
             freerun.write(False)
-            self.wait_until_done()
+            self.wait_until_daq_done()
+            print 'module control update done'
         else:
             freerun.write(True)
+            
+    def update_cols(self):
+        '''
+        define the format of .data and .fit files
+        '''
+        new_data_cols = collections.OrderedDict()
+        new_fit_cols = collections.OrderedDict()
+        # exposed hardware positions get written to both filetypes
+        for cols in [new_data_cols, new_fit_cols]:
+            # index
+            dictionary = collections.OrderedDict()
+            dictionary['index'] = len(cols)
+            dictionary['units'] = None
+            dictionary['tolerance'] = 0.5
+            dictionary['label'] = ''
+            dictionary['get_method'] = None
+            cols['index'] = dictionary
+            # time
+            dictionary = collections.OrderedDict()
+            dictionary['index'] = len(cols)
+            dictionary['units'] = 's'
+            dictionary['tolerance'] = 0.001
+            dictionary['label'] = 'lab'
+            dictionary['get_method'] = None
+            cols['time'] = dictionary
+            for module in hardware_modules:
+                for hardware in module.hardwares:
+                    dictionary = collections.OrderedDict()
+                    dictionary['index'] = len(cols)
+                    dictionary['units'] = hardware.native_units
+                    dictionary['tolerance'] = 1.
+                    dictionary['label'] = ''
+                    dictionary['get_method'] = hardware.get_position
+                    cols[hardware.name] = dictionary
+        # data
+        for channel in channels:
+            for prop in properties:
+                dictionary = collections.OrderedDict()
+                name = channel + ' ' + prop
+                dictionary['index'] = len(new_data_cols)
+                dictionary['units'] = 'V'
+                dictionary['tolerance'] = None
+                dictionary['label'] = ''
+                dictionary['get_method'] = None
+                new_data_cols[name] = dictionary
+        # fit
+        for prop in ['amplitude', 'center', 'FWHM', 'offset']:
+            dictionary = collections.OrderedDict()
+            name = prop
+            dictionary['index'] = len(new_fit_cols)
+            dictionary['units'] = 'V'
+            dictionary['tolerance'] = None
+            dictionary['label'] = ''
+            dictionary['get_method'] = None
+            new_fit_cols[name] = dictionary
+        data_cols.write(new_data_cols)
+        fit_cols.write(new_fit_cols)
         
     def update_task(self):
         if freerun.read():
             return_to_freerun = True
             freerun.write(False)
-            self.wait_until_done()
+            self.wait_until_daq_done()
         else: 
             return_to_freerun = False
         q('create_task')
-        if return_to_freerun: freerun.write(True)
+        if return_to_freerun: 
+            freerun.write(True)
     
-    def wait_until_done(self, timeout = 10):
+    def wait_until_daq_done(self, timeout=10):
         '''
         timeout in seconds
         
         will only refer to timeout when busy.wait_for_update fires
         '''
         start_time = time.time()
+        q('check_busy')
         while busy.read():
             if time.time()-start_time < timeout:
-                if not enqueued_actions.read(): q('check_busy')
+                if not enqueued_actions.read(): 
+                    q('check_busy')
                 busy.wait_for_update()
             else: 
                 g.logger.log('warning', 'DAQ dait until done timed out', 'timeout set to {} seconds'.format(timeout))
@@ -677,20 +815,23 @@ class Control():
         start_time = time.time()
         while data_busy.read():
             if time.time()-start_time < timeout:
-                if not enqueued_data.read(): data_q('check_busy')
+                if not enqueued_data.read(): 
+                    data_q('check_busy')
                 data_busy.wait_for_update()
             else: 
                 g.logger.log('warning', 'Data wait until done timed out', 'timeout set to {} seconds'.format(timeout))
                 break
                 
     def shutdown(self):   
-        #log
+        # stop looping
+        freerun.write(False)
+        # log
         if g.debug.read(): print 'daq shutting down'
         g.logger.log('info', 'DAQ shutdown')
-        #shutdown other threads
+        # shutdown other threads
         q('shutdown')
         data_q('shutdown')
-        self.wait_until_done()
+        self.wait_until_daq_done()
         self.wait_until_data_done()
         address_thread.quit()
         data_thread.quit()
@@ -699,7 +840,9 @@ class Control():
     
 control = Control()
 
+
 ### gui########################################################################
+
 
 class Widget(QtGui.QWidget):
 
@@ -726,40 +869,39 @@ class Gui(QtCore.QObject):
         tab_property.updated.connect(self.update)
         tab_trigger.updated.connect(self.update)
         tab_shots.updated.connect(self.update)
-        self.create_daq_frame()
-        self.create_current_frame()
+        self.create_frame()
         
-    def create_daq_frame(self):
+    def create_frame(self):
         
-        #get parent widget------------------------------------------------------
+        # get parent widget ---------------------------------------------------
         
         parent_widget = g.daq_widget.read()
         parent_widget.setLayout(QtGui.QHBoxLayout())
         #parent_widget.layout().setContentsMargins(0, 5, 0, 0)
         layout = parent_widget.layout()
         
-        #display area-----------------------------------------------------------
+        # display area --------------------------------------------------------
 
-        #container widget
+        # container widget
         display_container_widget = QtGui.QWidget()
         display_container_widget.setLayout(QtGui.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
         
-        #big number
+        # big number
         self.big_display = custom_widgets.spinbox_as_display(font_size = 100)        
         display_layout.addWidget(self.big_display)
         
-        #plot
-        self.plot_widget = custom_widgets.plot_1D()
+        # plot
+        self.plot_widget = custom_widgets.Plot1D()
         self.plot_curve = self.plot_widget.add_scatter()
         self.plot_widget.set_labels(ylabel = 'volts')
-        self.plot_green_line = self.plot_widget.add_line(color = 'g')   
-        self.plot_red_line = self.plot_widget.add_line(color = 'r')   
+        self.plot_green_line = self.plot_widget.add_infinite_line(color = 'g')   
+        self.plot_red_line = self.plot_widget.add_infinite_line(color = 'r')   
         display_layout.addWidget(self.plot_widget)
         
-        #value display frame
+        # value display frame
         frame_frame_widget = QtGui.QWidget()
         frame_frame_widget.setLayout(QtGui.QVBoxLayout())
         frame_frame_widget.layout().addStretch(1)
@@ -778,13 +920,13 @@ class Gui(QtCore.QObject):
             value_frame_layout.addWidget(label, i+1, 0)
             grid_displays_row = []
             for j in range(3):
-                #display
+                # display
                 display = custom_widgets.spinbox_as_display()
                 value_frame_layout.addWidget(display, i+1, j+1)
                 grid_displays_row.append(display)
             self.grid_displays.append(grid_displays_row)
         for j in range(3):
-            #label
+            # label
             label = QtGui.QLabel(clabels[j])
             label.setAlignment(QtCore.Qt.AlignRight)
             label.setStyleSheet(label_StyleSheet)
@@ -793,18 +935,18 @@ class Gui(QtCore.QObject):
         frame_frame_widget.layout().addWidget(frame_widget)
         display_layout.addWidget(frame_frame_widget)
         
-        #streach
+        # streach
         spacer = custom_widgets.vertical_spacer()
         spacer.add_to_layout(display_layout)
         
-        #vertical line----------------------------------------------------------
+        # vertical line -------------------------------------------------------
 
         line = custom_widgets.line('V')      
         layout.addWidget(line)
         
-        #settings area----------------------------------------------------------
+        # settings area -------------------------------------------------------
         
-        #container widget / scroll area
+        # container widget / scroll area
         settings_container_widget = QtGui.QWidget()
         settings_scroll_area = custom_widgets.scroll_area()
         settings_scroll_area.setWidget(settings_container_widget)
@@ -815,7 +957,7 @@ class Gui(QtCore.QObject):
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
                 
-        #input table one
+        # input table one
         input_table = custom_widgets.InputTable()
         input_table.add('Display', None)
         input_table.add('Shots', shots)
@@ -826,13 +968,12 @@ class Gui(QtCore.QObject):
         input_table.add('Trigger', tab_trigger)
         input_table.add('Shots', tab_shots)        
         settings_layout.addWidget(input_table)
-        g.module_control.disable_when_true(input_table)
         
-        #horizontal line
+        # horizontal line
         line = custom_widgets.line('H')      
         settings_layout.addWidget(line)
         
-        #input table two
+        # input table two
         input_table = custom_widgets.InputTable()
         input_table.add('Channel Timing', None)
         input_table.add('Samples', num_samples)
@@ -886,26 +1027,9 @@ class Gui(QtCore.QObject):
         settings_layout.addWidget(input_table)
         g.module_control.disable_when_true(input_table)
         
-        #streach
+        # streach
         settings_layout.addStretch(1)
-        
-    def create_current_frame(self):
-        
-        # get parent widget ---------------------------------------------------
-        
-        parent_widget = g.current_slice_widget.read()
-        parent_widget.setLayout(QtGui.QVBoxLayout())
-        parent_widget.layout().setMargin(5)
-        
-        layout = parent_widget.layout()
-        
-        #fill in----------------------------------------------------------------
-        
-        line_edit = QtGui.QLineEdit()
-        line_edit.setText('current')
-        
-        layout.addWidget(line_edit)
-        
+
     def on_apply_channels(self):
         analog_channels.sample_indicies = [[vai0_first_sample.read(), vai0_last_sample.read()], [vai1_first_sample.read(), vai1_last_sample.read()], [vai2_first_sample.read(), vai2_last_sample.read()], [vai3_first_sample.read(), vai3_last_sample.read()], [vai4_first_sample.read(), vai4_last_sample.read()]]
         digital_channels.sample_indicies = [[vdi0_first_sample.read(), vdi0_last_sample.read()]]

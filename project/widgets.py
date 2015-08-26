@@ -490,7 +490,7 @@ class HardwareAdvancedPanel(QtCore.QObject):
 
         for hardware in hardwares:
             widget = QtGui.QWidget()
-            box = QtGui.QVBoxLayout()
+            box = QtGui.QHBoxLayout()
             hardware.gui.create_frame(box)
             widget.setLayout(box)
             self.tabs.addTab(widget, hardware.name)
@@ -592,9 +592,9 @@ class module_go_button(QtGui.QPushButton):
 ### plotting ##################################################################
 
 
-class plot_1D(pg.GraphicsView):
+class Plot1D(pg.GraphicsView):
     
-    def __init__(self, title = None):
+    def __init__(self, title=None):
         pg.GraphicsView.__init__(self)
         #create layout
         self.graphics_layout = pg.GraphicsLayout(border = 'w')
@@ -609,17 +609,17 @@ class plot_1D(pg.GraphicsView):
         if title: 
             self.plot_object.setTitle(title)
             
-    def add_scatter(self, color = 'c', size = 3, symbol = 'o'):
+    def add_scatter(self, color='c', size=3, symbol='o'):
         curve = pg.ScatterPlotItem(symbol=symbol, pen=(color), brush=(color), size=size)
         self.plot_object.addItem(curve)
         return curve 
         
-    def add_curve(self, color = 'c', size = 3):
-        curve = pg.PlotCurveItem(pen=(color), brush=(color), size=size)
+    def add_line(self, color='c', size=3, symbol='o'):
+        curve = pg.PlotCurveItem(symbol=symbol, pen=(color), brush=(color), size=size)
         self.plot_object.addItem(curve)
         return curve 
         
-    def add_line(self, color = 'y', angle = 90, movable = False):
+    def add_infinite_line(self, color = 'y', angle = 90, movable = False):
         '''
         returns a hidden InfiniteLine object \n
         useful methods of returned object: setValue(), show(), hide()
@@ -638,6 +638,12 @@ class plot_1D(pg.GraphicsView):
         if ylabel:
             self.plot_object.setLabel('left', text=ylabel)
             self.plot_object.showLabel('left')
+            
+    def set_xlim(self, xmin, xmax):
+        self.plot_object.setXRange(xmin, xmax)
+        
+    def set_ylim(self, ymin, ymax):
+        self.plot_object.setYRange(ymin, ymax)
             
     def clear(self):
         self.plot_object.clear()
@@ -691,3 +697,13 @@ class wait_window(QtGui.QMessageBox):
                 self.show()
                 wait_for.wait_for_update()
             self.close()
+            
+### testing ###################################################################
+            
+if __name__ == '__main__':
+    print 'hello world'
+    plt = Plot1D()
+    
+    
+    
+    

@@ -1,9 +1,10 @@
 #import initExample ## Add path to library (just for examples; you do not need this)
 
 import os 
-os.chdir(r'C:\Users\John\Desktop\PyCMDS 00.01')
+os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 
-import packages.pyqtgraph.pyqtgraph as pg
+import pyqtgraph as pg
+from pyqtgraph import exporters
 #import pyqtgraph.exporters
 import numpy as np
 plt = pg.plot(np.random.normal(size=100), title="Simplest possible plotting example")

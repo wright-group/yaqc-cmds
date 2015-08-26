@@ -1,5 +1,6 @@
 ### import ####################################################################
 
+
 import time
 
 import numpy as np
@@ -8,6 +9,7 @@ from PyQt4 import QtCore
 
 import project_globals as g
 
+import WrightTools as wt
 import WrightTools.units as wt_units
 
 
@@ -383,6 +385,27 @@ class String(PyCMDS_Object):
 ### hardware ##################################################################
 
 
+class Mutex(QtCore.QMutex):
+    
+    def __init__(self):
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.value = None
+        
+    def read(self):
+        return self.value
+        
+    def write(self, value):
+        self.lock()
+        self.value = value
+        self.WaitCondition.wakeAll()
+        self.unlock()
+        
+    def wait_for_update(self, timeout=5000):
+        if self.value:
+            return self.WaitCondition.wait(self, msecs=timeout)
+
+
 class Busy(QtCore.QMutex):
 
     def __init__(self):
@@ -403,10 +426,10 @@ class Busy(QtCore.QMutex):
         '''
         bool value
         '''
-        self.lock()
+        self.tryLock(10)  # wait at most 10 ms before moving forward
         self.value = value
-        self.WaitCondition.wakeAll()
         self.unlock()
+        self.WaitCondition.wakeAll()
 
     def wait_for_update(self, timeout=5000):
         '''
@@ -421,23 +444,25 @@ class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     
-    def __init__(self, enqueued_obj, busy_obj, name, ctrl_class):
+    def __init__(self, hardware_obj, enqueued_obj, busy_obj, name, ctrl_class):
         '''
         do not override __init__ or dequeue
         unless you really know what you are doing
         '''
         QtCore.QObject.__init__(self)
+        self.hardware = hardware_obj
         self.enqueued = enqueued_obj
         self.busy = busy_obj
         self.name = name
         self.ctrl = ctrl_class()
         self.exposed = self.ctrl.exposed
-        for obj in self.exposed:
-            if hasattr(self, obj.set_method):
-                pass  # don't allow overwriting of address methods
+        ctrl_methods =  wt.kit.get_methods(self.ctrl)      
+        for method in ctrl_methods:
+            if hasattr(self, method):
+                pass  # do not overwrite methods of address
             else:
-                additional_method = getattr(self.ctrl, obj.set_method)
-                setattr(self, obj.set_method, additional_method)
+                additional_method = getattr(self.ctrl, method)
+                setattr(self, method, additional_method)
         self.gui = self.ctrl.gui
         self.native_units = self.ctrl.native_units
         self.limits = self.ctrl.limits
@@ -487,7 +512,7 @@ class Address(QtCore.QObject):
         self.is_busy([])
 
     def initialize(self, inputs):
-        self.ctrl.initialize(inputs)
+        self.ctrl.initialize(inputs, self)
         g.logger.log('info', self.name + ' Initializing', message=str(inputs))
         if g.debug.read():
             print self.name, 'initialization complete'
@@ -557,7 +582,7 @@ class Hardware(QtCore.QObject):
         self.thread = QtCore.QThread()
         self.enqueued = Enqueued()
         self.busy = Busy()
-        self.address = address_class(self.enqueued, self.busy,
+        self.address = address_class(self, self.enqueued, self.busy,
                                      name, control_class)
         self.exposed = self.address.exposed
         self.current_position = self.exposed[0]

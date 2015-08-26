@@ -8,6 +8,7 @@ import time
 import numpy as np
 
 import project.project_globals as g
+import project.classes as pc
 scan_thread = g.scan_thread.read()
 
 from PyQt4 import QtCore, QtGui
@@ -98,6 +99,14 @@ class paused(QtCore.QMutex):
         if self.value: return self.WaitCondition.wait(self, msecs=timeout)
 paused = paused()
 
+### other #####################################################################
+
+limits = pc.NumberLimits(min_value=0, max_value=10000)
+start_color = pc.Number(initial_value=1000, units='nm', limits=limits)
+stop_color = pc.Number(initial_value=3000, units='nm', limits=limits)
+num_colors = pc.Number(initial_value=200, decimals=0)
+
+
 ### scan object ###############################################################
 
 class scan(QtCore.QObject):
@@ -122,47 +131,36 @@ class scan(QtCore.QObject):
 
         # scan ----------------------------------------------------------------
 
-        spec_destinations = np.linspace(1100, 1620, 200)
-        grating_destinations = np.linspace(34, 40, 40)
-        bbo_destinations = np.linspace(35, 40, 80)
+        spec_destinations = np.linspace(start_color.read('nm'), stop_color.read('nm'), num_colors.read())
         
-        npts = len(spec_destinations)*len(bbo_destinations)*len(grating_destinations)
+        npts = len(spec_destinations)
 
         # initialize scan in daq
         daq.control.initialize_scan(daq_widget, fit=True)
+        daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())
         
         # do loop
         break_scan = False
         idx = 0
-        for k in range(len(grating_destinations)):
-            for j in range(len(bbo_destinations)):    
-                inputs = [grating_destinations[k], bbo_destinations[j], 16.]
-                OPA2.q.push('set_motors', inputs)    
-                # slice index
-                daq.control.index_slice(col='MicroHR')
-                daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())    
-                for i in range(len(spec_destinations)):
-                    # set mono        
-                    MicroHR.set_position(spec_destinations[i], 'nm')
-                    # wait for all hardware
-                    g.hardware_waits.wait()
-                    # read from daq
-                    daq.control.acquire()
-                    daq.control.wait_until_daq_done()
-                    # update
-                    idx += 1
-                    fraction_complete.write(float(idx)/float(npts))
-                    self.update_ui.emit()
-                    if not self.check_continue():
-                        break_scan = True
-                    if break_scan:
-                        break
-                if break_scan:
-                    break
-                # fit each slice
-                daq.control.fit('MicroHR', 'vai0 Mean')
+        for i in range(len(spec_destinations)):
+            # set mono        
+            MicroHR.set_position(spec_destinations[i], 'nm')
+            # wait for all hardware
+            g.hardware_waits.wait()
+            # read from daq
+            daq.control.acquire()
+            daq.control.wait_until_daq_done()
+            # update
+            idx += 1
+            fraction_complete.write(float(idx)/float(npts))
+            self.update_ui.emit()
+            if not self.check_continue():
+                break_scan = True
             if break_scan:
                 break
+
+        daq.control.fit('MicroHR', 'vai0 Mean')
+
         
         #end-------------------------------------------------------------------
 
@@ -209,6 +207,13 @@ class gui(QtCore.QObject):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
         
+        # input table one
+        input_table = custom_widgets.InputTable()
+        input_table.add('Initial', start_color)
+        input_table.add('Final', stop_color)
+        input_table.add('Number', num_colors)
+        layout.addWidget(input_table)
+        
         # daq widget
         self.daq_widget = daq.Widget()
         layout.addWidget(self.daq_widget)
@@ -228,13 +233,13 @@ class gui(QtCore.QObject):
         self.frame.setLayout(layout)
         
         g.module_widget.add_child(self.frame)
-        g.module_combobox.add_module('TEMPLATE', self.show_frame)
+        g.module_combobox.add_module('MONO SLICE', self.show_frame)
 
     def create_advanced_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
        
-        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by template')
+        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by mono slice')
         my_widget.setAutoFillBackground(True)
         layout.addWidget(my_widget)
         
@@ -246,7 +251,7 @@ class gui(QtCore.QObject):
     def show_frame(self):
         self.frame.hide()
         self.advanced_frame.hide()
-        if g.module_combobox.get_text() == 'TEMPLATE':
+        if g.module_combobox.get_text() == 'MONO SLICE':
             self.frame.show()
             self.advanced_frame.show()
 

@@ -1,9 +1,6 @@
-#to do##########################################################################
-
-#[ ] error event handling
-
-#import#########################################################################
+#### import ####################################################################
 #BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
+
 
 import os
 import sys
@@ -22,11 +19,12 @@ g.logger.load()
 import project.ini_handler as ini
 g.logger.log('info', 'Startup', 'PyCMDS is attempting startup')
 
-
 import project.style as style
 import project.widgets as custom_widgets
 
-#main window####################################################################
+
+### main window ###############################################################
+
 
 class MainWindow(QtGui.QMainWindow):
     shutdown = QtCore.pyqtSignal()
@@ -55,6 +53,7 @@ class MainWindow(QtGui.QMainWindow):
         self._create_main_frame()
         
         self._initialize_hardware()
+        self._initialize_widgets()
         self._load_modules()
         
         #log completion
@@ -65,11 +64,11 @@ class MainWindow(QtGui.QMainWindow):
         
         self.main_frame = QtGui.QWidget()
         
-        #module-----------------------------------------------------------------
+        # module --------------------------------------------------------------
 
         module_box = QtGui.QVBoxLayout()
         
-        #module combobox
+        # module combobox
         module_combobox = custom_widgets.module_combobox()
         module_combobox.setMinimumWidth(300)
         module_combobox.setMinimumHeight(30)
@@ -77,20 +76,20 @@ class MainWindow(QtGui.QMainWindow):
         module_box.addWidget(module_combobox)
         g.module_control.disable_when_true(module_combobox)
         
-        #module container widget
+        # module container widget
         module_widget = QtGui.QWidget()
         g.module_widget.write(module_widget)
         
-        #module scroll area
+        # module scroll area
         module_scroll_area = custom_widgets.scroll_area()
         module_scroll_area.setWidget(module_widget)
         module_box.addWidget(module_scroll_area)    
         
-        #hardware---------------------------------------------------------------
+        # hardware ------------------------------------------------------------
 
         hardware_box = QtGui.QVBoxLayout()
         
-        #exit button
+        # exit button
         exit_button = custom_widgets.Shutdown_button()
         exit_button.setMinimumWidth(300)
         exit_button.setMinimumHeight(30)
@@ -98,11 +97,11 @@ class MainWindow(QtGui.QMainWindow):
         hardware_box.addWidget(exit_button)
         g.module_control.disable_when_true(exit_button)
         
-        #hardware container widget
+        # hardware container widget
         hardware_widget = QtGui.QWidget()
         g.hardware_widget.write(hardware_widget)
     
-        #hardware scroll area
+        # hardware scroll area
         hardware_scroll_area = custom_widgets.scroll_area()
         hardware_scroll_area.setWidget(hardware_widget)
         hardware_box.addWidget(hardware_scroll_area)        
@@ -112,13 +111,13 @@ class MainWindow(QtGui.QMainWindow):
         daq_box = QtGui.QVBoxLayout()
         daq_box.setMargin(0)
         
-        #module progress bar
+        # module progress bar
         progress_bar = QtGui.QProgressBar()
         progress_bar.setTextVisible(False)
         g.progress_bar.write(progress_bar)
         daq_box.addWidget(progress_bar)
         
-        #time elapsed/remaining
+        # time elapsed/remaining
         progress_bar.setLayout(QtGui.QHBoxLayout())
         time_elapsed = QtGui.QLabel('00:00:00')
         time_remaining = QtGui.QLabel('00:00:00')
@@ -130,7 +129,7 @@ class MainWindow(QtGui.QMainWindow):
         progress_bar.layout().addWidget(time_remaining)
         g.progress_bar.give_time_display_elements(time_elapsed, time_remaining)
         
-        #create widgets
+        # create widgets
         hardware_advanced_widget = QtGui.QWidget()
         hardware_advanced_box = QtGui.QVBoxLayout()
         hardware_advanced_box.setContentsMargins(0, 10, 0, 0)
@@ -146,7 +145,7 @@ class MainWindow(QtGui.QMainWindow):
         daq_plot_widget = QtGui.QWidget()
         g.daq_plot_widget.write(daq_plot_widget)
         
-        #tab widget
+        # tab widget
         daq_tabs = QtGui.QTabWidget()
         daq_tabs.addTab(hardware_advanced_widget, 'Hardware')
         daq_tabs.addTab(comove_widget, 'Comove')
@@ -158,7 +157,7 @@ class MainWindow(QtGui.QMainWindow):
         daq_tabs.setContentsMargins(0., 0., 0., 0.)
         daq_box.addWidget(daq_tabs)    
         
-        #vertical stretch
+        # vertical stretch
         daq_box.addStretch(1)
         
         # frame ---------------------------------------------------------------
@@ -204,6 +203,13 @@ class MainWindow(QtGui.QMainWindow):
         
         #self.daq = daq.daq
     
+    def _initialize_widgets(self):
+        
+        if g.debug.read():
+            print 'initialize widgets'
+        
+        import daq.current
+    
     def _load_modules(self):
         
         g.module_control.write(False)
@@ -221,6 +227,7 @@ class MainWindow(QtGui.QMainWindow):
         #import modules---------------------------------------------------------
         
         import modules.template
+        import modules.mono_slice
         import modules.custom
         
     def _shutdown(self):
