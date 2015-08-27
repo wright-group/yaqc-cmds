@@ -14,6 +14,6 @@ Dependencies:
 - [PyQT4](https://pypi.python.org/pypi/PyQt4)
 - [pyqtgraph](http://www.pyqtgraph.org/)
 - [pyvisa](http://pyvisa.readthedocs.org/en/master/)
-- serial
+- [pyserial](http://pyserial.sourceforge.net/)
 - win32, win32com, win32comext, pywin32, pythoncom
 - [PMC motion control API Python Library](http://pmccorp.com/support/downloads.php)
