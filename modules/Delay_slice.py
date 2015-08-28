@@ -1,11 +1,6 @@
 #to do##########################################################################
 
-# Alll Data Processing - This should be it's own module?
-# Generalize selection of OPA. Right now, OPA1 is used universally
-# Interface plotting tuning curve output/fit to curve selection.
-#   This could happen in OPA advanced or something instead.
-
-#import#########################################################################
+###import#########################################################################
 
 import sys
 import time
@@ -13,6 +8,7 @@ import time
 import numpy as np
 
 import project.project_globals as g
+import project.classes as pc
 scan_thread = g.scan_thread.read()
 
 from PyQt4 import QtCore, QtGui
@@ -20,21 +16,26 @@ app = g.app.read()
 
 import project.widgets as custom_widgets
 
-#import hardware control#######################################################
+###import hardware control#######################################################
 
 import spectrometers.spectrometers as spec
 MicroHR = spec.hardwares[0]
 import delays.delays as delay
 D1 = delay.hardwares[0]
 D2 = delay.hardwares[1]
-import opas.pico.pico_opa as opa
-OPA1 = opa.hardwares[0]
-OPA2 = opa.hardwares[1]
-OPA3 = opa.hardwares[2]
-
+D3 = None
+import opas.opas as opa
+OPA1 = None
+OPA2 = opa.hardwares[0]
+OPA3 = None
+# import nds.nds as nd
+ND1 = None
+ND2 = None
+ND3 = None
 import daq.daq as daq
+import daq.current as daq_current
 
-#scan globals##################################################################
+###scan globals##################################################################
 
 # These scan globals are used to communicated between the gui and the scan,
 # which are running in different threads. All are mutex for this reason.
@@ -105,6 +106,14 @@ class paused(QtCore.QMutex):
         if self.value: return self.WaitCondition.wait(self, msecs=timeout)
 paused = paused()
 
+### Scan Perameters ###########################################################
+
+limits = pc.NumberLimits(min_value=-10000, max_value=10000)
+start_d = pc.Number(initial_value=-5, units='ps', limits=limits)
+stop_d = pc.Number(initial_value=5, units='ps', limits=limits)
+num_d = pc.Number(initial_value=-5, decimals=0)
+delay_axis = 1
+
 ### scan object ###############################################################
 
 class scan(QtCore.QObject):
@@ -114,84 +123,60 @@ class scan(QtCore.QObject):
     @QtCore.pyqtSlot(list)
     def run(self, inputs):
 
-        #startup---------------------------------------------------------------
-        # Leave this alone.
-        g.module_control.write(True)    # Disables GUI, gives control to module
-        going.write(True)               # communication, see above
+        ### unpack inputs
+
+        scan_dictionary = inputs[0]
+
+        daq_widget = inputs[1]
+
+        ### startup
+
+        g.module_control.write(True)
+        going.write(True)
         fraction_complete.write(0.)
         g.logger.log('info', 'Scan begun', 'some info describing this scan')
+        units = 'ps'
 
-        #scan------------------------------------------------------------------
+        ### scan
 
-        new_tune_curve = []
-        # after running this a couple of times, we should know the ideal perameters
-        bbo_width = 0.3 # half width of bbo scan
-        bbo_step  = .02 # step size in mm
-        mix_width = 1.0 # half width of mixer scan
-        mix_step = .1 # step size in mm
-        mono_width = 50 # half width of mono scan
-        mono_step = 4 # step size in wavenumbers
+        delay_destinations = np.linspace(start_d.read(units), stop_d.read(units), num_d.read())
 
-        bbo_pts = np.ceil(bbo_width * 2 / bbo_step)
-        mix_pts = np.ceil(mix_width * 2 / mix_step)
-        mono_pts = np.ceil(mono_width * 2 / mono_step)
+        npts = len(delay_destinations)
 
-        color_pts = np.linspace(1250, 1800, 14)
+        # initialize scan in daq
+        daq.control.initialize_scan(daq_widget, fit=True)
+        daq_current.gui.set_xlim(delay_destinations.min(), delay_destinations.max())
 
-        for i in color_pts:
-            m_center = OPA1.crv.new_motor_positions(i)
-            OPA1.set_motors(0, m_center[0])
-
-            bbo_destinations = np.linspace(m_center[1] - bbo_width, m_center[1] + bbo_width + bbo_step, bbo_pts)
-            mix_destinations = np.linspace(m_center[2] - mix_width, m_center[2] + mix_width + mix_step, mix_pts )
-            mono_destinations = np.linspace(i - mono_width, i + mono_width + mono_step, mono_pts )
-
-            print i, ' wn, BBO scan'
-            for j in bbo_destinations: # BBO scan loop, runs for each color
-                OPA1.set_motors(1,j)
-                g.hardware_waits.wait()
-                daq.control.acquire()
-                daq.control.wait_until_done()
-                if not self.check_continue(): break
-            ### process obtained data here to fit a gaussian, find max OF PYRO
-            bbo_max = m_center[1] #This is just a filler for the actual max
-            OPA1.set_motors(1,bbo_max)
-
-            print i, ' wn, Mixer scan'
-            for j in mix_destinations: # Mixer loop
-                OPA1.set_motors(2,j)
-                g.hardware_waits.wait()
-                daq.control.acquire()
-                daq.control.wait_until_done()
-                if not self.check_continue(): break
-            ### process obtained data here to fit a gaussian, find max OF PYRO
-            mix_max = m_center[2] #This is just a filler for the actual max
-            OPA1.set_motors(2,mix_max)
-
-            print i, ' wn, Mono scan'
-            ### determine color. Replace with array detector?
-            for j in mono_destinations:
-                MicroHR.set_position(j, 'wn')
-                g.hardware_waits.wait()
-                daq.control.acquire()
-                daq.control.wait_until_done()
-                if not self.check_continue(): break
-            ### find center color, max FROM DETECTOR THROUGH MONO (aio0)
-            center_color = i
-
-            new_tune_curve.append([center_color, m_center[0], bbo_max, mix_max])
-
-
-            print i, ' wn, update bar'
-
-            fraction_complete.write(float(i+1)/float(npts))
+        ### do loop
+        break_scan = False
+        idx = 0
+        for i in range(len(delay_destinations)):
+            # set delay
+            if delay_axis == 1:
+                D1.set_position(delay_destinations[i], units)
+            elif delay_axis == 2:
+                D2.set_position(delay_destinations[i], units)
+            elif delay_axis == 3:
+                D3.set_position(delay_destinations[i], units)
+            # wait for all hardware
+            g.hardware_waits.wait()
+            # read from daq
+            daq.control.acquire()
+            daq.control.wait_until_daq_done()
+            # update
+            idx += 1
+            fraction_complete.write(float(idx)/float(npts))
             self.update_ui.emit()
-            if not self.check_continue(): break
+            if not self.check_continue():
+                break_scan = True
+            if break_scan:
+                break
 
-        #end-------------------------------------------------------------------
-        # Save the tuning curve somehow. Maybe see if Rachel has a way to do this.
-        # MAKE SURE YOU HAVE CORRECTED THIS SYNTAX IN THE END!!
-        OPA1.crv.write_curve(new_tune_curve,new_file_path)
+        daq.control.fit('MicroHR', 'vai0 Mean')
+
+
+        ### end
+
         print 'end'
         fraction_complete.write(1.)
         going.write(False)
@@ -235,9 +220,16 @@ class gui(QtCore.QObject):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
 
+        # input table one
+        input_table = custom_widgets.InputTable()
+        input_table.add('Initial', start_d)
+        input_table.add('Final', stop_d)
+        input_table.add('Number', num_d)
+        layout.addWidget(input_table)
+
         # daq widget
-        daq_widget = daq.Widget()
-        layout.addWidget(daq_widget)
+        self.daq_widget = daq.Widget()
+        layout.addWidget(self.daq_widget)
 
         #go button
         self.go_button = custom_widgets.module_go_button()
@@ -254,13 +246,13 @@ class gui(QtCore.QObject):
         self.frame.setLayout(layout)
 
         g.module_widget.add_child(self.frame)
-        g.module_combobox.add_module('TEMPLATE', self.show_frame)
+        g.module_combobox.add_module('Delay slice', self.show_frame)
 
     def create_advanced_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
 
-        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by template')
+        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by delay slice')
         my_widget.setAutoFillBackground(True)
         layout.addWidget(my_widget)
 
@@ -272,14 +264,15 @@ class gui(QtCore.QObject):
     def show_frame(self):
         self.frame.hide()
         self.advanced_frame.hide()
-        if g.module_combobox.get_text() == 'TEMPLATE':
+        if g.module_combobox.get_text() == 'Dealy slice':
             self.frame.show()
             self.advanced_frame.show()
 
     def launch_scan(self):
         go.write(True)
         print 'running'
-        inputs = ['hey this is inputs']
+        scan_dictionary = {}
+        inputs = [scan_dictionary, self.daq_widget]
         QtCore.QMetaObject.invokeMethod(scan_obj, 'run', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(list, inputs))
         g.progress_bar.begin_new_scan_timer()
 
