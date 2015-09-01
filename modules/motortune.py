@@ -1,6 +1,8 @@
-#to do##########################################################################
+### define ####################################################################
 
-#import#########################################################################
+module_name = 'MOTORTUNE'
+
+### import ####################################################################
 
 import sys
 import time
@@ -13,21 +15,18 @@ scan_thread = g.scan_thread.read()
 from PyQt4 import QtCore, QtGui
 app = g.app.read()
 
-import project.widgets as custom_widgets     
+import project.classes as pc
+import project.widgets as pw
 
-#import hardware control#######################################################
+### import hardware control ###################################################
 
-import spectrometers.spectrometers as spec
-MicroHR = spec.hardwares[0]
-import delays.delays as delay
-D1 = delay.hardwares[0]
-D2 = delay.hardwares[1]
-import opas.opas as opa
-OPA2 = opa.hardwares[0]
+import spectrometers.spectrometers as spectrometers
+import delays.delays as delays
+import opas.opas as opas
 import daq.daq as daq
 import daq.current as daq_current
 
-#scan globals##################################################################
+### scan globals ##############################################################
 
 # These scan globals are used to communicated between the gui and the scan,
 # which are running in different threads. All are mutex for this reason.
@@ -129,7 +128,7 @@ class scan(QtCore.QObject):
         npts = len(spec_destinations)*len(bbo_destinations)*len(grating_destinations)
 
         # initialize scan in daq
-        daq.control.initialize_scan(daq_widget, fit=True)
+        daq.control.initialize_scan(daq_widget, fit=False)
         
         # do loop
         break_scan = False
@@ -160,7 +159,7 @@ class scan(QtCore.QObject):
                 if break_scan:
                     break
                 # fit each slice
-                daq.control.fit('MicroHR', 'vai0 Mean')
+                #daq.control.fit('MicroHR', 'vai0 Mean')
             if break_scan:
                 break
         
@@ -209,12 +208,31 @@ class gui(QtCore.QObject):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
         
+        allowed = [hardware.name for hardware in opas.hardwares]
+        self.opa_combo = pc.Combo(allowed)
+        
+        input_table = pw.InputTable()
+        input_table.add('OPA', self.opa_combo)
+        layout.addWidget(input_table)
+        
+        motor_names = ['grating', 'bbo', 'mixer']
+        input_table = pw.InputTable()
+        for i in range(len(motor_names)):
+            width = pc.Number()
+            center = pc.Number()
+            npts = pc.Number()
+            input_table.add(motor_names[i], None)
+            input_table.add('Width', width)
+            input_table.add('Center', center)
+            input_table.add('Number', npts)
+        layout.addWidget(input_table)
+        
         # daq widget
         self.daq_widget = daq.Widget()
         layout.addWidget(self.daq_widget)
         
-        #go button
-        self.go_button = custom_widgets.module_go_button()
+        # go button
+        self.go_button = pw.module_go_button()
         self.go_button.give_launch_scan_method(self.launch_scan)
         self.go_button.give_stop_scan_method(self.stop)  
         self.go_button.give_scan_complete_signal(scan_obj.done)
@@ -228,16 +246,12 @@ class gui(QtCore.QObject):
         self.frame.setLayout(layout)
         
         g.module_widget.add_child(self.frame)
-        g.module_combobox.add_module('TEMPLATE', self.show_frame)
+        g.module_combobox.add_module(module_name, self.show_frame)
 
     def create_advanced_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
-       
-        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by template')
-        my_widget.setAutoFillBackground(True)
-        layout.addWidget(my_widget)
-        
+
         self.advanced_frame = QtGui.QWidget()   
         self.advanced_frame.setLayout(layout)
         
@@ -246,7 +260,7 @@ class gui(QtCore.QObject):
     def show_frame(self):
         self.frame.hide()
         self.advanced_frame.hide()
-        if g.module_combobox.get_text() == 'TEMPLATE':
+        if g.module_combobox.get_text() == module_name:
             self.frame.show()
             self.advanced_frame.show()
 

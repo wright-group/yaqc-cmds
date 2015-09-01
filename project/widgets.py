@@ -267,11 +267,15 @@ class InputTable(QtGui.QWidget):
         load_button = QtGui.QPushButton('Load')
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['go'])
         load_button.setStyleSheet(StyleSheet)
+        load_button.setMinimumHeight(20)
+        load_button.setMaximumHeight(20)
+        load_button.setMinimumWidth(40)
         layout.addWidget(load_button)
         global_object.give_button(load_button)
         #display
         display = QtGui.QLineEdit()
-        display.setDisabled(True)
+        #display.setDisabled(True)
+        display.setReadOnly(True)
         StyleSheet = 'QWidget{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
         StyleSheet += 'QWidget:disabled{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_disabled']).replace('custom_color_2', colors['widget_background'])
         display.setStyleSheet(StyleSheet)
@@ -599,10 +603,15 @@ class Plot1D(pg.GraphicsView):
         #create layout
         self.graphics_layout = pg.GraphicsLayout(border = 'w')
         self.setCentralItem(self.graphics_layout)
-        self.graphics_layout.layout.setSpacing(0.)                                                             
+        self.graphics_layout.layout.setSpacing(0)                                                             
         self.graphics_layout.setContentsMargins(0., 0., 1., 1.)
         #create plot object
         self.plot_object = self.graphics_layout.addPlot(0, 0)
+        self.labelStyle = {'color': '#FFF', 'font-size': '14px'}
+        self.x_axis = self.plot_object.getAxis('bottom')
+        self.x_axis.setLabel(**self.labelStyle)
+        self.y_axis = self.plot_object.getAxis('left')
+        self.y_axis.setLabel(**self.labelStyle)
         self.plot_object.showGrid(x = True, y = True, alpha = 0.5)
         self.plot_object.setMouseEnabled(False, True)
         #title

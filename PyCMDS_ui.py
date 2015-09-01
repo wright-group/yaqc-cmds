@@ -21,6 +21,8 @@ g.logger.log('info', 'Startup', 'PyCMDS is attempting startup')
 
 import project.style as style
 import project.widgets as custom_widgets
+import project.classes as pc
+import project.file_dialog_handler
 
 
 ### main window ###############################################################
@@ -225,10 +227,10 @@ class MainWindow(QtGui.QMainWindow):
         scan_thread.start()
         
         #import modules---------------------------------------------------------
-        
-        import modules.template
+                
         import modules.mono_slice
-        import modules.custom
+        import modules.motortune
+
         
     def _shutdown(self):
         '''

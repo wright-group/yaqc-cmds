@@ -2,7 +2,7 @@
 
 
 import os
-
+import collections
 import time
 
 from PyQt4 import QtGui, QtCore
@@ -35,7 +35,12 @@ class Delay:
                                           limits=self.limits,
                                           units='ps', display=True,
                                           set_method='set_position')
+        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')
+        self.zero_position = pc.Number(name='Zero', initial_value=25.,
+                                       limits=self.motor_limits,
+                                       units='mm', display=True)
         self.exposed = [self.current_position]
+        self.recorded = collections.OrderedDict()
         self.gui = gui()
 
     def close(self):
@@ -43,7 +48,7 @@ class Delay:
 
     def get_position(self):
         position = self.motor.get_position('mm')
-        delay = (position - self.zero) * ps_per_mm
+        delay = (position - self.zero_position.read()) * ps_per_mm
         self.current_position.write(delay, 'ps')
         return delay
 
@@ -52,15 +57,19 @@ class Delay:
         self.index = inputs[0]
         motor_identity = motors.identity['D{}'.format(self.index)]
         self.motor = motors.Motor(motor_identity)
-        self.zero = ini.read('D{}'.format(self.index), 'zero position (mm)')
+        self.zero_position.write(ini.read('D{}'.format(self.index), 'zero position (mm)'))
         self.get_position()
-        self.set_zero(self.zero)
+        self.set_zero(self.zero_position.read())
+        # recorded
+        labels = ['13', '23']
+        self.recorded['d%d'%self.index] = [self.current_position, 'ps', 1., labels[self.index-1], False]
+        self.recorded['d%d_zero'%self.index] = [self.zero_position, 'mm', 0.1, str(self.index), True]
 
     def is_busy(self):
         return not self.motor.is_stopped()
 
     def set_position(self, destination):
-        destination_mm = self.zero + destination/ps_per_mm  
+        destination_mm = self.zero_position.read() + destination/ps_per_mm  
         self.motor.move_absolute(destination_mm, 'mm')
         if g.module_control.read():
             self.motor.wait_until_still()
@@ -74,9 +83,9 @@ class Delay:
         '''
         float zero mm
         '''
-        self.zero = zero
-        min_value = -self.zero * ps_per_mm
-        max_value = (50. - self.zero) * ps_per_mm        
+        self.zero_position.write(zero)
+        min_value = -self.zero_position.read() * ps_per_mm
+        max_value = (50. - self.zero_position.read()) * ps_per_mm        
         self.limits.write(min_value, max_value, 'ps') 
 
 

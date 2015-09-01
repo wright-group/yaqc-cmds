@@ -24,24 +24,23 @@ class OPA(pc.Address):
         print 'hello world im a dummy method'
 
 
-# list module path, module name, class name, initialization arguments
-hardware_dict = {'OPA1 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [1]],
-                 'OPA2 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [2]],
-                 'OPA3 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [3]],
-                 'OPA1 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [1]],
-                 'OPA2 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [2]]}
+# list module path, module name, class name, initialization arguments, friendly name
+hardware_dict = {'OPA1 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [1], 'w1'],
+                 'OPA2 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [2], 'w2'],
+                 'OPA3 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [3], 'w3'],
+                 'OPA1 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [1], 'w1'],
+                 'OPA2 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [2], 'w2']}
 hardwares = []
 for key in hardware_dict.keys():
     if ini.read('hardware', key):
         lis = hardware_dict[key]
         hardware_module = imp.load_source(lis[1], lis[0])
         hardware_class = getattr(hardware_module, lis[2])
-        hardware_obj = pc.Hardware(hardware_class, lis[3], OPA, key, True)
+        hardware_obj = pc.Hardware(hardware_class, lis[3], OPA, key, True, lis[4])
         hardwares.append(hardware_obj)
 
 ### gui #######################################################################
 
 
 gui = pw.HardwareFrontPanel(hardwares, name='OPAs')
-
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

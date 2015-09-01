@@ -1,6 +1,4 @@
-#to do##########################################################################
-
-#import#########################################################################
+### import ####################################################################
 
 import sys
 import time
@@ -14,9 +12,11 @@ scan_thread = g.scan_thread.read()
 from PyQt4 import QtCore, QtGui
 app = g.app.read()
 
-import project.widgets as custom_widgets     
+import project.widgets as custom_widgets
 
-#import hardware control#######################################################
+import WrightTools as wt
+
+### import hardware control ###################################################
 
 import spectrometers.spectrometers as spec
 MicroHR = spec.hardwares[0]
@@ -28,7 +28,7 @@ OPA2 = opa.hardwares[0]
 import daq.daq as daq
 import daq.current as daq_current
 
-#scan globals##################################################################
+### scan globals###############################################################
 
 # These scan globals are used to communicated between the gui and the scan,
 # which are running in different threads. All are mutex for this reason.
@@ -136,32 +136,23 @@ class scan(QtCore.QObject):
         npts = len(spec_destinations)
 
         # initialize scan in daq
-        daq.control.initialize_scan(daq_widget, fit=True)
+        daq.control.initialize_scan(daq_widget, scan_origin='MONO SLICE', scan_axes=['wm'], fit=True)
         daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())
+        daq.control.index_slice(col='wm')
         
         # do loop
-        break_scan = False
-        idx = 0
-        for i in range(len(spec_destinations)):
-            # set mono        
-            MicroHR.set_position(spec_destinations[i], 'nm')
-            # wait for all hardware
-            g.hardware_waits.wait()
-            # read from daq
-            daq.control.acquire()
-            daq.control.wait_until_daq_done()
-            # update
-            idx += 1
-            fraction_complete.write(float(idx)/float(npts))
-            self.update_ui.emit()
-            if not self.check_continue():
-                break_scan = True
-            if break_scan:
-                break
+         
 
-        daq.control.fit('MicroHR', 'vai0 Mean')
-
+        daq.control.fit('wm', 'vai0_Mean')
         
+        # plot ----------------------------------------------------------------
+        
+        data_path = daq.data_path.read()
+        data_obj = wt.data.from_PyCMDS(data_path)
+        artist = wt.artists.mpl_1D(data_obj)
+        fname = data_path.replace('.data', '')
+        artist.plot(fname=fname, autosave=True)
+
         #end-------------------------------------------------------------------
 
         print 'end'

@@ -1,16 +1,76 @@
 ### import ####################################################################
 
 
+import os
 import time
 
 import numpy as np
 
 from PyQt4 import QtCore
+from PyQt4 import QtGui
 
 import project_globals as g
 
 import WrightTools as wt
 import WrightTools.units as wt_units
+
+
+### mutex #####################################################################
+
+
+class Mutex(QtCore.QMutex):
+    
+    def __init__(self):
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.value = None
+        
+    def read(self):
+        return self.value
+        
+    def write(self, value):
+        self.lock()
+        self.value = value
+        self.WaitCondition.wakeAll()
+        self.unlock()
+        
+    def wait_for_update(self, timeout=5000):
+        if self.value:
+            return self.WaitCondition.wait(self, msecs=timeout)
+
+
+class Busy(QtCore.QMutex):
+
+    def __init__(self):
+        '''
+        QMutex object to communicate between threads that need to wait \n
+        while busy.read(): busy.wait_for_update()
+        '''
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.value = False
+        self.type = 'busy'
+        self.update_signal = None
+
+    def read(self):
+        return self.value
+
+    def write(self, value):
+        '''
+        bool value
+        '''
+        self.tryLock(10)  # wait at most 10 ms before moving forward
+        self.value = value
+        self.unlock()
+        self.WaitCondition.wakeAll()
+
+    def wait_for_update(self, timeout=5000):
+        '''
+        wait in calling thread for any thread to call 'write' method \n
+        int timeout in milliseconds
+        '''
+        if self.value:
+            return self.WaitCondition.wait(self, msecs=timeout)
 
 
 ### gui items #################################################################
@@ -44,7 +104,8 @@ class PyCMDS_Object(QtCore.QObject):
     def __init__(self, initial_value=None,
                  ini=None, section='', option='',
                  import_from_ini=False, save_to_ini_at_shutdown=False,
-                 display=False, name='', label = '', set_method=None):
+                 display=False, name='', label = '', set_method=None,
+                 *args, **kwargs):
         QtCore.QObject.__init__(self)
         self.has_widget = False
         self.tool_tip = ''
@@ -135,19 +196,13 @@ class Bool(PyCMDS_Object):
 
 class Combo(PyCMDS_Object):
 
-    def __init__(self, allowed_values, initial_value=None, 
-                 ini=None, section=None, option=None, import_from_ini = False, 
-                 save_to_ini_at_shutdown = False, display=False, name='',
-                 set_method=None):
-        PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               ini=ini, section=section, option=option,
-                               import_from_ini=import_from_ini,
-                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
-                               display=display, name=name, 
-                               set_method=set_method)
+    def __init__(self, allowed_values, initial_value=None, *args, **kwargs):
+        PyCMDS_Object.__init__(self, *args, **kwargs)
         self.type = 'combo'
         self.allowed_values = allowed_values
         self.data_type = type(allowed_values[0])
+        if initial_value is None:
+            self.write(self.allowed_values[0])
 
     def associate(self, display=None, pre_name=''):
         # display
@@ -176,7 +231,8 @@ class Combo(PyCMDS_Object):
         # fill out items
         allowed_values_strings = [str(value) for value in self.allowed_values]
         self.widget.addItems(allowed_values_strings)
-        self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))       
+        if self.read() is not None:
+            self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))       
         # connect signals and slots
         self.updated.connect(lambda: self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read()))))
         self.widget.currentIndexChanged.connect(lambda: self.write(self.widget.currentText()))
@@ -186,27 +242,47 @@ class Combo(PyCMDS_Object):
 
 
 class Filepath(PyCMDS_Object):
-    '''
-    holds 'value' (str) - the filepath as a string
-    '''
-    def __init__(self, initial_value = None, ini = None, import_from_ini = False, save_to_ini_at_shutdown = False):
-        gui_object.__init__(self, initial_value = initial_value, ini_inputs = ini, import_from_ini = import_from_ini, save_to_ini_at_shutdown = save_to_ini_at_shutdown)
+
+    def __init__(self, caption='Open', directory=None, options=[],
+                 *args, **kwargs):
+        '''
+        holds the filepath as a string \n
+        '''
+        PyCMDS_Object.__init__(self, *args, **kwargs)
         self.type = 'filepath'
+        self.caption = caption
+        self.directory = directory
+        self.options = options
+        
     def give_control(self, control_widget):
         self.widget = control_widget
-        '''
-        #fill out items
-        self.widget.addItems(self.allowed_values)
-        self.widget.setCurrentIndex(self.allowed_values.index(self.read()))       
-        #connect signals and slots
-        self.updated.connect(lambda: self.widget.setCurrentIndex(self.allowed_values.index(self.read())))
-        self.widget.currentIndexChanged.connect(lambda: self.write(self.widget.currentText()))
-        '''
-        self.widget.setToolTip(self.tool_tip)
-        self.widget.setDisabled(self.disabled)
+        if self.read() is not None:
+            self.widget.setText(self.read())
+        # connect signals and slots
+        self.updated.connect(lambda: self.widget.setText(self.read()))
+        self.widget.setToolTip(self.read())
+        self.updated.connect(lambda: self.widget.setToolTip(self.read()))
         self.has_widget = True
+        
     def give_button(self, button_widget):
         self.button = button_widget
+        self.button.clicked.connect(self.on_load)
+        
+    def on_load(self):
+        import file_dialog_handler
+        # directory
+        if self.directory is not None:
+            directory_string = self.directory
+        else:
+            if self.read() is not None:    
+                directory_string = self.read()
+            else:
+                directory_string = g.main_dir.read()
+        # filter
+        filter_string = ';;'.join(self.options + ['All Files (*.*)'])
+        out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
+        if os.path.isfile(out):
+            self.write(out)
 
 
 class NumberLimits(PyCMDS_Object):
@@ -385,70 +461,11 @@ class String(PyCMDS_Object):
 ### hardware ##################################################################
 
 
-class Mutex(QtCore.QMutex):
-    
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = None
-        
-    def read(self):
-        return self.value
-        
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-        
-    def wait_for_update(self, timeout=5000):
-        if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
-
-
-class Busy(QtCore.QMutex):
-
-    def __init__(self):
-        '''
-        QMutex object to communicate between threads that need to wait \n
-        while busy.read(): busy.wait_for_update()
-        '''
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-        self.type = 'busy'
-        self.update_signal = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        '''
-        bool value
-        '''
-        self.tryLock(10)  # wait at most 10 ms before moving forward
-        self.value = value
-        self.unlock()
-        self.WaitCondition.wakeAll()
-
-    def wait_for_update(self, timeout=5000):
-        '''
-        wait in calling thread for any thread to call 'write' method \n
-        int timeout in milliseconds
-        '''
-        if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
-
-
 class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     
     def __init__(self, hardware_obj, enqueued_obj, busy_obj, name, ctrl_class):
-        '''
-        do not override __init__ or dequeue
-        unless you really know what you are doing
-        '''
         QtCore.QObject.__init__(self)
         self.hardware = hardware_obj
         self.enqueued = enqueued_obj
@@ -456,6 +473,7 @@ class Address(QtCore.QObject):
         self.name = name
         self.ctrl = ctrl_class()
         self.exposed = self.ctrl.exposed
+        self.recorded = self.ctrl.recorded
         ctrl_methods =  wt.kit.get_methods(self.ctrl)      
         for method in ctrl_methods:
             if hasattr(self, method):
@@ -571,13 +589,14 @@ class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
 
     def __init__(self, control_class, control_arguments, address_class=Address,
-                 name='', initialize_hardware=True):
+                 name='', initialize_hardware=True, friendly_name=''):
         '''
         container for all objects relating to a single piece
         of addressable hardware
         '''
         QtCore.QObject.__init__(self)
         self.name = name
+        self.friendly_name = friendly_name
         # create objects
         self.thread = QtCore.QThread()
         self.enqueued = Enqueued()
@@ -585,6 +604,7 @@ class Hardware(QtCore.QObject):
         self.address = address_class(self, self.enqueued, self.busy,
                                      name, control_class)
         self.exposed = self.address.exposed
+        self.recorded = self.address.recorded
         self.current_position = self.exposed[0]
         self.gui = self.address.gui
         self.native_units = self.address.native_units

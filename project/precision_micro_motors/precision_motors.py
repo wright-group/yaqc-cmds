@@ -26,17 +26,21 @@ counts_per_mm = 58200
 # dictionary to contain motor correspondance
 identity = {'D1': 'motor0', 
             'D2': 'motor1', 
-            'OPA1 grating': '',
-            'OPA1 BBO': '',
-            'OPA1 mixer': '',
+            'OPA1 grating': 'motor2',
+            'OPA1 BBO': 'motor3',
+            'OPA1 mixer': 'motor4',
             'OPA2 grating': 'motor8',
             'OPA2 BBO': 'motor9',
             'OPA2 mixer': 'motor10',
-            'OPA3 grating': '',
-            'OPA3 BBO': '',
-            'OPA3 mixer': ''}
+            'OPA3 grating': 'motor5',
+            'OPA3 BBO': 'motor6',
+            'OPA3 mixer': 'motor7'}
 
 ### control ###################################################################
+
+
+def translate(mm):
+    return (50-mm)*counts_per_mm
 
 def open_controllers():
     mode = 1 # not sure what this argument does
