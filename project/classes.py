@@ -80,7 +80,7 @@ class Value(QtCore.QMutex):
 
     def __init__(self, initial_value=None):
         '''
-        basic QMutex object to hold a single object in a thread-safe way
+        Basic QMutex object to hold a single object in a thread-safe way.
         '''
         QtCore.QMutex.__init__(self)
         self.value = initial_value
@@ -90,7 +90,7 @@ class Value(QtCore.QMutex):
 
     def write(self, value):
         '''
-        bool value
+        Writes the desired python object to the Value object.
         '''
         self.lock()
         self.value = value
@@ -147,7 +147,7 @@ class PyCMDS_Object(QtCore.QObject):
             self.value.write(self.ini.read(self.section, self.option))
         self.updated.emit()
         return self.value.read()
-        
+
     def save(self, value=None):
         if value is not None:
             self.value.write(value)
@@ -155,12 +155,12 @@ class PyCMDS_Object(QtCore.QObject):
             self.ini.write(self.section, self.option, self.value.read())
 
     def set_disabled(self, disabled):
-        self.disabled = disabled
+        self.disabled = bool(disabled)
         if self.has_widget:
             self.widget.setDisabled(self.disabled)
 
     def set_tool_tip(self, tool_tip):
-        self.tool_tip = tool_tip
+        self.tool_tip = str(tool_tip)
         if self.has_widget:
             self.widget.setToolTip(self.tool_tip)
 
@@ -168,11 +168,11 @@ class PyCMDS_Object(QtCore.QObject):
 class Bool(PyCMDS_Object):
     '''
     holds 'value' (bool) - the state of the checkbox
-    
+
     use read method to access
     '''
-    
-    def __init__(self, initial_value = False, 
+
+    def __init__(self, initial_value = False,
                  ini = None, section='', option='', display=False, name='',
                  import_from_ini = False, save_to_ini_at_shutdown = False):
         PyCMDS_Object.__init__(self, initial_value=initial_value,
@@ -184,7 +184,7 @@ class Bool(PyCMDS_Object):
     def give_control(self, control_widget):
         self.widget = control_widget
         #set
-        self.widget.setChecked(self.value.read())   
+        self.widget.setChecked(self.value.read())
         #connect signals and slots
         self.updated.connect(lambda: self.widget.setChecked(self.value.read()))
         self.widget.stateChanged.connect(lambda: self.write(self.widget.checkState()))
@@ -322,7 +322,7 @@ class NumberLimits(PyCMDS_Object):
 
 
 class Number(PyCMDS_Object):
-    
+
     def __init__(self, initial_value=np.nan, display=False, name='',
                  ini=None, section='', option='',
                  import_from_ini=False, save_to_ini_at_shutdown=False,
@@ -332,7 +332,7 @@ class Number(PyCMDS_Object):
                                ini=ini, section=section, option=option,
                                import_from_ini=import_from_ini,
                                save_to_ini_at_shutdown=save_to_ini_at_shutdown,
-                               display=display, name=name, 
+                               display=display, name=name,
                                set_method=set_method)
         self.type = 'number'
         self.single_step = single_step
@@ -406,7 +406,7 @@ class Number(PyCMDS_Object):
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True
         self._set_limits()
-        
+
     def give_units_combo(self, units_combo_widget):
         self.units_widget = units_combo_widget
         # add items
@@ -415,7 +415,7 @@ class Number(PyCMDS_Object):
         self.units_widget.addItems(unit_types)
         # set current item
         self.units_widget.setCurrentIndex(unit_types.index(self.units))
-        # associate update with conversion 
+        # associate update with conversion
         self.units_widget.currentIndexChanged.connect(lambda: self.convert(self.units_widget.currentText()))
 
     def write(self, value, input_units='same'):
@@ -450,21 +450,21 @@ class String(PyCMDS_Object):
     def give_control(self, control_widget):
         self.widget = control_widget
         #fill out items
-        self.widget.setText(self.value)       
+        self.widget.setText(self.value)
         #connect signals and slots
         self.updated.connect(lambda: self.widget.setText(self.value))
         self.widget.editingFinished.connect(lambda: self.write(self.widget.text()))
         self.widget.setToolTip(self.tool_tip)
-        self.has_widget = True    
+        self.has_widget = True
 
-    
+
 ### hardware ##################################################################
 
 
 class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
-    
+
     def __init__(self, hardware_obj, enqueued_obj, busy_obj, name, ctrl_class):
         QtCore.QObject.__init__(self)
         self.hardware = hardware_obj
@@ -484,7 +484,7 @@ class Address(QtCore.QObject):
         self.gui = self.ctrl.gui
         self.native_units = self.ctrl.native_units
         self.limits = self.ctrl.limits
-  
+
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
         '''
@@ -674,8 +674,8 @@ class Hardware(QtCore.QObject):
         if input_units is None:
             pass
         else:
-            destination = wt_units.converter(destination, 
-                                             input_units, 
+            destination = wt_units.converter(destination,
+                                             input_units,
                                              self.native_units)
         self.q.push('set_position', [destination])
 
