@@ -179,11 +179,23 @@ class scan(QtCore.QObject):
                     self.cont = False
 
     def ndindex_scan(self):
-        '''
-        This could work, but I think it isn't necessary.
+        for idx in np.ndindex(*[10,5,7]):
+            # idx is now the point (x0,x1,x2)
+            # each hardware must be set to that proper point
+            # However, not every hardware moves in every axis.
+            for hardware in hardwares:
+                print
+            print idx
 
-        At any rate, my solution works.
-        '''
+            #for i, hardware in zip(idx, hardwares[idx[0]]):
+            #    print('move + '+str(hardware)+' + to position['+str(i[i])+']['+str(i)+']')
+            #print('Collect Data')
+
+    def snaker_scan(self):
+        scan_points = snaker(point_grid,hardware_list,units)
+        for point in scan_points:
+            for i in range(len(units)):
+                hardware_list[i].set_position(point[i],units[i])
 
     def run(self, inputs):
         self.cont = True
