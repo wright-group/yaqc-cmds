@@ -1,5 +1,6 @@
 ### import ####################################################################
 
+
 import os
 import sys
 import time
@@ -101,10 +102,6 @@ last_analog_data = pc.Mutex()
 origin = pc.Mutex()
 
 us_per_sample = pc.Mutex()
-
-
-
-
 
 ### gui objects ###############################################################
 
@@ -217,15 +214,17 @@ class Data(QtCore.QObject):
             data_busy.write(False)
             
     def create_data(self, inputs):
+        scan_origin, widget = inputs
         self.file_timestamp = wt.kit.get_timestamp()
-        data_path.write(os.path.join(main_dir, 'data', self.file_timestamp + '.data'))
-        header_str = self.make_header(data_cols.read())
+        self.filename = ' '.join([scan_origin, str(axes.read()), self.file_timestamp, widget.description.read()]).rstrip()
+        data_path.write(os.path.join(main_dir, 'data', self.filename + '.data'))
+        header_str = self.make_header(data_cols.read(), inputs)
         np.savetxt(data_path.read(), [], header=header_str)
         
     def create_fit(self, inputs):
         # create fit must always be called after create data
-        fit_path.write(os.path.join(main_dir, 'data', self.file_timestamp + ' fitted.data'))
-        header_str = self.make_header(fit_cols.read())
+        fit_path.write(os.path.join(main_dir, 'data', self.filename + ' FITTED.data'))
+        header_str = self.make_header(fit_cols.read(), inputs)
         np.savetxt(fit_path.read(), [], header=header_str)    
         
     def fit(self, inputs):
@@ -276,12 +275,18 @@ class Data(QtCore.QObject):
         # write
         self.write_fit(arr)
         
-    def make_header(self, cols):
+    def make_header(self, cols, inputs):
+        scan_origin, widget = inputs
         # generate header
         units_list = [col['units'] for col in cols.values()]
         tolerance_list = [col['tolerance'] for col in cols.values()]
         label_list = [col['label'] for col in cols.values()]
         name_list = cols.keys()
+        # name
+        if widget.name.read() == '':
+            name = ' '.join([origin.read(), widget.description.read()])
+        else:
+            name = widget.name.read()
         # strings need extra apostrophes and everything needs to be string
         for lis in [units_list, tolerance_list, label_list, name_list]:
             for i in range(len(lis)):
@@ -290,7 +295,10 @@ class Data(QtCore.QObject):
                 else:
                     lis[i] = str(lis[i])
         header_items = ['file created:' + '\t' + '\'' + self.file_timestamp + '\'']
+        header_items += ['name:'  + '\t' + '\'' + name + '\'']
+        header_items += ['info:'  + '\t' + '\'' + widget.info.read() + '\'']
         header_items += ['origin:' + '\t' + '\'' + origin.read() + '\'']
+        header_items += ['shots:' + '\t' + str(widget.shots.read())]
         header_items += ['axes:' + '\t' + str(axes.read())]
         header_items += ['ignore:' + '\t' + str(ignore.read())]
         header_items += ['units: ' + '\t'.join(units_list)]
@@ -711,9 +719,9 @@ class Control():
         # create data file(s)
         axes.write(scan_axes)
         self.update_cols(dont_ignore=dont_ignore)
-        data_q('create_data')
+        data_q('create_data', [scan_origin, widget])
         if fit:
-            data_q('create_fit')
+            data_q('create_fit', [scan_origin, widget])
         # wait until daq is done before letting module continue        
         self.wait_until_daq_done()
         self.wait_until_data_done()
@@ -869,6 +877,12 @@ class Widget(QtGui.QWidget):
         input_table.add('DAQ', None)
         self.shots = pc.Number(initial_value = 200, decimals = 0)
         input_table.add('Shots', self.shots)
+        self.description = pc.String()
+        input_table.add('Description', self.description)
+        self.name = pc.String()
+        input_table.add('Name', self.name)
+        self.info = pc.String()
+        input_table.add('Info', self.info)
         layout.addWidget(input_table)
         
 class Gui(QtCore.QObject):

@@ -70,22 +70,22 @@ class Curve:
         a2[4] -= m1
         a3[4] -= m2
 
-        color_a1 = np.roots(a1)
-        color_a2 = np.roots(a2)
-        color_a3 = np.roots(a3)
+        color_a1 = np.real(np.roots(a1)[3])
+        color_a2 = np.real(np.roots(a2)[3])
+        color_a3 = np.real(np.roots(a3)[3])
 
         # Round the color values to make them equal ---------------------------
 
-        d = 1
-        color = [0,0,0]
-        color[0] = np.around(color_a1, decimals=d)[3]
-        color[1] = np.around(color_a2, decimals=d)[3]
-        color[2] = np.around(color_a3, decimals=d)[3]
+        d = 0
+        color = [0, 0, 0]
+        color[0] = np.around(color_a1, decimals=d)
+        color[1] = np.around(color_a2, decimals=d)
+        color[2] = np.around(color_a3, decimals=d)
 
         # only return color if all motors signify same wavenumber -------------
 
-        if True:#color[0] == color[1] and color [0] == color[2]:
-            return np.real(color[0])
+        if color[0] == color[1] and color [0] == color[2]:
+            return color[0]
         else:
             return np.nan
 
@@ -118,7 +118,7 @@ class OPA:
         self.motor_positions=[self.grating_position, self.bbo_position, self.mixer_position]
         # may wish to have number limits loaded with tuning curve.
         self.limits = pc.NumberLimits(min_value=6200, max_value=9500, units='wn')
-        self.current_position = pc.Number(name='Color', initial_value=8000.,
+        self.current_position = pc.Number(name='Color', initial_value=2000.,
                                           limits=self.limits,
                                           units='wn', display=True,
                                           set_method='set_position')
@@ -167,6 +167,7 @@ class OPA:
         # load curve
         self.curve_path = pc.Filepath(ini=ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
         self.curve_path.updated.connect(self.curve_path.save)
+        self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
         self.load_curve(self.curve_path.read())
         self.get_position()
         # define values to be recorded by DAQ
@@ -326,10 +327,16 @@ class gui(QtCore.QObject):
         self.update_plot()  # first time
 
     def update(self):
+        # set button disable
         if self.opa.address.busy.read():
             self.set_button.setDisabled(True)
         else:
             self.set_button.setDisabled(False)
+        # update destination motor positions
+        motor_positions = [mp.read() for mp in self.opa.motor_positions]
+        self.grating_destination.write(motor_positions[0])
+        self.bbo_destination.write(motor_positions[1])
+        self.mixer_destination.write(motor_positions[2])
             
     def update_plot(self):
         points = self.opa.get_points()
@@ -349,6 +356,7 @@ class gui(QtCore.QObject):
     def on_set_motors(self):
         inputs = [destination.read() for destination in self.destinations]
         self.opa.address.hardware.q.push('set_motors', inputs)
+        self.opa.get_position()
         
     def show_advanced(self):
         pass

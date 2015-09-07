@@ -11,6 +11,7 @@ import WrightTools.units as wt_units
 
 import project
 import project.classes as pc
+import project.widgets as pw
 import project.project_globals as g
 main_dir = g.main_dir.read()
 ini = project.ini_handler.Ini(os.path.join(main_dir, 'delays',
@@ -36,18 +37,17 @@ class Delay:
                                           units='ps', display=True,
                                           set_method='set_position')
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')
-        self.zero_position = pc.Number(name='Zero', initial_value=25.,
-                                       limits=self.motor_limits,
-                                       units='mm', display=True)
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
-        self.gui = gui()
+        self.gui = gui(self)
+        self.initialized = pc.Bool()
 
     def close(self):
         self.motor.close()
 
     def get_position(self):
         position = self.motor.get_position('mm')
+        self.current_position_mm.write(position, 'mm')
         delay = (position - self.zero_position.read()) * ps_per_mm
         self.current_position.write(delay, 'ps')
         return delay
@@ -57,13 +57,20 @@ class Delay:
         self.index = inputs[0]
         motor_identity = motors.identity['D{}'.format(self.index)]
         self.motor = motors.Motor(motor_identity)
-        self.zero_position.write(ini.read('D{}'.format(self.index), 'zero position (mm)'))
-        self.get_position()
+        self.current_position_mm = pc.Number(units='mm', display=True)
+        # zero position
+        self.zero_position = pc.Number(name='Zero', initial_value=25.,
+                                       ini=ini, section='D{}'.format(self.index),
+                                       option='zero position (mm)', import_from_ini=True,
+                                       save_to_ini_at_shutdown=True,
+                                       limits=self.motor_limits,
+                                       units='mm', display=True)
         self.set_zero(self.zero_position.read())
         # recorded
         labels = ['13', '23']
         self.recorded['d%d'%self.index] = [self.current_position, 'ps', 1., labels[self.index-1], False]
         self.recorded['d%d_zero'%self.index] = [self.zero_position, 'mm', 0.1, str(self.index), True]
+        self.initialized.write(True)
 
     def is_busy(self):
         return not self.motor.is_stopped()
@@ -85,8 +92,9 @@ class Delay:
         '''
         self.zero_position.write(zero)
         min_value = -self.zero_position.read() * ps_per_mm
-        max_value = (50. - self.zero_position.read()) * ps_per_mm        
+        max_value = (50. - self.zero_position.read()) * ps_per_mm
         self.limits.write(min_value, max_value, 'ps') 
+        self.get_position()
 
 
 ### advanced gui ##############################################################
@@ -94,26 +102,60 @@ class Delay:
 
 class gui(QtCore.QObject):
 
-    def __init__(self):
+    def __init__(self, delay):
         QtCore.QObject.__init__(self)
+        self.delay = delay
 
     def create_frame(self, layout):
         layout.setMargin(5)
-       
-        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by ps delay')
-        my_widget.setAutoFillBackground(True)
-        layout.addWidget(my_widget)
+        self.layout = layout
         
-        self.advanced_frame = QtGui.QWidget()   
-        self.advanced_frame.setLayout(layout)
-        
+        self.advanced_frame = QtGui.QWidget()
+        self.advanced_frame.setLayout(self.layout)
+
         g.module_advanced_widget.add_child(self.advanced_frame)
         
+        if self.delay.initialized.read():
+            self.initialize()
+        else:
+            self.delay.initialized.updated.connect(self.initialize)
+        
+    def initialize(self):
+        
+        # settings container
+        settings_container_widget = QtGui.QWidget()
+        settings_scroll_area = pw.scroll_area(show_bar=False)
+        settings_scroll_area.setWidget(settings_container_widget)
+        settings_scroll_area.setMinimumWidth(300)
+        settings_scroll_area.setMaximumWidth(300)
+        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_layout = settings_container_widget.layout()
+        settings_layout.setMargin(5)
+        self.layout.addWidget(settings_scroll_area)
+        
+        # input table
+        input_table = pw.InputTable()
+        input_table.add('Current', self.delay.current_position_mm)
+        input_table.add('Zero', self.delay.zero_position)
+        self.zero_destination = self.delay.zero_position.associate(display=False)
+        input_table.add('Zero dest.', self.zero_destination)
+        settings_layout.addWidget(input_table)
+        
+        # set button
+        self.set_button = pw.SetButton('SET ZERO')
+        settings_layout.addWidget(self.set_button)
+        self.set_button.clicked.connect(self.on_set)
+        g.module_control.disable_when_true(self.set_button)
+        
+        settings_layout.addStretch(1)
+        self.layout.addStretch(1)
+    
     def update(self):
         pass
         
     def on_set(self):
-        pass
+        new_zero = self.zero_destination.read('mm')
+        self.delay.set_zero(new_zero)
     
     def show_advanced(self):
         pass

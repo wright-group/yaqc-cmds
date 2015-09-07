@@ -89,9 +89,6 @@ class Value(QtCore.QMutex):
         return self.value
 
     def write(self, value):
-        '''
-        Writes the desired python object to the Value object.
-        '''
         self.lock()
         self.value = value
         self.unlock()
@@ -390,6 +387,14 @@ class Number(PyCMDS_Object):
                     limits[i] = inputs[i]
                 if self.has_widget:
                     getattr(self.widget, widget_methods[i])(limits[i])
+                    
+    def set_widget(self):
+        if np.isnan(self.value.read()):
+            self.widget.setSpecialValueText('nan')
+            self.widget.setValue(self.widget.minimum())
+        else:
+            self.widget.setSpecialValueText('')
+            self.widget.setValue(self.value.read())
 
     def give_control(self, control_widget):
         self.widget = control_widget
@@ -400,7 +405,7 @@ class Number(PyCMDS_Object):
         self.widget.setSingleStep(self.single_step)
         self.widget.setValue(self.value.read())
         # connect signals and slots
-        self.updated.connect(lambda: self.widget.setValue(self.value.read()))
+        self.updated.connect(self.set_widget)
         self.widget.editingFinished.connect(lambda: self.write(self.widget.value()))
         # finish
         self.widget.setToolTip(self.tool_tip)
@@ -442,20 +447,23 @@ class Number(PyCMDS_Object):
 
 
 class String(PyCMDS_Object):
-    '''
-    holds 'value' (string)
-    '''
-    def __init__(self, initial_value = None, ini = None, import_from_ini = False, save_to_ini_at_shutdown = False):
-        gui_object.__init__(self, initial_value = initial_value, ini_inputs = ini, import_from_ini = import_from_ini, save_to_ini_at_shutdown = save_to_ini_at_shutdown)
+
+    def __init__(self, initial_value='', *args, **kwargs):
+        PyCMDS_Object.__init__(self, initial_value=initial_value, *args, **kwargs)
+        self.type = 'string'
+
     def give_control(self, control_widget):
         self.widget = control_widget
-        #fill out items
-        self.widget.setText(self.value)
-        #connect signals and slots
-        self.updated.connect(lambda: self.widget.setText(self.value))
+        # fill out items
+        self.widget.setText(str(self.value.read()))
+        # connect signals and slots
+        self.updated.connect(lambda: self.widget.setText(self.value.read()))
         self.widget.editingFinished.connect(lambda: self.write(self.widget.text()))
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True
+            
+    def read(self):
+        return str(PyCMDS_Object.read(self))
 
 
 ### hardware ##################################################################
@@ -474,6 +482,7 @@ class Address(QtCore.QObject):
         self.ctrl = ctrl_class()
         self.exposed = self.ctrl.exposed
         self.recorded = self.ctrl.recorded
+        self.initialized = self.ctrl.initialized
         ctrl_methods =  wt.kit.get_methods(self.ctrl)      
         for method in ctrl_methods:
             if hasattr(self, method):
@@ -605,6 +614,7 @@ class Hardware(QtCore.QObject):
                                      name, control_class)
         self.exposed = self.address.exposed
         self.recorded = self.address.recorded
+        self.initialized = self.address.initialized
         self.current_position = self.exposed[0]
         self.gui = self.address.gui
         self.native_units = self.address.native_units
