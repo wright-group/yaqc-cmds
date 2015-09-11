@@ -45,7 +45,12 @@ hardware_dict = {'OPA1 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa
                  'OPA2 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [2]],
                  'OPA3 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [3]],
                  'OPA1 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [1]],
-                 'OPA2 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [2]]}
+                 'OPA2 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [2]],
+                 'OPA1 Virtual': [os.path.join(main_dir, 'OPAs', 'virtual', 'v_pico_opa.py'), 'v_pico_opa', 'vOPA', [1]],
+                 'OPA2 Virtual': [os.path.join(main_dir, 'OPAs', 'virtual', 'v_pico_opa.py'), 'v_pico_opa', 'vOPA', [2]],
+                 'OPA3 Virtual': [os.path.join(main_dir, 'OPAs', 'virtual', 'v_pico_opa.py'), 'v_pico_opa', 'vOPA', [3]],
+                 'OPA1 vTOPAS-C': [os.path.join(main_dir, 'OPAs', 'virtual', 'v_TOPAS.py'), 'v_TOPAS', 'vTOPAS', [1]],
+                 'OPA2 vTOPAS-C': [os.path.join(main_dir, 'OPAs', 'virtual', 'v_TOPAS.py'), 'v_TOPAS', 'vTOPAS', [2]]}
 hardwares = []
 for key in hardware_dict.keys():
     if ini.read('hardware', key):
