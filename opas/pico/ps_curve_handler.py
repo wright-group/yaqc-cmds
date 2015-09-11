@@ -40,8 +40,6 @@ class Curve:
         moda3 = np.polynomial.polynomial.polyfit(self.points[0], self.points[3], n, full=True)
         self.motor_functions = [moda1, moda2, moda3]
 
-
-
     def new_motor_positions(self, wn):
         '''
         returns list [m0, m1, m2]

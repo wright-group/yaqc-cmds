@@ -57,6 +57,8 @@ class Ini(QtCore.QMutex):
                         with_apostrophe=False)
 
     def write(self, section, option, value, with_apostrophe=False):
+        if type(value) == str:
+            with_apostrophe = True 
         self._do('write', 
                  section=section, 
                  option=option, 

@@ -95,7 +95,7 @@ class Gui(QtCore.QObject):
                 return
         vals = np.array(daq.current_slice.read())
         xcol = daq.data_cols.read()[daq.current_slice.col]['index']
-        ycol_key = tab_channel.read() + ' ' + tab_property.read()
+        ycol_key = tab_channel.read() + '_' + tab_property.read()
         ycol = daq.data_cols.read()[ycol_key]['index']
         self.xi = vals[:, xcol]
         self.yi = vals[:, ycol]

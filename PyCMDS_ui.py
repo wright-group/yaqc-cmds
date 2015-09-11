@@ -21,6 +21,8 @@ g.logger.log('info', 'Startup', 'PyCMDS is attempting startup')
 
 import project.style as style
 import project.widgets as custom_widgets
+import project.classes as pc
+import project.file_dialog_handler
 
 
 ### main window ###############################################################
@@ -146,16 +148,16 @@ class MainWindow(QtGui.QMainWindow):
         g.daq_plot_widget.write(daq_plot_widget)
         
         # tab widget
-        daq_tabs = QtGui.QTabWidget()
-        daq_tabs.addTab(hardware_advanced_widget, 'Hardware')
-        daq_tabs.addTab(comove_widget, 'Comove')
-        daq_tabs.addTab(module_advanced_widget, 'Module')
-        daq_tabs.addTab(daq_single_widget, 'DAQ')
-        daq_tabs.addTab(current_slice_widget, 'Current')
-        daq_tabs.addTab(daq_plot_widget, 'Plot')
-        daq_tabs.setCurrentIndex(3) #start on DAQ tab
-        daq_tabs.setContentsMargins(0., 0., 0., 0.)
-        daq_box.addWidget(daq_tabs)    
+        self.tabs = QtGui.QTabWidget()
+        self.tabs.addTab(hardware_advanced_widget, 'Hardware')
+        self.tabs.addTab(comove_widget, 'Comove')
+        self.tabs.addTab(module_advanced_widget, 'Module')
+        self.tabs.addTab(daq_single_widget, 'DAQ')
+        self.tabs.addTab(current_slice_widget, 'Current')
+        self.tabs.addTab(daq_plot_widget, 'Plot')
+        self.tabs.setCurrentIndex(3)  # start on DAQ tab
+        self.tabs.setContentsMargins(0., 0., 0., 0.)
+        daq_box.addWidget(self.tabs)    
         
         # vertical stretch
         daq_box.addStretch(1)
@@ -191,44 +193,32 @@ class MainWindow(QtGui.QMainWindow):
         pass
         
     def _initialize_hardware(self):
-        
         g.offline.get_saved()
-        if g.debug.read(): print 'initialize hardware'
-        
+        if g.debug.read():
+            print 'initialize hardware'
         # import
         import opas.opas
         import spectrometers.spectrometers
         import delays.delays
         import daq.daq
-        
-        #self.daq = daq.daq
     
     def _initialize_widgets(self):
-        
         if g.debug.read():
             print 'initialize widgets'
-        
+        # import widgets
         import daq.current
     
     def _load_modules(self):
-        
         g.module_control.write(False)
-        
-        if g.debug.read(): print 'load modules'
-        
-        g.module_combobox.read()
-        
-        #create scan thread-----------------------------------------------------
-        
+        if g.debug.read(): 
+            print 'load modules'
+        # create scan thread
         scan_thread = QtCore.QThread()
         g.scan_thread.write(scan_thread)
         scan_thread.start()
-        
-        #import modules---------------------------------------------------------
-        
-        import modules.template
-        import modules.mono_slice
-        import modules.custom
+        # import modules
+        import modules.tune_test
+        import modules.motortune
         
     def _shutdown(self):
         '''
@@ -236,7 +226,6 @@ class MainWindow(QtGui.QMainWindow):
         '''
         if g.debug.read(): print 'shutdown'
         g.logger.log('info', 'Shutdown', 'PyCMDS is attempting shutdown')
-        #g.shutdown.write(True)
         self.shutdown.emit()
         g.shutdown.fire()
         

@@ -1,5 +1,6 @@
 ### import ####################################################################
 
+
 import os
 import sys
 import time
@@ -39,6 +40,8 @@ class analog_channels():
     sample_indicies = None
 analog_channels = analog_channels()
 
+axes = pc.Mutex()
+
 array_detector_reference = pc.Mutex()
 
 busy = pc.Busy()
@@ -74,8 +77,9 @@ class CurrentSlice(QtCore.QMutex):
         
 current_slice = CurrentSlice()  # a list of numpy arrays
 
-
 data_busy = pc.Busy()
+
+data_path = pc.Mutex()
 
 class digital_channels():
     physical_asignments = None
@@ -87,15 +91,17 @@ enqueued_actions = pc.Enqueued()
 
 enqueued_data = pc.Enqueued()
 
+fit_path = pc.Mutex()
+
+ignore = pc.Mutex()
+
 last_samples = pc.Mutex()
 
 last_analog_data = pc.Mutex()
 
+origin = pc.Mutex()
+
 us_per_sample = pc.Mutex()
-
-
-
-
 
 ### gui objects ###############################################################
 
@@ -208,54 +214,18 @@ class Data(QtCore.QObject):
             data_busy.write(False)
             
     def create_data(self, inputs):
-        # filename
+        scan_origin, widget = inputs
         self.file_timestamp = wt.kit.get_timestamp()
-        self.current_data_path = os.path.join(main_dir, 'data', self.file_timestamp + '.data')    
-        # generate header
-        origin = None
-        axes = ['d1', 'd2']
-        units_list = [col['units'] for col in data_cols.read().values()]
-        tolerance_list = [col['tolerance'] for col in data_cols.read().values()]
-        label_list = [col['label'] for col in data_cols.read().values()]
-        name_list = data_cols.read().keys()
-        header_items = ['file created ' + self.file_timestamp]
-        header_items += ['origin ' + str(origin)]
-        header_items += ['axes ' + str(axes)]
-        header_items += ['units ' + str(units_list)]
-        header_items += ['tolerance ' + str(tolerance_list)]
-        header_items += ['label ' + str(label_list)]
-        header_items += ['name ' + str(name_list)]    
-        # add header string
-        header_str = ''
-        for item in header_items:
-            header_str += item + '\n'
-        header_str = header_str[:-1]  # remove final newline charachter
-        np.savetxt(self.current_data_path, [], header=header_str)
+        self.filename = ' '.join([scan_origin, str(axes.read()), self.file_timestamp, widget.description.read()]).rstrip()
+        data_path.write(os.path.join(main_dir, 'data', self.filename + '.data'))
+        header_str = self.make_header(data_cols.read(), inputs)
+        np.savetxt(data_path.read(), [], header=header_str)
         
     def create_fit(self, inputs):
         # create fit must always be called after create data
-        # filename
-        self.current_fit_path = os.path.join(main_dir, 'data', self.file_timestamp + ' fitted.data')
-        # generate header
-        origin = None
-        axes = ['d1', 'd2']
-        units_list = [col['units'] for col in fit_cols.read().values()]
-        tolerance_list = [col['tolerance'] for col in fit_cols.read().values()]
-        label_list = [col['label'] for col in fit_cols.read().values()]
-        name_list = fit_cols.read().keys()
-        header_items = ['file created ' + self.file_timestamp]
-        header_items += ['origin ' + str(origin)]
-        header_items += ['axes ' + str(axes)]
-        header_items += ['units ' + str(units_list)]
-        header_items += ['tolerance ' + str(tolerance_list)]
-        header_items += ['label ' + str(label_list)]
-        header_items += ['name ' + str(name_list)]    
-        # add header string
-        header_str = ''
-        for item in header_items:
-            header_str += item + '\n'
-        header_str = header_str[:-1]  # remove final newline charachter
-        np.savetxt(self.current_fit_path, [], header=header_str)    
+        fit_path.write(os.path.join(main_dir, 'data', self.filename + ' FITTED.data'))
+        header_str = self.make_header(fit_cols.read(), inputs)
+        np.savetxt(fit_path.read(), [], header=header_str)    
         
     def fit(self, inputs):
         # functions
@@ -304,15 +274,52 @@ class Data(QtCore.QObject):
                 arr[index] = data[0, index]
         # write
         self.write_fit(arr)
+        
+    def make_header(self, cols, inputs):
+        scan_origin, widget = inputs
+        # generate header
+        units_list = [col['units'] for col in cols.values()]
+        tolerance_list = [col['tolerance'] for col in cols.values()]
+        label_list = [col['label'] for col in cols.values()]
+        name_list = cols.keys()
+        # name
+        if widget.name.read() == '':
+            name = ' '.join([origin.read(), widget.description.read()])
+        else:
+            name = widget.name.read()
+        # strings need extra apostrophes and everything needs to be string
+        for lis in [units_list, tolerance_list, label_list, name_list]:
+            for i in range(len(lis)):
+                if type(lis[i]) == str:       
+                    lis[i] = '\'' + lis[i] + '\''
+                else:
+                    lis[i] = str(lis[i])
+        header_items = ['file created:' + '\t' + '\'' + self.file_timestamp + '\'']
+        header_items += ['name:'  + '\t' + '\'' + name + '\'']
+        header_items += ['info:'  + '\t' + '\'' + widget.info.read() + '\'']
+        header_items += ['origin:' + '\t' + '\'' + origin.read() + '\'']
+        header_items += ['shots:' + '\t' + str(widget.shots.read())]
+        header_items += ['axes:' + '\t' + str(axes.read())]
+        header_items += ['ignore:' + '\t' + str(ignore.read())]
+        header_items += ['units: ' + '\t'.join(units_list)]
+        header_items += ['tolerance: ' + '\t'.join(tolerance_list)]
+        header_items += ['label: ' + '\t'.join(label_list)]
+        header_items += ['name: ' + '\t'.join(name_list)]    
+        # add header string
+        header_str = ''
+        for item in header_items:
+            header_str += item + '\n'
+        header_str = header_str[:-1]  # remove final newline charachter
+        return header_str
             
     def write_data(self, inputs):
-        data_file = open(self.current_data_path, 'a')
+        data_file = open(data_path.read(), 'a')
         np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
         data_file.write('\n')
         data_file.close()
         
     def write_fit(self, inputs):
-        data_file = open(self.current_fit_path, 'a')
+        data_file = open(fit_path.read(), 'a')
         np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
         data_file.write('\n')
         data_file.close()
@@ -608,8 +615,13 @@ class DAQ(QtCore.QObject):
             # hardware
             for module in hardware_modules:
                 for hardware in module.hardwares:
-                    row[i] = hardware.get_position()
-                    i += 1
+                    for key in hardware.recorded:
+                        out_units = hardware.recorded[key][1]
+                        if out_units is None:
+                            row[i] = hardware.recorded[key][0].read()
+                        else:                     
+                            row[i] = hardware.recorded[key][0].read(out_units)
+                        i += 1
             # values
             for channel_idx in range(5):
                 for property_idx in range(3):
@@ -673,8 +685,6 @@ class Control():
         # other controls
         shots.updated.connect(self.update_task)
         g.main_window.read().module_control.connect(self.module_control_update)
-        # initialize format
-        self.update_cols()
         
     def acquire(self):
         q('run_task', inputs=[True])
@@ -697,18 +707,21 @@ class Control():
     def initialize_hardware(self):
         q('initialize')
 
-    def initialize_scan(self, widget, fit=False):
+    def initialize_scan(self, widget, scan_origin=None, scan_axes=[], dont_ignore=[], fit=False):
         '''
         prepare environment for scanning
         '''
+        origin.write(scan_origin)
         # set index back to zero
         index.write(0)
         # get params from widget
         shots.write(widget.shots.read())
         # create data file(s)
-        data_q('create_data')
+        axes.write(scan_axes)
+        self.update_cols(dont_ignore=dont_ignore)
+        data_q('create_data', [scan_origin, widget])
         if fit:
-            data_q('create_fit')
+            data_q('create_fit', [scan_origin, widget])
         # wait until daq is done before letting module continue        
         self.wait_until_daq_done()
         self.wait_until_data_done()
@@ -721,10 +734,11 @@ class Control():
         else:
             freerun.write(True)
             
-    def update_cols(self):
+    def update_cols(self, dont_ignore=[]):
         '''
         define the format of .data and .fit files
         '''
+        new_ignore = ['index', 'time']
         new_data_cols = collections.OrderedDict()
         new_fit_cols = collections.OrderedDict()
         # exposed hardware positions get written to both filetypes
@@ -735,7 +749,7 @@ class Control():
             dictionary['units'] = None
             dictionary['tolerance'] = 0.5
             dictionary['label'] = ''
-            dictionary['get_method'] = None
+            dictionary['object'] = None
             cols['index'] = dictionary
             # time
             dictionary = collections.OrderedDict()
@@ -743,27 +757,31 @@ class Control():
             dictionary['units'] = 's'
             dictionary['tolerance'] = 0.001
             dictionary['label'] = 'lab'
-            dictionary['get_method'] = None
+            dictionary['object'] = None
             cols['time'] = dictionary
             for module in hardware_modules:
                 for hardware in module.hardwares:
-                    dictionary = collections.OrderedDict()
-                    dictionary['index'] = len(cols)
-                    dictionary['units'] = hardware.native_units
-                    dictionary['tolerance'] = 1.
-                    dictionary['label'] = ''
-                    dictionary['get_method'] = hardware.get_position
-                    cols[hardware.name] = dictionary
+                    for key in hardware.recorded:
+                        dictionary = collections.OrderedDict()
+                        dictionary['index'] = len(cols)
+                        dictionary['object'] = hardware.recorded[key][0]
+                        dictionary['units'] = hardware.recorded[key][1]
+                        dictionary['tolerance'] = hardware.recorded[key][2]
+                        dictionary['label'] = hardware.recorded[key][3]
+                        cols[key] = dictionary
+                        if cols == new_data_cols:  # only do this once
+                            if hardware.recorded[key][4] and key not in new_ignore:
+                                new_ignore.append(key)
         # data
         for channel in channels:
             for prop in properties:
                 dictionary = collections.OrderedDict()
-                name = channel + ' ' + prop
+                name = channel + '_' + prop
                 dictionary['index'] = len(new_data_cols)
                 dictionary['units'] = 'V'
                 dictionary['tolerance'] = None
                 dictionary['label'] = ''
-                dictionary['get_method'] = None
+                dictionary['object'] = None
                 new_data_cols[name] = dictionary
         # fit
         for prop in ['amplitude', 'center', 'FWHM', 'offset']:
@@ -773,10 +791,14 @@ class Control():
             dictionary['units'] = 'V'
             dictionary['tolerance'] = None
             dictionary['label'] = ''
-            dictionary['get_method'] = None
+            dictionary['object'] = None
             new_fit_cols[name] = dictionary
         data_cols.write(new_data_cols)
         fit_cols.write(new_fit_cols)
+        for item in new_ignore:
+            if item in dont_ignore:
+                new_ignore.pop[item]
+        ignore.write(new_ignore)
         
     def update_task(self):
         if freerun.read():
@@ -855,6 +877,12 @@ class Widget(QtGui.QWidget):
         input_table.add('DAQ', None)
         self.shots = pc.Number(initial_value = 200, decimals = 0)
         input_table.add('Shots', self.shots)
+        self.description = pc.String()
+        input_table.add('Description', self.description)
+        self.name = pc.String()
+        input_table.add('Name', self.name)
+        self.info = pc.String()
+        input_table.add('Info', self.info)
         layout.addWidget(input_table)
         
 class Gui(QtCore.QObject):

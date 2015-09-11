@@ -2,7 +2,7 @@
 
 
 import os
-
+import collections
 import time
 
 from PyQt4 import QtGui, QtCore
@@ -46,7 +46,9 @@ class MicroHR:
                                       import_from_ini=True, display=True,
                                       set_method='set_turret')
         self.exposed = [self.current_position, self.grating_index]
+        self.recorded = collections.OrderedDict()
         self.gui = gui()
+        self.initialized = pc.Bool()
 
     def close(self):
         # close control
@@ -86,11 +88,14 @@ class MicroHR:
         # import information from ini
         init_grating_index = ini.read('main', 'grating index')
         init_wavelength = ini.read('main', 'position (nm)')
+        # recorded
+        self.recorded['wm'] = [self.current_position, 'nm', 1., 'm', False]
         # go to old position after initialization is done
         while self.is_busy():
             time.sleep(0.1)
         self.set_turret(init_grating_index)
         self.set_position(init_wavelength)
+        self.initialized.write(True)
 
     def is_busy(self):
         return self.ctrl.IsBusy()
@@ -134,10 +139,6 @@ class gui(QtCore.QObject):
 
     def create_frame(self, layout):
         layout.setMargin(5)
-       
-        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by MicroHR')
-        my_widget.setAutoFillBackground(True)
-        layout.addWidget(my_widget)
         
         self.advanced_frame = QtGui.QWidget()   
         self.advanced_frame.setLayout(layout)

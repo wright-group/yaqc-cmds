@@ -1,6 +1,8 @@
-#to do##########################################################################
+### define ####################################################################
 
-#import#########################################################################
+module_name = 'TUNE TEST'
+
+### import ####################################################################
 
 import sys
 import time
@@ -8,95 +10,31 @@ import time
 import numpy as np
 
 import project.project_globals as g
-scan_thread = g.scan_thread.read()
+import project.classes as pc
 
 from PyQt4 import QtCore, QtGui
 app = g.app.read()
 
-import project.widgets as custom_widgets     
+import project.widgets as custom_widgets
 
-#import hardware control#######################################################
+import WrightTools as wt
 
-import spectrometers.spectrometers as spec
-MicroHR = spec.hardwares[0]
-import delays.delays as delay
-D1 = delay.hardwares[0]
-D2 = delay.hardwares[1]
-import opas.opas as opa
-OPA2 = opa.hardwares[0]
+### import hardware control ###################################################
+
+import spectrometers.spectrometers as specs
+import delays.delays as delays
+import opas.opas as opas
 import daq.daq as daq
 import daq.current as daq_current
 
-#scan globals##################################################################
+### objects ###################################################################
 
-# These scan globals are used to communicated between the gui and the scan,
-# which are running in different threads. All are mutex for this reason.
-
-class fraction_complete:
-    def __init__(self):
-        self.value = 0
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-fraction_complete = fraction_complete()
-
-class go:
-    def __init__(self):
-        self.value = False
-    def read(self):
-        return self.value
-    def write(self, value):  
-        self.value = value
-go = go()
-
-class going(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=5000):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-going = going()
-
-class pause(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self):
-        if self.value: return self.WaitCondition.wait(self)
-pause = pause()
-
-class paused(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=100):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-paused = paused()
+# to do with communication between threads
+fraction_complete = pc.Mutex()
+go = pc.Busy()
+going = pc.Busy()
+pause = pc.Busy()
+paused = pc.Busy()
 
 ### scan object ###############################################################
 
@@ -110,8 +48,8 @@ class scan(QtCore.QObject):
         # unpack inputs -------------------------------------------------------
         
         scan_dictionary = inputs[0]
-        
         daq_widget = inputs[1]
+        gui = inputs[2]
 
         # startup -------------------------------------------------------------
 
@@ -122,16 +60,13 @@ class scan(QtCore.QObject):
 
         # scan ----------------------------------------------------------------
 
-        spec_destinations = np.linspace(1100, 1620, 200)
-        grating_destinations = np.linspace(34, 40, 40)
-        bbo_destinations = np.linspace(35, 40, 80)
-        
-        npts = len(spec_destinations)*len(bbo_destinations)*len(grating_destinations)
-
         # initialize scan in daq
-        daq.control.initialize_scan(daq_widget, fit=True)
+        daq.control.initialize_scan(daq_widget, scan_origin=module_name, scan_axes=['w1', 'wm'], fit=True)
+        #daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())
+        daq.control.index_slice(col='wm')
         
         # do loop
+        '''
         break_scan = False
         idx = 0
         for k in range(len(grating_destinations)):
@@ -160,13 +95,25 @@ class scan(QtCore.QObject):
                 if break_scan:
                     break
                 # fit each slice
-                daq.control.fit('MicroHR', 'vai0 Mean')
+                #daq.control.fit('MicroHR', 'vai0 Mean')
             if break_scan:
                 break
+
+        daq.control.fit('wm', 'vai0_Mean')
+        '''
         
+        # plot ----------------------------------------------------------------
+        
+        '''
+        data_path = daq.data_path.read()
+        data_obj = wt.data.from_PyCMDS(data_path)
+        artist = wt.artists.mpl_1D(data_obj)
+        fname = data_path.replace('.data', '')
+        artist.plot(fname=fname, autosave=True)
+        '''
+
         #end-------------------------------------------------------------------
 
-        print 'end'
         fraction_complete.write(1.)    
         going.write(False)
         g.module_control.write(False)
@@ -189,8 +136,9 @@ class scan(QtCore.QObject):
         paused.write(False)
         return go.read()
         
-#move scan to own thread      
+# scan object exists in the shared scan thread   
 scan_obj = scan()
+scan_thread = g.scan_thread.read()
 scan_obj.moveToThread(scan_thread)
  
 ### gui #######################################################################
@@ -202,18 +150,39 @@ class gui(QtCore.QObject):
         scan_obj.update_ui.connect(self.update)
         self.create_frame()
         self.create_advanced_frame()
-        self.show_frame() #check once at startup
+        self.show_frame()  # check once at startup
         g.shutdown.read().connect(self.stop)
         
     def create_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
         
+        # input table
+        input_table = custom_widgets.InputTable()
+        allowed_opas = [hardware.name for hardware in opas.hardwares]
+        self.opa_combo = pc.Combo(allowed_values=allowed_opas)
+        input_table.add('OPA', self.opa_combo)
+        input_table.add('Points', None)  
+        self.tune_points = pc.Bool(initial_value=True)
+        input_table.add('Use Tune Points', self.tune_points)
+        self.initial_color = pc.Number(units='wn')
+        input_table.add('Initial Color', self.initial_color)
+        self.final_color = pc.Number(units='wn')
+        input_table.add('Final Color', self.final_color)
+        self.points_number = pc.Number(initial_value=21, decimals=0)
+        input_table.add('Number', self.points_number)
+        input_table.add('Spectrometer', None)
+        self.mono_width = pc.Number(units='wn')
+        input_table.add('Width', self.mono_width)
+        self.mono_number = pc.Number(initial_value=21, decimals=0)
+        input_table.add('Number', self.mono_number)
+        layout.addWidget(input_table)
+        
         # daq widget
         self.daq_widget = daq.Widget()
         layout.addWidget(self.daq_widget)
         
-        #go button
+        # go button
         self.go_button = custom_widgets.module_go_button()
         self.go_button.give_launch_scan_method(self.launch_scan)
         self.go_button.give_stop_scan_method(self.stop)  
@@ -228,16 +197,12 @@ class gui(QtCore.QObject):
         self.frame.setLayout(layout)
         
         g.module_widget.add_child(self.frame)
-        g.module_combobox.add_module('TEMPLATE', self.show_frame)
+        g.module_combobox.add_module(module_name, self.show_frame)
 
     def create_advanced_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
-       
-        my_widget = QtGui.QLineEdit('this is a placeholder widget produced by template')
-        my_widget.setAutoFillBackground(True)
-        layout.addWidget(my_widget)
-        
+
         self.advanced_frame = QtGui.QWidget()   
         self.advanced_frame.setLayout(layout)
         
@@ -246,7 +211,7 @@ class gui(QtCore.QObject):
     def show_frame(self):
         self.frame.hide()
         self.advanced_frame.hide()
-        if g.module_combobox.get_text() == 'TEMPLATE':
+        if g.module_combobox.get_text() == module_name:
             self.frame.show()
             self.advanced_frame.show()
 
@@ -254,7 +219,7 @@ class gui(QtCore.QObject):
         go.write(True)
         print 'running'
         scan_dictionary = {}
-        inputs = [scan_dictionary, self.daq_widget]
+        inputs = [scan_dictionary, self.daq_widget, self]
         QtCore.QMetaObject.invokeMethod(scan_obj, 'run', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(list, inputs))    
         g.progress_bar.begin_new_scan_timer()        
         

@@ -1,11 +1,13 @@
 ### import ####################################################################
 
 
+import os
 import time
 
 import numpy as np
 
 from PyQt4 import QtCore
+from PyQt4 import QtGui
 
 import project_globals as g
 
@@ -13,376 +15,7 @@ import WrightTools as wt
 import WrightTools.units as wt_units
 
 
-### gui items #################################################################
-
-
-class Value(QtCore.QMutex):
-
-    def __init__(self, initial_value=None):
-        '''
-        basic QMutex object to hold a single object in a thread-safe way
-        '''
-        QtCore.QMutex.__init__(self)
-        self.value = initial_value
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        '''
-        bool value
-        '''
-        self.lock()
-        self.value = value
-        self.unlock()
-
-
-class PyCMDS_Object(QtCore.QObject):
-    updated = QtCore.pyqtSignal()
-    disabled = False
-
-    def __init__(self, initial_value=None,
-                 ini=None, section='', option='',
-                 import_from_ini=False, save_to_ini_at_shutdown=False,
-                 display=False, name='', label = '', set_method=None):
-        QtCore.QObject.__init__(self)
-        self.has_widget = False
-        self.tool_tip = ''
-        self.value = Value(initial_value)
-        self.display = display
-        self.set_method = set_method
-        if self.display:
-            self.disabled = True
-        else:
-            self.disabled = False
-        # ini
-        if ini:
-            self.has_ini = True
-            self.ini = ini
-            self.section = section
-            self.option = option
-        else:
-            self.has_ini = False
-        if import_from_ini:
-            self.get_saved()
-        if save_to_ini_at_shutdown:
-            g.shutdown.add_method(self.save)
-        # name
-        self.name = name
-        if not label == '':
-            pass
-        else:
-            self.label = self.name
-
-    def read(self):
-        return self.value.read()
-
-    def write(self, value):
-        self.value.write(value)
-        self.updated.emit()
-
-    def get_saved(self):
-        if self.has_ini:
-            self.value.write(self.ini.read(self.section, self.option))
-        self.updated.emit()
-        return self.value.read()
-        
-    def save(self, value=None):
-        if value is not None:
-            self.value.write(value)
-        if self.has_ini:
-            self.ini.write(self.section, self.option, self.value.read())
-
-    def set_disabled(self, disabled):
-        self.disabled = disabled
-        if self.has_widget:
-            self.widget.setDisabled(self.disabled)
-
-    def set_tool_tip(self, tool_tip):
-        self.tool_tip = tool_tip
-        if self.has_widget:
-            self.widget.setToolTip(self.tool_tip)
-
-
-class Bool(PyCMDS_Object):
-    '''
-    holds 'value' (bool) - the state of the checkbox
-    
-    use read method to access
-    '''
-    
-    def __init__(self, initial_value = False, 
-                 ini = None, section='', option='', display=False, name='',
-                 import_from_ini = False, save_to_ini_at_shutdown = False):
-        PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               ini=ini, section=section, option=option,
-                               import_from_ini=import_from_ini,
-                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
-                               display=display, name=name)
-        self.type = 'checkbox'
-    def give_control(self, control_widget):
-        self.widget = control_widget
-        #set
-        self.widget.setChecked(self.value.read())   
-        #connect signals and slots
-        self.updated.connect(lambda: self.widget.setChecked(self.value.read()))
-        self.widget.stateChanged.connect(lambda: self.write(self.widget.checkState()))
-        #finish
-        self.widget.setToolTip(self.tool_tip)
-        self.widget.setDisabled(self.disabled)
-        self.has_widget = True
-
-
-class Combo(PyCMDS_Object):
-
-    def __init__(self, allowed_values, initial_value=None, 
-                 ini=None, section=None, option=None, import_from_ini = False, 
-                 save_to_ini_at_shutdown = False, display=False, name='',
-                 set_method=None):
-        PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               ini=ini, section=section, option=option,
-                               import_from_ini=import_from_ini,
-                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
-                               display=display, name=name, 
-                               set_method=set_method)
-        self.type = 'combo'
-        self.allowed_values = allowed_values
-        self.data_type = type(allowed_values[0])
-
-    def associate(self, display=None, pre_name=''):
-        # display
-        if display is None:
-            display = self.display
-        # name
-        name = pre_name + self.name
-        # new object
-        new_obj = Combo(initial_value=self.read(), display=display,
-                        allowed_values=self.allowed_values, name=name)
-        return new_obj
-
-    def save(self, value=None):
-        if value is not None:
-            self.value.write(value)
-        if self.has_ini:
-            self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
-
-    def write(self, value):
-        # value will be maintained as original data type
-        value = self.data_type(value)
-        PyCMDS_Object.write(self, value)
-
-    def give_control(self, control_widget):
-        self.widget = control_widget
-        # fill out items
-        allowed_values_strings = [str(value) for value in self.allowed_values]
-        self.widget.addItems(allowed_values_strings)
-        self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))       
-        # connect signals and slots
-        self.updated.connect(lambda: self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read()))))
-        self.widget.currentIndexChanged.connect(lambda: self.write(self.widget.currentText()))
-        self.widget.setToolTip(self.tool_tip)
-        self.widget.setDisabled(self.disabled)
-        self.has_widget = True
-
-
-class Filepath(PyCMDS_Object):
-    '''
-    holds 'value' (str) - the filepath as a string
-    '''
-    def __init__(self, initial_value = None, ini = None, import_from_ini = False, save_to_ini_at_shutdown = False):
-        gui_object.__init__(self, initial_value = initial_value, ini_inputs = ini, import_from_ini = import_from_ini, save_to_ini_at_shutdown = save_to_ini_at_shutdown)
-        self.type = 'filepath'
-    def give_control(self, control_widget):
-        self.widget = control_widget
-        '''
-        #fill out items
-        self.widget.addItems(self.allowed_values)
-        self.widget.setCurrentIndex(self.allowed_values.index(self.read()))       
-        #connect signals and slots
-        self.updated.connect(lambda: self.widget.setCurrentIndex(self.allowed_values.index(self.read())))
-        self.widget.currentIndexChanged.connect(lambda: self.write(self.widget.currentText()))
-        '''
-        self.widget.setToolTip(self.tool_tip)
-        self.widget.setDisabled(self.disabled)
-        self.has_widget = True
-    def give_button(self, button_widget):
-        self.button = button_widget
-
-
-class NumberLimits(PyCMDS_Object):
-
-    def __init__(self, min_value=-1000000., max_value=1000000., units=None):
-        '''
-        not appropriate for use as a gui element - only for backend use
-        units must never change for this kind of object
-        '''
-        PyCMDS_Object.__init__(self)
-        PyCMDS_Object.write(self, [min_value, max_value])
-        self.units = units
-
-    def read(self, output_units='same'):
-        min_value, max_value = PyCMDS_Object.read(self)
-        if output_units == 'same':
-            pass
-        else:
-            min_value = wt_units.converter(min_value, self.units, output_units)
-            max_value = wt_units.converter(max_value, self.units, output_units)
-        # ensure order
-        min_value, max_value = [min([min_value, max_value]),
-                                max([min_value, max_value])]
-        return [min_value, max_value]
-
-    def write(self, min_value, max_value, input_units='same'):
-        if input_units == 'same':
-            pass
-        else:
-            min_value = wt_units.converter(min_value, input_units, self.units)
-            max_value = wt_units.converter(max_value, input_units, self.units)
-        # ensure order
-        min_value, max_value = [min([min_value, max_value]),
-                                max([min_value, max_value])]
-        PyCMDS_Object.write(self, [min_value, max_value])
-        self.updated.emit()
-
-
-class Number(PyCMDS_Object):
-    
-    def __init__(self, initial_value=np.nan, display=False, name='',
-                 ini=None, section='', option='',
-                 import_from_ini=False, save_to_ini_at_shutdown=False,
-                 units=None, limits=NumberLimits(),
-                 single_step=1., decimals=2, set_method=None):
-        PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               ini=ini, section=section, option=option,
-                               import_from_ini=import_from_ini,
-                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
-                               display=display, name=name, 
-                               set_method=set_method)
-        self.type = 'number'
-        self.single_step = single_step
-        self.decimals = decimals
-        self.set_control_steps(single_step, decimals)
-        # units
-        self.units = units
-        self.units_kind = None
-        for dic in wt_units.unit_dicts:
-            if self.units in dic.keys():
-                self.units_dic = dic
-                self.units_kind = dic['kind']
-        # limits
-        self.limits = limits
-        self._set_limits()
-        self.limits.updated.connect(lambda: self._set_limits())
-
-    def associate(self, display=None, pre_name=''):
-        # display
-        if display is None:
-            display = self.display
-        # name
-        name = pre_name + self.name
-        # new object
-        new_obj = Number(initial_value=self.read(), display=display,
-                         units=self.units, limits=self.limits,
-                         single_step=self.single_step,
-                         decimals=self.decimals, name=name)
-        return new_obj
-
-    def convert(self, destination_units):
-        # value
-        old_val = self.value.read()
-        new_val = wt_units.converter(old_val, self.units, str(destination_units))
-        self.value.write(new_val)
-        # commit and signal
-        self.units = str(destination_units)
-        self._set_limits()
-        self.updated.emit()
-
-    def read(self, output_units='same'):
-        value = PyCMDS_Object.read(self)
-        if output_units == 'same':
-            pass
-        else:
-            value = wt_units.converter(value, self.units, output_units)
-        return value
-
-    def set_control_steps(self, single_step=None, decimals=None):
-        limits = [self.single_step, self.decimals]
-        inputs = [single_step, decimals]
-        widget_methods = ['setSingleStep', 'setDecimals']
-        for i in range(len(limits)):
-                if not inputs[i] is None:
-                    limits[i] = inputs[i]
-                if self.has_widget:
-                    getattr(self.widget, widget_methods[i])(limits[i])
-
-    def give_control(self, control_widget):
-        self.widget = control_widget
-        # set values
-        #self.widget.setMinimum(self.min_value.read())
-        #self.widget.setMaximum(self.max_value.read())
-        self.widget.setDecimals(self.decimals)
-        self.widget.setSingleStep(self.single_step)
-        self.widget.setValue(self.value.read())
-        # connect signals and slots
-        self.updated.connect(lambda: self.widget.setValue(self.value.read()))
-        self.widget.editingFinished.connect(lambda: self.write(self.widget.value()))
-        # finish
-        self.widget.setToolTip(self.tool_tip)
-        self.has_widget = True
-        self._set_limits()
-        
-    def give_units_combo(self, units_combo_widget):
-        self.units_widget = units_combo_widget
-        # add items
-        unit_types = self.units_dic.keys()
-        unit_types.remove('kind')
-        self.units_widget.addItems(unit_types)
-        # set current item
-        self.units_widget.setCurrentIndex(unit_types.index(self.units))
-        # associate update with conversion 
-        self.units_widget.currentIndexChanged.connect(lambda: self.convert(self.units_widget.currentText()))
-
-    def write(self, value, input_units='same'):
-        if input_units == 'same':
-            pass
-        else:
-            value = wt_units.converter(value, input_units, self.units)
-        PyCMDS_Object.write(self, value)
-
-    def _set_limits(self):
-        min_value, max_value = self.limits.read()
-        limits_units = self.limits.units
-        min_value = wt_units.converter(min_value, limits_units, self.units)
-        max_value = wt_units.converter(max_value, limits_units, self.units)
-        # ensure order
-        min_value, max_value = [min([min_value, max_value]),
-                                max([min_value, max_value])]
-        if self.has_widget:
-            self.widget.setMinimum(min_value)
-            self.widget.setMaximum(max_value)
-        if not self.display:
-            self.set_tool_tip('min: ' + str(min_value) + '\n' +
-                              'max: ' + str(max_value))
-
-
-class String(PyCMDS_Object):
-    '''
-    holds 'value' (string)
-    '''
-    def __init__(self, initial_value = None, ini = None, import_from_ini = False, save_to_ini_at_shutdown = False):
-        gui_object.__init__(self, initial_value = initial_value, ini_inputs = ini, import_from_ini = import_from_ini, save_to_ini_at_shutdown = save_to_ini_at_shutdown)
-    def give_control(self, control_widget):
-        self.widget = control_widget
-        #fill out items
-        self.widget.setText(self.value)       
-        #connect signals and slots
-        self.updated.connect(lambda: self.widget.setText(self.value))
-        self.widget.editingFinished.connect(lambda: self.write(self.widget.text()))
-        self.widget.setToolTip(self.tool_tip)
-        self.has_widget = True    
-
-    
-### hardware ##################################################################
+### mutex #####################################################################
 
 
 class Mutex(QtCore.QMutex):
@@ -440,15 +73,407 @@ class Busy(QtCore.QMutex):
             return self.WaitCondition.wait(self, msecs=timeout)
 
 
+### gui items #################################################################
+
+
+class Value(QtCore.QMutex):
+
+    def __init__(self, initial_value=None):
+        '''
+        Basic QMutex object to hold a single object in a thread-safe way.
+        '''
+        QtCore.QMutex.__init__(self)
+        self.value = initial_value
+
+    def read(self):
+        return self.value
+
+    def write(self, value):
+        self.lock()
+        self.value = value
+        self.unlock()
+
+
+class PyCMDS_Object(QtCore.QObject):
+    updated = QtCore.pyqtSignal()
+    disabled = False
+
+    def __init__(self, initial_value=None,
+                 ini=None, section='', option='',
+                 import_from_ini=False, save_to_ini_at_shutdown=False,
+                 display=False, name='', label = '', set_method=None,
+                 *args, **kwargs):
+        QtCore.QObject.__init__(self)
+        self.has_widget = False
+        self.tool_tip = ''
+        self.value = Value(initial_value)
+        self.display = display
+        self.set_method = set_method
+        if self.display:
+            self.disabled = True
+        else:
+            self.disabled = False
+        # ini
+        if ini:
+            self.has_ini = True
+            self.ini = ini
+            self.section = section
+            self.option = option
+        else:
+            self.has_ini = False
+        if import_from_ini:
+            self.get_saved()
+        if save_to_ini_at_shutdown:
+            g.shutdown.add_method(self.save)
+        # name
+        self.name = name
+        if not label == '':
+            pass
+        else:
+            self.label = self.name
+
+    def read(self):
+        return self.value.read()
+
+    def write(self, value):
+        self.value.write(value)
+        self.updated.emit()
+
+    def get_saved(self):
+        if self.has_ini:
+            self.value.write(self.ini.read(self.section, self.option))
+        self.updated.emit()
+        return self.value.read()
+
+    def save(self, value=None):
+        if value is not None:
+            self.value.write(value)
+        if self.has_ini:
+            self.ini.write(self.section, self.option, self.value.read())
+
+    def set_disabled(self, disabled):
+        self.disabled = bool(disabled)
+        if self.has_widget:
+            self.widget.setDisabled(self.disabled)
+
+    def set_tool_tip(self, tool_tip):
+        self.tool_tip = str(tool_tip)
+        if self.has_widget:
+            self.widget.setToolTip(self.tool_tip)
+
+
+class Bool(PyCMDS_Object):
+    '''
+    holds 'value' (bool) - the state of the checkbox
+
+    use read method to access
+    '''
+
+    def __init__(self, initial_value = False,
+                 ini = None, section='', option='', display=False, name='',
+                 import_from_ini = False, save_to_ini_at_shutdown = False):
+        PyCMDS_Object.__init__(self, initial_value=initial_value,
+                               ini=ini, section=section, option=option,
+                               import_from_ini=import_from_ini,
+                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
+                               display=display, name=name)
+        self.type = 'checkbox'
+    def give_control(self, control_widget):
+        self.widget = control_widget
+        #set
+        self.widget.setChecked(self.value.read())
+        #connect signals and slots
+        self.updated.connect(lambda: self.widget.setChecked(self.value.read()))
+        self.widget.stateChanged.connect(lambda: self.write(self.widget.checkState()))
+        #finish
+        self.widget.setToolTip(self.tool_tip)
+        self.widget.setDisabled(self.disabled)
+        self.has_widget = True
+
+
+class Combo(PyCMDS_Object):
+
+    def __init__(self, allowed_values, initial_value=None, *args, **kwargs):
+        PyCMDS_Object.__init__(self, *args, **kwargs)
+        self.type = 'combo'
+        self.allowed_values = allowed_values
+        self.data_type = type(allowed_values[0])
+        if initial_value is None:
+            self.write(self.allowed_values[0])
+
+    def associate(self, display=None, pre_name=''):
+        # display
+        if display is None:
+            display = self.display
+        # name
+        name = pre_name + self.name
+        # new object
+        new_obj = Combo(initial_value=self.read(), display=display,
+                        allowed_values=self.allowed_values, name=name)
+        return new_obj
+
+    def save(self, value=None):
+        if value is not None:
+            self.value.write(value)
+        if self.has_ini:
+            self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
+
+    def write(self, value):
+        # value will be maintained as original data type
+        value = self.data_type(value)
+        PyCMDS_Object.write(self, value)
+
+    def give_control(self, control_widget):
+        self.widget = control_widget
+        # fill out items
+        allowed_values_strings = [str(value) for value in self.allowed_values]
+        self.widget.addItems(allowed_values_strings)
+        if self.read() is not None:
+            self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))       
+        # connect signals and slots
+        self.updated.connect(lambda: self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read()))))
+        self.widget.currentIndexChanged.connect(lambda: self.write(self.widget.currentText()))
+        self.widget.setToolTip(self.tool_tip)
+        self.widget.setDisabled(self.disabled)
+        self.has_widget = True
+
+
+class Filepath(PyCMDS_Object):
+
+    def __init__(self, caption='Open', directory=None, options=[],
+                 *args, **kwargs):
+        '''
+        holds the filepath as a string \n
+        '''
+        PyCMDS_Object.__init__(self, *args, **kwargs)
+        self.type = 'filepath'
+        self.caption = caption
+        self.directory = directory
+        self.options = options
+        
+    def give_control(self, control_widget):
+        self.widget = control_widget
+        if self.read() is not None:
+            self.widget.setText(self.read())
+        # connect signals and slots
+        self.updated.connect(lambda: self.widget.setText(self.read()))
+        self.widget.setToolTip(self.read())
+        self.updated.connect(lambda: self.widget.setToolTip(self.read()))
+        self.has_widget = True
+        
+    def give_button(self, button_widget):
+        self.button = button_widget
+        self.button.clicked.connect(self.on_load)
+        
+    def on_load(self):
+        import file_dialog_handler
+        # directory
+        if self.directory is not None:
+            directory_string = self.directory
+        else:
+            if self.read() is not None:    
+                directory_string = self.read()
+            else:
+                directory_string = g.main_dir.read()
+        # filter
+        filter_string = ';;'.join(self.options + ['All Files (*.*)'])
+        out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
+        if os.path.isfile(out):
+            self.write(out)
+
+
+class NumberLimits(PyCMDS_Object):
+
+    def __init__(self, min_value=-1000000., max_value=1000000., units=None):
+        '''
+        not appropriate for use as a gui element - only for backend use
+        units must never change for this kind of object
+        '''
+        PyCMDS_Object.__init__(self)
+        PyCMDS_Object.write(self, [min_value, max_value])
+        self.units = units
+
+    def read(self, output_units='same'):
+        min_value, max_value = PyCMDS_Object.read(self)
+        if output_units == 'same':
+            pass
+        else:
+            min_value = wt_units.converter(min_value, self.units, output_units)
+            max_value = wt_units.converter(max_value, self.units, output_units)
+        # ensure order
+        min_value, max_value = [min([min_value, max_value]),
+                                max([min_value, max_value])]
+        return [min_value, max_value]
+
+    def write(self, min_value, max_value, input_units='same'):
+        if input_units == 'same':
+            pass
+        else:
+            min_value = wt_units.converter(min_value, input_units, self.units)
+            max_value = wt_units.converter(max_value, input_units, self.units)
+        # ensure order
+        min_value, max_value = [min([min_value, max_value]),
+                                max([min_value, max_value])]
+        PyCMDS_Object.write(self, [min_value, max_value])
+        self.updated.emit()
+
+
+class Number(PyCMDS_Object):
+
+    def __init__(self, initial_value=np.nan, display=False, name='',
+                 ini=None, section='', option='',
+                 import_from_ini=False, save_to_ini_at_shutdown=False,
+                 units=None, limits=NumberLimits(),
+                 single_step=1., decimals=2, set_method=None):
+        PyCMDS_Object.__init__(self, initial_value=initial_value,
+                               ini=ini, section=section, option=option,
+                               import_from_ini=import_from_ini,
+                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
+                               display=display, name=name,
+                               set_method=set_method)
+        self.type = 'number'
+        self.single_step = single_step
+        self.decimals = decimals
+        self.set_control_steps(single_step, decimals)
+        # units
+        self.units = units
+        self.units_kind = None
+        for dic in wt_units.unit_dicts:
+            if self.units in dic.keys():
+                self.units_dic = dic
+                self.units_kind = dic['kind']
+        # limits
+        self.limits = limits
+        self._set_limits()
+        self.limits.updated.connect(lambda: self._set_limits())
+
+    def associate(self, display=None, pre_name=''):
+        # display
+        if display is None:
+            display = self.display
+        # name
+        name = pre_name + self.name
+        # new object
+        new_obj = Number(initial_value=self.read(), display=display,
+                         units=self.units, limits=self.limits,
+                         single_step=self.single_step,
+                         decimals=self.decimals, name=name)
+        return new_obj
+
+    def convert(self, destination_units):
+        # value
+        old_val = self.value.read()
+        new_val = wt_units.converter(old_val, self.units, str(destination_units))
+        self.value.write(new_val)
+        # commit and signal
+        self.units = str(destination_units)
+        self._set_limits()
+        self.updated.emit()
+
+    def read(self, output_units='same'):
+        value = PyCMDS_Object.read(self)
+        if output_units == 'same':
+            pass
+        else:
+            value = wt_units.converter(value, self.units, output_units)
+        return value
+
+    def set_control_steps(self, single_step=None, decimals=None):
+        limits = [self.single_step, self.decimals]
+        inputs = [single_step, decimals]
+        widget_methods = ['setSingleStep', 'setDecimals']
+        for i in range(len(limits)):
+                if not inputs[i] is None:
+                    limits[i] = inputs[i]
+                if self.has_widget:
+                    getattr(self.widget, widget_methods[i])(limits[i])
+                    
+    def set_widget(self):
+        if np.isnan(self.value.read()):
+            self.widget.setSpecialValueText('nan')
+            self.widget.setValue(self.widget.minimum())
+        else:
+            self.widget.setSpecialValueText('')
+            self.widget.setValue(self.value.read())
+
+    def give_control(self, control_widget):
+        self.widget = control_widget
+        # set values
+        #self.widget.setMinimum(self.min_value.read())
+        #self.widget.setMaximum(self.max_value.read())
+        self.widget.setDecimals(self.decimals)
+        self.widget.setSingleStep(self.single_step)
+        self.widget.setValue(self.value.read())
+        # connect signals and slots
+        self.updated.connect(self.set_widget)
+        self.widget.editingFinished.connect(lambda: self.write(self.widget.value()))
+        # finish
+        self.widget.setToolTip(self.tool_tip)
+        self.has_widget = True
+        self._set_limits()
+
+    def give_units_combo(self, units_combo_widget):
+        self.units_widget = units_combo_widget
+        # add items
+        unit_types = self.units_dic.keys()
+        unit_types.remove('kind')
+        self.units_widget.addItems(unit_types)
+        # set current item
+        self.units_widget.setCurrentIndex(unit_types.index(self.units))
+        # associate update with conversion
+        self.units_widget.currentIndexChanged.connect(lambda: self.convert(self.units_widget.currentText()))
+
+    def write(self, value, input_units='same'):
+        if input_units == 'same':
+            pass
+        else:
+            value = wt_units.converter(value, input_units, self.units)
+        PyCMDS_Object.write(self, value)
+
+    def _set_limits(self):
+        min_value, max_value = self.limits.read()
+        limits_units = self.limits.units
+        min_value = wt_units.converter(min_value, limits_units, self.units)
+        max_value = wt_units.converter(max_value, limits_units, self.units)
+        # ensure order
+        min_value, max_value = [min([min_value, max_value]),
+                                max([min_value, max_value])]
+        if self.has_widget:
+            self.widget.setMinimum(min_value)
+            self.widget.setMaximum(max_value)
+        if not self.display:
+            self.set_tool_tip('min: ' + str(min_value) + '\n' +
+                              'max: ' + str(max_value))
+
+
+class String(PyCMDS_Object):
+
+    def __init__(self, initial_value='', *args, **kwargs):
+        PyCMDS_Object.__init__(self, initial_value=initial_value, *args, **kwargs)
+        self.type = 'string'
+
+    def give_control(self, control_widget):
+        self.widget = control_widget
+        # fill out items
+        self.widget.setText(str(self.value.read()))
+        # connect signals and slots
+        self.updated.connect(lambda: self.widget.setText(self.value.read()))
+        self.widget.editingFinished.connect(lambda: self.write(self.widget.text()))
+        self.widget.setToolTip(self.tool_tip)
+        self.has_widget = True
+            
+    def read(self):
+        return str(PyCMDS_Object.read(self))
+
+
+### hardware ##################################################################
+
+
 class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
-    
+
     def __init__(self, hardware_obj, enqueued_obj, busy_obj, name, ctrl_class):
-        '''
-        do not override __init__ or dequeue
-        unless you really know what you are doing
-        '''
         QtCore.QObject.__init__(self)
         self.hardware = hardware_obj
         self.enqueued = enqueued_obj
@@ -456,6 +481,8 @@ class Address(QtCore.QObject):
         self.name = name
         self.ctrl = ctrl_class()
         self.exposed = self.ctrl.exposed
+        self.recorded = self.ctrl.recorded
+        self.initialized = self.ctrl.initialized
         ctrl_methods =  wt.kit.get_methods(self.ctrl)      
         for method in ctrl_methods:
             if hasattr(self, method):
@@ -466,7 +493,7 @@ class Address(QtCore.QObject):
         self.gui = self.ctrl.gui
         self.native_units = self.ctrl.native_units
         self.limits = self.ctrl.limits
-  
+
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
         '''
@@ -571,13 +598,14 @@ class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
 
     def __init__(self, control_class, control_arguments, address_class=Address,
-                 name='', initialize_hardware=True):
+                 name='', initialize_hardware=True, friendly_name=''):
         '''
         container for all objects relating to a single piece
         of addressable hardware
         '''
         QtCore.QObject.__init__(self)
         self.name = name
+        self.friendly_name = friendly_name
         # create objects
         self.thread = QtCore.QThread()
         self.enqueued = Enqueued()
@@ -585,6 +613,8 @@ class Hardware(QtCore.QObject):
         self.address = address_class(self, self.enqueued, self.busy,
                                      name, control_class)
         self.exposed = self.address.exposed
+        self.recorded = self.address.recorded
+        self.initialized = self.address.initialized
         self.current_position = self.exposed[0]
         self.gui = self.address.gui
         self.native_units = self.address.native_units
@@ -654,8 +684,8 @@ class Hardware(QtCore.QObject):
         if input_units is None:
             pass
         else:
-            destination = wt_units.converter(destination, 
-                                             input_units, 
+            destination = wt_units.converter(destination,
+                                             input_units,
                                              self.native_units)
         self.q.push('set_position', [destination])
 
