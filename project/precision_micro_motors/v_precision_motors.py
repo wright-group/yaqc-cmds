@@ -4,7 +4,7 @@ import os
 import time
 if __name__ == '__main__': os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 
-from mcapi import *
+#from mcapi import * ### Not needed for virtual motors
 
 import project.project_globals as g
 main_dir = g.main_dir.read()
@@ -38,6 +38,10 @@ identity = {'vD1': 'motor0',
 
 ### control ###################################################################
 
+
+def translate(mm):
+    return (50-mm)*counts_per_mm
+
 def open_controllers():
     controller0 = 0
     controller1 = 1
@@ -66,6 +70,7 @@ class Motor():
         self.acceleration = acceleration
         self.velocity = velocity
         self.dwell = dwell
+        self.position = initial_position
 
         # add to list of initialized motors
         initialized_motors.append(self)

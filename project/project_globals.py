@@ -10,22 +10,22 @@ class SimpleGlobal:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
 
-class GlobalWithIni():    
+class GlobalWithIni():
     def __init__(self, ini, section, option):
         self.ini = ini
         self.section = section
         self.option = option
         self.get_saved()
     def read(self):
-        return self.value    
+        return self.value
     def write(self, value):
-        self.value = value        
+        self.value = value
     def get_saved(self):
         self.value = self.ini.read(self.section, self.option)
-        return self.value    
+        return self.value
     def save(self, value = None):
         if not value == None: self.value = value
         self.ini.write(self.section, self.option, self.value)
@@ -34,12 +34,12 @@ class GlobalWithIni():
 
 class main_dir:
     def __init__(self):
-        import os 
+        import os
         self.value = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         sys.path.insert(0, self.value)
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = str(value)
 main_dir = main_dir()
 
@@ -52,7 +52,7 @@ class poll_timer:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
     def connect_to_timeout(self, slot):
         QtGui.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
@@ -71,7 +71,7 @@ class logger: #must come before other globals
         wrapper of logging method for PyCMDS
 
         accepts strings
-        
+
         levels: debug, info, warning, error, critical
         '''
         self.value(level, name, message, origin)
@@ -93,7 +93,7 @@ class daq_widget:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
 daq_widget = daq_widget()
 
@@ -102,7 +102,7 @@ class daq_array_widget:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
 daq_array_widget = daq_array_widget()
 
@@ -111,9 +111,12 @@ class daq_plot_widget:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
 daq_plot_widget = daq_plot_widget()
+
+emulate_mono = SimpleGlobal()
+emulate_mono.write(False)
 
 hardware_advanced_box = SimpleGlobal()
 
@@ -125,7 +128,7 @@ class hardware_waits:
         self.value = []
     def add(self, method):
         self.value.append(method)
-    def wait(self):  
+    def wait(self):
         for method in self.value:
             method()
 hardware_waits = hardware_waits()
@@ -136,7 +139,7 @@ class hardware_widget:
         self.number_of_widgets = 0
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
         self.value.setLayout(QtGui.QVBoxLayout())
         self.value.layout().setMargin(5)
@@ -153,7 +156,7 @@ class main_thread:
         self.value = QtCore.QThread.currentThread()
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = str(value)
 main_thread = main_thread()
 
@@ -162,7 +165,7 @@ class main_window:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
 main_window = main_window()
 
@@ -172,9 +175,9 @@ class module_advanced_widget:
         self.child = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
-    def add_child(self, widget): 
+    def add_child(self, widget):
         self.value.setLayout(QtGui.QVBoxLayout())
         self.child = widget
         self.value.layout().setMargin(0)
@@ -186,7 +189,7 @@ class module_combobox:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
     def add_module(self, name, show_frame_method):
         '''
@@ -221,21 +224,21 @@ class module_widget:
         self.child = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
-    def add_child(self, widget): 
+    def add_child(self, widget):
         self.value.setLayout(QtGui.QVBoxLayout())
         self.child = widget
         self.value.layout().setMargin(0)
         self.value.layout().addWidget(self.child)
 module_widget = module_widget()
-      
+
 offline = GlobalWithIni(ini.main, 'misc', 'offline')
 
 class progress_bar:
     def __init__(self):
         self.value = None
-    def write(self, value):  
+    def write(self, value):
         self.value = value
     def give_time_display_elements(self, time_elapsed, time_remaining):
         self.time_elapsed = time_elapsed
@@ -249,8 +252,8 @@ class progress_bar:
         m, s = divmod(time_elapsed, 60)
         h, m = divmod(m, 60)
         self.time_elapsed.setText('%02d:%02d:%02d' % (h, m, s))
-        #time remaining 
-        if fraction == 0: 
+        #time remaining
+        if fraction == 0:
             self.time_remaining.setText('??:??:??')
         else:
             time_remaining = (time_elapsed / fraction) - time_elapsed
@@ -264,15 +267,15 @@ class scan_thread:
         self.value = None
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
-scan_thread = scan_thread()    
+scan_thread = scan_thread()
 
 class shutdown:
     '''
     holds the reference of MainWindow.shutdown Qt signal
-    
-    during startup, add your shutdown method to this object using the 'add_method' method it will be called upon shutdown. 
+
+    during startup, add your shutdown method to this object using the 'add_method' method it will be called upon shutdown.
     your method must not have any arguments
     '''
     def __init__(self):
@@ -280,7 +283,7 @@ class shutdown:
         self.methods = []
     def read(self):
         return self.value
-    def write(self, value):  
+    def write(self, value):
         self.value = value
     def add_method(self, method):
         self.methods.append(method)
