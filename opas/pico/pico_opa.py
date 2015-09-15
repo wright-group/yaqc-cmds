@@ -16,7 +16,7 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 
-if g.offline:
+if g.offline.read():
     import project.precision_micro_motors.v_precision_motors as pm_motors
 else:
     import project.precision_micro_motors.precision_motors as pm_motors

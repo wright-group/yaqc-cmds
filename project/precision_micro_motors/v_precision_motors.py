@@ -1,4 +1,5 @@
 ### import ####################################################################
+print "Virtual motor load attempted"
 
 import os
 import time
@@ -24,17 +25,17 @@ integral_gain = ini.read('shared', 'integral_gain')
 counts_per_mm = 58200
 
 # dictionary to contain motor correspondance
-identity = {'vD1': 'motor0',
-            'vD2': 'motor1',
-            'vOPA1 grating': 'motor2',
-            'vOPA1 BBO': 'motor3',
-            'vOPA1 mixer': 'motor4',
-            'vOPA2 grating': 'motor8',
-            'vOPA2 BBO': 'motor9',
-            'vOPA2 mixer': 'motor10',
-            'vOPA3 grating': 'motor6',
-            'vOPA3 BBO': 'motor7',
-            'vOPA3 mixer': 'motor8'}
+identity = {'D1': 'motor0',
+            'D2': 'motor1',
+            'OPA1 grating': 'motor2',
+            'OPA1 BBO': 'motor3',
+            'OPA1 mixer': 'motor4',
+            'OPA2 grating': 'motor8',
+            'OPA2 BBO': 'motor9',
+            'OPA2 mixer': 'motor10',
+            'OPA3 grating': 'motor6',
+            'OPA3 BBO': 'motor7',
+            'OPA3 mixer': 'motor8'}
 
 ### control ###################################################################
 
@@ -70,7 +71,7 @@ class Motor():
         self.acceleration = acceleration
         self.velocity = velocity
         self.dwell = dwell
-        self.position = initial_position
+        self.current_position = initial_position
 
         # add to list of initialized motors
         initialized_motors.append(self)

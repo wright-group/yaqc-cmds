@@ -18,7 +18,7 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'delays',
                                                      'pico',
                                                      'pico_delay.ini'))
 
-if g.offline:
+if g.offline.read():
     import project.precision_micro_motors.v_precision_motors as motors
 else:
     import project.precision_micro_motors.precision_motors as motors

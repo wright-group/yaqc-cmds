@@ -15,9 +15,8 @@ app = g.app.read()
 main_dir = g.main_dir.read()
 daq_ini = ini.daq
 
-if not g.offline.read(): 
-    from PyDAQmx import *
-    
+from PyDAQmx import *
+
 import daq
 
 ### objects ###################################################################
@@ -38,36 +37,36 @@ class Gui(QtCore.QObject):
         tab_property.updated.connect(self.update)
         self.xi = []
         self.yi = []
-        
+
     def create_frame(self):
         # get parent widget
         parent_widget = g.current_slice_widget.read()
         parent_widget.setLayout(QtGui.QHBoxLayout())
         layout = parent_widget.layout()
-        
-        # plot ----------------------------------------------------------------        
-        
+
+        # plot ----------------------------------------------------------------
+
         # container widget
         display_container_widget = QtGui.QWidget()
         display_container_widget.setLayout(QtGui.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
-        
+
         # plot
         self.plot_widget = pw.Plot1D()
         self.plot_curve = self.plot_widget.add_line()
         self.plot_widget.set_labels(ylabel = 'volts')
-        self.plot_green_line = self.plot_widget.add_line(color = 'g')   
-        self.plot_red_line = self.plot_widget.add_line(color = 'r')   
+        self.plot_green_line = self.plot_widget.add_line(color = 'g')
+        self.plot_red_line = self.plot_widget.add_line(color = 'r')
         display_layout.addWidget(self.plot_widget)
-        
+
         # vertical line
-        line = pw.line('V')      
+        line = pw.line('V')
         layout.addWidget(line)
-        
+
         # settings container --------------------------------------------------
-        
+
         # container widget / scroll area
         settings_container_widget = QtGui.QWidget()
         settings_scroll_area = pw.scroll_area()
@@ -78,17 +77,17 @@ class Gui(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
-        
+
         # input table one
         input_table = pw.InputTable()
         input_table.add('Display', None)
         input_table.add('Channel', tab_channel)
         input_table.add('Property', tab_property)
         settings_layout.addWidget(input_table)
-        
+
         # streach
         settings_layout.addStretch(1)
-        
+
     def update(self, check_for_control=False):
         if check_for_control:
             if not g.module_control.read():
@@ -100,18 +99,18 @@ class Gui(QtCore.QObject):
         self.xi = vals[:, xcol]
         self.yi = vals[:, ycol]
         self.plot()
-        
+
     def plot(self):
         self.plot_curve.clear()
         self.plot_curve.setData(self.xi, self.yi)
-        
+
     def set_xlim(self, xmin, xmax):
         self.plot_widget.set_xlim(xmin, xmax)
-        
+
     def set_ylim(self, ymin, ymax):
         self.plot_widget.set_ylim(ymin, ymax)
 
     def stop(self):
         pass
-        
+
 gui = Gui()

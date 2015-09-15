@@ -27,9 +27,13 @@ app = g.app.read()
 main_dir = g.main_dir.read()
 daq_ini = ini.daq
 
-if not g.offline.read(): 
-    from PyDAQmx import *
 
+from PyDAQmx import *
+
+if g.offline.read():
+    daq_name = 'Virtual'
+else:
+    daq_name = 'Dev1'
 
 ### special objects ###########################################################
 
@@ -47,7 +51,7 @@ array_detector_reference = pc.Mutex()
 busy = pc.Busy()
 
 class CurrentSlice(QtCore.QMutex):
-    
+
     def __init__(self):
         '''
         a list of numpy arrays
@@ -55,26 +59,26 @@ class CurrentSlice(QtCore.QMutex):
         QtCore.QMutex.__init__(self)
         self.value = []
         self.col = 'index'
-        
+
     def col(self, col):
         '''
         give the slice a col, corresponding to key in data_cols
         '''
         self.col = col
-        
+
     def read(self):
         return self.value
-        
+
     def append(self, row):
         self.lock()
         self.value.append(row)
         self.unlock()
-        
+
     def clear(self):
         self.lock()
         self.value = []
-        self.unlock()        
-        
+        self.unlock()
+
 current_slice = CurrentSlice()  # a list of numpy arrays
 
 data_busy = pc.Busy()
@@ -186,7 +190,7 @@ fit_cols = pc.Mutex()
 class Data(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
-    
+
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
         '''
@@ -197,10 +201,10 @@ class Data(QtCore.QObject):
         if g.debug.read(): print 'data dequeue:', method
         getattr(self, str(method))(inputs) #method passed as qstring
         enqueued_data.pop()
-        if not enqueued_data.read(): 
+        if not enqueued_data.read():
             self.queue_emptied.emit()
             self.check_busy([])
-            
+
     def check_busy(self, inputs):
         '''
         must always write busy whether answer is True or False
@@ -212,7 +216,7 @@ class Data(QtCore.QObject):
         else:
             time.sleep(0.01)
             data_busy.write(False)
-            
+
     def create_data(self, inputs):
         scan_origin, widget = inputs
         self.file_timestamp = wt.kit.get_timestamp()
@@ -220,13 +224,13 @@ class Data(QtCore.QObject):
         data_path.write(os.path.join(main_dir, 'data', self.filename + '.data'))
         header_str = self.make_header(data_cols.read(), inputs)
         np.savetxt(data_path.read(), [], header=header_str)
-        
+
     def create_fit(self, inputs):
         # create fit must always be called after create data
         fit_path.write(os.path.join(main_dir, 'data', self.filename + ' FITTED.data'))
         header_str = self.make_header(fit_cols.read(), inputs)
-        np.savetxt(fit_path.read(), [], header=header_str)    
-        
+        np.savetxt(fit_path.read(), [], header=header_str)
+
     def fit(self, inputs):
         # functions
         def gaussian(p, x):
@@ -274,7 +278,7 @@ class Data(QtCore.QObject):
                 arr[index] = data[0, index]
         # write
         self.write_fit(arr)
-        
+
     def make_header(self, cols, inputs):
         scan_origin, widget = inputs
         # generate header
@@ -290,7 +294,7 @@ class Data(QtCore.QObject):
         # strings need extra apostrophes and everything needs to be string
         for lis in [units_list, tolerance_list, label_list, name_list]:
             for i in range(len(lis)):
-                if type(lis[i]) == str:       
+                if type(lis[i]) == str:
                     lis[i] = '\'' + lis[i] + '\''
                 else:
                     lis[i] = str(lis[i])
@@ -304,20 +308,20 @@ class Data(QtCore.QObject):
         header_items += ['units: ' + '\t'.join(units_list)]
         header_items += ['tolerance: ' + '\t'.join(tolerance_list)]
         header_items += ['label: ' + '\t'.join(label_list)]
-        header_items += ['name: ' + '\t'.join(name_list)]    
+        header_items += ['name: ' + '\t'.join(name_list)]
         # add header string
         header_str = ''
         for item in header_items:
             header_str += item + '\n'
         header_str = header_str[:-1]  # remove final newline charachter
         return header_str
-            
+
     def write_data(self, inputs):
         data_file = open(data_path.read(), 'a')
         np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
         data_file.write('\n')
         data_file.close()
-        
+
     def write_fit(self, inputs):
         data_file = open(fit_path.read(), 'a')
         np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
@@ -326,7 +330,7 @@ class Data(QtCore.QObject):
 
     def initialize(self, inputs):
         pass
-                      
+
     def shutdown(self, inputs):
         #cleanly shut down
         #all hardware classes must have this
@@ -341,7 +345,7 @@ data_thread.start()
 #create queue to communiate with address thread
 data_queue = QtCore.QMetaObject()
 def data_q(method, inputs = []):
-    #add to friendly queue list 
+    #add to friendly queue list
     enqueued_data.push([method, time.time()])
     #busy
     data_busy.write(True)
@@ -356,7 +360,7 @@ class DAQ(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     running = False
-    
+
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
         '''
@@ -368,10 +372,10 @@ class DAQ(QtCore.QObject):
         if g.debug.read(): print 'daq dequeue:', method, inputs
         enqueued_actions.pop()
         getattr(self, str(method))(inputs) #method passed as qstring
-        if not enqueued_actions.read(): 
+        if not enqueued_actions.read():
             self.queue_emptied.emit()
             self.check_busy([])
-            
+
     def check_busy(self, inputs):
         '''
         decides if the hardware is done and handles writing of 'busy' to False
@@ -387,57 +391,55 @@ class DAQ(QtCore.QObject):
             busy.write(True)
         else:
             busy.write(False)
-            
+
     def loop(self, inputs):
         while freerun.read():
             self.run_task([False])
-            
+
     def initialize(self, inputs):
         self.task_created = False
         self.previous_time = time.time()
         if g.debug.read(): print 'DAQ initializing'
         g.logger.log('info', 'DAQ initializing')
-        if g.offline.read(): return
         self.create_task([])
-    
+
     def create_task(self, inputs):
-        if g.offline.read(): return
-            
+
         #ensure previous task closed--------------------------------------------
-        
+
         if self.task_created:
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
-            
+
         self.task_created = False
-            
+
         #import variables locally (ensures they do not change during operation)-
 
         daq_analog_physical_channels =  [int(vai0_channel.read()), int(vai1_channel.read()), int(vai2_channel.read()), int(vai3_channel.read()), int(vai4_channel.read())]
         self.analog_min = analog_min.read()
         self.analog_max = analog_max.read()
-        
+
         daq_digital_physical_channels = [int(vdi0_channel.read())]
         self.digital_min = digital_min.read()
         self.digital_max = digital_max.read()
         self.digital_cutoff = digital_cutoff.read()
-        
+
         self.shots = long(shots.read())
-        
+
         self.num_analog_channels = len(daq_analog_physical_channels)
         self.num_digital_channels = len(daq_digital_physical_channels)
         self.num_channels = self.num_analog_channels + self.num_digital_channels
-        
+
         # calculate the number of 'virtual samples' to take -------------------
-        
+
         conversions_per_second = 1000000. # a property of the DAQ card
         shots_per_second = 1100. # from laser (max value - if there are more shots than this we are in big trouble!!!)
         self.virtual_samples = int(conversions_per_second/(shots_per_second*self.num_channels))
         num_samples.write(self.virtual_samples)
         us_per_sample.write((1/conversions_per_second)*10**6)
-        
+
         # create task ---------------------------------------------------------
-        
+
         try:
             self.task_handle = TaskHandle()
             self.read = int32()
@@ -451,8 +453,8 @@ class DAQ(QtCore.QObject):
 
         # initialize channels -------------------------------------------------
 
-        # The daq is addressed in a somewhat non-standard way. A total of ~1000 
-        # virtual channels are initialized (depends on DAQ speed and laser rep 
+        # The daq is addressed in a somewhat non-standard way. A total of ~1000
+        # virtual channels are initialized (depends on DAQ speed and laser rep
         # rate). These virtual channels are evenly distributed over the physical
         # channels addressed by the software. When the task is run, it round
         # robins over all the virtual channels, essentially oversampling the
@@ -465,95 +467,95 @@ class DAQ(QtCore.QObject):
         # The sample clock is supplied by the laser output trigger.
 
         try:
-            
+
             total_virtual_channels = 0
-            
+
             for _ in range(self.virtual_samples):
                 for channel in daq_analog_physical_channels:
                     channel_name = 'channel_' + str(total_virtual_channels).zfill(3)
                     DAQmxCreateAIVoltageChan(self.task_handle,                #task handle
-                                             'Dev1/ai%i'%channel,             #physical chanel
+                                             daq_name + '/ai%i'%channel,             #physical chanel
                                              channel_name,                    #name to assign to channel
                                              DAQmx_Val_Diff,                  #the input terminal configuration
                                              self.analog_min,self.analog_max, #minVal, maxVal
-                                             DAQmx_Val_Volts,                 #units 
+                                             DAQmx_Val_Volts,                 #units
                                              None)                            #custom scale
                     total_virtual_channels += 1
-                                             
+
                 for channel in daq_digital_physical_channels:
                     channel_name = 'channel_' + str(total_virtual_channels).zfill(3)
                     DAQmxCreateAIVoltageChan(self.task_handle,                  #task handle
-                                             'Dev1/ai%i'%channel,               #physical chanel
+                                             daq_name + '/ai%i'%channel,               #physical chanel
                                              channel_name,                      #name to assign to channel
                                              DAQmx_Val_Diff,                    #the input terminal configuration
                                              self.digital_min,self.digital_max, #minVal, maxVal
-                                             DAQmx_Val_Volts,                   #units 
+                                             DAQmx_Val_Volts,                   #units
                                              None)                              #custom scale
                     total_virtual_channels += 1
-                    
+
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in virtual channel creation', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
             return
-        
+
         #define timing----------------------------------------------------------
-      
+
         try:
             DAQmxCfgSampClkTiming(self.task_handle,      #task handle
-                                  '/Dev1/PFI0',          #sorce terminal
+                                  '/'+daq_name+'/PFI0',          #sorce terminal
                                   1000.0,                #sampling rate (samples per second per channel) (float 64) (in externally clocked mode, only used to initialize buffer)
                                   DAQmx_Val_Rising,      #acquire samples on the rising edges of the sample clock
                                   DAQmx_Val_FiniteSamps, #acquire a finite number of samples
-                                  self.shots)            #samples per channel to acquire (unsigned integer 64)         
+                                  self.shots)            #samples per channel to acquire (unsigned integer 64)
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
             return
-            
+
         #create arrays for task to fill-----------------------------------------
 
         self.samples = np.zeros(self.shots*self.virtual_samples*self.num_channels, dtype=numpy.float64)
         self.samples_len = len(self.samples) #do not want to call for every acquisition
-        
+
         self.analog_data = np.zeros([self.num_analog_channels, 3])
-            
+
         #finish-----------------------------------------------------------------
-            
+
         self.task_created = True
-            
+
     def run_task(self, inputs):
         '''
         inputs[0] bool save
         '''
 
-        self.running = True  
+        self.running = True
         self.check_busy([])
         self.update_ui.emit()
 
         self.save = inputs[0]
-        
-        if g.offline.read():            
+
+        if g.offline.read():
             # fake readings
-            pass          
-        
+            pass
+
         if not self.task_created: return
         start_time = time.time()
-        
+
         #array_detector = array_detector_reference.read()
-        
+
         # tell array detector to begin ----------------------------------------
-        
-        #array_detector.control.read()   
-        
+
+        #array_detector.control.read()
+
         # collect samples array -----------------------------------------------
-        
+
         try:
             DAQmxStartTask(self.task_handle)
-        
+
             DAQmxReadAnalogF64(self.task_handle,            #task handle
                                self.shots,                  #number of samples per channel
                                10.0,                        #timeout (seconds) for each read operation
@@ -562,51 +564,51 @@ class DAQ(QtCore.QObject):
                                self.samples_len,            #size of the array, in samples, into which samples are read
                                byref(self.read),            #reference of thread
                                None)                        #reserved by NI, pass NULL (?)
-    
+
             DAQmxStopTask(self.task_handle)
-        
+
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
-            
+
         # wait for array detector to finish -----------------------------------
-            
+
         #array_detector.control.wait_until_done()
-            
+
         seconds_for_acquisition.write(time.time() - start_time)
-            
+
         # do math -------------------------------------------------------------
-        
+
         out = np.copy(self.samples)
         out.shape = (self.shots, self.virtual_samples, self.num_channels)
-        
+
         # 'digitize' digital channels
         for i in range(self.num_analog_channels, self.num_analog_channels+self.num_digital_channels):
             low_value_indicies = out[:, :, i] < self.digital_cutoff
             high_value_indicies = out[:, :, i] >= self.digital_cutoff
             out[low_value_indicies, i] = 0
             out[high_value_indicies, i] = 1
-        
+
         # create differential multiplication array
         chopper_index = 5
         diff_weights = out[:, 0, chopper_index]
         diff_weights[out[:, 0, chopper_index] == 0] = -1
         diff_weights[out[:, 0, chopper_index] == 1] = 1
-        
+
         # get statistics
         for i in range(self.num_analog_channels):
             self.analog_data[i, 0] = np.mean(out[:, 0, i])  # average
             self.analog_data[i, 1] = np.var(out[:, 0, i])  # variance
             self.analog_data[i, 2] = np.mean(out[:, 0, i]*diff_weights)  # differential
-        
-        # export data ---------------------------------------------------------        
-        
+
+        # export data ---------------------------------------------------------
+
         last_samples.write(out)
         last_analog_data.write(self.analog_data)
         self.update_ui.emit()
-        
+
         if self.save:
             row = np.full(len(data_cols.read()), np.nan)
             row[0] = index.read()
@@ -619,7 +621,7 @@ class DAQ(QtCore.QObject):
                         out_units = hardware.recorded[key][1]
                         if out_units is None:
                             row[i] = hardware.recorded[key][0].read()
-                        else:                     
+                        else:
                             row[i] = hardware.recorded[key][0].read(out_units)
                         i += 1
             # values
@@ -630,23 +632,22 @@ class DAQ(QtCore.QObject):
             # output
             data_q('write_data', [row])
             current_slice.append(row)
-            
+
             # index
             index.write(index.read()+1)
-        
+
         # update timer --------------------------------------------------------
-        
+
         seconds_since_last_task.write(time.time() - self.previous_time)
         self.previous_time = time.time()
-        
+
         self.running = False
-            
+
     def shutdown(self, inputs):
          '''
          cleanly shutdown
          '''
-         if g.offline.read(): return
-         
+
          if self.task_created:
              DAQmxStopTask(self.task_handle)
              DAQmxClearTask(self.task_handle)
@@ -660,12 +661,12 @@ address_thread.start()
 # create queue to communiate with address thread
 queue = QtCore.QMetaObject()
 def q(method, inputs = []):
-    # add to friendly queue list 
+    # add to friendly queue list
     enqueued_actions.push([method, time.time()])
     # busy
     #busy.unlock()
     busy.write(True)
-    # send Qt SIGNAL to address thread    
+    # send Qt SIGNAL to address thread
     queue.invokeMethod(address_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
 
@@ -673,7 +674,7 @@ def q(method, inputs = []):
 
 
 class Control():
-    
+
     def __init__(self):
         self.ready = False
         print 'control.__init__'
@@ -685,25 +686,25 @@ class Control():
         # other controls
         shots.updated.connect(self.update_task)
         g.main_window.read().module_control.connect(self.module_control_update)
-        
+
     def acquire(self):
         q('run_task', inputs=[True])
-        
+
     def fit(self, xkey, zkey):
         data_q('fit', [xkey, zkey, current_slice.read()])
-    
+
     def freerun(self):
         if freerun.read():
             print 'Control freerun'
             q('loop')
-            
+
     def index_slice(self, col='index'):
         '''
         tell DAQ to start a new slice \n
         '''
         current_slice.clear()
         current_slice.col = col
-        
+
     def initialize_hardware(self):
         q('initialize')
 
@@ -722,10 +723,10 @@ class Control():
         data_q('create_data', [scan_origin, widget])
         if fit:
             data_q('create_fit', [scan_origin, widget])
-        # wait until daq is done before letting module continue        
+        # wait until daq is done before letting module continue
         self.wait_until_daq_done()
         self.wait_until_data_done()
-        
+
     def module_control_update(self):
         if g.module_control.read():
             freerun.write(False)
@@ -733,7 +734,7 @@ class Control():
             print 'module control update done'
         else:
             freerun.write(True)
-            
+
     def update_cols(self, dont_ignore=[]):
         '''
         define the format of .data and .fit files
@@ -799,52 +800,52 @@ class Control():
             if item in dont_ignore:
                 new_ignore.pop[item]
         ignore.write(new_ignore)
-        
+
     def update_task(self):
         if freerun.read():
             return_to_freerun = True
             freerun.write(False)
             self.wait_until_daq_done()
-        else: 
+        else:
             return_to_freerun = False
         q('create_task')
-        if return_to_freerun: 
+        if return_to_freerun:
             freerun.write(True)
-    
+
     def wait_until_daq_done(self, timeout=10):
         '''
         timeout in seconds
-        
+
         will only refer to timeout when busy.wait_for_update fires
         '''
         start_time = time.time()
         q('check_busy')
         while busy.read():
             if time.time()-start_time < timeout:
-                if not enqueued_actions.read(): 
+                if not enqueued_actions.read():
                     q('check_busy')
                 busy.wait_for_update()
-            else: 
+            else:
                 g.logger.log('warning', 'DAQ dait until done timed out', 'timeout set to {} seconds'.format(timeout))
                 break
-            
+
     def wait_until_data_done(self, timeout = 10):
         '''
         timeout in seconds
-        
+
         will only refer to timeout when data_busy.wait_for_update fires
         '''
         start_time = time.time()
         while data_busy.read():
             if time.time()-start_time < timeout:
-                if not enqueued_data.read(): 
+                if not enqueued_data.read():
                     data_q('check_busy')
                 data_busy.wait_for_update()
-            else: 
+            else:
                 g.logger.log('warning', 'Data wait until done timed out', 'timeout set to {} seconds'.format(timeout))
                 break
-                
-    def shutdown(self):   
+
+    def shutdown(self):
         # stop looping
         freerun.write(False)
         # log
@@ -859,7 +860,7 @@ class Control():
         data_thread.quit()
         #close gui
         gui.stop()
-    
+
 control = Control()
 
 
@@ -884,7 +885,7 @@ class Widget(QtGui.QWidget):
         self.info = pc.String()
         input_table.add('Info', self.info)
         layout.addWidget(input_table)
-        
+
 class Gui(QtCore.QObject):
 
     def __init__(self):
@@ -898,16 +899,16 @@ class Gui(QtCore.QObject):
         tab_trigger.updated.connect(self.update)
         tab_shots.updated.connect(self.update)
         self.create_frame()
-        
+
     def create_frame(self):
-        
+
         # get parent widget ---------------------------------------------------
-        
+
         parent_widget = g.daq_widget.read()
         parent_widget.setLayout(QtGui.QHBoxLayout())
         #parent_widget.layout().setContentsMargins(0, 5, 0, 0)
         layout = parent_widget.layout()
-        
+
         # display area --------------------------------------------------------
 
         # container widget
@@ -916,19 +917,19 @@ class Gui(QtCore.QObject):
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
-        
+
         # big number
-        self.big_display = custom_widgets.spinbox_as_display(font_size = 100)        
+        self.big_display = custom_widgets.spinbox_as_display(font_size = 100)
         display_layout.addWidget(self.big_display)
-        
+
         # plot
         self.plot_widget = custom_widgets.Plot1D()
         self.plot_curve = self.plot_widget.add_scatter()
         self.plot_widget.set_labels(ylabel = 'volts')
-        self.plot_green_line = self.plot_widget.add_infinite_line(color = 'g')   
-        self.plot_red_line = self.plot_widget.add_infinite_line(color = 'r')   
+        self.plot_green_line = self.plot_widget.add_infinite_line(color = 'g')
+        self.plot_red_line = self.plot_widget.add_infinite_line(color = 'r')
         display_layout.addWidget(self.plot_widget)
-        
+
         # value display frame
         frame_frame_widget = QtGui.QWidget()
         frame_frame_widget.setLayout(QtGui.QVBoxLayout())
@@ -940,7 +941,7 @@ class Gui(QtCore.QObject):
         rlabels = ['vai0', 'vai1', 'vai2', 'vai3', 'vai4']
         clabels = ['Mean', 'Variance', 'Differential']
         label_StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', g.colors_dict.read()['text_light'])
-        self.grid_displays = []        
+        self.grid_displays = []
         for i in range(5):
             label = QtGui.QLabel(rlabels[i])
             label.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
@@ -962,18 +963,18 @@ class Gui(QtCore.QObject):
         value_frame_layout
         frame_frame_widget.layout().addWidget(frame_widget)
         display_layout.addWidget(frame_frame_widget)
-        
+
         # streach
         spacer = custom_widgets.vertical_spacer()
         spacer.add_to_layout(display_layout)
-        
+
         # vertical line -------------------------------------------------------
 
-        line = custom_widgets.line('V')      
+        line = custom_widgets.line('V')
         layout.addWidget(line)
-        
+
         # settings area -------------------------------------------------------
-        
+
         # container widget / scroll area
         settings_container_widget = QtGui.QWidget()
         settings_scroll_area = custom_widgets.scroll_area()
@@ -984,7 +985,7 @@ class Gui(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
-                
+
         # input table one
         input_table = custom_widgets.InputTable()
         input_table.add('Display', None)
@@ -992,15 +993,15 @@ class Gui(QtCore.QObject):
         input_table.add('Free run', freerun)
         input_table.add('Channel', tab_channel)
         input_table.add('Property', tab_property)
-        input_table.add('Timescale', tab_timescale)        
+        input_table.add('Timescale', tab_timescale)
         input_table.add('Trigger', tab_trigger)
-        input_table.add('Shots', tab_shots)        
+        input_table.add('Shots', tab_shots)
         settings_layout.addWidget(input_table)
-        
+
         # horizontal line
-        line = custom_widgets.line('H')      
+        line = custom_widgets.line('H')
         settings_layout.addWidget(line)
-        
+
         # input table two
         input_table = custom_widgets.InputTable()
         input_table.add('Channel Timing', None)
@@ -1031,18 +1032,18 @@ class Gui(QtCore.QObject):
         input_table.add('Maximum', digital_max)
         input_table.add('Cutoff', digital_cutoff)
         settings_layout.addWidget(input_table)
-        g.module_control.disable_when_true(input_table)        
-        
+        g.module_control.disable_when_true(input_table)
+
         # set button
-        apply_channels_button = custom_widgets.SetButton('APPLY CHANNEL SETTINGS')        
+        apply_channels_button = custom_widgets.SetButton('APPLY CHANNEL SETTINGS')
         settings_layout.addWidget(apply_channels_button)
         apply_channels_button.clicked.connect(self.on_apply_channels)
         g.module_control.disable_when_true(apply_channels_button)
-        
+
         # horizontal line
-        line = custom_widgets.line('H')      
+        line = custom_widgets.line('H')
         settings_layout.addWidget(line)
-        
+
         # debug tools
         input_table = custom_widgets.InputTable()
         input_table.add('Debug', None)
@@ -1054,7 +1055,7 @@ class Gui(QtCore.QObject):
         input_table.add('Acquisiton time', seconds_for_acquisition)
         settings_layout.addWidget(input_table)
         g.module_control.disable_when_true(input_table)
-        
+
         # streach
         settings_layout.addStretch(1)
 
@@ -1065,24 +1066,24 @@ class Gui(QtCore.QObject):
         analog_channels.limits = [analog_min.read(), analog_max.read()]
         digital_channels.physical_asignments = [vdi0_channel.read()]
         analog_channels.limits = [digital_min.read(), digital_max.read(), digital_cutoff.read()]
-        q('create_task')        
-        
+        q('create_task')
+
     def update(self):
-        
+
         #import globals locally-------------------------------------------------
-        
+
         channel_index = channels[tab_channel.read()][0]
-        
+
         property_index = properties[tab_property.read()][0]
 
         channel_sample_indicies_list = channels[tab_channel.read()][1]
         channel_sample_indicies = getattr(channel_sample_indicies_list[0], channel_sample_indicies_list[1])[channel_sample_indicies_list[2]]
-        
+
         channel_limits_list =  channels[tab_channel.read()][2]
         channel_limits = getattr(channel_limits_list[0], channel_limits_list[1])
-        
+
         #plot-------------------------------------------------------------------
-            
+
         #line.hide()
         if not last_samples.read() == None:
             if tab_timescale.read() == 'Shots':
@@ -1094,7 +1095,7 @@ class Gui(QtCore.QObject):
                 self.plot_red_line.hide()
                 #plot
                 data = last_samples.read()[:, 0, channel_index]
-                x = np.linspace(0, len(data), len(data))                
+                x = np.linspace(0, len(data), len(data))
                 data = np.array([x, data])
                 self.plot_curve.clear()
                 self.plot_curve.setData(data[0], data[1])
@@ -1125,9 +1126,9 @@ class Gui(QtCore.QObject):
                 data = np.array([x, data])
                 self.plot_curve.clear()
                 self.plot_curve.setData(data[0], data[1])
-                
+
         #data readout-----------------------------------------------------------
-            
+
         if not last_analog_data.read() == None:
             analog_reading = last_analog_data.read()
             for i in range(5):
@@ -1135,9 +1136,9 @@ class Gui(QtCore.QObject):
                     display = self.grid_displays[i][j]
                     display.setValue(analog_reading[i, j])
             self.big_display.setValue(analog_reading[channel_index, property_index])
-            
+
     def stop(self):
         pass
-        
+
 gui = Gui()
 

@@ -17,17 +17,14 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'spectrometers',
                                                      'MicroHR',
                                                      'MicroHR.ini'))
 
-
-# Don't import these
+# JY code not loaded for virtual mono
 # import spectrometers.MicroHR.gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
 # import spectrometers.MicroHR.gen_py.JYMono as JYMono
 
 
 ### mono object ###############################################################
 
-# TEST CODE TO MAKE SURE USB NOT NEEDED
-# CRITICAL:
-# FOR SOME REASON THE PHYSICAL USB KEY IS NEEDED FOR THIS CODE TO WORK
+
 
 
 class MicroHR:
@@ -62,7 +59,7 @@ class MicroHR:
         grating density
         blaze, description
         '''
-        return None
+        return [1000,2,5000,"Virtual grating, always returns grating 2"]
         #return self.ctrl.GetCurrentGratingWithDetails()
 
     def get_position(self):
@@ -94,8 +91,14 @@ class MicroHR:
         self.current_position.write(destination)
 
     def set_turret(self, destination_index):
+
         if type(destination_index) == list:
             destination_index = destination_index[0]
+
+        #Bug fix for type(destination_index) == 'NoneType'
+        if g.offline.read():
+            destination_index = 2
+
         self.grating_index.write(destination_index)
         # update own limits
         if self.grating_index.read() == 1:
@@ -105,7 +108,8 @@ class MicroHR:
             self.limits.write(0, 15000, 'nm')
             self.set_position(10000)
         # set position for new grating
-        self.set_position(self.current_position.read(self.native_units))
+        if not g.offline.read():
+            self.set_position(self.current_position.read(self.native_units))
 
     def stop(self):
         pass
