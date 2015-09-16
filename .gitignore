@@ -46,3 +46,4 @@ Temporary Items
 .apdisk
 modules/_play.py
 modules/2D_Delay_scan.py
+opas/pico/pico_opa.ini

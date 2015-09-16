@@ -17,15 +17,15 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'spectrometers',
                                                      'MicroHR',
                                                      'MicroHR.ini'))
 
-import spectrometers.MicroHR.gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
-import spectrometers.MicroHR.gen_py.JYMono as JYMono
+# JY code not loaded for virtual mono
+# import spectrometers.MicroHR.gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
+# import spectrometers.MicroHR.gen_py.JYMono as JYMono
 
 
 ### mono object ###############################################################
 
 
-# CRITICAL:
-# FOR SOME REASON THE PHYSICAL USB KEY IS NEEDED FOR THIS CODE TO WORK
+
 
 class MicroHR:
 
@@ -51,40 +51,25 @@ class MicroHR:
         self.initialized = pc.Bool()
 
     def close(self):
-        # close control
-        self.ctrl.CloseCommunications()
-        # save current position to ini
-        ini.write('main', 'grating index', self.grating_index.read())
-        ini.write('main', 'position (nm)', self.current_position.read())
+        pass
 
     def get_grating_details(self):
+        # What form does this come in? I don't want to crash the program!!
         '''
         grating density
         blaze, description
         '''
-        return self.ctrl.GetCurrentGratingWithDetails()
+        return [1000,2,5000,"Virtual grating, always returns grating 2"]
+        #return self.ctrl.GetCurrentGratingWithDetails()
 
     def get_position(self):
-        native_position = self.ctrl.GetCurrentWavelength()
-        self.current_position.write(native_position, self.native_units)
         return self.current_position.read()
 
     def initialize(self, inputs, address):
         self.address = address
-        # open control
-        self.ctrl = JYMono.Monochromator()
-        self.ctrl.Uniqueid = 'Mono2'
-        self.ctrl.Load()
-        self.ctrl.OpenCommunications()
-        # initialize hardware
-        forceInit = True  # this toggles mono homing behavior
-        emulate = g.emulate_mono
-        notThreaded = True  # no idea what this does...
-        self.ctrl.Initialize(forceInit, emulate, notThreaded)
-        # import some information from control
-        self.description = self.ctrl.Description
-        self.serial_number = self.ctrl.SerialNumber
-        self.current_position.write(self.ctrl.GetCurrentWavelength())
+        self.description = 'Virtual Non-emulated Mono'
+        self.serial_number = '00000'
+        self.current_position.write(0)
         # import information from ini
         init_grating_index = ini.read('main', 'grating index')
         init_wavelength = ini.read('main', 'position (nm)')
@@ -98,35 +83,36 @@ class MicroHR:
         self.initialized.write(True)
 
     def is_busy(self):
-        return self.ctrl.IsBusy()
+        return False
 
     def set_position(self, destination):
         if type(destination) == list:
             destination = destination[0]
-        self.ctrl.MovetoWavelength(destination)
-        while self.is_busy():
-            time.sleep(0.01)
-        self.get_position()
+        self.current_position.write(destination)
 
     def set_turret(self, destination_index):
+
         if type(destination_index) == list:
             destination_index = destination_index[0]
-        # turret index on ActiveX call starts from zero
-        destination_index_zero_based = destination_index - 1
-        self.ctrl.MovetoTurret(destination_index_zero_based)
+
+        #Bug fix for type(destination_index) == 'NoneType'
+        if g.offline.read():
+            destination_index = 2
+
         self.grating_index.write(destination_index)
-        while self.is_busy():
-            time.sleep(0.01)
         # update own limits
         if self.grating_index.read() == 1:
             self.limits.write(0, 1500, 'nm')
+            self.set_position(1000)
         elif self.grating_index.read() == 2:
             self.limits.write(0, 15000, 'nm')
+            self.set_position(10000)
         # set position for new grating
-        self.set_position(self.current_position.read(self.native_units))
+        if not g.offline.read():
+            self.set_position(self.current_position.read(self.native_units))
 
     def stop(self):
-        self.ctrl.Stop()
+        pass
 
 
 ### advanced gui ##############################################################
@@ -171,3 +157,8 @@ if __name__ == '__main__':
     print mono.get_grating_details()
 
     mono.close()
+
+
+
+
+

@@ -17,8 +17,11 @@ main_dir = g.main_dir.read()
 ini = project.ini_handler.Ini(os.path.join(main_dir, 'delays',
                                                      'pico',
                                                      'pico_delay.ini'))
-                                                     
-import project.precision_micro_motors.precision_motors as motors
+
+if g.offline.read():
+    import project.precision_micro_motors.v_precision_motors as motors
+else:
+    import project.precision_micro_motors.precision_motors as motors
 
 ps_per_mm = 6.671281903963041 # a mm on the delay stage (factor of 2)
 
@@ -76,7 +79,7 @@ class Delay:
         return not self.motor.is_stopped()
 
     def set_position(self, destination):
-        destination_mm = self.zero_position.read() + destination/ps_per_mm  
+        destination_mm = self.zero_position.read() + destination/ps_per_mm
         self.motor.move_absolute(destination_mm, 'mm')
         if g.module_control.read():
             self.motor.wait_until_still()
@@ -85,7 +88,7 @@ class Delay:
                 time.sleep(0.1)
                 print self.get_position()
         self.get_position()
-        
+
     def set_zero(self, zero):
         '''
         float zero mm
@@ -93,7 +96,7 @@ class Delay:
         self.zero_position.write(zero)
         min_value = -self.zero_position.read() * ps_per_mm
         max_value = (50. - self.zero_position.read()) * ps_per_mm
-        self.limits.write(min_value, max_value, 'ps') 
+        self.limits.write(min_value, max_value, 'ps')
         self.get_position()
 
 
@@ -109,19 +112,19 @@ class gui(QtCore.QObject):
     def create_frame(self, layout):
         layout.setMargin(5)
         self.layout = layout
-        
+
         self.advanced_frame = QtGui.QWidget()
         self.advanced_frame.setLayout(self.layout)
 
         g.module_advanced_widget.add_child(self.advanced_frame)
-        
+
         if self.delay.initialized.read():
             self.initialize()
         else:
             self.delay.initialized.updated.connect(self.initialize)
-        
+
     def initialize(self):
-        
+
         # settings container
         settings_container_widget = QtGui.QWidget()
         settings_scroll_area = pw.scroll_area(show_bar=False)
@@ -132,7 +135,7 @@ class gui(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        
+
         # input table
         input_table = pw.InputTable()
         input_table.add('Current', self.delay.current_position_mm)
@@ -140,26 +143,26 @@ class gui(QtCore.QObject):
         self.zero_destination = self.delay.zero_position.associate(display=False)
         input_table.add('Zero dest.', self.zero_destination)
         settings_layout.addWidget(input_table)
-        
+
         # set button
         self.set_button = pw.SetButton('SET ZERO')
         settings_layout.addWidget(self.set_button)
         self.set_button.clicked.connect(self.on_set)
         g.module_control.disable_when_true(self.set_button)
-        
+
         settings_layout.addStretch(1)
         self.layout.addStretch(1)
-    
+
     def update(self):
         pass
-        
+
     def on_set(self):
         new_zero = self.zero_destination.read('mm')
         self.delay.set_zero(new_zero)
-    
+
     def show_advanced(self):
         pass
-              
+
     def stop(self):
         pass
 
@@ -168,5 +171,5 @@ class gui(QtCore.QObject):
 
 
 if __name__ == '__main__':
-    
+
     pass

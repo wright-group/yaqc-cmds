@@ -16,7 +16,10 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 
-import project.precision_micro_motors.precision_motors as pm_motors
+if g.offline.read():
+    import project.precision_micro_motors.v_precision_motors as pm_motors
+else:
+    import project.precision_micro_motors.precision_motors as pm_motors
 
 main_dir = g.main_dir.read()
 ini = project.ini_handler.Ini(os.path.join(main_dir, 'opas',
@@ -24,8 +27,8 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'opas',
                                                      'pico_opa.ini'))
 
 
-### curve object ##############################################################                                                    
-                                                     
+### curve object ##############################################################
+
 
 class Curve:
 
@@ -37,7 +40,7 @@ class Curve:
         self.filepath = filepath
 
         self.points = np.genfromtxt(filepath).T
-        
+
         self.min = self.points[0].min()
         self.max = self.points[0].max()
         self.num = len(self.points[0])
@@ -92,7 +95,10 @@ class Curve:
 
 def save_curve(points, old_curve_filepath):
     directory, name, extension = wt.kit.filename_parse(old_curve_filepath)
-    new_name = name.split(' - ')[0] + ' - ' + wt.kit.get_timestamp() + '.curve'
+    if g.offline:
+        new_name = 'v_' + name.split(' - ')[0] + ' - ' + wt.kit.get_timestamp() + '.curve'
+    else:
+        new_name = name.split(' - ')[0] + ' - ' + wt.kit.get_timestamp() + '.curve'
     output_path = os.path.join(directory, new_name)
     header = 'color (wn)\tGrating\tBBO\tMixer'
     np.savetxt(output_path, points.T, fmt='%0.2f', delimiter='\t', header=header)
@@ -137,7 +143,7 @@ class OPA:
         self.polyorder = polyorder
         self.curve = Curve(filepath, self.polyorder)
         self.limits.write(self.curve.min, self.curve.max, 'wn')
-        
+
     def get_points(self):
         return self.curve.points
 
@@ -200,7 +206,7 @@ class OPA:
                 print('That is not a valid motor positon. Nice try, bucko.')
         self.wait_until_still()
         self.get_motor_positions()
-                
+
     def wait_until_still(self):
         for motor in self.motors:
             motor.wait_until_still()
@@ -219,46 +225,46 @@ class gui(QtCore.QObject):
     def create_frame(self, layout):
         layout.setMargin(5)
         self.layout = layout
-        
+
         self.advanced_frame = QtGui.QWidget()
         self.advanced_frame.setLayout(self.layout)
 
         g.module_advanced_widget.add_child(self.advanced_frame)
-        
+
         if self.opa.initialized.read():
             self.initialize()
         else:
             self.opa.initialized.updated.connect(self.initialize)
-        
+
     def initialize(self):
 
         if not self.opa.initialized.read():
             return
 
-        # plot ----------------------------------------------------------------        
-        
+        # plot ----------------------------------------------------------------
+
         # container widget
         display_container_widget = QtGui.QWidget()
         display_container_widget.setLayout(QtGui.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         self.layout.addWidget(display_container_widget)
-        
+
         # plot
         self.plot_widget = pw.Plot1D()
         self.plot_widget.plot_object.setMouseEnabled(False, False)
         self.plot_curve = self.plot_widget.add_scatter()
         self.plot_widget.set_labels(ylabel = 'mm')
-        self.plot_green_line = self.plot_widget.add_line(color = 'g')   
-        self.plot_red_line = self.plot_widget.add_line(color = 'r')   
+        self.plot_green_line = self.plot_widget.add_line(color = 'g')
+        self.plot_red_line = self.plot_widget.add_line(color = 'r')
         display_layout.addWidget(self.plot_widget)
-        
+
         # vertical line
-        line = pw.line('V')      
+        line = pw.line('V')
         self.layout.addWidget(line)
-        
+
         # settings container --------------------------------------------------
-    
+
         # container widget / scroll area
         settings_container_widget = QtGui.QWidget()
         settings_scroll_area = pw.scroll_area()
@@ -269,7 +275,7 @@ class gui(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        
+
         # Display
         input_table = pw.InputTable()
         input_table.add('Display', None)
@@ -307,16 +313,16 @@ class gui(QtCore.QObject):
         self.destinations = [self.grating_destination,
                              self.bbo_destination,
                              self.mixer_destination]
-    
+
         # set button
         self.set_button = pw.SetButton('SET')
         settings_layout.addWidget(self.set_button)
         self.set_button.clicked.connect(self.on_set_motors)
         g.module_control.disable_when_true(self.set_button)
-        
+
         # streach
         settings_layout.addStretch(1)
-        
+
         # signals and slots
         self.opa.address.update_ui.connect(self.update)
         self.opa.limits.updated.connect(self.update_limits)
@@ -337,27 +343,27 @@ class gui(QtCore.QObject):
         self.grating_destination.write(motor_positions[0])
         self.bbo_destination.write(motor_positions[1])
         self.mixer_destination.write(motor_positions[2])
-            
+
     def update_plot(self):
         points = self.opa.get_points()
         xi = wt_units.converter(points[0], 'wn', self.plot_units.read())
-        motor_index = self.opa.motor_names.index(self.plot_motor.read())+1        
+        motor_index = self.opa.motor_names.index(self.plot_motor.read())+1
         yi = points[motor_index]
         self.plot_widget.set_labels(xlabel=self.plot_units.read())
         self.plot_curve.clear()
         self.plot_curve.setData(xi, yi)
         self.plot_widget.graphics_layout.update()
-    
+
     def update_limits(self):
         limits = self.opa.limits.read(self.opa.native_units)
         self.lower_limit.write(limits[0], self.opa.native_units)
         self.upper_limit.write(limits[1], self.opa.native_units)
-        
+
     def on_set_motors(self):
         inputs = [destination.read() for destination in self.destinations]
         self.opa.address.hardware.q.push('set_motors', inputs)
         self.opa.get_position()
-        
+
     def show_advanced(self):
         pass
 
