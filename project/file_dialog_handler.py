@@ -16,7 +16,7 @@ import project_globals as g
 import classes as pc
 
 
-### class #####################################################################
+### FileDialog object #########################################################
 
 
 directory_filepath = pc.Mutex()
@@ -41,8 +41,7 @@ class FileDialog(QtCore.QObject):
         string method, list inputs
         '''
         self.update_ui.emit()
-        if False:
-            print self.name, 'dequeue:', method, inputs
+        # print self.name, 'dequeue:', method, inputs
         # execute method
         getattr(self, str(method))(inputs)  # method passed as qstring
         # remove method from enqueued
@@ -96,23 +95,37 @@ q = pc.Q(enqueued, busy, file_dialog)
 
 ### thread-safe file dialog methods ###########################################
 
+# the q method only works between different threads
+# call directly if the calling object is in the main thread
 
 def dir_dialog(caption, directory, options):
-    q.push('getExistingDirectory', [caption, directory, options])
-    while busy.read():
-        time.sleep(0.1)
+    inputs = [caption, directory, options]
+    if  QtCore.QThread.currentThread() == g.main_thread.read():
+        file_dialog.getExistingDirectory(inputs)
+    else:
+        q.push('getExistingDirectory', inputs)
+        while busy.read():
+            time.sleep(0.1)
     return directory_filepath.read()
 
 
 def open_dialog(caption, directory, options):
-    q.push('getOpenFileName', [caption, directory, options])
-    while busy.read():
-        time.sleep(0.1)
+    inputs = [caption, directory, options]
+    if  QtCore.QThread.currentThread() == g.main_thread.read():
+        file_dialog.getOpenFileName(inputs)
+    else:
+        q.push('getOpenFileName', inputs)
+        while busy.read():
+            time.sleep(0.1)
     return open_filepath.read()
 
 
 def save_dialog(caption, directory, savefilter, selectedfilter, options):
-    q.push('getSaveFileName', [caption, directory, savefilter, selectedfilter, options])
-    while busy.read():
-        time.sleep(0.1)
+    inputs = [caption, directory, savefilter, selectedfilter, options]
+    if  QtCore.QThread.currentThread() == g.main_thread.read():
+        file_dialog.getSaveFileName(inputs)
+    else:
+        q.push('getSaveFileName', inputs)
+        while busy.read():
+            time.sleep(0.1)
     return save_filepath.read()

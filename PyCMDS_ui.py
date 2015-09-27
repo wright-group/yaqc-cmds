@@ -206,7 +206,7 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read():
             print 'initialize widgets'
         # import widgets
-        import daq.current
+        #import daq.current
     
     def _load_modules(self):
         g.module_control.write(False)
@@ -217,8 +217,8 @@ class MainWindow(QtGui.QMainWindow):
         g.scan_thread.write(scan_thread)
         scan_thread.start()
         # import modules
-        import modules.tune_test
-        import modules.motortune
+        #import modules.tune_test
+        #import modules.motortune
         
     def _shutdown(self):
         '''

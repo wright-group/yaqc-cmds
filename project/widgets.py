@@ -17,7 +17,7 @@ colors = g.colors_dict.read()
 ### basic elements ############################################################
 
 
-class vertical_spacer(QtGui.QWidget):
+class ExpandingWidget(QtGui.QWidget):
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.setSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Maximum)
@@ -25,7 +25,7 @@ class vertical_spacer(QtGui.QWidget):
         self.setMinimumHeight(0)
         self.layout().setStretchFactor(self, 1)
     def sizeHint(self):
-        return QtCore.QSize(1, 16777215)
+        return QtCore.QSize(16777215, 16777215)
     def add_to_layout(self, layout):
         layout.addWidget(self)
         layout.setStretchFactor(self, 16777215)
@@ -97,13 +97,9 @@ class Shutdown_button(QtGui.QPushButton):
 
 class InputTable(QtGui.QWidget):
 
-    def __init__(self, width = 130):
+    def __init__(self, width=130):
         '''
-        accepts a list of inputs with format [[names], 
-        type, global object, [additional]] \n
-        each global object must have an updated signal \n
-        heading: [None] \n
-        number: [minimum, maximum, decimals, single step] \n
+        width of 160 good for modules
         '''
         QtGui.QWidget.__init__(self)
         self.width_input = width
@@ -124,7 +120,7 @@ class InputTable(QtGui.QWidget):
     def busy(self, name, global_object):
         # heading
         heading = QtGui.QLabel(name)
-        if name in ['DAQ', 'Data']:
+        if name in ['DAQ status', 'Data status']:  # hardcoded exceptions
             StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         else:
             StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
@@ -143,22 +139,25 @@ class InputTable(QtGui.QWidget):
         heading = QtGui.QLabel(name)
         StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
         heading.setStyleSheet(StyleSheet)
+        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
         self.layout().addWidget(heading, self.row_number, 0)
         self.controls.append(None)
         self.row_number += 1
 
     def number(self, name, global_object):
         # heading
-        label = QtGui.QLabel(name)
+        heading = QtGui.QLabel(name)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
-        label.setStyleSheet(StyleSheet)
-        self.layout().addWidget(label, self.row_number, 0)
+        heading.setStyleSheet(StyleSheet)
+        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        self.layout().addWidget(heading, self.row_number, 0)
         #layout
         container_widget = QtGui.QWidget()
         container_widget.setLayout(QtGui.QHBoxLayout())
         layout = container_widget.layout()
         layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
         #control
         control = QtGui.QDoubleSpinBox()
         if global_object.display:
@@ -176,6 +175,7 @@ class InputTable(QtGui.QWidget):
         #units combobox
         if not global_object.units_kind == None:
             control.setMinimumWidth(self.width_input - 55)
+            control.setMaximumWidth(self.width_input - 55)
             units = QtGui.QComboBox()
             units.setMinimumWidth(50)
             units.setMaximumWidth(50)
@@ -193,11 +193,14 @@ class InputTable(QtGui.QWidget):
     def string(self, name, global_object):
         #heading
         heading = QtGui.QLabel(name)
+        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #control
         control = QtGui.QLineEdit()
+        control.setMinimumWidth(self.width_input)
+        control.setMaximumWidth(self.width_input)
         if global_object.display:
             control.setDisabled(True)
             StyleSheet = 'QWidget{color: custom_color_1; font: bold 14px; border: 0px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
@@ -214,11 +217,14 @@ class InputTable(QtGui.QWidget):
     def combo(self, name, global_object):
         #heading
         heading = QtGui.QLabel(name)
+        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #control
         control = QtGui.QComboBox()
+        control.setMinimumWidth(self.width_input)
+        control.setMaximumWidth(self.width_input)
         if global_object.display:
             control.setDisabled(True)
             StyleSheet = 'QComboBox{color: custom_color_1; font: bold 14px; border: 0px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
@@ -230,7 +236,7 @@ class InputTable(QtGui.QWidget):
             StyleSheet += 'QComboBox:disabled{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_disabled']).replace('custom_color_2', colors['widget_background'])
             StyleSheet += 'QAbstractItemView{color: custom_color_1; font: 50px solid white;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])       
         control.setStyleSheet(StyleSheet)
-        global_object.give_control(control)      
+        global_object.give_control(control) 
         #finish
         self.layout().addWidget(control, self.row_number, 1)
         self.controls.append(control)
@@ -239,6 +245,7 @@ class InputTable(QtGui.QWidget):
     def checkbox(self, name, global_object):
         #heading
         heading = QtGui.QLabel(name)
+        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
@@ -255,6 +262,7 @@ class InputTable(QtGui.QWidget):
     def filepath(self, name, global_object):
         #heading
         heading = QtGui.QLabel(name)
+        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
@@ -264,6 +272,7 @@ class InputTable(QtGui.QWidget):
         layout = container_widget.layout()
         layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
         #push button
         load_button = QtGui.QPushButton('Load')
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['go'])
@@ -271,12 +280,15 @@ class InputTable(QtGui.QWidget):
         load_button.setMinimumHeight(20)
         load_button.setMaximumHeight(20)
         load_button.setMinimumWidth(40)
+        load_button.setMaximumWidth(40)
         layout.addWidget(load_button)
         global_object.give_button(load_button)
         #display
         display = QtGui.QLineEdit()
         #display.setDisabled(True)
         display.setReadOnly(True)
+        display.setMinimumWidth(self.width_input - 45)
+        display.setMaximumWidth(self.width_input - 45)
         StyleSheet = 'QWidget{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
         StyleSheet += 'QWidget:disabled{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_disabled']).replace('custom_color_2', colors['widget_background'])
         display.setStyleSheet(StyleSheet)
@@ -288,11 +300,11 @@ class InputTable(QtGui.QWidget):
         self.row_number += 1
 
 class SetButton(QtGui.QPushButton):
-    def __init__(self, text):
+    def __init__(self, text, color='go'):
         QtGui.QPushButton.__init__(self)
         self.setText(text)
         self.setMinimumHeight(25)
-        StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['go'])
+        StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[color])
         self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
@@ -448,7 +460,7 @@ class HardwareFrontPanel(QtCore.QObject):
         layout_widget = HardwareLayoutWidget(self.name)
         layout = layout_widget.layout()
         # layout table
-        input_table = InputTable(125)
+        input_table = InputTable(130)
         self.front_panel_elements = []
         for hardware in self.hardwares:
             input_table.add(hardware.name, hardware.busy)
@@ -615,8 +627,8 @@ class Plot1D(pg.GraphicsView):
         #create layout
         self.graphics_layout = pg.GraphicsLayout(border = 'w')
         self.setCentralItem(self.graphics_layout)
-        self.graphics_layout.layout.setSpacing(0)                                                             
-        self.graphics_layout.setContentsMargins(0., 0., 1., 1.)
+        self.graphics_layout.layout.setSpacing(0)
+        self.graphics_layout.setContentsMargins(0., 0., 1., 1.) 
         #create plot object
         self.plot_object = self.graphics_layout.addPlot(0, 0)
         self.labelStyle = {'color': '#FFF', 'font-size': '14px'}
@@ -640,15 +652,43 @@ class Plot1D(pg.GraphicsView):
         self.plot_object.addItem(curve)
         return curve 
         
-    def add_infinite_line(self, color = 'y', angle = 90, movable = False):
+    def add_infinite_line(self, color='y', style='solid', angle=90., movable=False, hide=True):
         '''
-        returns a hidden InfiniteLine object \n
-        useful methods of returned object: setValue(), show(), hide()
+        Add an InfiniteLine object.
+        
+        Parameters
+        ----------
+        color : (optional)
+            The color of the line. Accepts any argument valid for `pyqtgraph.mkColor <http://www.pyqtgraph.org/documentation/functions.html#pyqtgraph.mkColor>`_. Default is 'y', yellow.
+        style : {'solid', 'dashed', dotted'} (optional)
+            Linestyle. Default is solid.
+        angle : float (optional)
+            The angle of the line. 90 is vertical and 0 is horizontal. 90 is default.
+        movable : bool (optional)
+            Toggles if user can move the line. Default is False.
+        hide : bool (optional)
+            Toggles if the line is hidden upon initialization. Default is True.
+        
+        Returns
+        -------
+        InfiniteLine object
+            Useful methods: setValue, show, hide
         '''
-        line = pg.InfiniteLine(pen=(color))
+        if style == 'solid':
+            linestyle = QtCore.Qt.SolidLine
+        elif style == 'dashed':
+            linestyle = QtCore.Qt.DashLine
+        elif style == 'dotted':
+            linestyle = QtCore.Qt.DotLine
+        else:
+            print 'style not recognized in add_infinite_line'
+            linestyle = QtCore.Qt.SolidLine
+        pen = pg.mkPen(color, style=linestyle)
+        line = pg.InfiniteLine(pen=pen)
         line.setAngle(angle)
         line.setMovable(movable)
-        line.hide()
+        if hide:
+            line.hide()
         self.plot_object.addItem(line)
         return line  
         

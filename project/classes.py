@@ -20,10 +20,10 @@ import WrightTools.units as wt_units
 
 class Mutex(QtCore.QMutex):
     
-    def __init__(self):
+    def __init__(self, initial_value=None):
         QtCore.QMutex.__init__(self)
         self.WaitCondition = QtCore.QWaitCondition()
-        self.value = None
+        self.value = initial_value
         
     def read(self):
         return self.value
@@ -143,7 +143,6 @@ class PyCMDS_Object(QtCore.QObject):
         if self.has_ini:
             self.value.write(self.ini.read(self.section, self.option))
         self.updated.emit()
-        return self.value.read()
 
     def save(self, value=None):
         if value is not None:
@@ -169,23 +168,19 @@ class Bool(PyCMDS_Object):
     use read method to access
     '''
 
-    def __init__(self, initial_value = False,
-                 ini = None, section='', option='', display=False, name='',
-                 import_from_ini = False, save_to_ini_at_shutdown = False):
+    def __init__(self, initial_value=False, *args, **kwargs):
         PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               ini=ini, section=section, option=option,
-                               import_from_ini=import_from_ini,
-                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
-                               display=display, name=name)
+                               *args, **kwargs)
         self.type = 'checkbox'
+        
     def give_control(self, control_widget):
         self.widget = control_widget
-        #set
+        # set
         self.widget.setChecked(self.value.read())
-        #connect signals and slots
+        # connect signals and slots
         self.updated.connect(lambda: self.widget.setChecked(self.value.read()))
-        self.widget.stateChanged.connect(lambda: self.write(self.widget.checkState()))
-        #finish
+        self.widget.stateChanged.connect(lambda: self.write(self.widget.isChecked()))
+        # finish
         self.widget.setToolTip(self.tool_tip)
         self.widget.setDisabled(self.disabled)
         self.has_widget = True
@@ -193,7 +188,7 @@ class Bool(PyCMDS_Object):
 
 class Combo(PyCMDS_Object):
 
-    def __init__(self, allowed_values, initial_value=None, *args, **kwargs):
+    def __init__(self, allowed_values=['None'], initial_value=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, *args, **kwargs)
         self.type = 'combo'
         self.allowed_values = allowed_values
@@ -211,17 +206,59 @@ class Combo(PyCMDS_Object):
         new_obj = Combo(initial_value=self.read(), display=display,
                         allowed_values=self.allowed_values, name=name)
         return new_obj
+        
+    def read_index(self):
+        return self.allowed_values.index(self.read())
 
     def save(self, value=None):
         if value is not None:
             self.value.write(value)
         if self.has_ini:
             self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
+            
+    def set_allowed_values(self, allowed_values):
+        '''
+        Set the allowed values of the Combo object. 
+        
+        Parameters
+        ----------
+        allowed_values : list
+            the new allowed values
+        
+        Notes
+        ----------
+        The value of the object is written to the first allowed value if the
+        current value is not in the allowed values.
+        '''
+        if allowed_values == self.allowed_values:
+            return
+        self.allowed_values = allowed_values
+        # update widget
+        if self.has_widget:
+            self.widget.currentIndexChanged.disconnect(self.write_from_widget)
+            self.widget.clear()
+            allowed_values_strings = [str(value) for value in self.allowed_values]
+            self.widget.addItems(allowed_values_strings)
+            self.widget.currentIndexChanged.connect(self.write_from_widget)
+        # write value again
+        if self.read() not in self.allowed_values:
+            self.write(self.allowed_values[0])
+        else:
+            self.write(self.read())
+            
+    def set_widget(self):
+        allowed_values_strings = [str(value) for value in self.allowed_values]
+        index = allowed_values_strings.index(str(self.read()))
+        self.widget.setCurrentIndex(index)
 
     def write(self, value):
         # value will be maintained as original data type
         value = self.data_type(value)
         PyCMDS_Object.write(self, value)
+        
+    def write_from_widget(self):
+        # needs to be defined method so we can connect and disconnect
+        self.write(self.widget.currentText())
 
     def give_control(self, control_widget):
         self.widget = control_widget
@@ -231,8 +268,8 @@ class Combo(PyCMDS_Object):
         if self.read() is not None:
             self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))       
         # connect signals and slots
-        self.updated.connect(lambda: self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read()))))
-        self.widget.currentIndexChanged.connect(lambda: self.write(self.widget.currentText()))
+        self.updated.connect(self.set_widget)
+        self.widget.currentIndexChanged.connect(self.write_from_widget)
         self.widget.setToolTip(self.tool_tip)
         self.widget.setDisabled(self.disabled)
         self.has_widget = True
@@ -257,7 +294,7 @@ class Filepath(PyCMDS_Object):
             self.widget.setText(self.read())
         # connect signals and slots
         self.updated.connect(lambda: self.widget.setText(self.read()))
-        self.widget.setToolTip(self.read())
+        self.widget.setToolTip(str(self.read()))
         self.updated.connect(lambda: self.widget.setToolTip(self.read()))
         self.has_widget = True
         
@@ -320,17 +357,10 @@ class NumberLimits(PyCMDS_Object):
 
 class Number(PyCMDS_Object):
 
-    def __init__(self, initial_value=np.nan, display=False, name='',
-                 ini=None, section='', option='',
-                 import_from_ini=False, save_to_ini_at_shutdown=False,
-                 units=None, limits=NumberLimits(),
-                 single_step=1., decimals=2, set_method=None):
+    def __init__(self, initial_value=np.nan, single_step=1., decimals=3, 
+                 limits=NumberLimits(), units=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               ini=ini, section=section, option=option,
-                               import_from_ini=import_from_ini,
-                               save_to_ini_at_shutdown=save_to_ini_at_shutdown,
-                               display=display, name=name,
-                               set_method=set_method)
+                               *args, **kwargs)
         self.type = 'number'
         self.single_step = single_step
         self.decimals = decimals
@@ -344,6 +374,10 @@ class Number(PyCMDS_Object):
                 self.units_kind = dic['kind']
         # limits
         self.limits = limits
+        if self.units is None:
+            self.limits.units = None
+        if self.units is not None and self.limits.units is None:
+            self.limits.units = self.units
         self._set_limits()
         self.limits.updated.connect(lambda: self._set_limits())
 
@@ -389,6 +423,7 @@ class Number(PyCMDS_Object):
                     getattr(self.widget, widget_methods[i])(limits[i])
                     
     def set_widget(self):
+        # special value text is displayed when widget is at minimum
         if np.isnan(self.value.read()):
             self.widget.setSpecialValueText('nan')
             self.widget.setValue(self.widget.minimum())
@@ -399,18 +434,19 @@ class Number(PyCMDS_Object):
     def give_control(self, control_widget):
         self.widget = control_widget
         # set values
-        #self.widget.setMinimum(self.min_value.read())
-        #self.widget.setMaximum(self.max_value.read())
+        min_value, max_value = self.limits.read()
+        self.widget.setMinimum(min_value)
+        self.widget.setMaximum(max_value)
         self.widget.setDecimals(self.decimals)
         self.widget.setSingleStep(self.single_step)
-        self.widget.setValue(self.value.read())
+        self.set_widget()
         # connect signals and slots
         self.updated.connect(self.set_widget)
         self.widget.editingFinished.connect(lambda: self.write(self.widget.value()))
         # finish
         self.widget.setToolTip(self.tool_tip)
+        self.widget.setDisabled(self.disabled)
         self.has_widget = True
-        self._set_limits()
 
     def give_units_combo(self, units_combo_widget):
         self.units_widget = units_combo_widget

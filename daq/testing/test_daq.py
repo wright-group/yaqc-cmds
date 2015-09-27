@@ -1,3 +1,7 @@
+'''
+Is the DAQ working at all?
+'''
+
 from PyDAQmx import *
 import numpy
 import time

@@ -3,7 +3,9 @@
 
 import os
 import sys
+import imp
 import time
+import copy
 
 import collections
 
@@ -17,7 +19,7 @@ import WrightTools as wt
 
 import project.project_globals as g
 import project.classes as pc
-import project.widgets as custom_widgets
+import project.widgets as pw
 import project.ini_handler as ini
 import opas.opas as opas
 import spectrometers.spectrometers as spectrometers
@@ -25,26 +27,145 @@ import delays.delays as delays
 hardware_modules = [opas, spectrometers, delays]
 app = g.app.read()
 main_dir = g.main_dir.read()
-daq_ini = ini.daq
+ini = ini.daq
 
 if not g.offline.read(): 
     from PyDAQmx import *
 
 
-### special objects ###########################################################
+### channels ##################################################################
 
 
-class analog_channels():
-    physical_asignments = None
-    limits = None
-    sample_indicies = None
-analog_channels = analog_channels()
+rest_channel = pc.Number(decimals=0, ini=ini, section='DAQ', 
+                         option='rest channel', 
+                         limits=pc.NumberLimits(0, 7, None),
+                         import_from_ini=True, save_to_ini_at_shutdown=True)
 
-axes = pc.Mutex()
 
-array_detector_reference = pc.Mutex()
+class Channel():
+    
+    def __init__(self, index):
+        self.index = index
+        ini_section = ' '.join(['Channel', str(self.index)])
+        self.section = ini_section
+        self.active = pc.Bool(ini=ini, section=ini_section, option='active')
+        self.name = pc.String(inital_value='Name', ini=ini, section=ini_section, option='name')
+        self.physical_correspondance = pc.Number(decimals=0, limits=pc.NumberLimits(0, 7, None), ini=ini, section=ini_section, option='physical correspondance')
+        self.min = pc.Number(decimals=1, limits=pc.NumberLimits(-10, 10, None), ini=ini, section=ini_section, option='min')
+        self.max = pc.Number(decimals=1, limits=pc.NumberLimits(-10, 10, None), ini=ini, section=ini_section, option='max')
+        self.invert = pc.Bool(ini=ini, section=ini_section, option='invert')
+        sample_limits=pc.NumberLimits(0, 900, None)
+        self.signal_start_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal start')
+        self.signal_stop_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal stop')
+        self.signal_pre_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal presample')
+        processing_methods = ['Average', 'Integral', 'Min', 'Max']
+        self.signal_method = pc.Combo(allowed_values=processing_methods, ini=ini, section=ini_section, option='signal method')
+        self.use_baseline = pc.Bool(ini=ini, section=ini_section, option='use baseline')
+        self.baseline_start_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='baseline start')
+        self.baseline_stop_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='baseline stop')
+        self.baseline_pre_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='baseline presample')
+        self.baseline_method = pc.Combo(allowed_values=processing_methods, ini=ini, section=ini_section, option='baseline method')
+        # a list of all properties
+        self.properties = [self.active, self.name,
+                           self.physical_correspondance, self.min, self.max,
+                           self.invert, self.signal_start_index,
+                           self.signal_stop_index, self.signal_method,
+                           self.signal_pre_index, self.use_baseline,
+                           self.baseline_method, self.baseline_pre_index,
+                           self.baseline_start_index, self.baseline_stop_index]
+        # call get saved on self
+        self.get_saved()
+        # signals
+        self.use_baseline.updated.connect(lambda: self.on_use_baseline())
+        self.on_use_baseline()
+ 
+    def get_saved(self):
+        for obj in self.properties:
+            obj.get_saved()
 
-busy = pc.Busy()
+    def get_widget(self):
+        self.input_table = pw.InputTable()
+        self.input_table.add('Name', self.name)
+        self.input_table.add('Physical Channel', self.physical_correspondance)
+        self.input_table.add('Min. Voltage', self.min)
+        self.input_table.add('Max. Voltage', self.max)
+        self.input_table.add('Invert', self.invert)
+        self.input_table.add('Signal Start', self.signal_start_index)
+        self.input_table.add('Signal Stop', self.signal_stop_index)
+        self.input_table.add('Signal Presample', self.signal_pre_index)
+        self.input_table.add('Signal Method', self.signal_method)
+        self.input_table.add('Use Baseline', self.use_baseline)
+        self.input_table.add('Baseline Start', self.baseline_start_index)
+        self.input_table.add('Baseline Stop', self.baseline_stop_index)
+        self.input_table.add('Baseline Presample', self.baseline_pre_index)
+        self.input_table.add('Baseline Method', self.baseline_method)
+        return self.input_table
+        
+    def on_use_baseline(self):
+        self.baseline_method.set_disabled(not self.use_baseline.read()) 
+        self.baseline_start_index.set_disabled(not self.use_baseline.read()) 
+        self.baseline_stop_index.set_disabled(not self.use_baseline.read()) 
+        self.baseline_pre_index.set_disabled(not self.use_baseline.read())
+        
+    def save(self):
+        for obj in self.properties:
+            obj.save()
+        
+
+channels = pc.Mutex([Channel(i) for i in range(8)])
+destination_channels = pc.Mutex([Channel(i) for i in range(8)])
+
+
+class Chopper():
+    
+    def __init__(self, index):
+        self.index = index
+        ini_section = ' '.join(['Chopper', str(self.index)])
+        self.section = ini_section
+        self.active = pc.Bool(ini=ini, section=ini_section, option='active')
+        self.name = pc.String(inital_value='Name', ini=ini, section=ini_section, option='name')
+        self.physical_correspondance = pc.Number(decimals=0, limits=pc.NumberLimits(0, 7, None), ini=ini, section=ini_section, option='physical correspondance')
+        self.invert = pc.Bool(ini=ini, section=ini_section, option='invert')
+        sample_limits=pc.NumberLimits(0, 900, None)
+        self.index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='index')
+        # a list of all properties
+        self.properties = [self.active, self.name,
+                           self.physical_correspondance, self.invert,
+                           self.index]
+        # call get saved on self
+        self.get_saved()
+
+ 
+    def get_saved(self):
+        for obj in self.properties:
+            obj.get_saved()
+
+    def get_widget(self):
+        self.input_table = pw.InputTable()
+        self.input_table.add('Name', self.name)
+        self.input_table.add('Physical Channel', self.physical_correspondance)
+        self.input_table.add('Invert', self.invert)
+        self.input_table.add('Index', self.index)
+        print 'CHOPPER INPUT TABLE!!!!!!!!!!!'
+        return self.input_table
+        
+    def save(self):
+        for obj in self.properties:
+            obj.save()
+
+
+choppers = pc.Mutex([Chopper(i) for i in range(7)])
+destination_choppers = pc.Mutex([Chopper(i) for i in range(7)])
+
+# sample correspondances holds an array of integers
+# zero : rest sample
+# positive : channel
+# negative : chopper
+sample_correspondances = pc.Mutex(initial_value=np.zeros(900))
+
+
+### current data objects ######################################################
+
 
 class CurrentSlice(QtCore.QMutex):
     
@@ -77,103 +198,49 @@ class CurrentSlice(QtCore.QMutex):
         
 current_slice = CurrentSlice()  # a list of numpy arrays
 
-data_busy = pc.Busy()
-
-data_path = pc.Mutex()
-
-class digital_channels():
-    physical_asignments = None
-    limits = None
-    sample_indicies = None
-digital_channels = digital_channels()
-
-enqueued_actions = pc.Enqueued()
-
-enqueued_data = pc.Enqueued()
-
-fit_path = pc.Mutex()
-
-ignore = pc.Mutex()
+last_data = pc.Mutex()  # array of all daq col
 
 last_samples = pc.Mutex()
 
-last_analog_data = pc.Mutex()
+last_shots = pc.Mutex()
+
+
+### misc objects ##############################################################
+
+# shots
+shot_channel_combo = pc.Combo()
+shots_processing_module_path = pc.Filepath(ini=ini, section='DAQ',
+                                           option='shots processing module path',
+                                           import_from_ini=True,
+                                           save_to_ini_at_shutdown=True,
+                                           options=['*.py'])
+seconds_for_shots_processing = pc.Number(initial_value=np.nan, display=True, decimals=3)
+                                           
+# values
+value_channel_combo = pc.Combo()
+                                    
+                                           
+
+axes = pc.Mutex()
+
+array_detector_reference = pc.Mutex()
+
+ignore = pc.Mutex()
 
 origin = pc.Mutex()
 
-us_per_sample = pc.Mutex()
-
-### gui objects ###############################################################
-
-
-#daq
-shots = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
+# daq
+shots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
 index = pc.Number(initial_value=0)
 
-#graph and big #
+# graph and big #
 freerun = pc.Bool(initial_value=True)
-tab_channel = pc.Combo(['vai0', 'vai1', 'vai2', 'vai3', 'vai4'], ini=daq_ini, section='DAQ', option='Tab channel', import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_timescale = pc.Combo(['Shots', 'Samples'], ini=daq_ini, section='DAQ', option='Tab timescale', import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_property = pc.Combo(['Mean', 'Variance', 'Differential'], ini=daq_ini, section='DAQ', option='Tab property', import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_trigger = pc.Combo(['TDG', 'Chopper (High)'], ini=daq_ini, section='DAQ', option='Tab trigger', import_from_ini = True, save_to_ini_at_shutdown = True)
-tab_shots = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='Tab shots', import_from_ini = True, save_to_ini_at_shutdown = True, limits=pc.NumberLimits(0, 1000, None), decimals = 0)
 
-#channel timing
-num_samples = pc.Number(initial_value=np.nan, display=True, decimals=0)
-vai0_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai0 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai0_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai0 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai1_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai1 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai1_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai1 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai2_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai2 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai2_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai2 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai3_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai3 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai3_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai3 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai4_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai4 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vai4_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vai4 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vdi0_first_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vdi0 first sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-vdi0_last_sample = pc.Number(initial_value=np.nan, ini=daq_ini, section='DAQ', option='vdi0 last sample', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 160, None))
-analog_channels.sample_indicies = [[vai0_first_sample.read(), vai0_last_sample.read()], [vai1_first_sample.read(), vai1_last_sample.read()], [vai2_first_sample.read(), vai2_last_sample.read()], [vai3_first_sample.read(), vai3_last_sample.read()], [vai4_first_sample.read(), vai4_last_sample.read()]]
-digital_channels.sample_indicies = [[vdi0_first_sample.read(), vdi0_last_sample.read()]]
-
-#analog channels
-vai0_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai0 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
-vai1_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai1 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
-vai2_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai2 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
-vai3_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai3 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
-vai4_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vai4 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
-analog_min = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='analog min', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
-analog_max = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='analog max', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
-analog_channels.physical_asignments = [vai0_channel.read(), vai1_channel.read(), vai2_channel.read(), vai3_channel.read(), vai4_channel.read()]
-analog_channels.limits = [analog_min.read(), analog_max.read()]
-
-#digital channels
-vdi0_channel = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='vdi0 channel', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0, limits=pc.NumberLimits(0, 8, None))
-digital_min = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='digital min', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
-digital_max = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='digital max', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
-digital_cutoff = pc.Number(initial_value = np.nan, ini=daq_ini, section='DAQ', option='digital cutoff', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 3, limits=pc.NumberLimits(-10, 10, None))
-digital_channels.physical_asignments = [vdi0_channel.read()]
-analog_channels.limits = [digital_min.read(), digital_max.read(), digital_cutoff.read()]
-
-#additional
-seconds_since_last_task = pc.Number(initial_value = np.nan, display = True, decimals = 3)
-seconds_for_acquisition = pc.Number(initial_value = np.nan, display = True, decimals = 3)
+# additional
+seconds_since_last_task = pc.Number(initial_value=np.nan, display=True, decimals=3)
+seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 
-### dictionaries ##############################################################
-
-
-channels = collections.OrderedDict()
-channels['vai0'] = [0, [analog_channels, 'sample_indicies', 0], [analog_channels, 'limits']]
-channels['vai1'] = [1, [analog_channels, 'sample_indicies', 1], [analog_channels, 'limits']]
-channels['vai2'] = [2, [analog_channels, 'sample_indicies', 2], [analog_channels, 'limits']]
-channels['vai3'] = [3, [analog_channels, 'sample_indicies', 3], [analog_channels, 'limits']]
-channels['vai4'] = [4, [analog_channels, 'sample_indicies', 4], [analog_channels, 'limits']]
-channels['vdi0'] = [5, [digital_channels, 'sample_indicies', 0], [digital_channels, 'limits']]
-
-properties = collections.OrderedDict()
-properties['Mean'] =         [0]
-properties['Variance'] =     [1]
-properties['Differential'] = [2]
 
 # column dictionaries
 data_cols = pc.Mutex()
@@ -182,6 +249,14 @@ fit_cols = pc.Mutex()
 
 ### DATA address ##############################################################
 
+
+data_busy = pc.Busy()
+
+data_path = pc.Mutex()
+
+enqueued_data = pc.Enqueued()
+
+fit_path = pc.Mutex()
 
 class Data(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
@@ -352,10 +427,15 @@ def data_q(method, inputs = []):
 ### DAQ address ###############################################################
 
 
+busy = pc.Busy()
+
+enqueued_actions = pc.Enqueued()
+
 class DAQ(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     running = False
+    processing_timer = wt.kit.Timer(verbose=False)
     
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
@@ -401,40 +481,28 @@ class DAQ(QtCore.QObject):
         self.create_task([])
     
     def create_task(self, inputs):
+        '''
+        Define a new DAQ task. This needs to be run once every time the
+        parameters of the aquisition (channel correspondance, shots, etc.)
+        change.
+        '''
         if g.offline.read(): return
             
-        #ensure previous task closed--------------------------------------------
+        # ensure previous task closed -----------------------------------------
         
         if self.task_created:
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
             
         self.task_created = False
-            
-        #import variables locally (ensures they do not change during operation)-
-
-        daq_analog_physical_channels =  [int(vai0_channel.read()), int(vai1_channel.read()), int(vai2_channel.read()), int(vai3_channel.read()), int(vai4_channel.read())]
-        self.analog_min = analog_min.read()
-        self.analog_max = analog_max.read()
         
-        daq_digital_physical_channels = [int(vdi0_channel.read())]
-        self.digital_min = digital_min.read()
-        self.digital_max = digital_max.read()
-        self.digital_cutoff = digital_cutoff.read()
+        # import --------------------------------------------------------------
         
-        self.shots = long(shots.read())
-        
-        self.num_analog_channels = len(daq_analog_physical_channels)
-        self.num_digital_channels = len(daq_digital_physical_channels)
-        self.num_channels = self.num_analog_channels + self.num_digital_channels
+        self.shots = shots.read()
         
         # calculate the number of 'virtual samples' to take -------------------
         
-        conversions_per_second = 1000000. # a property of the DAQ card
-        shots_per_second = 1100. # from laser (max value - if there are more shots than this we are in big trouble!!!)
-        self.virtual_samples = int(conversions_per_second/(shots_per_second*self.num_channels))
-        num_samples.write(self.virtual_samples)
-        us_per_sample.write((1/conversions_per_second)*10**6)
+        self.virtual_samples = 900  # GET RID OF THIS!!!!
         
         # create task ---------------------------------------------------------
         
@@ -464,33 +532,35 @@ class DAQ(QtCore.QObject):
 
         # The sample clock is supplied by the laser output trigger.
 
+        name_index = 0  # something to keep channel names unique
         try:
-            
-            total_virtual_channels = 0
-            
-            for _ in range(self.virtual_samples):
-                for channel in daq_analog_physical_channels:
-                    channel_name = 'channel_' + str(total_virtual_channels).zfill(3)
-                    DAQmxCreateAIVoltageChan(self.task_handle,                #task handle
-                                             'Dev1/ai%i'%channel,             #physical chanel
-                                             channel_name,                    #name to assign to channel
-                                             DAQmx_Val_Diff,                  #the input terminal configuration
-                                             self.analog_min,self.analog_max, #minVal, maxVal
-                                             DAQmx_Val_Volts,                 #units 
-                                             None)                            #custom scale
-                    total_virtual_channels += 1
-                                             
-                for channel in daq_digital_physical_channels:
-                    channel_name = 'channel_' + str(total_virtual_channels).zfill(3)
-                    DAQmxCreateAIVoltageChan(self.task_handle,                  #task handle
-                                             'Dev1/ai%i'%channel,               #physical chanel
-                                             channel_name,                      #name to assign to channel
-                                             DAQmx_Val_Diff,                    #the input terminal configuration
-                                             self.digital_min,self.digital_max, #minVal, maxVal
-                                             DAQmx_Val_Volts,                   #units 
-                                             None)                              #custom scale
-                    total_virtual_channels += 1
-                    
+            # sample correspondances holds an array of integers
+            # zero : rest sample
+            # positive : channel
+            # negative : chopper
+            for correspondance in sample_correspondances.read():
+                if correspondance == 0:
+                    physical_channel = rest_channel.read()
+                    min_voltage = -10.
+                    max_voltage = 10.
+                elif correspondance > 0:
+                    channel = channels.read()[correspondance-1]
+                    physical_channel = channel.physical_correspondance.read()
+                    min_voltage = channel.min.read()
+                    max_voltage = channel.max.read()
+                elif correspondance < 0:
+                    physical_channel = channels.read()[-correspondance-1].physical_correspondance.read()
+                    min_voltage = -1.
+                    max_voltage = 6.
+                channel_name = 'sample_' + str(name_index).zfill(3)
+                DAQmxCreateAIVoltageChan(self.task_handle,              # task handle
+                                         'Dev1/ai%i'%physical_channel,  # physical chanel
+                                         channel_name,                  # name to assign to channel
+                                         DAQmx_Val_Diff,                # the input terminal configuration
+                                         min_voltage, max_voltage,      # minVal, maxVal
+                                         DAQmx_Val_Volts,               # units 
+                                         None)                          # custom scale
+                name_index += 1
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in virtual channel creation', err)
@@ -498,15 +568,15 @@ class DAQ(QtCore.QObject):
             DAQmxClearTask(self.task_handle)
             return
         
-        #define timing----------------------------------------------------------
+        # define timing -------------------------------------------------------
       
         try:
-            DAQmxCfgSampClkTiming(self.task_handle,      #task handle
-                                  '/Dev1/PFI0',          #sorce terminal
-                                  1000.0,                #sampling rate (samples per second per channel) (float 64) (in externally clocked mode, only used to initialize buffer)
-                                  DAQmx_Val_Rising,      #acquire samples on the rising edges of the sample clock
-                                  DAQmx_Val_FiniteSamps, #acquire a finite number of samples
-                                  self.shots)            #samples per channel to acquire (unsigned integer 64)         
+            DAQmxCfgSampClkTiming(self.task_handle,       # task handle
+                                  '/Dev1/PFI0',           # sorce terminal
+                                  1000.0,                 # sampling rate (samples per second per channel) (float 64) (in externally clocked mode, only used to initialize buffer)
+                                  DAQmx_Val_Rising,       # acquire samples on the rising edges of the sample clock
+                                  DAQmx_Val_FiniteSamps,  # acquire a finite number of samples
+                                  long(self.shots))       # samples per channel to acquire (unsigned integer 64)         
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in timing definition', err)
@@ -514,33 +584,38 @@ class DAQ(QtCore.QObject):
             DAQmxClearTask(self.task_handle)
             return
             
-        #create arrays for task to fill-----------------------------------------
+        # create arrays for task to fill --------------------------------------
 
-        self.samples = np.zeros(self.shots*self.virtual_samples*self.num_channels, dtype=numpy.float64)
-        self.samples_len = len(self.samples) #do not want to call for every acquisition
-        
-        self.analog_data = np.zeros([self.num_analog_channels, 3])
-            
-        #finish-----------------------------------------------------------------
+        self.samples = np.zeros(self.shots*900, dtype=numpy.float64)
+        self.samples_len = len(self.samples)  # do not want to call for every acquisition
+
+        # finish --------------------------------------------------------------
             
         self.task_created = True
             
     def run_task(self, inputs):
         '''
-        inputs[0] bool save
+        Acquire once using the created task.        
+        
+        Parameters
+        ----------
+        inputs[0] : bool
+            Toggle save behavior.
         '''
+        
+        ### measure ###########################################################
+        
+        # unpack inputs -------------------------------------------------------
 
         self.running = True  
         self.check_busy([])
         self.update_ui.emit()
 
         self.save = inputs[0]
-        
-        if g.offline.read():            
-            # fake readings
-            pass          
-        
-        if not self.task_created: return
+
+        if not self.task_created: 
+            return
+
         start_time = time.time()
         
         #array_detector = array_detector_reference.read()
@@ -553,59 +628,95 @@ class DAQ(QtCore.QObject):
         
         try:
             DAQmxStartTask(self.task_handle)
-        
-            DAQmxReadAnalogF64(self.task_handle,            #task handle
-                               self.shots,                  #number of samples per channel
-                               10.0,                        #timeout (seconds) for each read operation
-                               DAQmx_Val_GroupByScanNumber, #fill mode (specifies whether or not the samples are interleaved)
-                               self.samples,                #read array
-                               self.samples_len,            #size of the array, in samples, into which samples are read
-                               byref(self.read),            #reference of thread
-                               None)                        #reserved by NI, pass NULL (?)
-    
+            DAQmxReadAnalogF64(self.task_handle,             # task handle
+                               long(self.shots),             # number of samples per channel
+                               10.0,                         # timeout (seconds) for each read operation
+                               DAQmx_Val_GroupByScanNumber,  # fill mode (specifies whether or not the samples are interleaved)
+                               self.samples,                 # read array
+                               self.samples_len,             # size of the array, in samples, into which samples are read
+                               byref(self.read),             # reference of thread
+                               None)                         # reserved by NI, pass NULL (?)
             DAQmxStopTask(self.task_handle)
-        
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
             
+        # export samples
+        last_samples.write(self.samples)
+            
         # wait for array detector to finish -----------------------------------
             
         #array_detector.control.wait_until_done()
             
         seconds_for_acquisition.write(time.time() - start_time)
+        
+        ### process ###########################################################
+        
+        # calculate shot values for each channel, chopper ---------------------
+        
+        active_channels = [channel for channel in channels.read() if channel.active.read()]
+        active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
+        shots_array = np.full((len(active_channels)+len(active_choppers), self.shots), np.nan)
+        folded_samples = self.samples.copy().reshape((900, -1), order='F')
+        index = 0
+        
+        # channels
+        for channel_index, channel in enumerate(active_channels):
+            # get signal points
+            signal_index_possibilities = range(int(channel.signal_start_index.read()), int(channel.signal_stop_index.read()) + 1)
+            signal_indicies = [i for i in signal_index_possibilities if sample_correspondances.read()[i] == channel_index + 1]
+            signal_indicies = signal_indicies[channel.signal_pre_index.read():]  # remove pre points
+            signal_samples = folded_samples[signal_indicies]
+            # process signal
+            if channel.signal_method.read() == 'Average':
+                signal = np.mean(signal_samples, axis=0)
+            elif channel.signal_method.read() == 'Sum':
+                signal = np.sum(signal_samples, axis=0)
+            elif channel.signal_method.read() == 'Min':
+                signal = np.min(signal_samples, axis=0)
+            elif channel.signal_method.read() == 'Max':
+                signal = np.max(signal_samples, axis=0)
+            # baseline
+            baseline = 0
+            out = signal - baseline
+            # invert
+            if channel.invert.read():
+                out *= -1
+            # finish
+            shots_array[index] = out
+            index += 1
+            
+        # choppers
+        for chopper in active_choppers:
+            shots_array[index] = 0
+            index += 1
+            # DIGITIZE CHOPPER
+            
+        # export shots
+        last_shots.write(shots_array)
             
         # do math -------------------------------------------------------------
         
-        out = np.copy(self.samples)
-        out.shape = (self.shots, self.virtual_samples, self.num_channels)
+        # pass through shots processing module
+        with self.processing_timer:
+            path = shots_processing_module_path.read()
+            name = str(os.path.basename(path))
+            processing_module = imp.load_source(name, path)
+            channel_names = [channel.name.read() for channel in active_channels]
+            chopper_names = [chopper.name.read() for chopper in active_choppers]
+            kinds = ['channel' for _ in channel_names] + ['chopper' for _ in chopper_names]
+            names = channel_names + chopper_names
+            out, out_names = processing_module.process(shots_array, names, kinds)
+        seconds_for_shots_processing.write(self.processing_timer.interval)
         
-        # 'digitize' digital channels
-        for i in range(self.num_analog_channels, self.num_analog_channels+self.num_digital_channels):
-            low_value_indicies = out[:, :, i] < self.digital_cutoff
-            high_value_indicies = out[:, :, i] >= self.digital_cutoff
-            out[low_value_indicies, i] = 0
-            out[high_value_indicies, i] = 1
-        
-        # create differential multiplication array
-        chopper_index = 5
-        diff_weights = out[:, 0, chopper_index]
-        diff_weights[out[:, 0, chopper_index] == 0] = -1
-        diff_weights[out[:, 0, chopper_index] == 1] = 1
-        
-        # get statistics
-        for i in range(self.num_analog_channels):
-            self.analog_data[i, 0] = np.mean(out[:, 0, i])  # average
-            self.analog_data[i, 1] = np.var(out[:, 0, i])  # variance
-            self.analog_data[i, 2] = np.mean(out[:, 0, i]*diff_weights)  # differential
-        
-        # export data ---------------------------------------------------------        
-        
-        last_samples.write(out)
-        last_analog_data.write(self.analog_data)
+        # export last data
+        value_channel_combo.set_allowed_values(out_names)
+        last_data.write(out)
         self.update_ui.emit()
+        
+        # export data ---------------------------------------------------------
         
         if self.save:
             row = np.full(len(data_cols.read()), np.nan)
@@ -625,7 +736,7 @@ class DAQ(QtCore.QObject):
             # values
             for channel_idx in range(5):
                 for property_idx in range(3):
-                    row[i] = self.analog_data[channel_idx, property_idx]
+                    row[i] = np.nan
                     i += 1
             # output
             data_q('write_data', [row])
@@ -634,7 +745,7 @@ class DAQ(QtCore.QObject):
             # index
             index.write(index.read()+1)
         
-        # update timer --------------------------------------------------------
+        # update timer, finish ------------------------------------------------
         
         seconds_since_last_task.write(time.time() - self.previous_time)
         self.previous_time = time.time()
@@ -679,15 +790,78 @@ class Control():
         print 'control.__init__'
         g.shutdown.add_method(self.shutdown)
         self.initialize_hardware()
+        # startup sample correspondances
+        self.update_sample_correspondances(channels.read(), choppers.read())
         # setup freerun
         freerun.updated.connect(self.freerun)
         self.freerun()
         # other controls
         shots.updated.connect(self.update_task)
+        rest_channel.updated.connect(self.update_task)
         g.main_window.read().module_control.connect(self.module_control_update)
         
     def acquire(self):
         q('run_task', inputs=[True])
+        
+    def update_sample_correspondances(self, proposed_channels, proposed_choppers):
+        '''
+        Parameters
+        ----------
+        channels : list of Channel objects
+            The proposed channel settings.
+        choppers : list of Chopper objects
+            The proposed chopper settings.
+        '''
+        # sections is a list of lists: [correspondance, start index, stop index]
+        sections = []
+        for i in range(len(proposed_channels)):
+            channel = proposed_channels[i]
+            if channel.active.read():                
+                correspondance = i + 1  # channels go from 1 --> infinity
+                start = channel.signal_start_index.read()
+                stop = channel.signal_stop_index.read()
+                sections.append([correspondance, start, stop])
+                if channel.use_baseline.read():
+                    start = channel.baseline_start_index.read()
+                    stop = channel.baseline_stop_index.read()
+                    sections.append([correspondance, start, stop])
+        print sections
+        # desired is a list of lists containing all of the channels 
+        # that desire to be read at a given sample
+        desired = [[] for _ in range(900)]
+        for section in sections:
+            correspondance = section[0]
+            start = int(section[1])
+            stop = int(section[2])
+            for i in range(start, stop+1):
+                desired[i].append(correspondance)
+                desired[i] = [val for val in set(desired[i])]  # remove non-unique
+                desired[i].sort()
+        # samples is the proposed sample correspondances
+        samples = np.full(900, 0, dtype=int)
+        for i in range(len(samples)):
+            lis = desired[i]
+            if not len(lis) == 0:
+                samples[i] = lis[i%len(lis)]
+        # choppers
+        # TO DO!!!!!!!!!!!!!!!
+        # check if proposed is valid
+        # TO DO!!!!!!!!!!!!!!!
+        # apply to channels
+        channels.write(proposed_channels)
+        for channel in channels.read():
+            channel.save()
+        choppers.write(proposed_choppers)
+        for chopper in choppers.read():
+            chopper.save()
+        # update channel names
+        channel_names = [channel.name.read() for channel in channels.read() if channel.active.read()]
+        chopper_names = [chopper.name.read() for chopper in choppers.read() if chopper.active.read()]
+        allowed_values = channel_names + chopper_names
+        shot_channel_combo.set_allowed_values(allowed_values)
+        # finish
+        sample_correspondances.write(samples)
+        self.update_task()       
         
     def fit(self, xkey, zkey):
         data_q('fit', [xkey, zkey, current_slice.read()])
@@ -773,7 +947,7 @@ class Control():
                             if hardware.recorded[key][4] and key not in new_ignore:
                                 new_ignore.append(key)
         # data
-        for channel in channels:
+        for channel in old_channels:
             for prop in properties:
                 dictionary = collections.OrderedDict()
                 name = channel + '_' + prop
@@ -873,7 +1047,7 @@ class Widget(QtGui.QWidget):
         layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
-        input_table = custom_widgets.InputTable()
+        input_table = pw.InputTable()
         input_table.add('DAQ', None)
         self.shots = pc.Number(initial_value = 200, decimals = 0)
         input_table.add('Shots', self.shots)
@@ -888,15 +1062,11 @@ class Widget(QtGui.QWidget):
 class Gui(QtCore.QObject):
 
     def __init__(self):
-        QtCore.QObject.__init__
-        #control.wait_until_done()
+        QtCore.QObject.__init__(self)
+        control.wait_until_daq_done()
         address_obj.update_ui.connect(self.update)
         data_obj.update_ui.connect(self.update)
-        tab_channel.updated.connect(self.update)
-        tab_timescale.updated.connect(self.update)
-        tab_property.updated.connect(self.update)
-        tab_trigger.updated.connect(self.update)
-        tab_shots.updated.connect(self.update)
+        shot_channel_combo.updated.connect(self.update)
         self.create_frame()
         
     def create_frame(self):
@@ -905,8 +1075,40 @@ class Gui(QtCore.QObject):
         
         parent_widget = g.daq_widget.read()
         parent_widget.setLayout(QtGui.QHBoxLayout())
-        #parent_widget.layout().setContentsMargins(0, 5, 0, 0)
+        parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         layout = parent_widget.layout()
+        
+        # create tab structure ------------------------------------------------
+        
+        self.tabs = QtGui.QTabWidget()
+
+        # samples tab
+        samples_widget = QtGui.QWidget()
+        samples_box = QtGui.QHBoxLayout()
+        samples_box.setContentsMargins(0, 10, 0, 0)
+        samples_widget.setLayout(samples_box)
+        self.tabs.addTab(samples_widget, 'Samples')
+        self.create_samples_tab(samples_box)        
+
+        # shots tab
+        shots_widget = QtGui.QWidget()
+        shots_box = QtGui.QHBoxLayout()
+        shots_box.setContentsMargins(0, 10, 0, 0)
+        shots_widget.setLayout(shots_box)
+        self.tabs.addTab(shots_widget, 'Shots')
+        self.create_shots_tab(shots_box)
+
+        # values tab
+        values_widget = QtGui.QWidget()
+        values_box = QtGui.QHBoxLayout()
+        values_box.setContentsMargins(0, 10, 0, 0)
+        values_widget.setLayout(values_box)
+        self.tabs.addTab(values_widget, 'Values')
+        self.create_values_tab(values_box)
+        
+        layout.addWidget(self.tabs)
+        
+    def create_samples_tab(self, layout):
         
         # display area --------------------------------------------------------
 
@@ -917,66 +1119,211 @@ class Gui(QtCore.QObject):
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
         
-        # big number
-        self.big_display = custom_widgets.spinbox_as_display(font_size = 100)        
-        display_layout.addWidget(self.big_display)
-        
         # plot
-        self.plot_widget = custom_widgets.Plot1D()
-        self.plot_curve = self.plot_widget.add_scatter()
-        self.plot_widget.set_labels(ylabel = 'volts')
-        self.plot_green_line = self.plot_widget.add_infinite_line(color = 'g')   
-        self.plot_red_line = self.plot_widget.add_infinite_line(color = 'r')   
-        display_layout.addWidget(self.plot_widget)
-        
-        # value display frame
-        frame_frame_widget = QtGui.QWidget()
-        frame_frame_widget.setLayout(QtGui.QVBoxLayout())
-        frame_frame_widget.layout().addStretch(1)
-        frame_widget = QtGui.QWidget()
-        frame_widget.setLayout(QtGui.QGridLayout())
-        frame_widget.layout().setMargin(0)
-        value_frame_layout = frame_widget.layout()
-        rlabels = ['vai0', 'vai1', 'vai2', 'vai3', 'vai4']
-        clabels = ['Mean', 'Variance', 'Differential']
-        label_StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', g.colors_dict.read()['text_light'])
-        self.grid_displays = []        
-        for i in range(5):
-            label = QtGui.QLabel(rlabels[i])
-            label.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
-            label.setStyleSheet(label_StyleSheet)
-            value_frame_layout.addWidget(label, i+1, 0)
-            grid_displays_row = []
-            for j in range(3):
-                # display
-                display = custom_widgets.spinbox_as_display()
-                value_frame_layout.addWidget(display, i+1, j+1)
-                grid_displays_row.append(display)
-            self.grid_displays.append(grid_displays_row)
-        for j in range(3):
-            # label
-            label = QtGui.QLabel(clabels[j])
-            label.setAlignment(QtCore.Qt.AlignRight)
-            label.setStyleSheet(label_StyleSheet)
-            value_frame_layout.addWidget(label, 0, j+1)
-        value_frame_layout
-        frame_frame_widget.layout().addWidget(frame_widget)
-        display_layout.addWidget(frame_frame_widget)
-        
-        # streach
-        spacer = custom_widgets.vertical_spacer()
-        spacer.add_to_layout(display_layout)
+        self.samples_plot_widget = pw.Plot1D()
+        self.samples_plot_scatter = self.samples_plot_widget.add_scatter()
+        self.samples_plot_widget.set_labels(xlabel='sample', ylabel='volts')
+        self.samples_plot_max_voltage_line = self.samples_plot_widget.add_infinite_line(color='y', angle=0)
+        self.samples_plot_min_voltage_line = self.samples_plot_widget.add_infinite_line(color='y', angle=0)
+        self.samples_plot_signal_start_line = self.samples_plot_widget.add_infinite_line(color='g')
+        self.samples_plot_signal_stop_line = self.samples_plot_widget.add_infinite_line(color='r')
+        self.samples_plot_baseline_start_line = self.samples_plot_widget.add_infinite_line(color='g', style='dashed')
+        self.samples_plot_baseline_stop_line = self.samples_plot_widget.add_infinite_line(color='r', style='dashed')
+        self.samples_plot_chopper_line = self.samples_plot_widget.add_infinite_line(color='y')
+        display_layout.addWidget(self.samples_plot_widget)
         
         # vertical line -------------------------------------------------------
 
-        line = custom_widgets.line('V')      
+        line = pw.line('V')
         layout.addWidget(line)
         
         # settings area -------------------------------------------------------
         
         # container widget / scroll area
         settings_container_widget = QtGui.QWidget()
-        settings_scroll_area = custom_widgets.scroll_area()
+        settings_scroll_area = pw.scroll_area(130)
+        settings_scroll_area.setWidget(settings_container_widget)
+        settings_scroll_area.setMinimumWidth(300)
+        settings_scroll_area.setMaximumWidth(300)
+        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_layout = settings_container_widget.layout()
+        settings_layout.setMargin(5)
+        layout.addWidget(settings_scroll_area)
+
+        input_table = pw.InputTable()
+        input_table.add('Rest Channel', rest_channel)
+        settings_layout.addWidget(input_table)
+
+        # channels ------------------------------------------------------------
+        
+        line = pw.line('H')
+        settings_layout.addWidget(line)
+        
+        # channel_combobox
+        allowed_values = [channel.section for channel in channels.read() if channel.active.read()]
+        self.samples_channel_combo = pc.Combo(allowed_values=allowed_values)
+        self.samples_channel_combo.updated.connect(self.update_samples_tab)
+        input_table = pw.InputTable()
+        input_table.add('Channel', self.samples_channel_combo)
+        settings_layout.addWidget(input_table)
+        
+        # add button
+        self.add_channel_button = pw.SetButton('ADD CHANNEL')  
+        settings_layout.addWidget(self.add_channel_button)
+        self.add_channel_button.clicked.connect(self.on_add_channel)       
+        
+        # remove button
+        self.remove_channel_button = pw.SetButton('REMOVE TRAILING CHANNEL', 'stop')     
+        settings_layout.addWidget(self.remove_channel_button)
+        self.remove_channel_button.clicked.connect(self.on_remove_channel) 
+        
+        self.channel_widgets = []
+        for channel in destination_channels.read():
+            widget = channel.get_widget()
+            settings_layout.addWidget(widget)
+            widget.hide()
+            self.channel_widgets.append(widget)
+            
+        # apply button
+        self.apply_channel_button = pw.SetButton('APPLY CHANGES')
+        self.apply_channel_button.clicked.connect(self.on_apply_channel)
+        settings_layout.addWidget(self.apply_channel_button)
+        
+        # revert button
+        self.revert_channel_button = pw.SetButton('REVERT CHANGES', 'stop')
+        self.revert_channel_button.clicked.connect(self.on_revert_channel)
+        settings_layout.addWidget(self.revert_channel_button)
+
+        # choppers ------------------------------------------------------------
+
+        line = pw.line('H')
+        settings_layout.addWidget(line)
+        
+        # chopper_combobox
+        allowed_values = [chopper.section for chopper in destination_choppers.read() if chopper.active.read()]
+        self.advanced_chopper_combo = pc.Combo(allowed_values=allowed_values)
+        self.advanced_chopper_combo.updated.connect(self.update_samples_tab)
+        input_table = pw.InputTable()
+        input_table.add('Chopper', self.advanced_chopper_combo)
+        settings_layout.addWidget(input_table)
+        
+        # add button
+        self.add_chopper_button = pw.SetButton('ADD CHOPPER')  
+        settings_layout.addWidget(self.add_chopper_button)
+        self.add_chopper_button.clicked.connect(self.on_add_chopper)       
+        
+        # remove button
+        self.remove_chopper_button = pw.SetButton('REMOVE TRAILING CHOPPER', 'stop')     
+        settings_layout.addWidget(self.remove_chopper_button)
+        self.remove_chopper_button.clicked.connect(self.on_remove_chopper) 
+        
+        self.chopper_widgets = []
+        for chopper in destination_choppers.read():
+            widget = chopper.get_widget()
+            settings_layout.addWidget(widget)
+            widget.hide()
+            self.chopper_widgets.append(widget)
+            
+        # apply button
+        self.apply_chopper_button = pw.SetButton('APPLY CHANGES')
+        self.apply_chopper_button.clicked.connect(self.on_apply_chopper)
+        settings_layout.addWidget(self.apply_chopper_button)
+        
+        # revert button
+        self.revert_chopper_button = pw.SetButton('REVERT CHANGES', 'stop')
+        self.revert_chopper_button.clicked.connect(self.on_revert_chopper)
+        settings_layout.addWidget(self.revert_chopper_button)
+        
+        settings_layout.addStretch(1)
+        
+        # call self
+        self.update_samples_tab()
+        
+    def create_shots_tab(self, layout):
+
+        # display area --------------------------------------------------------
+
+        # container widget
+        display_container_widget = QtGui.QWidget()
+        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_layout = display_container_widget.layout()
+        display_layout.setMargin(0)
+        layout.addWidget(display_container_widget)
+        
+        # plot
+        self.shots_plot_widget = pw.Plot1D()
+        self.shots_plot_scatter = self.shots_plot_widget.add_scatter()
+        self.shots_plot_widget.set_labels(xlabel='shot', ylabel='volts')
+        display_layout.addWidget(self.shots_plot_widget)
+        
+        # vertical line
+        line = pw.line('V')      
+        layout.addWidget(line)
+        
+        # settings area -------------------------------------------------------
+        
+        # container widget / scroll area
+        settings_container_widget = QtGui.QWidget()
+        settings_scroll_area = pw.scroll_area()
+        settings_scroll_area.setWidget(settings_container_widget)
+        settings_scroll_area.setMinimumWidth(300)
+        settings_scroll_area.setMaximumWidth(300)
+        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_layout = settings_container_widget.layout()
+        settings_layout.setMargin(5)
+        layout.addWidget(settings_scroll_area)
+                
+        # input table
+        input_table = pw.InputTable()
+        input_table.add('Display', None)
+        input_table.add('Channel', shot_channel_combo)   
+        input_table.add('Settings', None)
+        input_table.add('Shots', shots)
+        input_table.add('Shot Processing', shots_processing_module_path)
+        input_table.add('Processing Time', seconds_for_shots_processing)
+        settings_layout.addWidget(input_table)
+
+        # streach
+        settings_layout.addStretch(1)
+        
+    def create_values_tab(self, layout):
+        
+        # display area --------------------------------------------------------
+
+        # container widget
+        display_container_widget = pw.ExpandingWidget()#QtGui.QWidget()
+
+        #display_rect = display_container_widget.rect()
+        #display_rectf = QtCore.QRectF(display_rect)
+        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_layout = display_container_widget.layout()
+        display_layout.setMargin(0)
+        layout.addWidget(display_container_widget)
+        
+        # big number
+        self.big_display = pw.spinbox_as_display(font_size = 100)        
+        display_layout.addWidget(self.big_display)
+ 
+        # streach
+        if False:
+            spacer = pw.VerticalSpacer()
+            spacer.add_to_layout(display_layout)
+       
+        # plot
+        self.values_plot_widget = pw.Plot1D()
+        #self.values_plot_widget.fitInView(display_rectf)
+        self.values_plot_scatter = self.values_plot_widget.add_scatter()
+        display_layout.addWidget(self.values_plot_widget)
+        
+        # vertical line
+        line = pw.line('V')      
+        layout.addWidget(line)
+        
+        # settings area -------------------------------------------------------
+        
+        # container widget / scroll area
+        settings_container_widget = QtGui.QWidget()
+        settings_scroll_area = pw.scroll_area()
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
@@ -986,156 +1333,137 @@ class Gui(QtCore.QObject):
         layout.addWidget(settings_scroll_area)
                 
         # input table one
-        input_table = custom_widgets.InputTable()
+        input_table = pw.InputTable()
         input_table.add('Display', None)
-        input_table.add('Shots', shots)
+        input_table.add('Channel', value_channel_combo)   
+        input_table.add('Settings', None)
         input_table.add('Free run', freerun)
-        input_table.add('Channel', tab_channel)
-        input_table.add('Property', tab_property)
-        input_table.add('Timescale', tab_timescale)        
-        input_table.add('Trigger', tab_trigger)
-        input_table.add('Shots', tab_shots)        
-        settings_layout.addWidget(input_table)
-        
-        # horizontal line
-        line = custom_widgets.line('H')      
-        settings_layout.addWidget(line)
-        
-        # input table two
-        input_table = custom_widgets.InputTable()
-        input_table.add('Channel Timing', None)
-        input_table.add('Samples', num_samples)
-        input_table.add('vai0 first sample', vai0_first_sample)
-        input_table.add('vai0 last sample', vai0_last_sample)
-        input_table.add('vai1 first sample', vai1_first_sample)
-        input_table.add('vai1 last sample', vai1_last_sample)
-        input_table.add('vai2 first sample', vai2_first_sample)
-        input_table.add('vai2 last sample', vai2_last_sample)
-        input_table.add('vai3 first sample', vai3_first_sample)
-        input_table.add('vai3 last sample', vai3_last_sample)
-        input_table.add('vai4 first sample', vai4_first_sample)
-        input_table.add('vai4 last sample', vai4_last_sample)
-        input_table.add('vdi0 first sample', vdi0_first_sample)
-        input_table.add('vdi0 last sample', vdi0_last_sample)
-        input_table.add('Analog Channels', None)
-        input_table.add('vai0', vai0_channel)
-        input_table.add('vai1', vai1_channel)
-        input_table.add('vai2', vai2_channel)
-        input_table.add('vai3', vai3_channel)
-        input_table.add('vai4', vai4_channel)
-        input_table.add('Minimum', analog_min)
-        input_table.add('Maximum', analog_max)
-        input_table.add('Digital Channels', None)
-        input_table.add('vdi0', vdi0_channel)
-        input_table.add('Minimum', digital_min)
-        input_table.add('Maximum', digital_max)
-        input_table.add('Cutoff', digital_cutoff)
-        settings_layout.addWidget(input_table)
-        g.module_control.disable_when_true(input_table)        
-        
-        # set button
-        apply_channels_button = custom_widgets.SetButton('APPLY CHANNEL SETTINGS')        
-        settings_layout.addWidget(apply_channels_button)
-        apply_channels_button.clicked.connect(self.on_apply_channels)
-        g.module_control.disable_when_true(apply_channels_button)
-        
-        # horizontal line
-        line = custom_widgets.line('H')      
-        settings_layout.addWidget(line)
-        
-        # debug tools
-        input_table = custom_widgets.InputTable()
-        input_table.add('Debug', None)
         busy.update_signal = address_obj.update_ui
-        input_table.add('DAQ', busy)
+        input_table.add('DAQ status', busy)
         data_busy.update_signal = data_obj.update_ui
-        input_table.add('Data', data_busy)
+        input_table.add('Data status', data_busy)
         input_table.add('Loop time', seconds_since_last_task)
         input_table.add('Acquisiton time', seconds_for_acquisition)
         settings_layout.addWidget(input_table)
-        g.module_control.disable_when_true(input_table)
         
         # streach
         settings_layout.addStretch(1)
+    
+    def on_add_channel(self):
+        allowed_values = [channel.section for channel in destination_channels.read() if channel.active.read()]
+        new_channel_section = 'Channel %i'%len(allowed_values)
+        allowed_values.append(new_channel_section)
+        self.samples_channel_combo.set_allowed_values(allowed_values)
+        print self.samples_channel_combo.allowed_values
+        self.samples_channel_combo.write(new_channel_section)
+        # do not activate channel until changes are applied
+        self.update_samples_tab()
+        
+    def on_add_chopper(self):
+        pass
 
-    def on_apply_channels(self):
-        analog_channels.sample_indicies = [[vai0_first_sample.read(), vai0_last_sample.read()], [vai1_first_sample.read(), vai1_last_sample.read()], [vai2_first_sample.read(), vai2_last_sample.read()], [vai3_first_sample.read(), vai3_last_sample.read()], [vai4_first_sample.read(), vai4_last_sample.read()]]
-        digital_channels.sample_indicies = [[vdi0_first_sample.read(), vdi0_last_sample.read()]]
-        analog_channels.physical_asignments = [vai0_channel.read(), vai1_channel.read(), vai2_channel.read(), vai3_channel.read(), vai4_channel.read()]
-        analog_channels.limits = [analog_min.read(), analog_max.read()]
-        digital_channels.physical_asignments = [vdi0_channel.read()]
-        analog_channels.limits = [digital_min.read(), digital_max.read(), digital_cutoff.read()]
-        q('create_task')        
+    def on_apply_channel(self):        
+        new_channel_index = int(self.samples_channel_combo.read()[-1])
+        new_channel = destination_channels.read()[new_channel_index]
+        new_channel.active.write(True)
+        new_channels = copy.copy(channels.read())
+        new_channels[new_channel_index] = new_channel
+        control.update_sample_correspondances(new_channels, choppers.read())
+        self.update_samples_tab()
+    
+    def on_apply_chopper(self):
+        pass
+        
+    def on_remove_channel(self):
+        # loop through channels backwards
+        for channel in channels.read()[::-1]:
+            if channel.active.read():
+                channel.get_saved()  # revert to saved
+                channel.active.write(False)
+                channel.save()
+                print channel.section
+                break
+        allowed_values = [channel.section for channel in destination_channels.read() if channel.active.read()]
+        self.samples_channel_combo.set_allowed_values(allowed_values)
+        self.samples_channel_combo.write(allowed_values[-1])
+        self.update_samples_tab()
+        
+    def on_remove_chopper(self):
+        pass
+        
+    def on_revert_channel(self):
+        channel_index = int(self.samples_channel_combo.read()[-1])
+        destination_channels.read()[channel_index].get_saved()
+        
+    def on_revert_chopper(self):
+        pass
         
     def update(self):
-        
-        #import globals locally-------------------------------------------------
-        
-        channel_index = channels[tab_channel.read()][0]
-        
-        property_index = properties[tab_property.read()][0]
+        '''
+        Runs each time an update_ui signal fires (basically every run_task)
+        '''
 
-        channel_sample_indicies_list = channels[tab_channel.read()][1]
-        channel_sample_indicies = getattr(channel_sample_indicies_list[0], channel_sample_indicies_list[1])[channel_sample_indicies_list[2]]
+        # samples
+        yi = last_samples.read()[:900]
+        xi = np.arange(len(yi))
+        self.samples_plot_scatter.clear()
+        self.samples_plot_scatter.setData(xi, yi)
         
-        channel_limits_list =  channels[tab_channel.read()][2]
-        channel_limits = getattr(channel_limits_list[0], channel_limits_list[1])
-        
-        #plot-------------------------------------------------------------------
-            
-        #line.hide()
-        if not last_samples.read() == None:
-            if tab_timescale.read() == 'Shots':
-                #gui update
-                tab_trigger.set_disabled(True)
-                tab_shots.set_disabled(True)
-                self.plot_widget.set_labels(xlabel = 'shot index')
-                self.plot_green_line.hide()
-                self.plot_red_line.hide()
-                #plot
-                data = last_samples.read()[:, 0, channel_index]
-                x = np.linspace(0, len(data), len(data))                
-                data = np.array([x, data])
-                self.plot_curve.clear()
-                self.plot_curve.setData(data[0], data[1])
-            elif tab_timescale.read() == 'Samples':
-                #gui update
-                tab_trigger.set_disabled(False)
-                tab_shots.set_disabled(False)
-                self.plot_widget.set_labels(xlabel = 'microseconds since first trigger')
-                self.plot_green_line.show()
-                self.plot_red_line.show()
-                #get data
-                num_shots = int(tab_shots.read())
-                index = 0
-                if tab_trigger.read() == 'Chopper (High)':
-                    for i in range(num_shots):
-                        if last_samples.read()[i, 0, 5] == 1: break
-                        index += 1
-                data = last_samples.read()[index:index+num_shots, :, channel_index].flatten()
-                x = numpy.zeros(len(data))
-                for i in range(num_shots*int(num_samples.read())):
-                    offset = us_per_sample.read()*channel_index
-                    shot_count, sample_count = divmod(i, num_samples.read())
-                    #print shot_count, sample_count
-                    x[i] = offset + shot_count*1000 + sample_count*(us_per_sample.read()*6)
-                #plot
-                self.plot_green_line.setValue(offset + channel_sample_indicies[0]*us_per_sample.read())
-                self.plot_red_line.setValue(offset + channel_sample_indicies[1]*us_per_sample.read()*6)
-                data = np.array([x, data])
-                self.plot_curve.clear()
-                self.plot_curve.setData(data[0], data[1])
+        # shots
+        yi = last_shots.read()[shot_channel_combo.read_index()]
+        xi = np.arange(len(yi))
+        self.shots_plot_scatter.clear()
+        self.shots_plot_scatter.setData(xi, yi)
+
+        # values
+        self.big_display.setValue(last_data.read()[value_channel_combo.read_index()])
                 
-        #data readout-----------------------------------------------------------
-            
-        if not last_analog_data.read() == None:
-            analog_reading = last_analog_data.read()
-            for i in range(5):
-                for j in range(3):
-                    display = self.grid_displays[i][j]
-                    display.setValue(analog_reading[i, j])
-            self.big_display.setValue(analog_reading[channel_index, property_index])
-            
+    def update_samples_tab(self):
+        # buttons
+        num_channels = len(self.samples_channel_combo.allowed_values)
+        self.add_channel_button.setDisabled(False)
+        self.remove_channel_button.setDisabled(False)
+        if num_channels == 8:
+            self.add_channel_button.setDisabled(True)
+        elif num_channels == 1:
+            self.remove_channel_button.setDisabled(True)
+        # channel ui
+        channel_index = int(self.samples_channel_combo.read()[-1])
+        for widget in self.channel_widgets:
+            widget.hide()
+        self.channel_widgets[channel_index].show()
+        # chopper ui
+        chopper_index = int(self.samples_channel_combo.read()[-1])
+        for widget in self.chopper_widgets:
+            widget.hide()
+        self.chopper_widgets[chopper_index].show()
+        # lines on plot
+        self.samples_plot_max_voltage_line.hide()
+        self.samples_plot_min_voltage_line.hide()
+        self.samples_plot_signal_start_line.hide()
+        self.samples_plot_signal_stop_line.hide()
+        self.samples_plot_baseline_start_line.hide()
+        self.samples_plot_baseline_stop_line.hide()
+        self.samples_plot_chopper_line.hide()
+        current_channel_index = int(self.samples_channel_combo.read()[-1])
+        current_channel_object = channels.read()[current_channel_index]
+        if current_channel_object.active.read():
+            self.samples_plot_max_voltage_line.show()
+            self.samples_plot_max_voltage_line.setValue(current_channel_object.max.read())
+            self.samples_plot_min_voltage_line.show()
+            self.samples_plot_min_voltage_line.setValue(current_channel_object.min.read())
+            self.samples_plot_signal_start_line.show()       
+            self.samples_plot_signal_start_line.setValue(current_channel_object.signal_start_index.read())
+            self.samples_plot_signal_stop_line.show()
+            self.samples_plot_signal_stop_line.setValue(current_channel_object.signal_stop_index.read())
+            if current_channel_object.use_baseline.read():
+                self.samples_plot_baseline_start_line.show()
+                self.samples_plot_baseline_start_line.setValue(current_channel_object.baseline_start_index.read())
+                self.samples_plot_baseline_stop_line.show()
+                self.samples_plot_baseline_stop_line.setValue(current_channel_object.baseline_stop_index.read())
+        #current_chopper_index = int(self.c.read()[-1])
+        #self.samples_plot_chopper_line = self.samples_plot_widget.add_infinite_line(color='y')
+
     def stop(self):
         pass
         
