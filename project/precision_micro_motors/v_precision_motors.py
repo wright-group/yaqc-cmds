@@ -61,6 +61,7 @@ initialized_motors = []
 class Motor():
 
     def __init__(self, ini_section):
+        self.type = 'Motor'
         # import from ini
         self.ini_section = ini_section
         self.name = ini.read(self.ini_section, 'name')
