@@ -44,6 +44,7 @@ class Delay:
         self.recorded = collections.OrderedDict()
         self.gui = gui(self)
         self.initialized = pc.Bool()
+        self.type = 'Delay'
 
     def close(self):
         self.motor.close()

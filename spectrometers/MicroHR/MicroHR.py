@@ -49,6 +49,7 @@ class MicroHR:
         self.recorded = collections.OrderedDict()
         self.gui = gui()
         self.initialized = pc.Bool()
+        self.type = 'Mono'
 
     def close(self):
         # close control

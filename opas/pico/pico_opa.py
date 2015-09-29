@@ -44,6 +44,7 @@ class Curve:
         self.min = self.points[0].min()
         self.max = self.points[0].max()
         self.num = len(self.points[0])
+        self.type = 'Curve'
 
         # fit motor polynomials -----------------------------------------------
 
@@ -134,6 +135,7 @@ class OPA:
         self.motors=[]
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.initialized = pc.Bool()
+        self.type = 'OPA'
 
     def close(self):
         for motor in self.motors:
