@@ -153,30 +153,40 @@ class Path:
 
         hw = self.hws[hw_idx]
         units = self.units[hw_idx]
-        mono_cost = 1 # Number of seconds of extra time per high->low step
+        mono_cost = 1.45 # Number of seconds of extra time per high->low step
         # motor_cost = 0
-        moter_speed = 0.2
+        moter_speed = lambda dist: 10616.2-10151*np.exp(-.00015155*dist)
         if round(start,2) == round(stop,2):
             return 0
 
         elif hw.type == 'Curve' or hw.type == 'OPA':
             m_start = self.OPAd(hw_idx,start)
             m_stop = self.OPAd(hw_idx,stop)
-            return moter_speed*max([abs(m) for m in m_start-m_stop])+.1
+            dist = max([abs(m) for m in m_start-m_stop])
+            return max(dist/moter_speed(dist),0.1)
 
         elif hw.type == 'Delay':
             if units == 'ps':
-                return moter_speed*ps_to_mm(abs(stop-start))+.1
+                dist = ps_to_mm(abs(stop-start))
+                return max(dist/moter_speed(dist),0.1)
             elif units == 'mm':
-                return moter_speed*abs(stop-start)+.1
+                dist = abs(stop-start)
+                return max(dist/moter_speed(dist),0.1)
 
         elif hw.type == "Motor":
-            return moter_speed*abs(stop-start)+.1
+            dist = abs(stop-start)
+            return max(dist/moter_speed(dist),0.1)
 
         elif hw.type == 'Mono':
-            if stop-start > 0:
-                return .1
-            elif stop-start < 0:
+            dist = stop-start
+            if dist < 0:
+                dist = -dist
+                rate = lambda s: -0.00005*s*s + .0445*s+114.13
+                if max(start,stop) > 1500:
+                    return max(dist/(rate(stop/10)*10),.04)
+                else:
+                    return max(dist/(rate(stop)),.04)
+            else:
                 return mono_cost
         else:
             return abs(start-stop)
