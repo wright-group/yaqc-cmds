@@ -68,8 +68,8 @@ class Delay:
         self.set_zero(self.zero_position.read())
         # recorded
         labels = ['13', '23']
-        self.recorded['d%d'%self.index] = [self.current_position, 'ps', 1., labels[self.index-1], False]
-        self.recorded['d%d_zero'%self.index] = [self.zero_position, 'mm', 0.1, str(self.index), True]
+        self.recorded['d%d'%self.index] = [self.current_position, 'ps', 0.01, labels[self.index-1], False]
+        self.recorded['d%d_zero'%self.index] = [self.zero_position, 'mm', 0.001, str(self.index), True]
         self.initialized.write(True)
 
     def is_busy(self):

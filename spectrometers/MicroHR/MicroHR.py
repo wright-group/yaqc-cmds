@@ -160,18 +160,29 @@ class gui(QtCore.QObject):
 
 ### testing ###################################################################
 
-
+'''
 if __name__ == '__main__':
     
+    import numpy as np
     
     mono = MicroHR()
-    mono.initialize()
+    mono.initialize(None,None)
     print mono.description
     print mono.serial_number
     print mono.get_grating_details()
     
-    mono.close()
+    # Timing Test
+    pos = mono.get_position()
+    splits = []
+    for step in np.linspace(pos+10,pos+220,10):
+        now = time.time()
+        mono.set_position(step)
+        print mono.get_position()
+        stop = time.time()
+        splits.append(stop-now)
     
+    mono.close()
+    '''
     
     
     

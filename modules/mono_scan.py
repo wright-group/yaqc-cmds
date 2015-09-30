@@ -1,6 +1,6 @@
 ### define ####################################################################
 
-module_name = 'TUNE TEST'
+module_name = 'MONO SCAN'
 
 ### import ####################################################################
 
@@ -9,8 +9,12 @@ import time
 
 import numpy as np
 
+import matplotlib
+matplotlib.pyplot.ioff()
+
 import project.project_globals as g
 import project.classes as pc
+import project.widgets as pw
 
 from PyQt4 import QtCore, QtGui
 app = g.app.read()
@@ -22,6 +26,7 @@ import WrightTools as wt
 ### import hardware control ###################################################
 
 import spectrometers.spectrometers as specs
+MicroHR = specs.hardwares[0]
 import delays.delays as delays
 import opas.opas as opas
 import daq.daq as daq
@@ -34,6 +39,11 @@ go = pc.Busy()
 going = pc.Busy()
 pause = pc.Busy()
 paused = pc.Busy()
+
+# control objects
+start_color = pc.Number(initial_value=700, units='nm')
+stop_color = pc.Number(initial_value=900, units='nm')
+npts = pc.Number(initial_value=50, decimals=0)
 
 ### scan object ###############################################################
 
@@ -49,68 +59,42 @@ class scan(QtCore.QObject):
         scan_dictionary = inputs[0]
         daq_widget = inputs[1]
         gui = inputs[2]
-
+                
+        mono_destinations = np.linspace(start_color.read('wn'), stop_color.read('wn'), npts.read())
+        
         # startup -------------------------------------------------------------
 
         g.module_control.write(True)
         going.write(True)
         fraction_complete.write(0.)
-        g.logger.log('info', 'Scan begun', 'some info describing this scan')
+        g.logger.log('info', 'mono_scan begun', '')
 
         # scan ----------------------------------------------------------------
 
         # initialize scan in daq
-        daq.control.initialize_scan(daq_widget, scan_origin=module_name, scan_axes=['w1', 'wm'], fit=True)
-        #daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())
+        daq.control.initialize_scan(daq_widget, scan_origin=module_name, scan_axes=['wm'], fit=False)
+        daq.gui.set_slice_xlim(mono_destinations.min(), mono_destinations.max())
         daq.control.index_slice(col='wm')
         
         # do loop
-        '''
+
         break_scan = False
         idx = 0
-        for k in range(len(grating_destinations)):
-            for j in range(len(bbo_destinations)):    
-                inputs = [grating_destinations[k], bbo_destinations[j], 16.]
-                OPA2.q.push('set_motors', inputs)    
-                # slice index
-                daq.control.index_slice(col='MicroHR')
-                daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())    
-                for i in range(len(spec_destinations)):
-                    # set mono        
-                    MicroHR.set_position(spec_destinations[i], 'nm')
-                    # wait for all hardware
-                    g.hardware_waits.wait()
-                    # read from daq
-                    daq.control.acquire()
-                    daq.control.wait_until_daq_done()
-                    # update
-                    idx += 1
-                    fraction_complete.write(float(idx)/float(npts))
-                    self.update_ui.emit()
-                    if not self.check_continue():
-                        break_scan = True
-                    if break_scan:
-                        break
-                if break_scan:
-                    break
-                # fit each slice
-                #daq.control.fit('MicroHR', 'vai0 Mean')
+        for i in range(len(mono_destinations)):
+            MicroHR.set_position(mono_destinations[i], 'wn')
+            g.hardware_waits.wait()            
+            # read from daq
+            daq.control.acquire()
+            daq.control.wait_until_daq_done()
+            # update
+            idx += 1
+            fraction_complete.write(float(idx)/float(npts.read()))
+            self.update_ui.emit()
+            if not self.check_continue():
+                break_scan = True
             if break_scan:
                 break
-
-        daq.control.fit('wm', 'vai0_Mean')
-        '''
         
-        # plot ----------------------------------------------------------------
-        
-        '''
-        data_path = daq.data_path.read()
-        data_obj = wt.data.from_PyCMDS(data_path)
-        artist = wt.artists.mpl_1D(data_obj)
-        fname = data_path.replace('.data', '')
-        artist.plot(fname=fname, autosave=True)
-        '''
-
         #end-------------------------------------------------------------------
 
         fraction_complete.write(1.)    
@@ -151,30 +135,17 @@ class gui(QtCore.QObject):
         self.create_advanced_frame()
         self.show_frame()  # check once at startup
         g.shutdown.read().connect(self.stop)
+        scan_obj.done.connect(self.plot)
         
     def create_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
         
         # input table
-        input_table = custom_widgets.InputTable()
-        allowed_opas = [hardware.name for hardware in opas.hardwares]
-        self.opa_combo = pc.Combo(allowed_values=allowed_opas)
-        input_table.add('OPA', self.opa_combo)
-        input_table.add('Points', None)  
-        self.tune_points = pc.Bool(initial_value=True)
-        input_table.add('Use Tune Points', self.tune_points)
-        self.initial_color = pc.Number(units='wn')
-        input_table.add('Initial Color', self.initial_color)
-        self.final_color = pc.Number(units='wn')
-        input_table.add('Final Color', self.final_color)
-        self.points_number = pc.Number(initial_value=21, decimals=0)
-        input_table.add('Number', self.points_number)
-        input_table.add('Spectrometer', None)
-        self.mono_width = pc.Number(units='wn')
-        input_table.add('Width', self.mono_width)
-        self.mono_number = pc.Number(initial_value=21, decimals=0)
-        input_table.add('Number', self.mono_number)
+        input_table = pw.InputTable()
+        input_table.add('Start', start_color)
+        input_table.add('Stop', stop_color)
+        input_table.add('Number', npts)
         layout.addWidget(input_table)
         
         # daq widget
@@ -220,7 +191,15 @@ class gui(QtCore.QObject):
         scan_dictionary = {}
         inputs = [scan_dictionary, self.daq_widget, self]
         QtCore.QMetaObject.invokeMethod(scan_obj, 'run', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(list, inputs))    
-        g.progress_bar.begin_new_scan_timer()        
+        g.progress_bar.begin_new_scan_timer()
+        
+    def plot(self):
+        print 'plotting'
+        data_path = daq.data_path.read()
+        data_obj = wt.data.from_PyCMDS(data_path)
+        artist = wt.artists.mpl_1D(data_obj)
+        fname = data_path.replace('.data', '')
+        artist.plot(fname=fname, autosave=True)
         
     def update(self):
         g.progress_bar.set_fraction(fraction_complete.read())

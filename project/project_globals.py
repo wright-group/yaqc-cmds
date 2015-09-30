@@ -86,8 +86,6 @@ colors_dict = SimpleGlobal()
 
 comove_widget = SimpleGlobal()
 
-current_slice_widget = SimpleGlobal()
-
 class daq_widget:
     def __init__(self):
         self.value = None
