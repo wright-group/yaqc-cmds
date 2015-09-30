@@ -24,7 +24,6 @@ import spectrometers.spectrometers as spectrometers
 import delays.delays as delays
 import opas.opas as opas
 import daq.daq as daq
-import daq.current as daq_current
 
 ### scan globals ##############################################################
 
@@ -139,7 +138,7 @@ class scan(QtCore.QObject):
                 OPA2.q.push('set_motors', inputs)    
                 # slice index
                 daq.control.index_slice(col='MicroHR')
-                daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())    
+                #daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())    
                 for i in range(len(spec_destinations)):
                     # set mono        
                     MicroHR.set_position(spec_destinations[i], 'nm')

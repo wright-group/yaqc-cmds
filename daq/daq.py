@@ -14,6 +14,7 @@ import numpy as np
 import scipy
 
 from PyQt4 import QtCore, QtGui
+import pyqtgraph as pg
 
 import WrightTools as wt
 
@@ -58,7 +59,7 @@ class Channel():
         self.signal_start_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal start')
         self.signal_stop_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal stop')
         self.signal_pre_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal presample')
-        processing_methods = ['Average', 'Integral', 'Min', 'Max']
+        processing_methods = ['Average', 'Sum', 'Min', 'Max']
         self.signal_method = pc.Combo(allowed_values=processing_methods, ini=ini, section=ini_section, option='signal method')
         self.use_baseline = pc.Bool(ini=ini, section=ini_section, option='use baseline')
         self.baseline_start_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='baseline start')
@@ -146,7 +147,6 @@ class Chopper():
         self.input_table.add('Physical Channel', self.physical_correspondance)
         self.input_table.add('Invert', self.invert)
         self.input_table.add('Index', self.index)
-        print 'CHOPPER INPUT TABLE!!!!!!!!!!!'
         return self.input_table
         
     def save(self):
@@ -215,6 +215,8 @@ shots_processing_module_path = pc.Filepath(ini=ini, section='DAQ',
                                            save_to_ini_at_shutdown=True,
                                            options=['*.py'])
 seconds_for_shots_processing = pc.Number(initial_value=np.nan, display=True, decimals=3)
+save_shots_bool = pc.Bool(ini=ini, section='DAQ', option='save shots',
+                          import_from_ini=True, save_to_ini_at_shutdown=True)
                                            
 # values
 value_channel_combo = pc.Combo()
@@ -231,7 +233,7 @@ origin = pc.Mutex()
 
 # daq
 shots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
-index = pc.Number(initial_value=0)
+scan_index = pc.Number(initial_value=0, display=True, decimals=0)
 
 # graph and big #
 freerun = pc.Bool(initial_value=True)
@@ -244,6 +246,7 @@ seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals
 
 # column dictionaries
 data_cols = pc.Mutex()
+shot_cols = pc.Mutex()
 fit_cols = pc.Mutex()
 
 
@@ -257,6 +260,8 @@ data_path = pc.Mutex()
 enqueued_data = pc.Enqueued()
 
 fit_path = pc.Mutex()
+
+shot_path = pc.Mutex()
 
 class Data(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
@@ -292,15 +297,22 @@ class Data(QtCore.QObject):
         scan_origin, widget = inputs
         self.file_timestamp = wt.kit.get_timestamp()
         self.filename = ' '.join([scan_origin, str(axes.read()), self.file_timestamp, widget.description.read()]).rstrip()
+        self.filename = self.filename.replace('\'', '')
         data_path.write(os.path.join(main_dir, 'data', self.filename + '.data'))
         header_str = self.make_header(data_cols.read(), inputs)
         np.savetxt(data_path.read(), [], header=header_str)
         
     def create_fit(self, inputs):
         # create fit must always be called after create data
-        fit_path.write(os.path.join(main_dir, 'data', self.filename + ' FITTED.data'))
+        fit_path.write(os.path.join(main_dir, 'data', self.filename + '.fit'))
         header_str = self.make_header(fit_cols.read(), inputs)
         np.savetxt(fit_path.read(), [], header=header_str)    
+    
+    def create_shots(self, inputs):
+        # create shots must always be called after create data
+        shot_path.write(os.path.join(main_dir, 'data', self.filename + '.shots'))
+        header_str = self.make_header(shot_cols.read(), inputs)
+        np.savetxt(shot_path.read(), [], header=header_str)    
         
     def fit(self, inputs):
         # functions
@@ -353,6 +365,7 @@ class Data(QtCore.QObject):
     def make_header(self, cols, inputs):
         scan_origin, widget = inputs
         # generate header
+        kind_list = [col['kind'] for col in cols.values()]
         units_list = [col['units'] for col in cols.values()]
         tolerance_list = [col['tolerance'] for col in cols.values()]
         label_list = [col['label'] for col in cols.values()]
@@ -363,7 +376,7 @@ class Data(QtCore.QObject):
         else:
             name = widget.name.read()
         # strings need extra apostrophes and everything needs to be string
-        for lis in [units_list, tolerance_list, label_list, name_list]:
+        for lis in [kind_list, units_list, tolerance_list, label_list, name_list]:
             for i in range(len(lis)):
                 if type(lis[i]) == str:       
                     lis[i] = '\'' + lis[i] + '\''
@@ -376,6 +389,7 @@ class Data(QtCore.QObject):
         header_items += ['shots:' + '\t' + str(widget.shots.read())]
         header_items += ['axes:' + '\t' + str(axes.read())]
         header_items += ['ignore:' + '\t' + str(ignore.read())]
+        header_items += ['kind: ' + '\t'.join(kind_list)]
         header_items += ['units: ' + '\t'.join(units_list)]
         header_items += ['tolerance: ' + '\t'.join(tolerance_list)]
         header_items += ['label: ' + '\t'.join(label_list)]
@@ -397,6 +411,13 @@ class Data(QtCore.QObject):
         data_file = open(fit_path.read(), 'a')
         np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
         data_file.write('\n')
+        data_file.close()
+        
+    def write_shots(self, inputs):
+        data_file = open(shot_path.read(), 'a')
+        for row in inputs[0].T:
+            np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline = '\t')
+            data_file.write('\n')
         data_file.close()
 
     def initialize(self, inputs):
@@ -679,7 +700,23 @@ class DAQ(QtCore.QObject):
             elif channel.signal_method.read() == 'Max':
                 signal = np.max(signal_samples, axis=0)
             # baseline
-            baseline = 0
+            if channel.use_baseline.read():
+                # get baseline points
+                baseline_index_possibilities = range(int(channel.baseline_start_index.read()), int(channel.baseline_stop_index.read()) + 1)
+                baseline_indicies = [i for i in baseline_index_possibilities if sample_correspondances.read()[i] == channel_index + 1]
+                baseline_indicies = baseline_indicies[channel.baseline_pre_index.read():]  # remove pre points
+                baseline_samples = folded_samples[baseline_indicies]
+                # process baseline
+                if channel.baseline_method.read() == 'Average':
+                    baseline = np.mean(baseline_samples, axis=0)
+                elif channel.baseline_method.read() == 'Sum':
+                    baseline = np.sum(baseline_samples, axis=0)
+                elif channel.baseline_method.read() == 'Min':
+                    baseline = np.min(baseline_samples, axis=0)
+                elif channel.baseline_method.read() == 'Max':
+                    baseline = np.max(baseline_samples, axis=0)
+            else:
+                baseline = 0
             out = signal - baseline
             # invert
             if channel.invert.read():
@@ -716,34 +753,43 @@ class DAQ(QtCore.QObject):
         last_data.write(out)
         self.update_ui.emit()
         
-        # export data ---------------------------------------------------------
+        # SAVE ################################################################
         
         if self.save:
-            row = np.full(len(data_cols.read()), np.nan)
-            row[0] = index.read()
-            row[1] = time.time()
+            data_row = np.full(len(data_cols.read()), np.nan)
+            shot_rows = np.full([len(shot_cols.read()), self.shots], np.nan)
+            # read from hardware
+            data_row[0] = scan_index.read()
+            data_row[1] = time.time()
             i = 2
-            # hardware
             for module in hardware_modules:
                 for hardware in module.hardwares:
                     for key in hardware.recorded:
                         out_units = hardware.recorded[key][1]
                         if out_units is None:
-                            row[i] = hardware.recorded[key][0].read()
+                            data_row[i] = hardware.recorded[key][0].read()
                         else:                     
-                            row[i] = hardware.recorded[key][0].read(out_units)
+                            data_row[i] = hardware.recorded[key][0].read(out_units)
                         i += 1
+            for col in range(i):
+                shot_rows[col] = data_row[col]
+                shot_i = i
             # values
-            for channel_idx in range(5):
-                for property_idx in range(3):
-                    row[i] = np.nan
-                    i += 1
-            # output
-            data_q('write_data', [row])
-            current_slice.append(row)
-            
+            for val in out:
+                data_row[i] = val
+                i += 1
+            data_q('write_data', [data_row])
+            current_slice.append(data_row)
+            # shots
+            shot_rows[shot_i] = np.arange(self.shots)
+            shot_i += 1
+            if save_shots_bool.read():
+                for shots in shots_array:
+                    shot_rows[shot_i] = shots
+                    shot_i += 1
+                data_q('write_shots', [shot_rows])
             # index
-            index.write(index.read()+1)
+            scan_index.write(scan_index.read()+1)
         
         # update timer, finish ------------------------------------------------
         
@@ -825,7 +871,6 @@ class Control():
                     start = channel.baseline_start_index.read()
                     stop = channel.baseline_stop_index.read()
                     sections.append([correspondance, start, stop])
-        print sections
         # desired is a list of lists containing all of the channels 
         # that desire to be read at a given sample
         desired = [[] for _ in range(900)]
@@ -844,7 +889,9 @@ class Control():
             if not len(lis) == 0:
                 samples[i] = lis[i%len(lis)]
         # choppers
-        # TO DO!!!!!!!!!!!!!!!
+        for i, chopper in enumerate(proposed_choppers):
+            if chopper.active.read():
+                samples[chopper.index.read()] = -(i+1)
         # check if proposed is valid
         # TO DO!!!!!!!!!!!!!!!
         # apply to channels
@@ -887,7 +934,7 @@ class Control():
         '''
         origin.write(scan_origin)
         # set index back to zero
-        index.write(0)
+        scan_index.write(0)
         # get params from widget
         shots.write(widget.shots.read())
         # create data file(s)
@@ -896,6 +943,8 @@ class Control():
         data_q('create_data', [scan_origin, widget])
         if fit:
             data_q('create_fit', [scan_origin, widget])
+        if save_shots_bool.read():
+            data_q('create_shots', [scan_origin, widget])
         # wait until daq is done before letting module continue        
         self.wait_until_daq_done()
         self.wait_until_data_done()
@@ -914,9 +963,10 @@ class Control():
         '''
         new_ignore = ['index', 'time']
         new_data_cols = collections.OrderedDict()
+        new_shot_cols = collections.OrderedDict()
         new_fit_cols = collections.OrderedDict()
         # exposed hardware positions get written to both filetypes
-        for cols in [new_data_cols, new_fit_cols]:
+        for cols in [new_data_cols, new_shot_cols, new_fit_cols]:
             # index
             dictionary = collections.OrderedDict()
             dictionary['index'] = len(cols)
@@ -924,6 +974,7 @@ class Control():
             dictionary['tolerance'] = 0.5
             dictionary['label'] = ''
             dictionary['object'] = None
+            dictionary['kind'] = None
             cols['index'] = dictionary
             # time
             dictionary = collections.OrderedDict()
@@ -932,6 +983,7 @@ class Control():
             dictionary['tolerance'] = 0.001
             dictionary['label'] = 'lab'
             dictionary['object'] = None
+            dictionary['kind'] = None
             cols['time'] = dictionary
             for module in hardware_modules:
                 for hardware in module.hardwares:
@@ -942,21 +994,52 @@ class Control():
                         dictionary['units'] = hardware.recorded[key][1]
                         dictionary['tolerance'] = hardware.recorded[key][2]
                         dictionary['label'] = hardware.recorded[key][3]
+                        dictionary['kind'] = 'hardware'
                         cols[key] = dictionary
                         if cols == new_data_cols:  # only do this once
                             if hardware.recorded[key][4] and key not in new_ignore:
                                 new_ignore.append(key)
         # data
-        for channel in old_channels:
-            for prop in properties:
-                dictionary = collections.OrderedDict()
-                name = channel + '_' + prop
-                dictionary['index'] = len(new_data_cols)
-                dictionary['units'] = 'V'
-                dictionary['tolerance'] = None
-                dictionary['label'] = ''
-                dictionary['object'] = None
-                new_data_cols[name] = dictionary
+        for name in value_channel_combo.allowed_values:
+            dictionary = collections.OrderedDict()
+            name = name
+            dictionary['index'] = len(new_data_cols)
+            dictionary['units'] = 'V'
+            dictionary['tolerance'] = None
+            dictionary['label'] = ''
+            dictionary['object'] = None
+            dictionary['kind'] = 'channel'
+            new_data_cols[name] = dictionary
+        # shots
+        dictionary = collections.OrderedDict()
+        name = 'shot'
+        dictionary['index'] = len(new_shot_cols)
+        dictionary['units'] = None
+        dictionary['tolerance'] = None
+        dictionary['label'] = ''
+        dictionary['object'] = None
+        dictionary['kind'] = None
+        new_shot_cols[name] = dictionary
+        for name in [channel.name.read() for channel in channels.read() if channel.active.read()]:
+            dictionary = collections.OrderedDict()
+            name = name
+            dictionary['index'] = len(new_shot_cols)
+            dictionary['units'] = 'V'
+            dictionary['tolerance'] = None
+            dictionary['label'] = ''
+            dictionary['object'] = None
+            dictionary['kind'] = 'channel'
+            new_shot_cols[name] = dictionary
+        for name in [chopper.name.read() for chopper in choppers.read() if chopper.active.read()]:
+            dictionary = collections.OrderedDict()
+            name = name
+            dictionary['index'] = len(new_shot_cols)
+            dictionary['units'] = 'V'
+            dictionary['tolerance'] = None
+            dictionary['label'] = ''
+            dictionary['object'] = None
+            dictionary['kind'] = 'chopper'
+            new_shot_cols[name] = dictionary
         # fit
         for prop in ['amplitude', 'center', 'FWHM', 'offset']:
             dictionary = collections.OrderedDict()
@@ -966,8 +1049,10 @@ class Control():
             dictionary['tolerance'] = None
             dictionary['label'] = ''
             dictionary['object'] = None
+            dictionary['kind'] = 'channel'
             new_fit_cols[name] = dictionary
         data_cols.write(new_data_cols)
+        shot_cols.write(new_shot_cols)
         fit_cols.write(new_fit_cols)
         for item in new_ignore:
             if item in dont_ignore:
@@ -1064,10 +1149,12 @@ class Gui(QtCore.QObject):
     def __init__(self):
         QtCore.QObject.__init__(self)
         control.wait_until_daq_done()
+        self.create_frame()
         address_obj.update_ui.connect(self.update)
         data_obj.update_ui.connect(self.update)
         shot_channel_combo.updated.connect(self.update)
-        self.create_frame()
+        value_channel_combo.updated.connect(self.update)
+        print 'daq gui init done'
         
     def create_frame(self):
         
@@ -1121,16 +1208,35 @@ class Gui(QtCore.QObject):
         
         # plot
         self.samples_plot_widget = pw.Plot1D()
-        self.samples_plot_scatter = self.samples_plot_widget.add_scatter()
+        self.samples_plot_scatter = self.samples_plot_widget.add_scatter(color=0.25)
+        self.samples_plot_active_scatter = self.samples_plot_widget.add_scatter()
         self.samples_plot_widget.set_labels(xlabel='sample', ylabel='volts')
         self.samples_plot_max_voltage_line = self.samples_plot_widget.add_infinite_line(color='y', angle=0)
         self.samples_plot_min_voltage_line = self.samples_plot_widget.add_infinite_line(color='y', angle=0)
-        self.samples_plot_signal_start_line = self.samples_plot_widget.add_infinite_line(color='g')
         self.samples_plot_signal_stop_line = self.samples_plot_widget.add_infinite_line(color='r')
-        self.samples_plot_baseline_start_line = self.samples_plot_widget.add_infinite_line(color='g', style='dashed')
+        self.samples_plot_signal_start_line = self.samples_plot_widget.add_infinite_line(color='g')
         self.samples_plot_baseline_stop_line = self.samples_plot_widget.add_infinite_line(color='r', style='dashed')
-        self.samples_plot_chopper_line = self.samples_plot_widget.add_infinite_line(color='y')
+        self.samples_plot_baseline_start_line = self.samples_plot_widget.add_infinite_line(color='g', style='dashed')        
+        self.samples_plot_chopper_line = self.samples_plot_widget.add_infinite_line(color='b')
         display_layout.addWidget(self.samples_plot_widget)
+        
+        legend = self.samples_plot_widget.plot_object.addLegend()
+        legend.addItem(self.samples_plot_active_scatter, 'channel samples')
+        legend.addItem(self.samples_plot_scatter, 'other samples')        
+        style = pg.PlotDataItem(pen='y')
+        legend.addItem(style, 'voltage limits')
+        style = pg.PlotDataItem(pen='g')
+        legend.addItem(style, 'signal start')
+        style = pg.PlotDataItem(pen='r')
+        legend.addItem(style, 'signal stop')
+        pen = pg.mkPen('g', style=QtCore.Qt.DashLine)
+        style = pg.PlotDataItem(pen=pen)
+        legend.addItem(style, 'baseline start')
+        pen = pg.mkPen('r', style=QtCore.Qt.DashLine)
+        style = pg.PlotDataItem(pen=pen)
+        legend.addItem(style, 'baseline stop')
+        style = pg.PlotDataItem(pen='b')
+        legend.addItem(style, 'chopper index')
         
         # vertical line -------------------------------------------------------
 
@@ -1201,10 +1307,10 @@ class Gui(QtCore.QObject):
         
         # chopper_combobox
         allowed_values = [chopper.section for chopper in destination_choppers.read() if chopper.active.read()]
-        self.advanced_chopper_combo = pc.Combo(allowed_values=allowed_values)
-        self.advanced_chopper_combo.updated.connect(self.update_samples_tab)
+        self.samples_chopper_combo = pc.Combo(allowed_values=allowed_values)
+        self.samples_chopper_combo.updated.connect(self.update_samples_tab)
         input_table = pw.InputTable()
-        input_table.add('Chopper', self.advanced_chopper_combo)
+        input_table.add('Chopper', self.samples_chopper_combo)
         settings_layout.addWidget(input_table)
         
         # add button
@@ -1279,6 +1385,7 @@ class Gui(QtCore.QObject):
         input_table.add('Channel', shot_channel_combo)   
         input_table.add('Settings', None)
         input_table.add('Shots', shots)
+        input_table.add('Save Shots', save_shots_bool)
         input_table.add('Shot Processing', shots_processing_module_path)
         input_table.add('Processing Time', seconds_for_shots_processing)
         settings_layout.addWidget(input_table)
@@ -1311,7 +1418,6 @@ class Gui(QtCore.QObject):
        
         # plot
         self.values_plot_widget = pw.Plot1D()
-        #self.values_plot_widget.fitInView(display_rectf)
         self.values_plot_scatter = self.values_plot_widget.add_scatter()
         display_layout.addWidget(self.values_plot_widget)
         
@@ -1344,6 +1450,7 @@ class Gui(QtCore.QObject):
         input_table.add('Data status', data_busy)
         input_table.add('Loop time', seconds_since_last_task)
         input_table.add('Acquisiton time', seconds_for_acquisition)
+        input_table.add('Scan Index', scan_index)
         settings_layout.addWidget(input_table)
         
         # streach
@@ -1372,7 +1479,13 @@ class Gui(QtCore.QObject):
         self.update_samples_tab()
     
     def on_apply_chopper(self):
-        pass
+        new_chopper_index = self.samples_channel_combo.read_index()
+        new_chopper = destination_choppers.read()[new_chopper_index]
+        new_chopper.active.write(True)
+        new_choppers = copy.copy(choppers.read())
+        new_choppers[new_chopper_index] = new_chopper
+        control.update_sample_correspondances(channels.read(), new_choppers)
+        self.update_samples_tab()
         
     def on_remove_channel(self):
         # loop through channels backwards
@@ -1397,6 +1510,9 @@ class Gui(QtCore.QObject):
         
     def on_revert_chopper(self):
         pass
+    
+    def set_slice_xlim(self, xmin, xmax):
+        self.values_plot_widget.set_xlim(xmin, xmax)
         
     def update(self):
         '''
@@ -1408,6 +1524,21 @@ class Gui(QtCore.QObject):
         xi = np.arange(len(yi))
         self.samples_plot_scatter.clear()
         self.samples_plot_scatter.setData(xi, yi)
+        self.samples_plot_active_scatter.hide()
+        current_channel_object = channels.read()[self.samples_channel_combo.read_index()]
+        if current_channel_object.active.read():
+            self.samples_plot_active_scatter.show()
+            signal_start_index = current_channel_object.signal_start_index.read()
+            signal_stop_index = current_channel_object.signal_stop_index.read()
+            signal_indicies = [i for i in np.arange(signal_start_index, signal_stop_index) if sample_correspondances.read()[i] == self.samples_channel_combo.read_index() + 1]
+            yi = last_samples.read()[signal_indicies]
+            xi = signal_indicies
+            if current_channel_object.use_baseline.read():
+                baseline_start_index = current_channel_object.baseline_start_index.read()
+                baseline_stop_index = current_channel_object.baseline_stop_index.read()
+                yi = np.append(yi, last_samples.read()[baseline_start_index:baseline_stop_index])
+                xi = np.append(xi, np.arange(baseline_start_index, baseline_stop_index))
+            self.samples_plot_active_scatter.setData(xi, yi)
         
         # shots
         yi = last_shots.read()[shot_channel_combo.read_index()]
@@ -1417,7 +1548,21 @@ class Gui(QtCore.QObject):
 
         # values
         self.big_display.setValue(last_data.read()[value_channel_combo.read_index()])
-                
+        
+        # current slice display
+        if g.module_control.read():
+            xcol = data_cols.read()[current_slice.col]['index']
+            ycol_key = value_channel_combo.read()
+            ycol = data_cols.read()[ycol_key]['index']       
+            vals = np.array(current_slice.read())
+            if vals.size == 0:
+                return  # this is probably not great implementation...
+            if len(vals.shape) == 1:
+                vals = vals[None, :]
+            xi = vals[:, xcol]
+            yi = vals[:, ycol]
+            self.values_plot_scatter.setData(xi, yi)
+                    
     def update_samples_tab(self):
         # buttons
         num_channels = len(self.samples_channel_combo.allowed_values)
@@ -1461,8 +1606,12 @@ class Gui(QtCore.QObject):
                 self.samples_plot_baseline_start_line.setValue(current_channel_object.baseline_start_index.read())
                 self.samples_plot_baseline_stop_line.show()
                 self.samples_plot_baseline_stop_line.setValue(current_channel_object.baseline_stop_index.read())
-        #current_chopper_index = int(self.c.read()[-1])
-        #self.samples_plot_chopper_line = self.samples_plot_widget.add_infinite_line(color='y')
+        current_chopper_object = choppers.read()[self.samples_chopper_combo.read_index()]
+        if current_chopper_object.active.read():   
+            self.samples_plot_chopper_line.show()
+            self.samples_plot_chopper_line.setValue(current_chopper_object.index.read())
+        if not freerun.read():
+            self.update()
 
     def stop(self):
         pass

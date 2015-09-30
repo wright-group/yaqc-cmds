@@ -142,8 +142,6 @@ class MainWindow(QtGui.QMainWindow):
         g.module_advanced_widget.write(module_advanced_widget)
         daq_single_widget = QtGui.QWidget()
         g.daq_widget.write(daq_single_widget)
-        current_slice_widget = QtGui.QWidget()
-        g.current_slice_widget.write(current_slice_widget)
         daq_plot_widget = QtGui.QWidget()
         g.daq_plot_widget.write(daq_plot_widget)
         
@@ -153,7 +151,6 @@ class MainWindow(QtGui.QMainWindow):
         self.tabs.addTab(comove_widget, 'Comove')
         self.tabs.addTab(module_advanced_widget, 'Module')
         self.tabs.addTab(daq_single_widget, 'DAQ')
-        self.tabs.addTab(current_slice_widget, 'Current')
         self.tabs.addTab(daq_plot_widget, 'Plot')
         self.tabs.setCurrentIndex(3)  # start on DAQ tab
         self.tabs.setContentsMargins(0., 0., 0., 0.)
@@ -206,7 +203,6 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read():
             print 'initialize widgets'
         # import widgets
-        #import daq.current
     
     def _load_modules(self):
         g.module_control.write(False)
@@ -217,8 +213,10 @@ class MainWindow(QtGui.QMainWindow):
         g.scan_thread.write(scan_thread)
         scan_thread.start()
         # import modules
-        #import modules.tune_test
-        #import modules.motortune
+        import modules.mono_scan
+        import modules.delay_scan
+        import modules.tune_test
+        import modules.motortune
         
     def _shutdown(self):
         '''
