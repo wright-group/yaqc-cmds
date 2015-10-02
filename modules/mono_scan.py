@@ -73,7 +73,7 @@ class scan(QtCore.QObject):
 
         # initialize scan in daq
         daq.control.initialize_scan(daq_widget, scan_origin=module_name, scan_axes=['wm'], fit=False)
-        daq.gui.set_slice_xlim(mono_destinations.min(), mono_destinations.max())
+        daq.gui.set_slice_xlim(start_color.read('nm'), stop_color.read('nm'))
         daq.control.index_slice(col='wm')
         
         # do loop

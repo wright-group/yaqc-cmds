@@ -55,7 +55,7 @@ class Channel():
         self.min = pc.Number(decimals=1, limits=pc.NumberLimits(-10, 10, None), ini=ini, section=ini_section, option='min')
         self.max = pc.Number(decimals=1, limits=pc.NumberLimits(-10, 10, None), ini=ini, section=ini_section, option='max')
         self.invert = pc.Bool(ini=ini, section=ini_section, option='invert')
-        sample_limits=pc.NumberLimits(0, 900, None)
+        sample_limits=pc.NumberLimits(0, 899, None)
         self.signal_start_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal start')
         self.signal_stop_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal stop')
         self.signal_pre_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal presample')
@@ -127,7 +127,7 @@ class Chopper():
         self.name = pc.String(inital_value='Name', ini=ini, section=ini_section, option='name')
         self.physical_correspondance = pc.Number(decimals=0, limits=pc.NumberLimits(0, 7, None), ini=ini, section=ini_section, option='physical correspondance')
         self.invert = pc.Bool(ini=ini, section=ini_section, option='invert')
-        sample_limits=pc.NumberLimits(0, 900, None)
+        sample_limits=pc.NumberLimits(0, 899, None)
         self.index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='index')
         # a list of all properties
         self.properties = [self.active, self.name,
@@ -688,7 +688,7 @@ class DAQ(QtCore.QObject):
             # get signal points
             signal_index_possibilities = range(int(channel.signal_start_index.read()), int(channel.signal_stop_index.read()) + 1)
             signal_indicies = [i for i in signal_index_possibilities if sample_correspondances.read()[i] == channel_index + 1]
-            signal_indicies = signal_indicies[channel.signal_pre_index.read():]  # remove pre points
+            signal_indicies = signal_indicies[int(channel.signal_pre_index.read()):]  # remove pre points
             signal_samples = folded_samples[signal_indicies]
             # process signal
             if channel.signal_method.read() == 'Average':
@@ -704,7 +704,7 @@ class DAQ(QtCore.QObject):
                 # get baseline points
                 baseline_index_possibilities = range(int(channel.baseline_start_index.read()), int(channel.baseline_stop_index.read()) + 1)
                 baseline_indicies = [i for i in baseline_index_possibilities if sample_correspondances.read()[i] == channel_index + 1]
-                baseline_indicies = baseline_indicies[channel.baseline_pre_index.read():]  # remove pre points
+                baseline_indicies = baseline_indicies[int(channel.baseline_pre_index.read()):]  # remove pre points
                 baseline_samples = folded_samples[baseline_indicies]
                 # process baseline
                 if channel.baseline_method.read() == 'Average':
