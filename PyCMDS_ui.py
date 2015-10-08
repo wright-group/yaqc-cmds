@@ -213,10 +213,13 @@ class MainWindow(QtGui.QMainWindow):
         g.scan_thread.write(scan_thread)
         scan_thread.start()
         # import modules
+        import modules.oneDscan
         import modules.mono_scan
         import modules.delay_scan
         import modules.tune_test
         import modules.motortune
+        import modules.motortune_temp
+        import modules.motortune_test
         
     def _shutdown(self):
         '''

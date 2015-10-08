@@ -928,7 +928,7 @@ class Control():
     def initialize_hardware(self):
         q('initialize')
 
-    def initialize_scan(self, widget, scan_origin=None, scan_axes=[], dont_ignore=[], fit=False):
+    def initialize_scan(self, widget, scan_origin, scan_axes, dont_ignore=[], fit=False):
         '''
         prepare environment for scanning
         '''
