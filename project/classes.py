@@ -102,6 +102,7 @@ class PyCMDS_Object(QtCore.QObject):
                  ini=None, section='', option='',
                  import_from_ini=False, save_to_ini_at_shutdown=False,
                  display=False, name='', label = '', set_method=None,
+                 disable_under_module_control=False,
                  *args, **kwargs):
         QtCore.QObject.__init__(self)
         self.has_widget = False
@@ -131,6 +132,16 @@ class PyCMDS_Object(QtCore.QObject):
             pass
         else:
             self.label = self.name
+        # disable under module control
+        if disable_under_module_control:
+            g.main_window.read().module_control.connect(self.on_module_control)
+            
+    def on_module_control(self):
+        if g.module_control.read():
+            if self.has_widget:
+                self.widget.setDisabled(True)
+        else:
+            self.widget.setDisabled(self.disabled)
 
     def read(self):
         return self.value.read()
@@ -154,7 +165,7 @@ class PyCMDS_Object(QtCore.QObject):
         self.disabled = bool(disabled)
         if self.has_widget:
             self.widget.setDisabled(self.disabled)
-
+            
     def set_tool_tip(self, tool_tip):
         self.tool_tip = str(tool_tip)
         if self.has_widget:
@@ -362,6 +373,7 @@ class Number(PyCMDS_Object):
         PyCMDS_Object.__init__(self, initial_value=initial_value,
                                *args, **kwargs)
         self.type = 'number'
+        self.disabled_units = False
         self.single_step = single_step
         self.decimals = decimals
         self.set_control_steps(single_step, decimals)
@@ -422,6 +434,11 @@ class Number(PyCMDS_Object):
                 if self.has_widget:
                     getattr(self.widget, widget_methods[i])(limits[i])
                     
+    def set_disabled_units(self, disabled):
+        self.disabled_units = bool(disabled)
+        if self.has_widget:
+            self.units_widget.setDisabled(self.disabled_units)
+
     def set_widget(self):
         # special value text is displayed when widget is at minimum
         if np.isnan(self.value.read()):
@@ -458,6 +475,8 @@ class Number(PyCMDS_Object):
         self.units_widget.setCurrentIndex(unit_types.index(self.units))
         # associate update with conversion
         self.units_widget.currentIndexChanged.connect(lambda: self.convert(self.units_widget.currentText()))
+        # finish
+        self.units_widget.setDisabled(self.disabled_units)
 
     def write(self, value, input_units='same'):
         if input_units == 'same':

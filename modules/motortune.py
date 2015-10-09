@@ -44,15 +44,15 @@ class motor_gui():
         self.input_table = pw.InputTable()
         self.input_table.add(name, None)
         allowed = ['Set', 'Scan', 'Static']
-        self.method = pc.Combo(allowed_values=allowed)
+        self.method = pc.Combo(allowed_values=allowed, disable_under_module_control=True)
         self.use_tune_points.updated.connect(self.update_disabled)
         self.method.updated.connect(self.update_disabled)
         self.input_table.add('Method', self.method)
-        self.center = pc.Number(initial_value=center)
+        self.center = pc.Number(initial_value=center, disable_under_module_control=True)
         self.input_table.add('Center', self.center)
-        self.width = pc.Number(initial_value=width)
+        self.width = pc.Number(initial_value=width, disable_under_module_control=True)
         self.input_table.add('Width', self.width)
-        self.npts = pc.Number(initial_value=number, decimals=0)
+        self.npts = pc.Number(initial_value=number, decimals=0, disable_under_module_control=True)
         self.input_table.add('Number', self.npts)
         self.update_disabled()
         
@@ -128,11 +128,24 @@ class scan(QtCore.QObject):
             scan_axes.append('wm')
         
         # calculate npts
-        # TO DO
-        npts = 1000
+        npts = 1
+        if gui.use_tune_points.read():
+            npts *= len(opa_gui.hardware.address.ctrl.get_points()[0])
+        for motor in opa_gui.motors:
+            if motor.method.read() == 'Scan':
+                npts *= motor.npts.read()
+        if gui.mono_method_combo.read() == 'Scan':
+            npts *= gui.mono_npts.read()
         
         # initialize scan in daq
         daq.control.initialize_scan(daq_widget, module_name, scan_axes=scan_axes, fit=False)
+
+        # set static motors
+        for motor_index, motor in enumerate(opa_gui.motors):
+            if motor.method.read() == 'Static':
+                motor_name = opa_gui.motors[motor_index].name
+                motor_destination = opa_gui.motors[motor_index].center.read()
+                opa_hardware.q.push('set_motor', [motor_name, motor_destination])
 
         # do loop -------------------------------------------------------------
 
@@ -144,14 +157,16 @@ class scan(QtCore.QObject):
         else:
             tune_point_destinations = [None]
         for tune_point_destination in tune_point_destinations:
-            if tune_point_destination is None:
-                pass
-            else:
-                pass
-                opa_hardware.set_position(tune_point_destination)
+            if tune_point_destination is not None:
+                motor_positions = opa_gui.hardware.address.ctrl.curve.get_motor_positions(tune_point_destination)
+                for motor_index, motor in enumerate(opa_gui.motors):
+                    if not motor.method.read() == 'Static':
+                        motor_name = motor.name
+                        motor_destination = motor_positions[motor_index]
+                        opa_hardware.q.push('set_motor', [motor_name, motor_destination])
+                opa_hardware.q.push('get_motor_positions')
                 opa_hardware.wait_until_still()  # need to wait before reading position in inner loop
             # motor positions
-            # TO DO: SET STATIC MOTORS HERE
             motor_position_dictionary = collections.OrderedDict()
             for motor_index, motor in enumerate(opa_gui.motors):
                 if motor.method.read() == 'Scan':
@@ -160,6 +175,12 @@ class scan(QtCore.QObject):
                     number = motor.npts.read()
                     motor_position_dictionary[motor.name] = np.linspace(current_position-width, current_position+width, number)
             for motor_idx in np.ndindex(*[arr.size for arr in motor_position_dictionary.values()]):
+                if not gui.mono_method_combo.read() == 'Scan':  # if motor is innermost index
+                    if motor_idx[-1] == 0:
+                        motor_name = motor_position_dictionary.keys()[-1]
+                        daq.control.index_slice(col='_'.join([opa_friendly_name, motor_name]))
+                        motor_points = motor_position_dictionary[motor_name]
+                        daq.gui.set_slice_xlim(motor_points.min(), motor_points.max())
                 for motor_index, position_index in enumerate(motor_idx):
                     motor_name = motor_position_dictionary.keys()[motor_index]
                     motor_destination = motor_position_dictionary[motor_name][position_index]
@@ -167,9 +188,23 @@ class scan(QtCore.QObject):
                 opa_hardware.q.push('wait_until_still')
                 opa_hardware.q.push('get_motor_positions')
                 # spec positions
-                # TO DO: ADD ACTUAL SPEC SUPPORT
-                spec_destinations = [0]
+                if gui.mono_method_combo.read() == 'Scan':
+                    if gui.use_tune_points.read():
+                        spec_center = tune_point_destination
+                    else:
+                        spec_center = gui.mono_center.read()
+                    spec_width = gui.mono_width.read()/2.
+                    spec_number = gui.mono_npts.read()
+                    spec_destinations = np.linspace(spec_center-spec_width, spec_center+spec_width, spec_number)
+                    daq.control.index_slice(col='wm')
+                    daq.gui.set_slice_xlim(spec_destinations.min(), spec_destinations.max())
+                elif gui.mono_method_combo.read() == 'Set':
+                    spec_destinations = [tune_point_destination]
+                elif gui.mono_method_combo.read() == 'Static':
+                    spec_destinations = [None]
                 for spec_destination in spec_destinations:
+                    if spec_destination is not None:
+                        spectrometers.hardwares[0].set_position(spec_destination, 'wn')
                     # wait for hardware
                     g.hardware_waits.wait()
                     # read from daq
@@ -231,9 +266,9 @@ class GUI(QtCore.QObject):
 
         # shared settings
         allowed = [hardware.name for hardware in opas.hardwares]
-        self.opa_combo = pc.Combo(allowed)
+        self.opa_combo = pc.Combo(allowed, disable_under_module_control=True)
         self.opa_combo.updated.connect(self.update_opa_display)
-        self.use_tune_points = pc.Bool(initial_value=True)
+        self.use_tune_points = pc.Bool(initial_value=True, disable_under_module_control=True)
         self.use_tune_points.updated.connect(self.update_mono_settings)
         input_table = pw.InputTable()
         input_table.add('OPA', self.opa_combo)
@@ -250,11 +285,13 @@ class GUI(QtCore.QObject):
         
         # mono settings
         allowed = ['Scan', 'Set', 'Static']
-        self.mono_method_combo = pc.Combo(allowed)
+        self.mono_method_combo = pc.Combo(allowed, disable_under_module_control=True)
         self.mono_method_combo.updated.connect(self.update_mono_settings)
-        self.mono_center = pc.Number(initial_value=7000, units='wn')
-        self.mono_width = pc.Number(initial_value=500, units='wn')
-        self.mono_npts = pc.Number(initial_value=51, decimals=0)
+        self.mono_center = pc.Number(initial_value=7000, units='wn', disable_under_module_control=True)
+        self.mono_center.set_disabled_units(True)
+        self.mono_width = pc.Number(initial_value=500, units='wn', disable_under_module_control=True)
+        self.mono_width.set_disabled_units(True)
+        self.mono_npts = pc.Number(initial_value=51, decimals=0, disable_under_module_control=True)
         input_table = pw.InputTable()
         input_table.add('Spectrometer', None)
         input_table.add('Method', self.mono_method_combo)

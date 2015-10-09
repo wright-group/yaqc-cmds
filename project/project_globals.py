@@ -196,10 +196,7 @@ class module_combobox:
         return self.value.currentText()
 module_combobox = module_combobox()
 
-class module_control:
-    '''
-    holds a boolean
-    '''
+class module_control(QtCore.QObject):
     def __init__(self):
         self.value = None
         self.widgets_to_disable = []
