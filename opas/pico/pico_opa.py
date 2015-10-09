@@ -84,10 +84,13 @@ class Curve:
 
         # only return color if all motors signify same wavenumber -------------
 
-        if color[0] == color[1] and color [0] == color[2]:
-            return color[0]
+        if False:
+            if color[0] == color[1] and color [0] == color[2]:
+                return color[0]
+            else:
+                return np.nan
         else:
-            return np.nan
+            return color[0]
 
 
 def save_curve(points, old_curve_filepath):
@@ -147,7 +150,7 @@ class OPA:
         self.current_position.write(color, self.native_units)
         return color
 
-    def get_motor_positions(self):
+    def get_motor_positions(self, inputs=[]):
         for i in range(len(self.motors)):
             val = self.motors[i].get_position()
             self.motor_positions[i].write(val)
@@ -172,9 +175,9 @@ class OPA:
         self.get_position()
         # define values to be recorded by DAQ
         self.recorded['w%d'%self.index] = [self.current_position, 'wn', 1., str(self.index), False]
-        self.recorded['w%d_grating'%self.index] = [self.grating_position, None, 0.1, 'grating', True]
-        self.recorded['w%d_bbo'%self.index] = [self.bbo_position, None, 0.1, 'bbo', True]
-        self.recorded['w%d_mixer'%self.index] = [self.mixer_position, None, 0.1, 'mixer', True]
+        self.recorded['w%d_Grating'%self.index] = [self.grating_position, None, 0.1, 'grating', True]
+        self.recorded['w%d_BBO'%self.index] = [self.bbo_position, None, 0.1, 'bbo', True]
+        self.recorded['w%d_Mixer'%self.index] = [self.mixer_position, None, 0.1, 'mixer', True]
         self.initialized.write(True)
 
     def is_busy(self):
@@ -188,8 +191,17 @@ class OPA:
 
     def set_position(self, destination):
         motor_destinations = self.curve.get_motor_positions(destination)
+        print motor_destinations
         self.set_motors(motor_destinations)
         self.get_position()
+        
+    def set_motor(self, inputs):
+        '''
+        inputs [motor_name (str), destination (mm)]
+        '''
+        name, destination = inputs
+        motor_index = self.motor_names.index(name)
+        self.motors[motor_index].move_absolute(destination)
 
     def set_motors(self, inputs):
         for axis in range(3):
@@ -197,11 +209,11 @@ class OPA:
             if position >= 0 and position <=50:
                 self.motors[axis].move_absolute(position)
             else:
-                print('That is not a valid motor positon. Nice try, bucko.')
+                print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
         self.wait_until_still()
         self.get_motor_positions()
                 
-    def wait_until_still(self):
+    def wait_until_still(self, inputs=[]):
         for motor in self.motors:
             motor.wait_until_still()
 

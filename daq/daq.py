@@ -928,7 +928,7 @@ class Control():
     def initialize_hardware(self):
         q('initialize')
 
-    def initialize_scan(self, widget, scan_origin=None, scan_axes=[], dont_ignore=[], fit=False):
+    def initialize_scan(self, widget, scan_origin, scan_axes, dont_ignore=[], fit=False):
         '''
         prepare environment for scanning
         '''
@@ -1134,13 +1134,13 @@ class Widget(QtGui.QWidget):
         layout.setMargin(0)
         input_table = pw.InputTable()
         input_table.add('DAQ', None)
-        self.shots = pc.Number(initial_value = 200, decimals = 0)
+        self.shots = pc.Number(initial_value=200, decimals=0, disable_under_module_control=True)
         input_table.add('Shots', self.shots)
-        self.description = pc.String()
+        self.description = pc.String(disable_under_module_control=True)
         input_table.add('Description', self.description)
-        self.name = pc.String()
+        self.name = pc.String(disable_under_module_control=True)
         input_table.add('Name', self.name)
-        self.info = pc.String()
+        self.info = pc.String(disable_under_module_control=True)
         input_table.add('Info', self.info)
         layout.addWidget(input_table)
         

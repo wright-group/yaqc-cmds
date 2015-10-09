@@ -40,7 +40,7 @@ identity = {'D1': 'motor0',
 
 
 def translate(mm):
-    return (50-mm)*counts_per_mm
+    return int((50-mm)*counts_per_mm)
 
 def open_controllers():
     mode = 1 # not sure what this argument does
