@@ -24,83 +24,6 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'opas',
                                                      'pico_opa.ini'))
 
 
-### curve object ##############################################################                                                    
-                                                     
-
-class Curve:
-
-    def __init__(self, filepath, n = 4):
-        '''
-        filepath string \npoints
-        n integer degree of polynomial fit
-        '''
-        self.filepath = filepath
-
-        self.points = np.genfromtxt(filepath).T
-        
-        self.min = self.points[0].min()
-        self.max = self.points[0].max()
-        self.num = len(self.points[0])
-
-        # fit motor polynomials -----------------------------------------------
-
-        m0 = np.polynomial.polynomial.polyfit(self.points[0], self.points[1], n, full=True)
-        m1 = np.polynomial.polynomial.polyfit(self.points[0], self.points[2], n, full=True)
-        m2 = np.polynomial.polynomial.polyfit(self.points[0], self.points[3], n, full=True)
-        self.motor_functions = [m0, m1, m2]
-
-    def get_motor_positions(self, color):
-        '''
-        color in wn \n
-        returns list [m0, m1, m2], mm
-        '''
-        return [np.polynomial.polynomial.polyval(color, self.motor_functions[i][0]) for i in range(3)]
-
-    def get_color(self, m0, m1, m2):
-        '''
-        returns color from motor positions
-        '''
-        # Modify stored function by subtracting motor position, find roots ----
-
-        a1 = self.motor_functions[0][0][::-1].copy()
-        a2 = self.motor_functions[1][0][::-1].copy()
-        a3 = self.motor_functions[2][0][::-1].copy()
-
-        a1[4] -= m0
-        a2[4] -= m1
-        a3[4] -= m2
-
-        color_a1 = np.real(np.roots(a1)[3])
-        color_a2 = np.real(np.roots(a2)[3])
-        color_a3 = np.real(np.roots(a3)[3])
-
-        # Round the color values to make them equal ---------------------------
-
-        d = 0
-        color = [0, 0, 0]
-        color[0] = np.around(color_a1, decimals=d)
-        color[1] = np.around(color_a2, decimals=d)
-        color[2] = np.around(color_a3, decimals=d)
-
-        # only return color if all motors signify same wavenumber -------------
-
-        if False:
-            if color[0] == color[1] and color [0] == color[2]:
-                return color[0]
-            else:
-                return np.nan
-        else:
-            return color[0]
-
-
-def save_curve(points, old_curve_filepath):
-    directory, name, extension = wt.kit.filename_parse(old_curve_filepath)
-    new_name = name.split(' - ')[0] + ' - ' + wt.kit.get_timestamp() + '.curve'
-    output_path = os.path.join(directory, new_name)
-    header = 'color (wn)\tGrating\tBBO\tMixer'
-    np.savetxt(output_path, points.T, fmt='%0.2f', delimiter='\t', header=header)
-
-
 ### OPA object ################################################################
 
 
@@ -138,15 +61,19 @@ class OPA:
 
     def load_curve(self, filepath, polyorder = 4):
         self.polyorder = polyorder
-        self.curve = Curve(filepath, self.polyorder)
-        self.limits.write(self.curve.min, self.curve.max, 'wn')
+        self.curve = wt.tuning.curve.from_800_curve(filepath)
+        self.limits.write(self.curve.colors.min(), self.curve.colors.max(), 'wn')
         
     def get_points(self):
-        return self.curve.points
+        out = np.zeros([4, len(self.curve.colors)])
+        out[0] = self.curve.colors
+        out[1] = self.curve.Grating.positions
+        out[2] = self.curve.BBO.positions
+        out[3] = self.curve.Mixer.positions
+        return out
 
     def get_position(self):
-        m = self.get_motor_positions()
-        color = self.curve.get_color(m[0], m[1], m[2])
+        color = self.curve.get_color(self.get_motor_positions())
         self.current_position.write(color, self.native_units)
         return color
 
@@ -368,7 +295,7 @@ class gui(QtCore.QObject):
     def on_set_motors(self):
         inputs = [destination.read() for destination in self.destinations]
         self.opa.address.hardware.q.push('set_motors', inputs)
-        self.opa.get_position()
+        self.opa.address.hardware.q.push('get_position')
         
     def show_advanced(self):
         pass

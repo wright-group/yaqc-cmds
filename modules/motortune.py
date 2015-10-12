@@ -187,6 +187,7 @@ class scan(QtCore.QObject):
                     opa_hardware.q.push('set_motor', [motor_name, motor_destination])
                 opa_hardware.q.push('wait_until_still')
                 opa_hardware.q.push('get_motor_positions')
+                opa_hardware.q.push('get_position')
                 # spec positions
                 if gui.mono_method_combo.read() == 'Scan':
                     if gui.use_tune_points.read():

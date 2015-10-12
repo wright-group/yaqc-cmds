@@ -218,8 +218,6 @@ class MainWindow(QtGui.QMainWindow):
         import modules.delay_scan
         import modules.tune_test
         import modules.motortune
-        import modules.motortune_temp
-        import modules.motortune_test
         
     def _shutdown(self):
         '''
