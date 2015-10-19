@@ -143,6 +143,7 @@ class Motor():
             destination = 50*counts_per_mm - destination*counts_per_mm
         else:
             print 'input_units kind', input_units, 'not recognized in precision_motors.move_absolute'
+        ini.write(self.ini_section, 'last_destination', int(destination))
         self.ctrl.MoveAbsolute(self.axis, destination)
         if wait:
             self.wait_until_still()
@@ -154,6 +155,7 @@ class Motor():
             distance = - distance*counts_per_mm
         else:
             print 'input_units kind', input_units, 'not recognized in precision_motors.move_relative'
+        ini.write(self.ini_section, 'last_destination', int(self.current_position + destination))
         self.ctrl.MoveRelative(self.axis, distance)
         if wait:
             self.wait_until_still()
