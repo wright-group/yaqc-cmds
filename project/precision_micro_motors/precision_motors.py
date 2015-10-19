@@ -8,6 +8,7 @@ from mcapi import *
 
 import project.project_globals as g
 main_dir = g.main_dir.read()
+import project.classes as pc
 import project.ini_handler as ini
 ini = ini.Ini(os.path.join(main_dir, 'project', 'precision_micro_motors', 'precision_motors.ini'))
 
@@ -125,7 +126,11 @@ class Motor():
         else:
             print 'returned_units kind', returned_units, 'not recognized in precision_motors.get_position'
             
-    def is_stopped(self, timeout=60):
+    def is_stopped(self, timeout=0.1):
+        '''
+        Timeout in seconds. It seems that the controller waits at least
+        timeout if it is not stopped.
+        '''
         if self.open:
             return bool(self.ctrl.IsStopped(self.axis, timeout))
         else:
@@ -153,9 +158,11 @@ class Motor():
         if wait:
             self.wait_until_still()
     
-    def wait_until_still(self):
-        while not self.is_stopped():
-            time.sleep(0.01)
+    def wait_until_still(self, method=None):
+        while not self.is_stopped():  # sleep is inside of is_stopped call, essentially
+            self.get_position()
+            if method:
+                method()
         # self.ctrl.WaitForStop(self.axis, dwell)
         # the wait for stop method on the controller stops coms for all motors
         # connected to the board which isn't what we want here
@@ -192,10 +199,10 @@ if __name__ == '__main__':
             print motor.get_position('mm')
             motor.close()
         
-    if False:
+    if True:
         #mess with a single motor
         motor = Motor('motor1')
-        motor.move_absolute(20, 'mm')
+        motor.move_absolute(25, 'mm')
         motor.wait_until_still()
         print motor.is_stopped()
         print motor.get_position('mm')

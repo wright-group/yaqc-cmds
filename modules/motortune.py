@@ -138,7 +138,15 @@ class scan(QtCore.QObject):
             npts *= gui.mono_npts.read()
         
         # initialize scan in daq
-        daq.control.initialize_scan(daq_widget, module_name, scan_axes=scan_axes, fit=False)
+        dont_ignore = [opa_friendly_name]
+        for motor in opa_gui.motors:
+            dont_ignore.append('_'.join([opa_friendly_name, motor.name]))
+        if gui.mono_method_combo.read() == 'Scan':
+            dont_ignore.append('wm')
+        daq.control.initialize_scan(daq_widget, module_name,
+                                    dont_ignore=dont_ignore,
+                                    do_ignore='all else',
+                                    scan_axes=scan_axes, fit=False)
 
         # set static motors
         for motor_index, motor in enumerate(opa_gui.motors):
@@ -156,24 +164,28 @@ class scan(QtCore.QObject):
             tune_point_destinations = opa_gui.hardware.address.ctrl.get_points()[0]
         else:
             tune_point_destinations = [None]
-        for tune_point_destination in tune_point_destinations:
+        for tune_point_index, tune_point_destination in enumerate(tune_point_destinations):
             if tune_point_destination is not None:
                 motor_positions = opa_gui.hardware.address.ctrl.curve.get_motor_positions(tune_point_destination)
                 for motor_index, motor in enumerate(opa_gui.motors):
-                    if not motor.method.read() == 'Static':
+                    if motor.method.read() == 'Set':
                         motor_name = motor.name
                         motor_destination = motor_positions[motor_index]
                         opa_hardware.q.push('set_motor', [motor_name, motor_destination])
-                opa_hardware.q.push('get_motor_positions')
-                opa_hardware.wait_until_still()  # need to wait before reading position in inner loop
+                #opa_hardware.q.push('get_motor_positions')
+                #opa_hardware.wait_until_still()  # need to wait before reading position in inner loop
             # motor positions
             motor_position_dictionary = collections.OrderedDict()
             for motor_index, motor in enumerate(opa_gui.motors):
                 if motor.method.read() == 'Scan':
-                    current_position = opa_gui.hardware.address.ctrl.get_motor_positions()[motor_index]
+                    if gui.use_tune_points.read():
+                        #current_position = opa_gui.hardware.address.ctrl.get_motor_positions()[motor_index]
+                        center = opa_gui.hardware.address.ctrl.get_points()[motor_index+1, tune_point_index]
+                    else:
+                        center = motor.center.read()
                     width = motor.width.read()/2.  # width is total width of scan
                     number = motor.npts.read()
-                    motor_position_dictionary[motor.name] = np.linspace(current_position-width, current_position+width, number)
+                    motor_position_dictionary[motor.name] = np.linspace(center-width, center+width, number)
             for motor_idx in np.ndindex(*[arr.size for arr in motor_position_dictionary.values()]):
                 if not gui.mono_method_combo.read() == 'Scan':  # if motor is innermost index
                     if motor_idx[-1] == 0:

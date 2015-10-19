@@ -213,7 +213,7 @@ class MainWindow(QtGui.QMainWindow):
         g.scan_thread.write(scan_thread)
         scan_thread.start()
         # import modules
-        import modules.oneDscan
+        #import modules.oneDscan
         import modules.mono_scan
         import modules.delay_scan
         import modules.tune_test

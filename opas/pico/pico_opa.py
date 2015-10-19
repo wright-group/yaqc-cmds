@@ -36,12 +36,6 @@ class OPA:
         self.index = 2
         # list of objects to be exposed to PyCMDS
         self.native_units = 'wn'
-        # motor positions
-        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50)
-        self.grating_position = pc.Number(name='Grating', initial_value=25., limits=self.motor_limits, display=True)
-        self.bbo_position = pc.Number(name='BBO', initial_value=25., limits=self.motor_limits, display=True)
-        self.mixer_position = pc.Number(name='Mixer', initial_value=25., limits=self.motor_limits, display=True)
-        self.motor_positions=[self.grating_position, self.bbo_position, self.mixer_position]
         # may wish to have number limits loaded with tuning curve.
         self.limits = pc.NumberLimits(min_value=6200, max_value=9500, units='wn')
         self.current_position = pc.Number(name='Color', initial_value=2000.,
@@ -89,6 +83,12 @@ class OPA:
         '''
         self.address = address
         self.index = inputs[0]
+        # motor positions
+        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50)
+        self.grating_position = pc.Number(name='Grating', initial_value=25., limits=self.motor_limits, display=True)
+        self.bbo_position = pc.Number(name='BBO', initial_value=25., limits=self.motor_limits, display=True)
+        self.mixer_position = pc.Number(name='Mixer', initial_value=25., limits=self.motor_limits, display=True)
+        self.motor_positions=[self.grating_position, self.bbo_position, self.mixer_position]
         # load motors
         self.motors.append(pm_motors.Motor(pm_motors.identity['OPA'+str(self.index)+' grating']))
         self.motors.append(pm_motors.Motor(pm_motors.identity['OPA'+str(self.index)+' BBO']))
@@ -102,9 +102,9 @@ class OPA:
         self.get_position()
         # define values to be recorded by DAQ
         self.recorded['w%d'%self.index] = [self.current_position, 'wn', 1., str(self.index), False]
-        self.recorded['w%d_Grating'%self.index] = [self.grating_position, None, 0.1, 'grating', True]
-        self.recorded['w%d_BBO'%self.index] = [self.bbo_position, None, 0.1, 'bbo', True]
-        self.recorded['w%d_Mixer'%self.index] = [self.mixer_position, None, 0.1, 'mixer', True]
+        self.recorded['w%d_Grating'%self.index] = [self.grating_position, None, 0.001, 'grating', True]
+        self.recorded['w%d_BBO'%self.index] = [self.bbo_position, None, 0.001, 'bbo', True]
+        self.recorded['w%d_Mixer'%self.index] = [self.mixer_position, None, 0.001, 'mixer', True]
         self.initialized.write(True)
 
     def is_busy(self):
@@ -118,7 +118,6 @@ class OPA:
 
     def set_position(self, destination):
         motor_destinations = self.curve.get_motor_positions(destination)
-        print motor_destinations
         self.set_motors(motor_destinations)
         self.get_position()
         
@@ -142,7 +141,7 @@ class OPA:
                 
     def wait_until_still(self, inputs=[]):
         for motor in self.motors:
-            motor.wait_until_still()
+            motor.wait_until_still(method=self.get_motor_positions)
 
 
 ### advanced gui ##############################################################

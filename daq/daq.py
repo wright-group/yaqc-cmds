@@ -928,7 +928,7 @@ class Control():
     def initialize_hardware(self):
         q('initialize')
 
-    def initialize_scan(self, widget, scan_origin, scan_axes, dont_ignore=[], fit=False):
+    def initialize_scan(self, widget, scan_origin, scan_axes, dont_ignore=[], do_ignore=[], fit=False):
         '''
         prepare environment for scanning
         '''
@@ -939,7 +939,7 @@ class Control():
         shots.write(widget.shots.read())
         # create data file(s)
         axes.write(scan_axes)
-        self.update_cols(dont_ignore=dont_ignore)
+        self.update_cols(dont_ignore=dont_ignore, do_ignore=do_ignore)
         data_q('create_data', [scan_origin, widget])
         if fit:
             data_q('create_fit', [scan_origin, widget])
@@ -957,7 +957,7 @@ class Control():
         else:
             freerun.write(True)
             
-    def update_cols(self, dont_ignore=[]):
+    def update_cols(self, dont_ignore=[], do_ignore=[]):
         '''
         define the format of .data and .fit files
         '''
@@ -997,7 +997,11 @@ class Control():
                         dictionary['kind'] = 'hardware'
                         cols[key] = dictionary
                         if cols == new_data_cols:  # only do this once
-                            if hardware.recorded[key][4] and key not in new_ignore:
+                            if do_ignore == 'all else' and key not in dont_ignore:
+                                new_ignore.append(key)
+                            elif type(do_ignore) == list and key in do_ignore and key not in new_ignore:
+                                new_ignore.append(key)
+                            elif hardware.recorded[key][4] and key not in dont_ignore and key not in new_ignore:
                                 new_ignore.append(key)
         # data
         for name in value_channel_combo.allowed_values:
