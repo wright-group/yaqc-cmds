@@ -84,7 +84,9 @@ app = SimpleGlobal()
 
 colors_dict = SimpleGlobal()
 
-comove_widget = SimpleGlobal()
+coset_control = SimpleGlobal()
+
+coset_widget = SimpleGlobal()
 
 class daq_widget:
     def __init__(self):
@@ -115,6 +117,9 @@ daq_plot_widget = daq_plot_widget()
 
 hardware_advanced_box = SimpleGlobal()
 
+hardware_initialized = SimpleGlobal()
+hardware_initialized.write(False)
+
 class hardware_waits:
     def __init__(self):
         '''
@@ -123,7 +128,11 @@ class hardware_waits:
         self.value = []
     def add(self, method):
         self.value.append(method)
-    def wait(self):  
+    def give_coset_control(self, control):
+        self.coset_control = control
+    def wait(self, coset=True):
+        if coset:
+            self.coset_control.launch()
         for method in self.value:
             method()
 hardware_waits = hardware_waits()

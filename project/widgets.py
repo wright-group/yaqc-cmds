@@ -10,6 +10,7 @@ from pyqtgraph import exporters
 import project_globals as g
 import project
 import classes as pc
+#import coset.coset as coset
 
 colors = g.colors_dict.read()
 
@@ -251,8 +252,6 @@ class InputTable(QtGui.QWidget):
         self.layout().addWidget(heading, self.row_number, 0)
         #control
         control = QtGui.QCheckBox()
-        #StyleSheet = 'QWidget{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
-        #control.setStyleSheet(StyleSheet)
         global_object.give_control(control)
         #finish
         self.layout().addWidget(control, self.row_number, 1)
@@ -298,6 +297,16 @@ class InputTable(QtGui.QWidget):
         self.layout().addWidget(container_widget, self.row_number, 1)
         self.controls.append(container_widget)
         self.row_number += 1
+        
+class Label(QtGui.QLabel):
+    def __init__(self, text, color='text_light', bold=False):
+        QtGui.QLabel.__init__(self, text)
+        if bold:
+            bold_status = 'bold'
+        else:
+            bold_status = ''
+        StyleSheet = 'QLabel{color: custom_color; font: bold_status 14px;}'.replace('custom_color', colors[color]).replace('bold_status', bold_status)
+        self.setStyleSheet(StyleSheet)
 
 class SetButton(QtGui.QPushButton):
     def __init__(self, text, color='go'):
@@ -305,6 +314,13 @@ class SetButton(QtGui.QPushButton):
         self.setText(text)
         self.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[color])
+        self.setStyleSheet(StyleSheet)
+
+class TableWidget(QtGui.QTableWidget):
+    def __init__(self):
+        QtGui.QTableWidget.__init__(self)
+        StyleSheet = 'QTableWidget::item{padding: 0px}'
+        StyleSheet += 'QHeaderView::section{background: background_color; color:white; font: bold 14px}'.replace('background_color', colors['background'])
         self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
@@ -500,6 +516,9 @@ class HardwareFrontPanel(QtCore.QObject):
                     hardware.set_position(destination_object.read(), destination_object.units)
                 else:
                     hardware.q.push(current_object.set_method, [destination_object.read()])
+        # the worst hack >:(
+        # Blaise 2015.10.25
+        g.hardware_waits.coset_control.launch()
 
     def stop(self):
         pass

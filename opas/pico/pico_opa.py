@@ -42,6 +42,7 @@ class OPA:
                                           limits=self.limits,
                                           units='wn', display=True,
                                           set_method='set_position')
+        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
         self.gui = gui(self)
@@ -106,6 +107,7 @@ class OPA:
         self.recorded['w%d_BBO'%self.index] = [self.bbo_position, None, 0.001, 'bbo', True]
         self.recorded['w%d_Mixer'%self.index] = [self.mixer_position, None, 0.001, 'mixer', True]
         self.initialized.write(True)
+        self.address.initialized_signal.emit()
 
     def is_busy(self):
         for motor in self.motors:
@@ -115,6 +117,9 @@ class OPA:
 
     def is_valid(self, destination):
         return True
+        
+    def set_offset(self, offset):
+        pass
 
     def set_position(self, destination):
         motor_destinations = self.curve.get_motor_positions(destination)

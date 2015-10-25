@@ -23,6 +23,7 @@ class Ini(QtCore.QMutex):
         QtCore.QMutex.__init__(self)
         self.filepath = filepath
         self.config = ConfigParser.SafeConfigParser()
+        self.return_raw = False
         
     def _do(self, operation, section, option, value, with_apostrophe):
         '''
@@ -35,7 +36,11 @@ class Ini(QtCore.QMutex):
             self.config.read(self.filepath)
             raw = self.config.get(section, option, raw=False)
             self.unlock()
-            return ast.literal_eval(raw)
+            raw.replace('\\', '\\\\')
+            if self.return_raw:
+                return raw
+            else:
+                return ast.literal_eval(raw)
         elif operation == 'write':
             # ensure value is a string
             value = str(value) 

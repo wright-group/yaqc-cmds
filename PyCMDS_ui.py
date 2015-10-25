@@ -9,6 +9,7 @@ import copy
 import glob
 import inspect
 import subprocess
+import ConfigParser
 
 from PyQt4 import QtGui, QtCore
 
@@ -137,20 +138,21 @@ class MainWindow(QtGui.QMainWindow):
         hardware_advanced_box.setContentsMargins(0, 10, 0, 0)
         hardware_advanced_widget.setLayout(hardware_advanced_box)
         g.hardware_advanced_box.write(hardware_advanced_box)
-        comove_widget = QtGui.QWidget()
+        coset_widget = QtGui.QWidget()
+        g.coset_widget.write(coset_widget)
         module_advanced_widget = QtGui.QWidget()
         g.module_advanced_widget.write(module_advanced_widget)
-        daq_single_widget = QtGui.QWidget()
-        g.daq_widget.write(daq_single_widget)
+        daq_widget = QtGui.QWidget()
+        g.daq_widget.write(daq_widget)
         daq_plot_widget = QtGui.QWidget()
         g.daq_plot_widget.write(daq_plot_widget)
         
         # tab widget
         self.tabs = QtGui.QTabWidget()
         self.tabs.addTab(hardware_advanced_widget, 'Hardware')
-        self.tabs.addTab(comove_widget, 'Comove')
+        self.tabs.addTab(coset_widget, 'CoSet')
         self.tabs.addTab(module_advanced_widget, 'Module')
-        self.tabs.addTab(daq_single_widget, 'DAQ')
+        self.tabs.addTab(daq_widget, 'DAQ')
         self.tabs.addTab(daq_plot_widget, 'Plot')
         self.tabs.setCurrentIndex(3)  # start on DAQ tab
         self.tabs.setContentsMargins(0., 0., 0., 0.)
@@ -203,6 +205,7 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read():
             print 'initialize widgets'
         # import widgets
+        import coset.coset
     
     def _load_modules(self):
         g.module_control.write(False)
@@ -213,11 +216,14 @@ class MainWindow(QtGui.QMainWindow):
         g.scan_thread.write(scan_thread)
         scan_thread.start()
         # import modules
-        #import modules.oneDscan
-        import modules.mono_scan
-        import modules.delay_scan
-        import modules.tune_test
-        import modules.motortune
+        # done from modules.ini
+        # modules appear in order of import (order of appearance in ini)
+        config = ConfigParser.SafeConfigParser()
+        config.read(r'modules\modules.ini')
+        for name in config.options('load'):
+            if config.get('load', name) == 'True':
+                path = os.path.join(g.main_dir.read(), 'modules', name + '.py')
+                imp.load_source(name, path)
         
     def _shutdown(self):
         '''

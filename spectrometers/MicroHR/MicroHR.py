@@ -40,6 +40,7 @@ class MicroHR:
                                           limits=self.limits,
                                           units='nm', display=True,
                                           set_method='set_position')
+        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
         self.grating_index = pc.Combo(name='Grating', allowed_values=[1, 2],
                                       ini=ini, section='main',
                                       option='grating index',
@@ -96,9 +97,13 @@ class MicroHR:
         self.set_turret(init_grating_index)
         self.set_position(init_wavelength)
         self.initialized.write(True)
+        self.address.initialized_signal.emit()
 
     def is_busy(self):
         return self.ctrl.IsBusy()
+    
+    def set_offset(self, offset):
+        pass
 
     def set_position(self, destination):
         if type(destination) == list:

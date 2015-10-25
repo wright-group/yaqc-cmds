@@ -7,7 +7,7 @@ import time
 
 from PyQt4 import QtGui, QtCore
 
-import WrightTools.units as wt_units
+import WrightTools as wt
 
 import project
 import project.classes as pc
@@ -36,6 +36,7 @@ class Delay:
                                           limits=self.limits,
                                           units='ps', display=True,
                                           set_method='set_position')
+        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
@@ -62,7 +63,7 @@ class Delay:
         self.zero_position = pc.Number(name='Zero', initial_value=25.,
                                        ini=ini, section='D{}'.format(self.index),
                                        option='zero position (mm)', import_from_ini=True,
-                                       save_to_ini_at_shutdown=True,
+                                       save_to_ini_at_shutdown=False,
                                        limits=self.motor_limits,
                                        units='mm', display=True)
         self.set_zero(self.zero_position.read())
@@ -71,9 +72,21 @@ class Delay:
         self.recorded['d%d'%self.index] = [self.current_position, 'ps', 0.01, labels[self.index-1], False]
         self.recorded['d%d_zero'%self.index] = [self.zero_position, 'mm', 0.001, str(self.index), True]
         self.initialized.write(True)
+        self.address.initialized_signal.emit()
 
     def is_busy(self):
         return not self.motor.is_stopped()
+        
+    def set_offset(self, offset):
+        # update zero
+        offset_from_here = offset - self.offset.read('ps')
+        offset_mm = offset_from_here/ps_per_mm
+        new_zero = self.zero_position.read('mm') + offset_mm
+        self.set_zero(new_zero)
+        self.offset.write(offset)
+        # return to old position
+        destination = self.address.hardware.destination.read('ps')
+        self.set_position(destination)
 
     def set_position(self, destination):
         destination_mm = self.zero_position.read() + destination/ps_per_mm  
@@ -83,7 +96,7 @@ class Delay:
         else:
             while self.is_busy():
                 time.sleep(0.1)
-                print self.get_position()
+                self.get_position()
         self.get_position()
         
     def set_zero(self, zero):
@@ -95,6 +108,12 @@ class Delay:
         max_value = (50. - self.zero_position.read()) * ps_per_mm
         self.limits.write(min_value, max_value, 'ps') 
         self.get_position()
+        # write true (non offset) zero position to ini
+        offset_mm = self.offset.read('ps')/ps_per_mm
+        zero_to_write = zero - offset_mm
+        section = 'D{}'.format(self.index)
+        option = 'zero position (mm)'
+        ini.write(section, option, zero_to_write)
 
 
 ### advanced gui ##############################################################
@@ -156,6 +175,8 @@ class gui(QtCore.QObject):
     def on_set(self):
         new_zero = self.zero_destination.read('mm')
         self.delay.set_zero(new_zero)
+        name = self.delay.address.hardware.name
+        g.coset_control.read().zero(name)
     
     def show_advanced(self):
         pass

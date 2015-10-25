@@ -166,6 +166,9 @@ class PyCMDS_Object(QtCore.QObject):
         if self.has_widget:
             self.widget.setDisabled(self.disabled)
             
+    def setDisabled(self, disabled):
+        self.set_disabled(disabled)
+            
     def set_tool_tip(self, tool_tip):
         self.tool_tip = str(tool_tip)
         if self.has_widget:
@@ -527,6 +530,7 @@ class String(PyCMDS_Object):
 class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
+    initialized_signal = QtCore.pyqtSignal()
 
     def __init__(self, hardware_obj, enqueued_obj, busy_obj, name, ctrl_class):
         QtCore.QObject.__init__(self)
@@ -538,6 +542,7 @@ class Address(QtCore.QObject):
         self.exposed = self.ctrl.exposed
         self.recorded = self.ctrl.recorded
         self.initialized = self.ctrl.initialized
+        self.offset = self.ctrl.offset
         ctrl_methods =  wt.kit.get_methods(self.ctrl)      
         for method in ctrl_methods:
             if hasattr(self, method):
@@ -598,6 +603,10 @@ class Address(QtCore.QObject):
         g.logger.log('info', self.name + ' Initializing', message=str(inputs))
         if g.debug.read():
             print self.name, 'initialization complete'
+            
+    def set_offset(self, inputs):
+        self.ctrl.set_offset(inputs[0])
+        self.get_position([])
 
     def set_position(self, inputs):
         self.ctrl.set_position(inputs[0])
@@ -649,8 +658,20 @@ class Q:
                                 QtCore.Q_ARG(list, inputs))
 
 
+hardwares = []
+def all_initialized():
+    # fires any time a hardware is initialized
+    for hardware in hardwares:
+        if not hardware.initialized.read():
+            return
+    # past here only runs when ALL hardwares are initialized
+    g.hardware_initialized.write(True)
+    g.coset_control.read().launch()
+    
+    
 class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
+    initialized_signal = QtCore.pyqtSignal()
 
     def __init__(self, control_class, control_arguments, address_class=Address,
                  name='', initialize_hardware=True, friendly_name=''):
@@ -670,9 +691,12 @@ class Hardware(QtCore.QObject):
         self.exposed = self.address.exposed
         self.recorded = self.address.recorded
         self.initialized = self.address.initialized
+        self.offset = self.address.offset
         self.current_position = self.exposed[0]
         self.gui = self.address.gui
         self.native_units = self.address.native_units
+        self.destination = Number(units=self.native_units, display=True)
+        self.destination.write(self.current_position.read(self.native_units), self.native_units)
         self.limits = self.address.limits
         self.q = Q(self.enqueued, self.busy, self.address)
         # start thread
@@ -680,6 +704,7 @@ class Hardware(QtCore.QObject):
         self.thread.start()
         # connect to address object signals
         self.address.update_ui.connect(self.update)
+        self.address.initialized_signal.connect(self.on_address_initialized)
         for obj in self.exposed:
             obj.updated.connect(self.update)
         self.busy.update_signal = self.address.update_ui
@@ -689,6 +714,7 @@ class Hardware(QtCore.QObject):
         self.shutdown_timeout = 30  # seconds
         g.shutdown.add_method(self.close)
         g.hardware_waits.add(self.wait_until_still)
+        hardwares.append(self)
 
     def close(self):
         # begin hardware shutdown
@@ -708,6 +734,9 @@ class Hardware(QtCore.QObject):
         self.thread.exit()
         self.thread.quit()
 
+    def get_destination(self, output_units='same'):
+        return self.destination.read(output_units=output_units)
+
     def get_position(self):
         return self.current_position.read()
 
@@ -723,6 +752,10 @@ class Hardware(QtCore.QObject):
             return True
         else:
             return False
+            
+    def on_address_initialized(self):
+        self.destination.write(self.get_position(), self.native_units)
+        all_initialized()
 
     def poll(self, force=False):
         if force:
@@ -731,17 +764,24 @@ class Hardware(QtCore.QObject):
         elif not g.module_control.read():
             self.q.push('poll')
             self.get_position()
+            
+    def set_offset(self, offset, input_units=None):
+        if input_units is None:
+            pass
+        else:
+            offset = wt_units.converter(offset,
+                                        input_units,
+                                        self.native_units)
+        self.q.push('set_offset', [offset])
 
     def set_position(self, destination, input_units=None):
-        # must launch comove
-        #   sent - destination
-        #   recieved - busy object to be waited on once
         if input_units is None:
             pass
         else:
             destination = wt_units.converter(destination,
                                              input_units,
                                              self.native_units)
+        self.destination.write(destination, self.native_units)
         self.q.push('set_position', [destination])
 
     def update(self):
