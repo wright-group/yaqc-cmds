@@ -38,7 +38,6 @@ class Mutex(QtCore.QMutex):
         if self.value:
             return self.WaitCondition.wait(self, msecs=timeout)
 
-
 class Busy(QtCore.QMutex):
 
     def __init__(self):

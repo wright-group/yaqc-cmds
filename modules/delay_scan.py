@@ -193,6 +193,7 @@ class gui(QtCore.QObject):
         input_table.add('D2 Stop', D2_stop)
         input_table.add('D2 Number', D2_npts)
         layout.addWidget(input_table)
+        g.module_control.disable_when_true(input_table)
         
         # daq widget
         self.daq_widget = daq.Widget()
