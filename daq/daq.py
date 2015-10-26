@@ -383,9 +383,9 @@ class Data(QtCore.QObject):
                 else:
                     lis[i] = str(lis[i])
         header_items = ['file created:' + '\t' + '\'' + self.file_timestamp + '\'']
-        header_items += ['name:'  + '\t' + '\'' + name + '\'']
-        header_items += ['info:'  + '\t' + '\'' + widget.info.read() + '\'']
-        header_items += ['origin:' + '\t' + '\'' + origin.read() + '\'']
+        header_items += ['data name:'  + '\t' + '\'' + name + '\'']
+        header_items += ['data info:'  + '\t' + '\'' + widget.info.read() + '\'']
+        header_items += ['data origin:' + '\t' + '\'' + origin.read() + '\'']
         header_items += ['shots:' + '\t' + str(widget.shots.read())]
         header_items += ['axes:' + '\t' + str(axes.read())]
         header_items += ['ignore:' + '\t' + str(ignore.read())]
