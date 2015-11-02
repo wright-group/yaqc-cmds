@@ -58,13 +58,14 @@ class Delay:
         self.index = inputs[0]
         motor_identity = motors.identity['D{}'.format(self.index)]
         self.motor = motors.Motor(motor_identity)
-        self.current_position_mm = pc.Number(units='mm', display=True)
+        self.current_position_mm = pc.Number(units='mm', display=True, decimals=5)
         # zero position
         self.zero_position = pc.Number(name='Zero', initial_value=25.,
                                        ini=ini, section='D{}'.format(self.index),
                                        option='zero position (mm)', import_from_ini=True,
                                        save_to_ini_at_shutdown=False,
                                        limits=self.motor_limits,
+                                       decimals=5,
                                        units='mm', display=True)
         self.set_zero(self.zero_position.read())
         # recorded

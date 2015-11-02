@@ -3,7 +3,7 @@ import time
 
 from PyQt4 import QtGui, QtCore
 
-### global classes #############################################################
+### global classes ############################################################
 
 class SimpleGlobal:
     def __init__(self):
@@ -30,7 +30,7 @@ class GlobalWithIni():
         if not value == None: self.value = value
         self.ini.write(self.section, self.option, self.value)
 
-### order sensitive globals  ###################################################
+### order sensitive globals  ##################################################
 
 class main_dir:
     def __init__(self):
@@ -77,7 +77,7 @@ class logger: #must come before other globals
         self.value(level, name, message, origin)
 logger = logger()
 
-### other globals ##############################################################
+### other globals #############################################################
 #alphabetical
 
 app = SimpleGlobal()
@@ -212,7 +212,12 @@ class module_control(QtCore.QObject):
     def read(self):
         return self.value
     def write(self, value):
-        for widget in self.widgets_to_disable: widget.setDisabled(value)
+        for widget in self.widgets_to_disable:
+            try:
+                widget.setDisabled(value)
+            except RuntimeError:
+                # widget has been deleted, probably
+                self.widgets_to_disable.remove(widget)
         self.value = value
         main_window.read().module_control.emit()
     def disable_when_true(self, widget):

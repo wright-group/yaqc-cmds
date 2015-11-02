@@ -90,6 +90,8 @@ class Corr:
         Get the current corrections.
         '''
         control_position = self.control_hardware.get_destination(self.control_units)
+        # coerce control position to be within control_points array
+        control_position = np.clip(control_position, self.control_points.min(), self.control_points.max())
         out = self.function(control_position)
         return out
         
@@ -273,7 +275,9 @@ class CoSetHW:
         if self.use_bool.read():
             self.launch()
         else:
-            self.hardware.offset.write(0)
+            if g.hardware_initialized.read():
+                self.hardware.set_offset(0., self.hardware.native_units)
+                ini.write(self.hardware.name, 'offset', 0.)
         
     def unload_file(self, index):
         removed_corr = self.corrs.pop(index)
