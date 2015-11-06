@@ -516,9 +516,7 @@ class HardwareFrontPanel(QtCore.QObject):
                     hardware.set_position(destination_object.read(), destination_object.units)
                 else:
                     hardware.q.push(current_object.set_method, [destination_object.read()])
-        # the worst hack >:(
-        # Blaise 2015.10.25
-        g.hardware_waits.coset_control.launch()
+        g.coset_control.read().launch()
 
     def stop(self):
         pass

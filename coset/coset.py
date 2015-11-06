@@ -115,7 +115,7 @@ class CoSetHW:
     
     def __init__(self, hardware):
         self.hardware = hardware
-        # initialize with stored offset
+        # directly write stored offset to hardware
         stored_offset = float(ini.read(self.hardware.name, 'offset'))
         self.hardware.offset.write(stored_offset)
         self.corrs = []

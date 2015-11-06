@@ -26,9 +26,10 @@ ps_per_mm = 6.671281903963041 # a mm on the delay stage (factor of 2)
 ### delay object ##############################################################
 
 
-class Delay:
+class Delay(QtCore.QObject):
 
     def __init__(self):
+        QtCore.QObject.__init__(self)
         # list of objects to be exposed to PyCMDS
         self.native_units = 'ps'
         self.limits = pc.NumberLimits(min_value=-100, max_value=100, units='ps')
@@ -98,6 +99,7 @@ class Delay:
             while self.is_busy():
                 time.sleep(0.1)
                 self.get_position()
+            time.sleep(0.1)
         self.get_position()
         
     def set_zero(self, zero):
@@ -109,12 +111,10 @@ class Delay:
         max_value = (50. - self.zero_position.read()) * ps_per_mm
         self.limits.write(min_value, max_value, 'ps') 
         self.get_position()
-        # write true (non offset) zero position to ini
-        offset_mm = self.offset.read('ps')/ps_per_mm
-        zero_to_write = zero - offset_mm
+        # write new position to ini
         section = 'D{}'.format(self.index)
         option = 'zero position (mm)'
-        ini.write(section, option, zero_to_write)
+        ini.write(section, option, zero)
 
 
 ### advanced gui ##############################################################
@@ -176,6 +176,7 @@ class gui(QtCore.QObject):
     def on_set(self):
         new_zero = self.zero_destination.read('mm')
         self.delay.set_zero(new_zero)
+        self.delay.offset.write(0)
         name = self.delay.address.hardware.name
         g.coset_control.read().zero(name)
     

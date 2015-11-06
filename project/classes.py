@@ -659,14 +659,14 @@ class Q:
 
 hardwares = []
 def all_initialized():
+    time.sleep(1)
     # fires any time a hardware is initialized
     for hardware in hardwares:
         if not hardware.initialized.read():
             return
     # past here only runs when ALL hardwares are initialized
     g.hardware_initialized.write(True)
-    g.coset_control.read().launch()
-    
+
     
 class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
