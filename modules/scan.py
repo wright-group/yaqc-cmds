@@ -14,6 +14,8 @@ import ConfigParser
 
 import numpy as np
 
+import numexpr
+
 from PyQt4 import QtCore, QtGui
 
 import WrightTools as wt
@@ -38,7 +40,6 @@ import daq.daq as daq
 ### container objects #########################################################
 
 
-# TODO: subclass from wt.data.Axis ????
 class Axis:
     
     def __init__(self, points, units, name, identity, hardware_dict={}, **kwargs):
@@ -60,11 +61,14 @@ class Axis:
         
 class Constant:
     
-    def __init__(self, name, identity, static=True):
+    def __init__(self, units, name, identity, static=True, expression=''):
+        self.units = units
         self.name = name
         self.identity = identity
         self.static = static
-        
+        self.expression = expression
+        self.hardware = [h for h in all_hardwares if h.friendly_name == self.name][0]
+
 
 class Destinations:
     
@@ -119,7 +123,7 @@ class Address(QtCore.QObject):
         # get destination arrays
         axes = scan_dictionary['axes']
         if len(axes) == 1:
-            arrs = axes[0].points
+            arrs = [axes[0].points]
         else:
             arrs = np.meshgrid(*[a.points for a in axes], indexing='ij')
 
@@ -144,9 +148,7 @@ class Address(QtCore.QObject):
         for i in range(len(axes)):
             axis = axes[i]
             arr = arrs[i]
-            print axis.name, axis.hardware_dict.keys()
             for key in axis.hardware_dict.keys():
-                print axis.name, key, '!!!!!!!!!!!'
                 hardware = axis.hardware_dict[key][0]
                 method = axis.hardware_dict[key][1]
                 passed_args = axis.hardware_dict[key][2]
@@ -155,10 +157,27 @@ class Address(QtCore.QObject):
                 
         # add constants
         constants = scan_dictionary['constants']
-        for i in range(len(constants)):
-            # TODO: support constants
-            pass
-                
+        for constant in constants:
+            if constant.static:
+                pass
+            else:
+                # initialize
+                expression = constant.expression
+                arr = np.full(arrs[0].shape, np.nan)
+                # set vals
+                vals = {}
+                for hardware in all_hardwares:
+                    vals[hardware.friendly_name] = hardware.get_position()
+                for idx in np.ndindex(arrs[0].shape):
+                    for destination in destinations_list:
+                        vals[destination.hardware.friendly_name] = destination.arr[idx]
+                    arr[idx] = numexpr.evaluate(expression, vals)
+                # finish
+                units = constant.units
+                hardware = constant.hardware
+                destinations = Destinations(arr, units, hardware, 'set_position', None)
+                destinations_list.append(destinations)
+
         # check if scan is valid for hardware ---------------------------------
                 
         # TODO: !!!
