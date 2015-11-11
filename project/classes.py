@@ -771,6 +771,9 @@ class Hardware(QtCore.QObject):
             offset = wt_units.converter(offset,
                                         input_units,
                                         self.native_units)
+        # do nothing if new offset is same as current offset
+        if offset == self.offset.read(self.native_units):
+            return
         self.q.push('set_offset', [offset])
 
     def set_position(self, destination, input_units=None):
@@ -780,6 +783,9 @@ class Hardware(QtCore.QObject):
             destination = wt_units.converter(destination,
                                              input_units,
                                              self.native_units)
+        # do nothing if new destination is same as current destination
+        if destination == self.destination.read(self.native_units):
+            return
         self.destination.write(destination, self.native_units)
         self.q.push('set_position', [destination])
 

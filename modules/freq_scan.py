@@ -50,7 +50,7 @@ OPA1_npts = pc.Number(initial_value=50, decimals=0)
 OPA2_start = pc.Number(initial_value=1100, units='wn')
 OPA2_stop = pc.Number(initial_value=2500, units='wn')
 OPA2_npts = pc.Number(initial_value=50, decimals=0)
-mono_eqn = pc.String(initial_value='w1+w2+12500')
+mono_eqn = pc.String(initial_value='w1+w2+12463.5')
 
 for obj in [OPA1_start, OPA1_stop, OPA2_start, OPA2_stop]:
     obj.set_disabled_units(True)

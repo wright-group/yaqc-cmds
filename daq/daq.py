@@ -204,6 +204,8 @@ last_samples = pc.Mutex()
 
 last_shots = pc.Mutex()
 
+idx = pc.Mutex()  # holds tuple
+
 
 ### misc objects ##############################################################
 
@@ -215,7 +217,7 @@ shots_processing_module_path = pc.Filepath(ini=ini, section='DAQ',
                                            save_to_ini_at_shutdown=True,
                                            options=['*.py'])
 seconds_for_shots_processing = pc.Number(initial_value=np.nan, display=True, decimals=3)
-save_shots_bool = pc.Bool(ini=ini, section='DAQ', option='save shots',
+save_shots_bool = pc.Bool(ini=ini, section='DAQ', option='save shots', display=True,
                           import_from_ini=True, save_to_ini_at_shutdown=True)
                                            
 # values
@@ -223,11 +225,10 @@ value_channel_combo = pc.Combo()
                                     
                                            
 
+
 axes = pc.Mutex()
 
 array_detector_reference = pc.Mutex()
-
-ignore = pc.Mutex()
 
 origin = pc.Mutex()
 
@@ -247,7 +248,6 @@ seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals
 # column dictionaries
 data_cols = pc.Mutex()
 shot_cols = pc.Mutex()
-fit_cols = pc.Mutex()
 
 
 ### DATA address ##############################################################
@@ -263,9 +263,30 @@ fit_path = pc.Mutex()
 
 shot_path = pc.Mutex()
 
+header_dictionary_mutex = pc.Mutex()
+
 class Data(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
+    
+    def _make_file_with_header(self, filepath, cols_kind):
+        header_dictionary = copy.deepcopy(header_dictionary_mutex.read())
+        # get cols
+        if cols_kind == 'data':
+            cols = data_cols.read()
+            # TODO: add proper 'signed' channel support
+            # for now just take number of channels and say all are not signed
+            # (for future compatability)
+            header_dictionary['channel signed'] = [False for _ in value_channel_combo.allowed_values]
+        elif cols_kind == 'shots':
+            cols = shot_cols.read()
+        # add col properties to header
+        header_dictionary['kind'] = [col['kind'] for col in cols.values()]
+        header_dictionary['units'] = [col['units'] for col in cols.values()]
+        header_dictionary['label'] = [col['label'] for col in cols.values()]
+        header_dictionary['name'] = cols.keys()
+        # create file
+        wt.kit.write_headers(filepath, header_dictionary)
     
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
@@ -294,121 +315,30 @@ class Data(QtCore.QObject):
             data_busy.write(False)
             
     def create_data(self, inputs):
-        scan_origin, widget = inputs
-        self.file_timestamp = wt.kit.get_timestamp()
-        self.filename = ' '.join([scan_origin, str(axes.read()), self.file_timestamp, widget.description.read()]).rstrip()
+        daq_widget = inputs[0]
+        # get info
+        header_dictionary = header_dictionary_mutex.read()
+        timestamp = header_dictionary['file created']
+        origin = header_dictionary['data origin']
+        axes = str(header_dictionary['axis names'])
+        description = daq_widget.description.read()
+        # generate file name
+        self.filename = ' '.join([origin, axes, timestamp, description]).rstrip()
         self.filename = self.filename.replace('\'', '')
-        data_path.write(os.path.join(main_dir, 'data', self.filename + '.data'))
-        header_str = self.make_header(data_cols.read(), inputs)
-        np.savetxt(data_path.read(), [], header=header_str)
-        
-    def create_fit(self, inputs):
-        # create fit must always be called after create data
-        fit_path.write(os.path.join(main_dir, 'data', self.filename + '.fit'))
-        header_str = self.make_header(fit_cols.read(), inputs)
-        np.savetxt(fit_path.read(), [], header=header_str)    
+        # create folder
+        data_folder = os.path.join(main_dir, 'data', self.filename)
+        os.mkdir(data_folder)
+        data_path.write(os.path.join(data_folder, self.filename + '.data'))
+        # generate file
+        self._make_file_with_header(data_path.read(), 'data')
     
     def create_shots(self, inputs):
         # create shots must always be called after create data
-        shot_path.write(os.path.join(main_dir, 'data', self.filename + '.shots'))
-        header_str = self.make_header(shot_cols.read(), inputs)
-        np.savetxt(shot_path.read(), [], header=header_str)    
-        
-    def fit(self, inputs):
-        # functions
-        def gaussian(p, x):
-            '''
-            p = [amplitude, center, FWHM, offset]
-            '''
-            print p
-            a, b, c, d = p
-            return a*np.exp(-(x-b)**2/(2*np.abs(c/(2*np.sqrt(2*np.log(2))))**2))+d
-        def residuals(p, y, x):
-            return y - gaussian(p, x)
-        # inputs
-        xkey = inputs[0]
-        zkey = inputs[1]
-        data = np.array(inputs[2])
-        xcol = data_cols.read()[xkey]['index']
-        zcol = data_cols.read()[zkey]['index']
-        xi = data[:, xcol]
-        zi = data[:, zcol]
-        # guess
-        amplitude_guess = zi.max() - zi.min()
-        center_guess = xi[np.where(zi == zi.max())]
-        FWHM_guess = abs(xi[5] - xi[0])
-        offset_guess = zi.min()
-        p0 = [amplitude_guess, center_guess, FWHM_guess, offset_guess]
-        # fit
-        from scipy import optimize
-        out = optimize.leastsq(residuals, p0, args=(zi, xi))[0]
-        # assemble array
-        arr = np.full(len(fit_cols.read()), np.nan)
-        for col in fit_cols.read():
-            index = fit_cols.read()[col]['index']
-            if col == 'amplitude':
-                arr[index] = out[0]
-            elif col == 'center':
-                arr[index] = out[1]
-            elif col == 'FWHM':
-                arr[index] = out[2]
-            elif col == 'offset':
-                arr[index] = out[3]
-            elif col == xcol:
-                arr[index] = np.nan
-            else:
-                # it's a hardware column
-                arr[index] = data[0, index]
-        # write
-        self.write_fit(arr)
-        
-    def make_header(self, cols, inputs):
-        scan_origin, widget = inputs
-        # generate header
-        kind_list = [col['kind'] for col in cols.values()]
-        units_list = [col['units'] for col in cols.values()]
-        tolerance_list = [col['tolerance'] for col in cols.values()]
-        label_list = [col['label'] for col in cols.values()]
-        name_list = cols.keys()
-        # name
-        if widget.name.read() == '':
-            name = ' '.join([origin.read(), widget.description.read()])
-        else:
-            name = widget.name.read()
-        # strings need extra apostrophes and everything needs to be string
-        for lis in [kind_list, units_list, tolerance_list, label_list, name_list]:
-            for i in range(len(lis)):
-                if type(lis[i]) == str:       
-                    lis[i] = '\'' + lis[i] + '\''
-                else:
-                    lis[i] = str(lis[i])
-        header_items = ['file created:' + '\t' + '\'' + self.file_timestamp + '\'']
-        header_items += ['data name:'  + '\t' + '\'' + name + '\'']
-        header_items += ['data info:'  + '\t' + '\'' + widget.info.read() + '\'']
-        header_items += ['data origin:' + '\t' + '\'' + origin.read() + '\'']
-        header_items += ['shots:' + '\t' + str(widget.shots.read())]
-        header_items += ['axes:' + '\t' + str(axes.read())]
-        header_items += ['ignore:' + '\t' + str(ignore.read())]
-        header_items += ['kind: ' + '\t'.join(kind_list)]
-        header_items += ['units: ' + '\t'.join(units_list)]
-        header_items += ['tolerance: ' + '\t'.join(tolerance_list)]
-        header_items += ['label: ' + '\t'.join(label_list)]
-        header_items += ['name: ' + '\t'.join(name_list)]    
-        # add header string
-        header_str = ''
-        for item in header_items:
-            header_str += item + '\n'
-        header_str = header_str[:-1]  # remove final newline charachter
-        return header_str
+        shot_path.write(data_path.read().replace('.data', '.shots'))
+        self._make_file_with_header(shot_path.read(), 'shots')
             
     def write_data(self, inputs):
         data_file = open(data_path.read(), 'a')
-        np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
-        data_file.write('\n')
-        data_file.close()
-        
-    def write_fit(self, inputs):
-        data_file = open(fit_path.read(), 'a')
         np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
         data_file.write('\n')
         data_file.close()
@@ -759,9 +689,12 @@ class DAQ(QtCore.QObject):
             data_row = np.full(len(data_cols.read()), np.nan)
             shot_rows = np.full([len(shot_cols.read()), self.shots], np.nan)
             # read from hardware
-            data_row[0] = scan_index.read()
-            data_row[1] = time.time()
-            i = 2
+            i = 0
+            for val in idx.read():
+                data_row[i] = val
+                i += 1
+            data_row[i] = time.time()
+            i += 1
             for module in hardware_modules:
                 for hardware in module.hardwares:
                     for key in hardware.recorded:
@@ -928,23 +861,21 @@ class Control():
     def initialize_hardware(self):
         q('initialize')
 
-    def initialize_scan(self, widget, scan_origin, scan_axes, dont_ignore=[], do_ignore=[], fit=False):
+    def initialize_scan(self, header_dictionary, widget):
         '''
         prepare environment for scanning
         '''
-        origin.write(scan_origin)
         # set index back to zero
         scan_index.write(0)
         # get params from widget
         shots.write(widget.shots.read())
+        save_shots_bool.write(widget.save_shots.read())
         # create data file(s)
-        axes.write(scan_axes)
-        self.update_cols(dont_ignore=dont_ignore, do_ignore=do_ignore)
-        data_q('create_data', [scan_origin, widget])
-        if fit:
-            data_q('create_fit', [scan_origin, widget])
+        header_dictionary_mutex.write(header_dictionary)
+        self.update_cols(header_dictionary['axis names'])
+        data_q('create_data', [widget])
         if save_shots_bool.read():
-            data_q('create_shots', [scan_origin, widget])
+            data_q('create_shots')
         # wait until daq is done before letting module continue        
         self.wait_until_daq_done()
         self.wait_until_data_done()
@@ -957,25 +888,25 @@ class Control():
         else:
             freerun.write(True)
             
-    def update_cols(self, dont_ignore=[], do_ignore=[]):
+    def update_cols(self, axis_names):
         '''
         define the format of .data and .fit files
         '''
-        new_ignore = ['index', 'time']
         new_data_cols = collections.OrderedDict()
         new_shot_cols = collections.OrderedDict()
-        new_fit_cols = collections.OrderedDict()
         # exposed hardware positions get written to both filetypes
-        for cols in [new_data_cols, new_shot_cols, new_fit_cols]:
-            # index
-            dictionary = collections.OrderedDict()
-            dictionary['index'] = len(cols)
-            dictionary['units'] = None
-            dictionary['tolerance'] = 0.5
-            dictionary['label'] = ''
-            dictionary['object'] = None
-            dictionary['kind'] = None
-            cols['index'] = dictionary
+        for cols in [new_data_cols, new_shot_cols]:
+            # indicies
+            for axis_name in axis_names:
+                dictionary = collections.OrderedDict()
+                dictionary['index'] = len(cols)
+                dictionary['units'] = None
+                dictionary['tolerance'] = 0.5
+                dictionary['label'] = ''
+                dictionary['object'] = None
+                dictionary['kind'] = None
+                name = '_'.join([axis_name, 'index'])
+                cols[name] = dictionary
             # time
             dictionary = collections.OrderedDict()
             dictionary['index'] = len(cols)
@@ -996,13 +927,6 @@ class Control():
                         dictionary['label'] = hardware.recorded[key][3]
                         dictionary['kind'] = 'hardware'
                         cols[key] = dictionary
-                        if cols == new_data_cols:  # only do this once
-                            if do_ignore == 'all else' and key not in dont_ignore:
-                                new_ignore.append(key)
-                            elif type(do_ignore) == list and key in do_ignore and key not in new_ignore:
-                                new_ignore.append(key)
-                            elif hardware.recorded[key][4] and key not in dont_ignore and key not in new_ignore:
-                                new_ignore.append(key)
         # data
         for name in value_channel_combo.allowed_values:
             dictionary = collections.OrderedDict()
@@ -1044,24 +968,9 @@ class Control():
             dictionary['object'] = None
             dictionary['kind'] = 'chopper'
             new_shot_cols[name] = dictionary
-        # fit
-        for prop in ['amplitude', 'center', 'FWHM', 'offset']:
-            dictionary = collections.OrderedDict()
-            name = prop
-            dictionary['index'] = len(new_fit_cols)
-            dictionary['units'] = 'V'
-            dictionary['tolerance'] = None
-            dictionary['label'] = ''
-            dictionary['object'] = None
-            dictionary['kind'] = 'channel'
-            new_fit_cols[name] = dictionary
         data_cols.write(new_data_cols)
         shot_cols.write(new_shot_cols)
-        fit_cols.write(new_fit_cols)
-        for item in new_ignore:
-            if item in dont_ignore:
-                new_ignore.pop[item]
-        ignore.write(new_ignore)
+        print new_data_cols.keys()
         
     def update_task(self):
         if freerun.read():
@@ -1137,9 +1046,10 @@ class Widget(QtGui.QWidget):
         self.setLayout(layout)
         layout.setMargin(0)
         input_table = pw.InputTable()
-        input_table.add('DAQ', None)
         self.shots = pc.Number(initial_value=200, decimals=0, disable_under_module_control=True)
         input_table.add('Shots', self.shots)
+        self.save_shots = pc.Bool(disable_under_module_control=True)
+        input_table.add('Save Shots', self.save_shots)
         self.description = pc.String(disable_under_module_control=True)
         input_table.add('Description', self.description)
         self.name = pc.String(disable_under_module_control=True)
@@ -1148,7 +1058,7 @@ class Widget(QtGui.QWidget):
         input_table.add('Info', self.info)
         layout.addWidget(input_table)
         
-class Gui(QtCore.QObject):
+class GUI(QtCore.QObject):
 
     def __init__(self):
         QtCore.QObject.__init__(self)
@@ -1554,18 +1464,20 @@ class Gui(QtCore.QObject):
         self.big_display.setValue(last_data.read()[value_channel_combo.read_index()])
         
         # current slice display
-        if g.module_control.read():
-            xcol = data_cols.read()[current_slice.col]['index']
-            ycol_key = value_channel_combo.read()
-            ycol = data_cols.read()[ycol_key]['index']       
-            vals = np.array(current_slice.read())
-            if vals.size == 0:
-                return  # this is probably not great implementation...
-            if len(vals.shape) == 1:
-                vals = vals[None, :]
-            xi = vals[:, xcol]
-            yi = vals[:, ycol]
-            self.values_plot_scatter.setData(xi, yi)
+        # TODO: fix this for new module implementation
+        if False:
+            if g.module_control.read():
+                xcol = data_cols.read()[current_slice.col]['index']
+                ycol_key = value_channel_combo.read()
+                ycol = data_cols.read()[ycol_key]['index']       
+                vals = np.array(current_slice.read())
+                if vals.size == 0:
+                    return  # this is probably not great implementation...
+                if len(vals.shape) == 1:
+                    vals = vals[None, :]
+                xi = vals[:, xcol]
+                yi = vals[:, ycol]
+                self.values_plot_scatter.setData(xi, yi)
                     
     def update_samples_tab(self):
         # buttons
@@ -1620,5 +1532,5 @@ class Gui(QtCore.QObject):
     def stop(self):
         pass
         
-gui = Gui()
+gui = GUI()
 

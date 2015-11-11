@@ -126,10 +126,15 @@ class OPA:
         self.set_motors(motor_destinations)
         self.get_position()
         
+    def set_position_except(self, inputs):
+        # TODO:
+        pass
+        
     def set_motor(self, inputs):
         '''
         inputs [motor_name (str), destination (mm)]
         '''
+        print 'set_motor', inputs, '!!!!!!!!!!!!!!!!!!!!!!!'
         name, destination = inputs
         motor_index = self.motor_names.index(name)
         self.motors[motor_index].move_absolute(destination)

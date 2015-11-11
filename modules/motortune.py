@@ -1,39 +1,41 @@
 ### define ####################################################################
 
+
 module_name = 'MOTORTUNE'
+
 
 ### import ####################################################################
 
+
 import sys
 import time
-import collections
+import numexpr as ne
 
 import numpy as np
 
-import project.project_globals as g
-scan_thread = g.scan_thread.read()
+import matplotlib
+matplotlib.pyplot.ioff()
 
 from PyQt4 import QtCore, QtGui
-app = g.app.read()
+import WrightTools as wt
 
+import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
+import modules.scan as scan
+app = g.app.read()
+
 
 ### import hardware control ###################################################
+
 
 import spectrometers.spectrometers as spectrometers
 import delays.delays as delays
 import opas.opas as opas
 import daq.daq as daq
 
-### objects ###################################################################
 
-# to do with communication between threads
-fraction_complete = pc.Mutex()
-go = pc.Busy()
-going = pc.Busy()
-pause = pc.Busy()
-paused = pc.Busy()
+### objects ###################################################################
 
 
 class motor_gui():
@@ -90,193 +92,16 @@ class OPA_gui():
     def show(self):
         for motor in self.motors:
             motor.input_table.show()
-        
 
-### scan object ###############################################################
-
-class scan(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    done = QtCore.pyqtSignal()
-
-    @QtCore.pyqtSlot(list)
-    def run(self, inputs):
-
-        # unpack inputs -------------------------------------------------------
-
-        scan_dictionary, daq_widget, gui = inputs
-        opa_gui = gui.opa_guis[gui.opa_combo.read_index()]
-        opa_hardware = opa_gui.hardware
-        
-        # startup -------------------------------------------------------------
-
-        g.module_control.write(True)
-        going.write(True)
-        fraction_complete.write(0.)
-        g.logger.log('info', 'Scan begun', 'some info describing this scan')
-
-        # setup scan ----------------------------------------------------------
-
-        # discover axes
-        scan_axes = []
-        opa_friendly_name = opas.hardwares[gui.opa_combo.read_index()].friendly_name
-        if gui.use_tune_points.read():
-            scan_axes.append(opa_friendly_name)
-        for motor in opa_gui.motors:
-            if motor.method.read() == 'Scan':
-                scan_axes.append('_'.join([opa_friendly_name, motor.name]))
-        if gui.mono_method_combo.read() == 'Scan':
-            scan_axes.append('wm')
-        
-        # calculate npts
-        npts = 1
-        if gui.use_tune_points.read():
-            npts *= len(opa_gui.hardware.address.ctrl.get_points()[0])
-        for motor in opa_gui.motors:
-            if motor.method.read() == 'Scan':
-                npts *= motor.npts.read()
-        if gui.mono_method_combo.read() == 'Scan':
-            npts *= gui.mono_npts.read()
-        
-        # initialize scan in daq
-        dont_ignore = [opa_friendly_name]
-        for motor in opa_gui.motors:
-            dont_ignore.append('_'.join([opa_friendly_name, motor.name]))
-        if gui.mono_method_combo.read() == 'Scan':
-            dont_ignore.append('wm')
-        daq.control.initialize_scan(daq_widget, module_name,
-                                    dont_ignore=dont_ignore,
-                                    do_ignore='all else',
-                                    scan_axes=scan_axes, fit=False)
-
-        # set static motors
-        for motor_index, motor in enumerate(opa_gui.motors):
-            if motor.method.read() == 'Static':
-                motor_name = opa_gui.motors[motor_index].name
-                motor_destination = opa_gui.motors[motor_index].center.read()
-                opa_hardware.q.push('set_motor', [motor_name, motor_destination])
-
-        # do loop -------------------------------------------------------------
-
-        break_scan = False
-        idx = 0
-        # tune points
-        if gui.use_tune_points.read():
-            tune_point_destinations = opa_gui.hardware.address.ctrl.get_points()[0]
-        else:
-            tune_point_destinations = [None]
-        for tune_point_index, tune_point_destination in enumerate(tune_point_destinations):
-            if tune_point_destination is not None:
-                motor_positions = opa_gui.hardware.address.ctrl.curve.get_motor_positions(tune_point_destination)
-                for motor_index, motor in enumerate(opa_gui.motors):
-                    if motor.method.read() == 'Set':
-                        motor_name = motor.name
-                        motor_destination = motor_positions[motor_index]
-                        opa_hardware.q.push('set_motor', [motor_name, motor_destination])
-                #opa_hardware.q.push('get_motor_positions')
-                #opa_hardware.wait_until_still()  # need to wait before reading position in inner loop
-            # motor positions
-            motor_position_dictionary = collections.OrderedDict()
-            for motor_index, motor in enumerate(opa_gui.motors):
-                if motor.method.read() == 'Scan':
-                    if gui.use_tune_points.read():
-                        #current_position = opa_gui.hardware.address.ctrl.get_motor_positions()[motor_index]
-                        center = opa_gui.hardware.address.ctrl.get_points()[motor_index+1, tune_point_index]
-                    else:
-                        center = motor.center.read()
-                    width = motor.width.read()/2.  # width is total width of scan
-                    number = motor.npts.read()
-                    motor_position_dictionary[motor.name] = np.linspace(center-width, center+width, number)
-            for motor_idx in np.ndindex(*[arr.size for arr in motor_position_dictionary.values()]):
-                if not gui.mono_method_combo.read() == 'Scan':  # if motor is innermost index
-                    if motor_idx[-1] == 0:
-                        motor_name = motor_position_dictionary.keys()[-1]
-                        daq.control.index_slice(col='_'.join([opa_friendly_name, motor_name]))
-                        motor_points = motor_position_dictionary[motor_name]
-                        daq.gui.set_slice_xlim(motor_points.min(), motor_points.max())
-                for motor_index, position_index in enumerate(motor_idx):
-                    motor_name = motor_position_dictionary.keys()[motor_index]
-                    motor_destination = motor_position_dictionary[motor_name][position_index]
-                    opa_hardware.q.push('set_motor', [motor_name, motor_destination])
-                opa_hardware.q.push('wait_until_still')
-                opa_hardware.q.push('get_motor_positions')
-                opa_hardware.q.push('get_position')
-                # spec positions
-                if gui.mono_method_combo.read() == 'Scan':
-                    if gui.use_tune_points.read():
-                        spec_center = tune_point_destination
-                    else:
-                        spec_center = gui.mono_center.read()
-                    spec_width = gui.mono_width.read()/2.
-                    spec_number = gui.mono_npts.read()
-                    spec_destinations = np.linspace(spec_center-spec_width, spec_center+spec_width, spec_number)
-                    daq.control.index_slice(col='wm')
-                    daq.gui.set_slice_xlim(spec_destinations.min(), spec_destinations.max())
-                elif gui.mono_method_combo.read() == 'Set':
-                    spec_destinations = [tune_point_destination]
-                elif gui.mono_method_combo.read() == 'Static':
-                    spec_destinations = [None]
-                for spec_destination in spec_destinations:
-                    if spec_destination is not None:
-                        spectrometers.hardwares[0].set_position(spec_destination, 'wn')
-                    # wait for hardware
-                    g.hardware_waits.wait()
-                    # read from daq
-                    daq.control.acquire()
-                    daq.control.wait_until_daq_done()
-                    idx += 1
-                    fraction_complete.write(float(idx)/float(npts))
-                    self.update_ui.emit()
-                    if not self.check_continue():
-                        break_scan = True
-                    if break_scan: break
-                if break_scan: break
-            if break_scan: break
-            
-        # end -----------------------------------------------------------------
-
-        print 'end'
-        fraction_complete.write(1.)
-        going.write(False)
-        g.module_control.write(False)
-        g.logger.log('info', 'Scan done', 'some info describing this scan')
-        self.update_ui.emit()
-        self.done.emit()
-
-    def check_continue(self):
-        '''
-        you should put this method into your scan loop wherever you want to check
-        for pause or stop commands from the main program
-
-        at the very least this method MUST go into your innermost loop
-
-        for loops, use it as follows: if not self.check_continue(): break
-        '''
-        while pause.read():
-            paused.write(True)
-            pause.wait_for_update()
-        paused.write(False)
-        return go.read()
-
-#move scan to own thread
-scan_obj = scan()
-scan_obj.moveToThread(scan_thread)
 
 ### gui #######################################################################
 
-class GUI(QtCore.QObject):
 
-    def __init__(self):
-        QtCore.QObject.__init__(self)
-        scan_obj.update_ui.connect(self.update)
-        self.create_frame()
-        self.create_advanced_frame()
-        self.show_frame() #check once at startup
-        g.shutdown.read().connect(self.stop)
+class GUI(scan.GUI):
 
     def create_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
-
         # shared settings
         allowed = [hardware.name for hardware in opas.hardwares]
         self.opa_combo = pc.Combo(allowed, disable_under_module_control=True)
@@ -287,15 +112,12 @@ class GUI(QtCore.QObject):
         input_table.add('OPA', self.opa_combo)
         input_table.add('Use Tune Points', self.use_tune_points)
         layout.addWidget(input_table)
-
         # OPA settings
         self.opa_guis = [OPA_gui(hardware, layout, self.use_tune_points) for hardware in opas.hardwares]
         self.opa_guis[0].show()
-        
         # line
         line = pw.line('H')
         layout.addWidget(line)
-        
         # mono settings
         allowed = ['Scan', 'Set', 'Static']
         self.mono_method_combo = pc.Combo(allowed, disable_under_module_control=True)
@@ -313,59 +135,83 @@ class GUI(QtCore.QObject):
         input_table.add('Number', self.mono_npts)
         layout.addWidget(input_table)
         self.update_mono_settings()
-        
         # line
         line = pw.line('H')
         layout.addWidget(line)
-
-        # daq widget
-        self.daq_widget = daq.Widget()
-        layout.addWidget(self.daq_widget)
-
-        # go button
-        self.go_button = pw.module_go_button()
-        self.go_button.give_launch_scan_method(self.launch_scan)
-        self.go_button.give_stop_scan_method(self.stop)
-        self.go_button.give_scan_complete_signal(scan_obj.done)
-        self.go_button.give_pause_objects(pause, paused)
-
-        layout.addWidget(self.go_button)
-
+        # scan widget
+        layout.addWidget(self.scan.widget)
+        # finish
         layout.addStretch(1)
-
         self.frame = QtGui.QWidget()
         self.frame.setLayout(layout)
-
         g.module_widget.add_child(self.frame)
         g.module_combobox.add_module(module_name, self.show_frame)
 
-    def create_advanced_frame(self):
-        layout = QtGui.QVBoxLayout()
-        layout.setMargin(5)
-
-        self.advanced_frame = QtGui.QWidget()
-        self.advanced_frame.setLayout(layout)
-
-        g.module_advanced_widget.add_child(self.advanced_frame)
-
-    def show_frame(self):
-        self.frame.hide()
-        self.advanced_frame.hide()
-        if g.module_combobox.get_text() == module_name:
-            self.frame.show()
-            self.advanced_frame.show()
-
     def launch_scan(self):
-        go.write(True)
-        print 'running'
-        scan_dictionary = {}
-        inputs = [scan_dictionary, self.daq_widget, self]
-        QtCore.QMetaObject.invokeMethod(scan_obj, 'run', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(list, inputs))
-        g.progress_bar.begin_new_scan_timer()
-
-    def update(self):
-        g.progress_bar.set_fraction(fraction_complete.read())
-
+        axes = []
+        # get OPA properties
+        opa_gui = self.opa_guis[self.opa_combo.read_index()]
+        opa_hardware = opa_gui.hardware
+        opa_friendly_name = opas.hardwares[self.opa_combo.read_index()].friendly_name
+        curve = opa_hardware.address.ctrl.curve
+        # tune points        
+        if self.use_tune_points.read():
+            # TODO: make this into 'set_position_except' method
+            hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position', None]}
+            axis = scan.Axis(curve.colors, curve.units, opa_friendly_name, 
+                             opa_friendly_name, hardware_dict)
+            axes.append(axis)
+        # motor
+        for motor_index, motor in enumerate(opa_gui.motors):
+            if motor.method.read() == 'Scan':
+                motor_units = None
+                name = '_'.join([opa_friendly_name, motor.name])
+                width = motor.width.read()/2.
+                npts = motor.npts.read()
+                if self.use_tune_points.read():
+                    center = 0.
+                    identity = 'D'+name+'F'+opa_friendly_name
+                    motor_positions = curve.motors[motor_index].positions
+                    kwargs = {'centers': motor_positions, 
+                              'centers_units': motor_units,
+                              'centers_follow': opa_friendly_name}
+                else:
+                    center = motor.center.read()
+                    identity = name
+                    kwargs = {}
+                points = np.linspace(center-width, center+width, npts)
+                hardware_dict = {name: [opa_hardware, 'set_motor', [motor.name, 'destination']]}
+                axis = scan.Axis(points, motor_units, name, identity, hardware_dict, **kwargs)
+                axes.append(axis)
+            elif motor.method.read() == 'Set':
+                # TODO: enqueue motion here if not use tune points
+                pass
+            elif motor.method.read() == 'Static':
+                # TODO: enqueue set here
+                pass
+        # mono
+        if self.mono_method_combo.read() == 'Scan':
+            name = 'wm'
+            units = 'wn'
+            width = self.mono_width.read()/2.
+            npts = self.mono_npts.read() 
+            if self.use_tune_points.read():
+                center = 0.
+                identity = 'D'+name
+                kwargs = {'centers': curve.colors,
+                          'centers_units': curve.units,
+                          'centers_follow': opa_friendly_name}
+            else:
+                center = self.mono_center.read()
+                identity = name
+                kwargs = {}
+            points = np.linspace(center-width, center+width, npts)
+            axis = scan.Axis(points, units, name, identity, **kwargs)
+            axes.append(axis)
+        # launch
+        pre_wait_methods = [lambda: opa_hardware.q.push('wait_until_still')]
+        self.scan.launch(axes, constants=[], pre_wait_methods=pre_wait_methods)
+        
     def update_mono_settings(self):
         self.mono_center.set_disabled(True)
         self.mono_width.set_disabled(True)
@@ -380,16 +226,9 @@ class GUI(QtCore.QObject):
         elif method == 'Static':
             self.mono_center.set_disabled(False)
 
-        
     def update_opa_display(self):
         for gui in self.opa_guis:
             gui.hide()
         self.opa_guis[self.opa_combo.read_index()].show()
 
-    def stop(self):
-        print 'stopping'
-        go.write(False)
-        while going.read(): going.wait_for_update()
-        print 'stopped'
-
-gui = GUI()
+gui = GUI(module_name)
