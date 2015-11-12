@@ -220,6 +220,7 @@ class Address(QtCore.QObject):
             daq.idx.write(idx)
             # launch hardware
             for d in destinations_list:
+                print d.method
                 destination = d.arr[idx]
                 if d.method == 'set_position':
                     d.hardware.set_position(destination, d.units)

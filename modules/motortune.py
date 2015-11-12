@@ -119,7 +119,7 @@ class GUI(scan.GUI):
         line = pw.line('H')
         layout.addWidget(line)
         # mono settings
-        allowed = ['Scan', 'Set', 'Static']
+        allowed = ['Set', 'Scan', 'Static']
         self.mono_method_combo = pc.Combo(allowed, disable_under_module_control=True)
         self.mono_method_combo.updated.connect(self.update_mono_settings)
         self.mono_center = pc.Number(initial_value=7000, units='wn', disable_under_module_control=True)
@@ -156,11 +156,20 @@ class GUI(scan.GUI):
         curve = opa_hardware.address.ctrl.curve
         # tune points        
         if self.use_tune_points.read():
-            # TODO: make this into 'set_position_except' method
-            hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position', None]}
-            axis = scan.Axis(curve.colors, curve.units, opa_friendly_name, 
-                             opa_friendly_name, hardware_dict)
-            axes.append(axis)
+            motors_excepted = []  # list of indicies  
+            for motor_index, motor in enumerate(opa_gui.motors):
+                if not motor.method.read() == 'Set':
+                    motors_excepted.append(motor_index)
+            if self.mono_method_combo.read() == 'Set':
+                identity = opa_friendly_name + '=wm'
+                hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]],
+                                 'wm': [spectrometers.hardwares[0], 'set_position', None]}
+                axis = scan.Axis(curve.colors, curve.units, opa_friendly_name, identity, hardware_dict)
+                axes.append(axis)
+            else:
+                hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]]}
+                axis = scan.Axis(curve.colors, curve.units, opa_friendly_name, opa_friendly_name, hardware_dict)
+                axes.append(axis)
         # motor
         for motor_index, motor in enumerate(opa_gui.motors):
             if motor.method.read() == 'Scan':
@@ -184,11 +193,12 @@ class GUI(scan.GUI):
                 axis = scan.Axis(points, motor_units, name, identity, hardware_dict, **kwargs)
                 axes.append(axis)
             elif motor.method.read() == 'Set':
-                # TODO: enqueue motion here if not use tune points
-                pass
+                if self.use_tune_points.read():
+                    pass
+                else:
+                    opa_hardware.q.push('set_motor', [motor.name, motor.center.read()])
             elif motor.method.read() == 'Static':
-                # TODO: enqueue set here
-                pass
+                opa_hardware.q.push('set_motor', [motor.name, motor.center.read()])
         # mono
         if self.mono_method_combo.read() == 'Scan':
             name = 'wm'
@@ -208,8 +218,18 @@ class GUI(scan.GUI):
             points = np.linspace(center-width, center+width, npts)
             axis = scan.Axis(points, units, name, identity, **kwargs)
             axes.append(axis)
+        elif self.mono_method_combo.read() == 'Set':
+            if self.use_tune_points.read():
+                # already handled above
+                pass
+            else:
+                spectrometers.hardwares[0].set_position(self.mono_center.read(), self.mono_center.units)
+        elif self.mono_method_combo.read() == 'Static':
+            spectrometers.hardwares[0].set_position(self.mono_center.read(), self.mono_center.units)
         # launch
-        pre_wait_methods = [lambda: opa_hardware.q.push('wait_until_still')]
+        pre_wait_methods = [lambda: opa_hardware.q.push('wait_until_still'),
+                            lambda: opa_hardware.q.push('get_motor_positions'),
+                            lambda: opa_hardware.q.push('get_position')]
         self.scan.launch(axes, constants=[], pre_wait_methods=pre_wait_methods)
         
     def update_mono_settings(self):

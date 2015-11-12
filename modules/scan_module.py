@@ -44,8 +44,8 @@ class Axis():
         self.units_kind = units_kind
         if self.units_kind == 'energy':
             self.units = 'wn'
-            initial_start = 1200
-            initial_stop = 1500
+            initial_start = 1500
+            initial_stop = 1200
         elif self.units_kind == 'delay':
             self.units = 'ps'
             initial_start = -1
@@ -118,12 +118,15 @@ class GUI(scan.GUI):
         self.layout.addWidget(self.axes_container_widget)
         add_energy_axis_button = pw.SetButton('ADD ENERGY AXIS')
         add_energy_axis_button.clicked.connect(lambda: self.add_axis('energy'))
+        g.module_control.disable_when_true(add_energy_axis_button)
         self.layout.addWidget(add_energy_axis_button)
         add_delay_axis_button = pw.SetButton('ADD DELAY AXIS')
         add_delay_axis_button.clicked.connect(lambda: self.add_axis('delay'))
+        g.module_control.disable_when_true(add_delay_axis_button)
         self.layout.addWidget(add_delay_axis_button)
         remove_axis_button = pw.SetButton('REMOVE AXIS', 'stop')
         remove_axis_button.clicked.connect(self.remove_axis)
+        g.module_control.disable_when_true(remove_axis_button)
         self.layout.addWidget(remove_axis_button)
         # constants
         self.constants = []
@@ -168,6 +171,7 @@ class GUI(scan.GUI):
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['stop'])
         remove_button.setStyleSheet(StyleSheet)
         button_container.layout().addWidget(remove_button)
+        g.module_control.disable_when_true(remove_button)
         # add
         add_button = QtGui.QPushButton()
         add_button.setText('ADD')
@@ -175,6 +179,7 @@ class GUI(scan.GUI):
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['set'])
         add_button.setStyleSheet(StyleSheet)
         button_container.layout().addWidget(add_button)
+        g.module_control.disable_when_true(add_button)
         # finish
         self.layout.addWidget(button_container)
         return [add_button, remove_button]

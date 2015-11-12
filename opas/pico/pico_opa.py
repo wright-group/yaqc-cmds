@@ -45,7 +45,7 @@ class OPA:
         self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
-        self.gui = gui(self)
+        self.gui = GUI(self)
         self.motors=[]
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.initialized = pc.Bool()
@@ -127,8 +127,17 @@ class OPA:
         self.get_position()
         
     def set_position_except(self, inputs):
-        # TODO:
-        pass
+        '''
+        set position, except for motors that follow
+        
+        does not wait until still...
+        '''
+        destination = inputs[0]
+        exceptions = inputs[1]
+        motor_destinations = self.curve.get_motor_positions(destination)
+        for index, name in zip(range(3), ['Grating', 'BBO', 'Mixer']):
+            if index not in exceptions:
+                self.set_motor([name, motor_destinations[index]])
         
     def set_motor(self, inputs):
         '''
@@ -157,7 +166,7 @@ class OPA:
 ### advanced gui ##############################################################
 
 
-class gui(QtCore.QObject):
+class GUI(QtCore.QObject):
 
     def __init__(self, opa):
         QtCore.QObject.__init__(self)
@@ -233,6 +242,7 @@ class gui(QtCore.QObject):
         input_table = pw.InputTable()
         input_table.add('Curve', None)
         input_table.add('Filepath', self.opa.curve_path)
+        g.module_control.disable_when_true(self.opa.curve_path)
         self.lower_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
         input_table.add('Low energy limit', self.lower_limit)
         self.upper_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
