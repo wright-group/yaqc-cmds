@@ -24,6 +24,9 @@ import project.style as style
 import project.widgets as custom_widgets
 import project.classes as pc
 import project.file_dialog_handler
+import project.slack as slack
+
+import WrightTools as wt
 
 
 ### main window ###############################################################
@@ -42,6 +45,7 @@ class MainWindow(QtGui.QMainWindow):
         
         self.setWindowTitle('Coherent Multidimensional Spectroscopy | Python')
 
+        # begin poll timer
         self._begin_poll_loop()
 
         #disable 'x'
@@ -58,6 +62,9 @@ class MainWindow(QtGui.QMainWindow):
         self._initialize_hardware()
         self._initialize_widgets()
         self._load_modules()
+        
+        # open slack bot
+        self._load_witch()
         
         #log completion
         if g.debug.read(): print 'PyCMDS_ui.MainWindow.__init__ complete'
@@ -190,7 +197,7 @@ class MainWindow(QtGui.QMainWindow):
         
     def poll(self):
         pass
-        
+
     def _initialize_hardware(self):
         g.offline.get_saved()
         if g.debug.read():
@@ -224,6 +231,16 @@ class MainWindow(QtGui.QMainWindow):
             if config.get('load', name) == 'True':
                 path = os.path.join(g.main_dir.read(), 'modules', name + '.py')
                 imp.load_source(name, path)
+                
+    def _load_witch(self):
+        # create witch
+        self.witch = slack.control
+        # begin poll timer
+        timer = QtCore.QTimer()
+        timer.start(500)  # milliseconds
+        self.shutdown.connect(timer.stop)
+        g.slack_poll_timer.write(timer)
+        g.slack_poll_timer.connect_to_timeout(self.witch.poll)
         
     def _shutdown(self):
         '''

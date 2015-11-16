@@ -23,6 +23,8 @@ import WrightTools as wt
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
+import project.slack as slack
+slack = slack.control
 app = g.app.read()
 
 
@@ -428,6 +430,14 @@ class GUI(QtCore.QObject):
                     artist.plot(channel_index, autosave=True, output_folder=channel_folder,
                                 fname=this_image_fname, verbose=False)
                     g.app.read().processEvents()  # gui should not hang...
+            # hack in a way to get the first image written
+            if channel_index == 0:
+                output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
+        # send message on slack
+        slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
+        if len(data.shape) < 3:
+            print output_image_path
+            slack.upload_file(output_image_path)
                 
         
     def update(self):

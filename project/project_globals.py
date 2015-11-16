@@ -47,7 +47,7 @@ import ini_handler as ini #must come after main_dir has been defined
 
 debug = GlobalWithIni(ini.main, 'misc', 'debug')
 
-class poll_timer:
+class PollTimer:
     def __init__(self):
         self.value = None
     def read(self):
@@ -56,7 +56,8 @@ class poll_timer:
         self.value = value
     def connect_to_timeout(self, slot):
         QtGui.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
-poll_timer = poll_timer()
+poll_timer = PollTimer()
+slack_poll_timer = PollTimer()
 
 class logger: #must come before other globals
     def __init__(self):
