@@ -9,7 +9,7 @@ import time
 import numpy as np
 import os
 
-os.chdir(r'C:\Users\John\Desktop\PyCMDS')
+#os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 
 #user inputs-------------------------------------------------------------------
 
@@ -38,14 +38,14 @@ conversions_per_second = 1e6 #a property of the DAQ card
 shots_per_second = 1100. #from laser
 virtual_samples = int(conversions_per_second/(shots_per_second*num_channels))
 us_per_virtual_sample = (1./conversions_per_second)*1e6
-print us_per_virtual_sample 
+print us_per_virtual_sample
 
 shots = long(shots)
 
 try:
     #task
     DAQmxCreateTask('', byref(task_handle))
-    
+
     #create global channels
     total_virtual_channels = 0
     for _ in range(virtual_samples):
@@ -56,10 +56,10 @@ try:
                                      channel_name,                  #name to assign to channel
                                      DAQmx_Val_Diff,                #the input terminal configuration
                                      daq_analog_min,daq_analog_max, #minVal, maxVal
-                                     DAQmx_Val_Volts,               #units 
+                                     DAQmx_Val_Volts,               #units
                                      None)                          #custom scale
             total_virtual_channels += 1
-                                     
+
         for channel in daq_digital_physical_channels:
             channel_name = 'channel_' + str(total_virtual_channels).zfill(2)
             DAQmxCreateAIVoltageChan(task_handle,                     #task handle
@@ -67,11 +67,11 @@ try:
                                      channel_name,                    #name to assign to channel
                                      DAQmx_Val_Diff,                  #the input terminal configuration
                                      daq_digital_min,daq_digital_max, #minVal, maxVal
-                                     DAQmx_Val_Volts,                 #units 
+                                     DAQmx_Val_Volts,                 #units
                                      None)                            #custom scale
             total_virtual_channels += 1
-    
-    #timing             
+
+    #timing
     DAQmxCfgSampClkTiming(task_handle,           #task handle
                           '/Dev1/PFI0',          #sorce terminal
                           1000.0,                #sampling rate (samples per second per channel) (float 64)
@@ -91,12 +91,12 @@ samples = numpy.zeros(shots*virtual_samples*num_channels, dtype=numpy.float64)
 samples_len = len(samples) #do not want to call for every acquisition
 
 for _ in range(1):
-    
+
     try:
         start_time = time.time()
 
         DAQmxStartTask(task_handle)
-    
+
         DAQmxReadAnalogF64(task_handle,                 #task handle
                            shots,                       #number of samples per global channel (unsigned integer 64)
                            10.0,                        #timeout (seconds) for each read operation
@@ -111,7 +111,7 @@ for _ in range(1):
         #create 2D data array
         out = np.copy(samples)
         out.shape = (shots, virtual_samples, num_channels)
-        
+
         #'digitize' digital channels
         if digitize:
             for i in range(num_analog_channels, num_analog_channels+num_digital_channels):
@@ -119,14 +119,14 @@ for _ in range(1):
                 high_value_indicies = out[:, :, i] >= daq_digital_cutoff
                 out[low_value_indicies, i] = 0
                 out[high_value_indicies, i] = 1
-        
+
         print 'Acquired %d shots in %f seconds'%(read.value, time.time() - start_time)
-        
+
     except DAQError as err:
         print "DAQmx Error: %s"%err
         DAQmxStopTask(task_handle)
         DAQmxClearTask(task_handle)
-    
+
     print out.shape
     #print out[:, :, 5].flatten()
 

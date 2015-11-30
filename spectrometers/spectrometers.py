@@ -14,6 +14,10 @@ import project.ini_handler as ini
 ini = ini.spectrometers
 import project.classes as pc
 
+if g.offline.read():
+    prefix = 'v_'
+else:
+    prifix = ''
 
 ### address ###################################################################
 
@@ -22,10 +26,10 @@ class Monochromator(pc.Address):
 
     def dummy(self):
         print 'hello world im a dummy method'
-        
-        
+
+
 # list module path, module name, class name, initialization arguments, friendly name
-hardware_dict = {'MicroHR': [os.path.join(main_dir, 'spectrometers', 'MicroHR', 'MicroHR.py'), 'MicroHR', 'MicroHR', [], 'wm']}
+hardware_dict = {'MicroHR': [os.path.join(main_dir, 'spectrometers', 'MicroHR', prefix + 'MicroHR.py'), 'MicroHR', 'MicroHR', [], 'wm']}
 hardwares = []
 for key in hardware_dict.keys():
     if ini.read('hardware', key):
