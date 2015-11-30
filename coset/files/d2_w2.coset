@@ -1,0 +1,13 @@
+# offset:	'D2 micro'
+# offset units:	'ps'
+# control:	'OPA2 micro'
+# control units:	'wn'
+1250	-9.85
+1300	-9.4
+1400	-8.7
+1500	-8.3
+1600	-7.95
+1650	-7.7
+1725	-7.4
+1800	-7.15
+1900	-6.8
