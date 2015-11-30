@@ -57,7 +57,7 @@ class MicroHR:
         # save current position to ini
         ini.write('main', 'grating index', self.grating_index.read())
         ini.write('main', 'position (nm)', self.current_position.read())
-        
+
     def get_grating_details(self):
         '''
         grating density
@@ -74,12 +74,12 @@ class MicroHR:
         self.address = address
         # open control
         self.ctrl = JYMono.Monochromator()
-        self.ctrl.Uniqueid = 'Mono2'
-        self.ctrl.Load()    
+        self.ctrl.Uniqueid = ini.read('main', 'unique id')
+        self.ctrl.Load()
         self.ctrl.OpenCommunications()
         # initialize hardware
         forceInit = True  # this toggles mono homing behavior
-        emulate = False
+        emulate = g.emulate_mono.read()
         notThreaded = True  # no idea what this does...
         self.ctrl.Initialize(forceInit, emulate, notThreaded)
         # import some information from control
@@ -132,6 +132,9 @@ class MicroHR:
 
     def stop(self):
         self.ctrl.Stop()
+        
+        
+
 
 
 ### advanced gui ##############################################################
@@ -144,52 +147,23 @@ class gui(QtCore.QObject):
 
     def create_frame(self, layout):
         layout.setMargin(5)
-        
-        self.advanced_frame = QtGui.QWidget()   
+
+        self.advanced_frame = QtGui.QWidget()
         self.advanced_frame.setLayout(layout)
-        
+
         g.module_advanced_widget.add_child(self.advanced_frame)
-        
+
     def update(self):
         pass
-        
+
     def on_set(self):
         pass
-    
+
     def show_advanced(self):
         pass
-              
+
     def stop(self):
         pass
 
 
 ### testing ###################################################################
-
-'''
-if __name__ == '__main__':
-    
-    import numpy as np
-    
-    mono = MicroHR()
-    mono.initialize(None,None)
-    print mono.description
-    print mono.serial_number
-    print mono.get_grating_details()
-    
-    # Timing Test
-    pos = mono.get_position()
-    splits = []
-    for step in np.linspace(pos+10,pos+220,10):
-        now = time.time()
-        mono.set_position(step)
-        print mono.get_position()
-        stop = time.time()
-        splits.append(stop-now)
-    
-    mono.close()
-    '''
-    
-    
-    
-    
-    

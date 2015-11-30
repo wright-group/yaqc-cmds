@@ -25,8 +25,6 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'spectrometers',
 ### mono object ###############################################################
 
 
-
-
 class MicroHR:
 
     def __init__(self):
@@ -40,6 +38,7 @@ class MicroHR:
                                           limits=self.limits,
                                           units='nm', display=True,
                                           set_method='set_position')
+        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
         self.grating_index = pc.Combo(name='Grating', allowed_values=[1, 2],
                                       ini=ini, section='main',
                                       option='grating index',

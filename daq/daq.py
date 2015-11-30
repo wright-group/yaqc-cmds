@@ -1533,4 +1533,3 @@ class GUI(QtCore.QObject):
         pass
         
 gui = GUI()
-

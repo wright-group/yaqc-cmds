@@ -28,8 +28,8 @@ class OPA(pc.Address):
 hardware_dict = {'OPA1 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [1], 'w1'],
                  'OPA2 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [2], 'w2'],
                  'OPA3 micro': [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [3], 'w3'],
-                 'OPA1 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [1], 'w1'],
-                 'OPA2 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'TOPAS', [2], 'w2']}
+                 'OPA1 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'OPA', [1], 'w1'],
+                 'OPA2 TOPAS-C': [os.path.join(main_dir, 'OPAs', 'TOPAS', 'TOPAS.py'), 'TOPAS', 'OPA', [2], 'w2']}
 hardwares = []
 for key in hardware_dict.keys():
     if ini.read('hardware', key):

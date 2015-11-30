@@ -17,7 +17,7 @@ import project.classes as pc
 if g.offline.read():
     prefix = 'v_'
 else:
-    prifix = ''
+    prefix = ''
 
 ### address ###################################################################
 

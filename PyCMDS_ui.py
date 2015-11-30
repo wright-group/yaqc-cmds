@@ -29,6 +29,36 @@ import project.slack as slack
 import WrightTools as wt
 
 
+### version information #######################################################
+
+
+# get config
+main_ini_path = os.path.join(g.main_dir.read(), 'PyCMDS.ini')
+config = ConfigParser.SafeConfigParser()
+config.read(main_ini_path) 
+
+# attempt to update ini
+try:
+    HEAD_file = os.path.join(g.main_dir.read(), '.git', 'logs', 'HEAD')
+    with open(HEAD_file) as f:
+        for line in f.readlines():
+            sha = line.split(' ')[1]  # most recent commit is last
+    sha.encode('ascii','ignore')
+    config.set('main', 'git sha', sha)
+    with open(main_ini_path, 'w') as ini:    
+        config.write(ini)
+except:
+    pass
+
+# PyCMDS version format: a.b.c.d
+# a - major release
+# b - minor release
+# c - bugfix
+# d - git sha key
+__version__ = config.get('main', 'version') + '.' + config.get('main', 'git sha')[:7]
+g.version.write(__version__)
+
+
 ### main window ###############################################################
 
 

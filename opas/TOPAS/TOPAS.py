@@ -1,13 +1,33 @@
-### import #####################################################################
+### import ####################################################################
 
+
+import os
+import collections
+
+from PyQt4 import QtGui, QtCore
+
+import ctypes
 from ctypes import *
 
-### api object #################################################################
+import WrightTools as wt
+import WrightTools.units as wt_units
+
+import project
+import project.classes as pc
+import project.widgets as pw
+import project.project_globals as g
+main_dir = g.main_dir.read()
+
+
+### api object ################################################################
 
 #IMPORTANT: THE WINDLL CALL MUST HAPPEN WITHIN THE TOPAS DRIVER FOLDER (os.chdir())
 
-dll_path = r'C:\Users\John\Desktop\COLORS\OPAs\driver\TopasAPI.dll'
+driver_folder = os.path.join(main_dir, 'opas', 'TOPAS', 'driver')
+os.chdir(driver_folder)
+dll_path = os.path.join(driver_folder, 'TopasAPI.dll')
 dll = ctypes.WinDLL(dll_path)
+os.chdir(main_dir)
 
 global opas_loaded
 opas_loaded = []
@@ -253,49 +273,299 @@ class TOPAS():
         returns [error code]
         '''
         return [dll.Topas_UpdateMotorsPositions(c_ushort(self.index))]
+        
+### OPA object ################################################################
 
-### testing ####################################################################
+
+class OPA:
+
+    def __init__(self):
+        self.index = 2
+        # list of objects to be exposed to PyCMDS
+        self.native_units = 'wn'
+        # may wish to have number limits loaded with tuning curve.
+        self.limits = pc.NumberLimits(min_value=6200, max_value=9500, units='wn')
+        self.current_position = pc.Number(name='Color', initial_value=2000.,
+                                          limits=self.limits,
+                                          units='wn', display=True,
+                                          set_method='set_position')
+        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
+        self.exposed = [self.current_position]
+        self.recorded = collections.OrderedDict()
+        self.gui = GUI(self)
+        self.motors=[]
+        self.motor_names = ['Grating', 'BBO', 'Mixer']
+        self.initialized = pc.Bool()
+
+    def close(self):
+        pass
+
+    def load_curve(self, filepath, polyorder = 4):
+        pass
+
+    def get_points(self):
+        pass
+
+    def get_position(self):
+        pass
+
+    def get_motor_positions(self, inputs=[]):
+        pass
+
+    def initialize(self, inputs, address):
+        '''
+        OPA initialization method. Inputs = [index]
+        '''
+        self.address = address        
+        
+        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50)
+        self.grating_position = pc.Number(name='Grating', initial_value=25., limits=self.motor_limits, display=True)
+        self.bbo_position = pc.Number(name='BBO', initial_value=25., limits=self.motor_limits, display=True)
+        self.mixer_position = pc.Number(name='Mixer', initial_value=25., limits=self.motor_limits, display=True)        
+        
+        self.curve_path = pc.Filepath()
+        self.initialized.write(True)
+        self.address.initialized_signal.emit()
+
+    def is_busy(self):
+        return False
+
+    def is_valid(self, destination):
+        return True
+        
+    def set_offset(self, offset):
+        pass
+
+    def set_position(self, destination):
+        pass
+        
+    def set_position_except(self, inputs):
+        '''
+        set position, except for motors that follow
+        
+        does not wait until still...
+        '''
+        pass
+        
+    def set_motor(self, inputs):
+        '''
+        inputs [motor_name (str), destination (mm)]
+        '''
+        pass
+
+    def set_motors(self, inputs):
+        pass
+         
+    def wait_until_still(self, inputs=[]):
+        pass
+    
+    
+### gui #######################################################################
+    
+class GUI(QtCore.QObject):
+
+    def __init__(self, opa):
+        QtCore.QObject.__init__(self)
+        self.opa = opa
+        self.layout = None
+
+    def create_frame(self, layout):
+        layout.setMargin(5)
+        self.layout = layout
+
+        self.advanced_frame = QtGui.QWidget()
+        self.advanced_frame.setLayout(self.layout)
+
+        g.module_advanced_widget.add_child(self.advanced_frame)
+
+        if self.opa.initialized.read():
+            self.initialize()
+        else:
+            self.opa.initialized.updated.connect(self.initialize)
+
+    def initialize(self):
+
+        if not self.opa.initialized.read():
+            return
+
+        # plot ----------------------------------------------------------------
+
+        # container widget
+        display_container_widget = QtGui.QWidget()
+        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_layout = display_container_widget.layout()
+        display_layout.setMargin(0)
+        self.layout.addWidget(display_container_widget)
+
+        # plot
+        self.plot_widget = pw.Plot1D()
+        self.plot_widget.plot_object.setMouseEnabled(False, False)
+        self.plot_curve = self.plot_widget.add_scatter()
+        self.plot_widget.set_labels(ylabel = 'mm')
+        self.plot_green_line = self.plot_widget.add_line(color = 'g')
+        self.plot_red_line = self.plot_widget.add_line(color = 'r')
+        display_layout.addWidget(self.plot_widget)
+
+        # vertical line
+        line = pw.line('V')
+        self.layout.addWidget(line)
+
+        # settings container --------------------------------------------------
+
+        # container widget / scroll area
+        settings_container_widget = QtGui.QWidget()
+        settings_scroll_area = pw.scroll_area()
+        settings_scroll_area.setWidget(settings_container_widget)
+        settings_scroll_area.setMinimumWidth(300)
+        settings_scroll_area.setMaximumWidth(300)
+        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_layout = settings_container_widget.layout()
+        settings_layout.setMargin(5)
+        self.layout.addWidget(settings_scroll_area)
+
+        # Display
+        input_table = pw.InputTable()
+        input_table.add('Display', None)
+        allowed_values = wt_units.energy.keys()
+        allowed_values.remove('kind')
+        self.plot_motor = pc.Combo(allowed_values=self.opa.motor_names)
+        input_table.add('Motor', self.plot_motor)
+        self.plot_units = pc.Combo(allowed_values=allowed_values)
+        input_table.add('Units', self.plot_units)
+        settings_layout.addWidget(input_table)
+
+        # Tuning Curve
+        input_table = pw.InputTable()
+        input_table.add('Curve', None)
+        input_table.add('Filepath', self.opa.curve_path)
+        g.module_control.disable_when_true(self.opa.curve_path)
+        self.lower_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
+        input_table.add('Low energy limit', self.lower_limit)
+        self.upper_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
+        input_table.add('High energy limit', self.upper_limit)
+        settings_layout.addWidget(input_table)
+
+        # Motor Positions
+        input_table = pw.InputTable()
+        input_table.add('Motors', None)
+        input_table.add('Grating', self.opa.grating_position)
+        self.grating_destination = self.opa.grating_position.associate(display=False)
+        input_table.add('Dest. Grating', self.grating_destination)
+        input_table.add('BBO', self.opa.bbo_position)
+        self.bbo_destination = self.opa.bbo_position.associate(display=False)
+        input_table.add('Dest. BBO', self.bbo_destination)
+        input_table.add('Mixer', self.opa.mixer_position)
+        self.mixer_destination = self.opa.mixer_position.associate(display=False)
+        input_table.add('Dest. Mixer', self.mixer_destination)
+        settings_layout.addWidget(input_table)
+        self.destinations = [self.grating_destination,
+                             self.bbo_destination,
+                             self.mixer_destination]
+
+        # set button
+        self.set_button = pw.SetButton('SET')
+        settings_layout.addWidget(self.set_button)
+        self.set_button.clicked.connect(self.on_set_motors)
+        g.module_control.disable_when_true(self.set_button)
+
+        # streach
+        settings_layout.addStretch(1)
+
+        # signals and slots
+        self.opa.address.update_ui.connect(self.update)
+        self.opa.limits.updated.connect(self.update_limits)
+        self.update_limits()  # first time
+        self.opa.curve_path.updated.connect(self.update_plot)
+        self.plot_units.updated.connect(self.update_plot)
+        self.plot_motor.updated.connect(self.update_plot)
+        self.update_plot()  # first time
+
+    def update(self):
+        if False:
+            # set button disable
+            if self.opa.address.busy.read():
+                self.set_button.setDisabled(True)
+            else:
+                self.set_button.setDisabled(False)
+            # update destination motor positions
+            motor_positions = [mp.read() for mp in self.opa.motor_positions]
+            self.grating_destination.write(motor_positions[0])
+            self.bbo_destination.write(motor_positions[1])
+            self.mixer_destination.write(motor_positions[2])
+
+    def update_plot(self):
+        if False:
+            points = self.opa.get_points()
+            xi = wt_units.converter(points[0], 'wn', self.plot_units.read())
+            motor_index = self.opa.motor_names.index(self.plot_motor.read())+1
+            yi = points[motor_index]
+            self.plot_widget.set_labels(xlabel=self.plot_units.read())
+            self.plot_curve.clear()
+            self.plot_curve.setData(xi, yi)
+            self.plot_widget.graphics_layout.update()
+
+    def update_limits(self):
+        limits = self.opa.limits.read(self.opa.native_units)
+        self.lower_limit.write(limits[0], self.opa.native_units)
+        self.upper_limit.write(limits[1], self.opa.native_units)
+
+    def on_set_motors(self):
+        inputs = [destination.read() for destination in self.destinations]
+        self.opa.address.hardware.q.push('set_motors', inputs)
+        self.opa.address.hardware.q.push('get_position')
+        
+    def show_advanced(self):
+        pass
+
+    def stop(self):
+        pass
+
+
+
+### testing ###################################################################
 
 if __name__ == '__main__':
+    
+    if False:
 
-    ini_filepath = r'C:\Users\John\Desktop\COLORS\OPAs\configuration\10743.ini'    #r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS\10743.ini'
-    OPA1 = TOPAS(ini_filepath)
-    print OPA1.set_shutter(False)
-    print OPA1._get_motor_position(0)
-    print OPA1._set_motor_position(0, 3478)
-    print OPA1._get_motor_positions_range(0)
-    # print OPA1._set_motor_offset
-    # print OPA1._set_motor_affix
-    # print OPA1._move_motor
-    # print OPA1._move_motor_to_position_units
-    print OPA1._set_motor_positions_range(0, 0, 9000)
-    print OPA1.get_wavelength(0)
-    print OPA1._get_motor_affix(0)
-    print OPA1._get_device_serial_number()    
-    print OPA1._is_wavelength_setting_finished()
-    print OPA1._is_motor_still(0)
-    print OPA1._get_reference_switch_status(0)
-    print OPA1._get_count_of_motors()
-    print OPA1._get_count_of_devices()
-    print OPA1._convert_position_to_units(0, 3000)
-    print OPA1._convert_position_to_steps(0, -4.)
-    print OPA1._get_speed_parameters(0)
-    print OPA1._set_speed_parameters(0, 10, 600, 400)
-    print OPA1._update_motors_positions()
-    print OPA1._stop_motor(0)
-    #print OPA1._start_setting_wavelength(1300.)
-    #print OPA1._start_setting_wavelength_ex(1300., 0, 0, 0, 0)
-    #print OPA1._set_wavelength(1300.)
-    print OPA1._start_motor_motion(0, 4000) 
-    #print OPA1._set_wavelength_ex(1300., 0, 0, 0, 0)
-    #print OPA1.get_interaction(1)
-    print OPA1.close()
-    
-    #log errors and handle them within the OPA object
-    #make some convinient methods that are exposed higher up
-    
-    
-    
+        ini_filepath = r'C:\Users\John\Desktop\COLORS\OPAs\configuration\10743.ini'    #r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS\10743.ini'
+        OPA1 = TOPAS(ini_filepath)
+        print OPA1.set_shutter(False)
+        print OPA1._get_motor_position(0)
+        print OPA1._set_motor_position(0, 3478)
+        print OPA1._get_motor_positions_range(0)
+        # print OPA1._set_motor_offset
+        # print OPA1._set_motor_affix
+        # print OPA1._move_motor
+        # print OPA1._move_motor_to_position_units
+        print OPA1._set_motor_positions_range(0, 0, 9000)
+        print OPA1.get_wavelength(0)
+        print OPA1._get_motor_affix(0)
+        print OPA1._get_device_serial_number()    
+        print OPA1._is_wavelength_setting_finished()
+        print OPA1._is_motor_still(0)
+        print OPA1._get_reference_switch_status(0)
+        print OPA1._get_count_of_motors()
+        print OPA1._get_count_of_devices()
+        print OPA1._convert_position_to_units(0, 3000)
+        print OPA1._convert_position_to_steps(0, -4.)
+        print OPA1._get_speed_parameters(0)
+        print OPA1._set_speed_parameters(0, 10, 600, 400)
+        print OPA1._update_motors_positions()
+        print OPA1._stop_motor(0)
+        #print OPA1._start_setting_wavelength(1300.)
+        #print OPA1._start_setting_wavelength_ex(1300., 0, 0, 0, 0)
+        #print OPA1._set_wavelength(1300.)
+        print OPA1._start_motor_motion(0, 4000) 
+        #print OPA1._set_wavelength_ex(1300., 0, 0, 0, 0)
+        #print OPA1.get_interaction(1)
+        print OPA1.close()
+        
+        #log errors and handle them within the OPA object
+        #make some convinient methods that are exposed higher up
+        
+        
+        
     
     
     
