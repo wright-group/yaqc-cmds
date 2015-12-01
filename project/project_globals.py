@@ -303,5 +303,8 @@ class shutdown:
         main_window.read().close()
 shutdown = shutdown()
 
-version = SimpleGlobal()
+slack_control = SimpleGlobal()
 
+slack_enabled = SimpleGlobal()
+
+version = SimpleGlobal()

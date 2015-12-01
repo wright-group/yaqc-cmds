@@ -24,7 +24,6 @@ import project.style as style
 import project.widgets as custom_widgets
 import project.classes as pc
 import project.file_dialog_handler
-import project.slack as slack
 
 import WrightTools as wt
 
@@ -45,8 +44,8 @@ try:
             sha = line.split(' ')[1]  # most recent commit is last
     sha.encode('ascii','ignore')
     config.set('main', 'git sha', sha)
-    with open(main_ini_path, 'w') as ini:    
-        config.write(ini)
+    with open(main_ini_path, 'w') as main_ini:    
+        config.write(main_ini)
 except:
     pass
 
@@ -263,14 +262,19 @@ class MainWindow(QtGui.QMainWindow):
                 imp.load_source(name, path)
                 
     def _load_witch(self):
-        # create witch
-        self.witch = slack.control
-        # begin poll timer
-        timer = QtCore.QTimer()
-        timer.start(500)  # milliseconds
-        self.shutdown.connect(timer.stop)
-        g.slack_poll_timer.write(timer)
-        g.slack_poll_timer.connect_to_timeout(self.witch.poll)
+        # check if witch is enabled
+        bots_ini = ini.Ini(os.path.join(g.main_dir.read(), 'project', 'slack', 'bots.ini'))
+        g.slack_enabled.write(bots_ini.read('bots', 'enable'))
+        if g.slack_enabled.read():
+            import project.slack as slack
+            # create witch
+            self.witch = slack.control
+            # begin poll timer
+            timer = QtCore.QTimer()
+            timer.start(500)  # milliseconds
+            self.shutdown.connect(timer.stop)
+            g.slack_poll_timer.write(timer)
+            g.slack_poll_timer.connect_to_timeout(self.witch.poll)
         
     def _shutdown(self):
         '''

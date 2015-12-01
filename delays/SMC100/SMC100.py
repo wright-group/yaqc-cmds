@@ -1,8 +1,8 @@
-### import #####################################################################
+### import ####################################################################
 
 import pyvisa
 
-### define #####################################################################
+### define ####################################################################
 
 COM_channel = 4
 
@@ -28,14 +28,16 @@ error_dict = {'0': None,
               'W': 'Command not allowed for PP version [W]',
               'X': 'Command not allowed for CC version [X]'}
 
-### address motor ##############################################################
+### address motor #############################################################
 
 class SMC100():
+
     def __init__(self): 
         self.rm = pyvisa.ResourceManager()
         self.instrument = self.rm.open_resource('ASRL%i::INSTR'%COM_channel)
         self.instrument.baud_rate = 57600
         self.instrument.end_input = pyvisa.constants.SerialTermination.termination_char 
+        
     def move_absolute(self, axis, destination):
         '''
         int axis, float destination (mm)
@@ -43,8 +45,10 @@ class SMC100():
         '''
         self.instrument.write(unicode(str(axis)+'PA'+str(destination)))
         #print self.instrument.read()
+        
     def shut_down(self): 
         self.instrument.close()
+        
     def tell_control_status(self, axis):
         '''
         int axis
@@ -53,6 +57,7 @@ class SMC100():
         self.instrument.write(unicode(str(axis)+'TS'))
         status = self.instrument.read()
         return [status]
+        
     def tell_current_position(self, axis):
         '''
         int axis
@@ -63,7 +68,7 @@ class SMC100():
         position = str(position).split('TP')[1]
         return float(position)
 
-### testing ####################################################################
+### testing ###################################################################
 
 if __name__ == '__main__':
 
@@ -74,4 +79,3 @@ if __name__ == '__main__':
     print delay.tell_current_position(2)
     
     delay.shut_down()
-
