@@ -92,14 +92,15 @@ class Delay(QtCore.QObject):
 
     def set_position(self, destination):
         destination_mm = self.zero_position.read() + destination/ps_per_mm  
-        self.motor.move_absolute(destination_mm, 'mm')
-        if g.module_control.read():
-            self.motor.wait_until_still()
-        else:
-            while self.is_busy():
+        for i in range(2):
+            self.motor.move_absolute(destination_mm, 'mm')
+            if g.module_control.read():
+                self.motor.wait_until_still()
+            else:
+                while self.is_busy():
+                    time.sleep(0.1)
+                    self.get_position()
                 time.sleep(0.1)
-                self.get_position()
-            time.sleep(0.1)
         self.get_position()
         
     def set_zero(self, zero):

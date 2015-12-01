@@ -26,6 +26,7 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'opas',
 
 ### OPA object ################################################################
 
+counts_per_mm = 58200
 
 max_OPA_index = 3
 
@@ -88,7 +89,7 @@ class OPA:
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50)
         self.grating_position = pc.Number(name='Grating', initial_value=25., limits=self.motor_limits, display=True)
         self.bbo_position = pc.Number(name='BBO', initial_value=25., limits=self.motor_limits, display=True)
-        self.mixer_position = pc.Number(name='Mixer', initial_value=25., limits=self.motor_limits, display=True)
+        self.mixer_position = pc.Number(name='Mixer', decimals=6, initial_value=25., limits=self.motor_limits, display=True)
         self.motor_positions=[self.grating_position, self.bbo_position, self.mixer_position]
         # load motors
         self.motors.append(pm_motors.Motor(pm_motors.identity['OPA'+str(self.index)+' grating']))
@@ -141,26 +142,56 @@ class OPA:
         
     def set_motor(self, inputs):
         '''
-        inputs [motor_name (str), destination (mm)]
+        inputs [motor_name (str), destination (mm),backlash (optional)]
         '''
         print 'set_motor', inputs, '!!!!!!!!!!!!!!!!!!!!!!!'
-        name, destination = inputs
-        motor_index = self.motor_names.index(name)
-        self.motors[motor_index].move_absolute(destination)
+        if len(inputs)==2:        
+            name, destination = inputs
+            backlash = False
+        elif len(inputs)==3:
+            name, destination, backlash = inputs
+        m = self.motors[self.motor_names.index(name)]
+        if backlash and abs(m.current_position - destination) >= m.tolerance:
+            current_pos = m.current_position
+            if current_pos+150/counts_per_mm >= destination:
+                m.move_absolute(destination)
+                self.wait_until_still()
+                m.move_absolute(destination)
+            else:
+                m.move_absolute(min(current_pos,destination) - 150/counts_per_mm)
+                self.wait_until_still()
+                m.move_absolute(destination)
+        else:
+            m.move_absolute(destination)
+        
 
     def set_motors(self, inputs):
-        for axis in range(3):
+        r = 3        
+        if self.index == 3:
+            r=2
+        for axis in range(r):
             position = inputs[axis]
             if position >= 0 and position <=50:
                 self.motors[axis].move_absolute(position)
             else:
                 print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
+                
+        if self.index == 3:
+            self.set_motor([self.motor_names[2],inputs[2],True])
+        
         self.wait_until_still()
-        self.get_motor_positions()
+        for axis in range(r):
+            position = inputs[axis]
+            if position >= 0 and position <=50:
+                self.motors[axis].move_absolute(position)
+            
+        
                 
     def wait_until_still(self, inputs=[]):
         for motor in self.motors:
             motor.wait_until_still(method=self.get_motor_positions)
+        self.get_motor_positions()
+        
 
 
 ### advanced gui ##############################################################

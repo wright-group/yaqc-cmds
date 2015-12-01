@@ -20,6 +20,9 @@ gain = ini.read('shared', 'gain')
 velocity = ini.read('shared', 'velocity')
 dwell = ini.read('shared', 'dwell')
 integral_gain = ini.read('shared', 'integral_gain')
+derivative_gain = ini.read('shared', 'derivative_gain')
+derivative_sample = ini.read('shared','derivative_sample')
+
 
 # hardcoded
 counts_per_mm = 58200
@@ -70,16 +73,17 @@ class Motor():
         controller_index = ini.read(self.ini_section, 'controller')
         self.axis = ini.read(self.ini_section, 'axis')
         initial_position = ini.read(self.ini_section, 'current_position')
+        self.tolerance = ini.read(self.ini_section,'tolerance')
         # set conditions for motor
         self.ctrl = controllers[controller_index]
         self.ctrl.EnableAxis(self.axis, True)
         self.filter = MCFILTEREX()
         self.filter.Gain = gain
-        self.filter.IntegralGain = 0.
+        self.filter.IntegralGain = integral_gain
         self.filter.IntegrationLimit = 0.
         self.filter.IntegralOption = 0
-        self.filter.DerivativeGain = 2000.
-        self.filter.DerSamplePeriod = 0.000341
+        self.filter.DerivativeGain = derivative_gain
+        self.filter.DerSamplePeriod = derivative_sample
         self.filter.FollowingError = 0.
         self.filter.VelocityGain = 0.
         self.filter.AccelGain = 0.
@@ -98,6 +102,8 @@ class Motor():
         # add to list of initialized motors
         initialized_motors.append(self)
         self.open = True
+        self.offset = 0
+        self.offset_list = []
         
     def close(self, close_controllers_if_last=True):
         '''
@@ -125,6 +131,7 @@ class Motor():
             return 50. - self.current_position/counts_per_mm
         else:
             print 'returned_units kind', returned_units, 'not recognized in precision_motors.get_position'
+        self._offset_adj(self.last_destination,self.current_position)
             
     def is_stopped(self, timeout=0.1):
         '''
@@ -137,26 +144,36 @@ class Motor():
             return True
         
     def move_absolute(self, destination, input_units='mm', wait=False):
+        go = True
         if input_units == 'counts':
             pass
         elif input_units == 'mm':
             destination = 50*counts_per_mm - destination*counts_per_mm
         else:
             print 'input_units kind', input_units, 'not recognized in precision_motors.move_absolute'
-        ini.write(self.ini_section, 'last_destination', int(destination))
-        self.ctrl.MoveAbsolute(self.axis, destination)
+            go = False
+        
+        if go and abs(self.ctrl.GetPositionEx(self.axis)-destination) >= self.tolerance:
+            ini.write(self.ini_section, 'last_destination', int(destination))
+            self.last_destination = int(destination)
+            self.ctrl.MoveAbsolute(self.axis, int(destination+self.offset))
         if wait:
             self.wait_until_still()
     
     def move_relative(self, distance, input_units='mm', wait=False):
+        go = True
         if input_units == 'counts':
             pass
         elif input_units == 'mm':
             distance = - distance*counts_per_mm
         else:
             print 'input_units kind', input_units, 'not recognized in precision_motors.move_relative'
-        ini.write(self.ini_section, 'last_destination', int(self.current_position + destination))
-        self.ctrl.MoveRelative(self.axis, distance)
+            go = False
+            
+        if go and abs(self.ctrl.GetPositionEx(self.axis)-destination) >= self.tolerance:
+            ini.write(self.ini_section, 'last_destination', int(self.current_position + distance))
+            self.last_destination = int(self.current_position + distance)
+            self.ctrl.MoveRelative(self.axis, int(distance+self.offset))
         if wait:
             self.wait_until_still()
     
@@ -173,11 +190,30 @@ class Motor():
     def stop(self):
         self.ctrl.Stop(self.axis)
         self.get_position()
-            
-
+     
+    def get_FollowingError(self):
+        return self.ctrl.GetFollowingError(self.axis)
+        
+    def get_target(self):
+        return self.ctrl.GetTargetEx(self.axis)
+        
+    def at_target(self):
+        return self.ctrl.IsAtTarget(self.axis,3)
+    
+    def MoveToPoint(self,index):
+        self.ctrl.MoveToPoint(self.axis,index)
+        
+    def _offset_adj(self,goal,pos):
+        if len(offset_list)>49:        
+            self.offset_list.pop(0)
+        self.offset_list.append(int(goal)-pos)
+        self.offset = np.average(self.offset_list)+self.offset
+        
 ### testing ###################################################################
 
 if __name__ == '__main__':
+    
+    import numpy as np
     
     if False:
         # move all motors to a destination
@@ -201,7 +237,7 @@ if __name__ == '__main__':
             print motor.get_position('mm')
             motor.close()
         
-    if True:
+    if False:
         #mess with a single motor
         motor = Motor('motor1')
         motor.move_absolute(25, 'mm')
@@ -217,4 +253,40 @@ if __name__ == '__main__':
         motor.wait_until_still()
         print motor.get_position('mm')
         motor.close()
+
+    if False:
+        motor = Motor('motor7')
+        motor.move_absolute(25.0000)
+        move = 0.0005
+        #pos_in_cn = counts_per_mm * np.arange(25.0,25.05,0.0005)
+        final_pos = []
+        for j in range(15):
+            p = []
+            for x in range(100):
+                ini.write(motor.ini_section, 'last_destination', int(x))
+                motor.move_relative(motor.axis, x)
+                motor.wait_until_still()
+                time.sleep(.01)
+                p.append(motor.get_position('counts'))
+            final_pos.append(p)
+        motor.close()
         
+    if False:
+        motor = Motor('motor7')
+        pos_in_cn = counts_per_mm * np.arange(25.05,25.0,-0.0005)
+        final_pos = []
+        targets = []
+        for j in range(5):
+            p = []
+            t=[]
+            for x in pos_in_cn:
+                x = int(x)
+                ini.write(motor.ini_section, 'last_destination', int(x))
+                motor.ctrl.MoveAbsolute(motor.axis, x)
+                t.append(x-motor.get_target())
+                motor.wait_until_still()
+                time.sleep(.01)
+                p.append(x-motor.get_position('counts'))
+            final_pos.append(p)
+            targets.append(t)
+        motor.close()
