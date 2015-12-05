@@ -7,7 +7,6 @@ import time
 import numpy as np
 
 from PyQt4 import QtCore
-from PyQt4 import QtGui
 
 import project_globals as g
 
@@ -371,7 +370,7 @@ class NumberLimits(PyCMDS_Object):
 class Number(PyCMDS_Object):
 
     def __init__(self, initial_value=np.nan, single_step=1., decimals=3, 
-                 limits=NumberLimits(), units=None, *args, **kwargs):
+                 limits=None, units=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, initial_value=initial_value,
                                *args, **kwargs)
         self.type = 'number'
@@ -388,6 +387,8 @@ class Number(PyCMDS_Object):
                 self.units_kind = dic['kind']
         # limits
         self.limits = limits
+        if self.limits is None:
+            self.limits = NumberLimits()
         if self.units is None:
             self.limits.units = None
         if self.units is not None and self.limits.units is None:

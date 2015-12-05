@@ -12,7 +12,7 @@ from ctypes import *
 import WrightTools as wt
 import WrightTools.units as wt_units
 
-import project
+#import project
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g

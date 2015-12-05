@@ -30,8 +30,12 @@ app = g.app.read()
 main_dir = g.main_dir.read()
 ini = ini.daq
 
-if not g.offline.read(): 
-    from PyDAQmx import *
+from PyDAQmx import *
+
+if g.debug.read():
+    DAQ_device_name = ini.read('DAQ', 'simulated device name')
+else:
+    DAQ_device_name = ini.read('DAQ', 'device name')
 
 
 ### channels ##################################################################
@@ -428,7 +432,6 @@ class DAQ(QtCore.QObject):
         self.previous_time = time.time()
         if g.debug.read(): print 'DAQ initializing'
         g.logger.log('info', 'DAQ initializing')
-        if g.offline.read(): return
         self.create_task([])
     
     def create_task(self, inputs):
@@ -437,7 +440,6 @@ class DAQ(QtCore.QObject):
         parameters of the aquisition (channel correspondance, shots, etc.)
         change.
         '''
-        if g.offline.read(): return
             
         # ensure previous task closed -----------------------------------------
         
@@ -504,13 +506,13 @@ class DAQ(QtCore.QObject):
                     min_voltage = -1.
                     max_voltage = 6.
                 channel_name = 'sample_' + str(name_index).zfill(3)
-                DAQmxCreateAIVoltageChan(self.task_handle,              # task handle
-                                         'Dev1/ai%i'%physical_channel,  # physical chanel
-                                         channel_name,                  # name to assign to channel
-                                         DAQmx_Val_Diff,                # the input terminal configuration
-                                         min_voltage, max_voltage,      # minVal, maxVal
-                                         DAQmx_Val_Volts,               # units 
-                                         None)                          # custom scale
+                DAQmxCreateAIVoltageChan(self.task_handle,                            # task handle
+                                         DAQ_device_name + '/ai%i'%physical_channel,  # physical chanel
+                                         channel_name,                                # name to assign to channel
+                                         DAQmx_Val_Diff,                              # the input terminal configuration
+                                         min_voltage, max_voltage,                    # minVal, maxVal
+                                         DAQmx_Val_Volts,                             # units 
+                                         None)                                        # custom scale
                 name_index += 1
         except DAQError as err:
             print "DAQmx Error: %s"%err
@@ -522,12 +524,12 @@ class DAQ(QtCore.QObject):
         # define timing -------------------------------------------------------
       
         try:
-            DAQmxCfgSampClkTiming(self.task_handle,       # task handle
-                                  '/Dev1/PFI0',           # sorce terminal
-                                  1000.0,                 # sampling rate (samples per second per channel) (float 64) (in externally clocked mode, only used to initialize buffer)
-                                  DAQmx_Val_Rising,       # acquire samples on the rising edges of the sample clock
-                                  DAQmx_Val_FiniteSamps,  # acquire a finite number of samples
-                                  long(self.shots))       # samples per channel to acquire (unsigned integer 64)         
+            DAQmxCfgSampClkTiming(self.task_handle,                 # task handle
+                                  '/' + DAQ_device_name + '/PFI0',  # sorce terminal
+                                  1000.0,                           # sampling rate (samples per second per channel) (float 64) (in externally clocked mode, only used to initialize buffer)
+                                  DAQmx_Val_Rising,                 # acquire samples on the rising edges of the sample clock
+                                  DAQmx_Val_FiniteSamps,            # acquire a finite number of samples
+                                  long(self.shots))                 # samples per channel to acquire (unsigned integer 64)         
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in timing definition', err)
@@ -735,8 +737,6 @@ class DAQ(QtCore.QObject):
          '''
          cleanly shutdown
          '''
-         if g.offline.read(): return
-         
          if self.task_created:
              DAQmxStopTask(self.task_handle)
              DAQmxClearTask(self.task_handle)
