@@ -5,6 +5,8 @@ import os
 import collections
 import time
 
+import numpy as np
+
 from PyQt4 import QtGui, QtCore
 
 import project.com_handler as com_handler
@@ -88,7 +90,6 @@ class SMC100():
         out = {}
         out['error'] = status[:4]
         out['state'] = status[4:6]
-        print out
         return out
 
     def close(self):
@@ -126,12 +127,14 @@ class SMC100():
                                        limits=self.motor_limits,
                                        decimals=5,
                                        units='mm', display=True)
+        self.set_zero(self.zero_position.read())
         # recorded
         self.recorded['d' + str(self.index)] = [self.current_position, self.native_units, 1., '0', False]
+        self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., '0', False]
         # finish
-        self.initialized.write(True)
-        self.address.initialized_signal.emit()
         self.get_position()
+        self.initialized.write(True)
+        self.address.initialized_signal.emit()        
 
     def is_busy(self):
         return False
@@ -150,12 +153,18 @@ class SMC100():
     def set_position(self, destination):
         # get destination_mm
         destination_mm = self.zero_position.read() + destination/fs_per_mm
+        self.set_position_mm([destination_mm])
+        
+    def set_position_mm(self, inputs):
+        destination = inputs[0]
         # move hardware
         # TODO: consider backlash correction? 
-        self.port.write(unicode(str(self.axis)+'PA'+str(destination_mm)))
+        self.port.write(unicode(str(self.axis)+'PA'+str(destination)))
         while not self._tell_status()['state'] == status_dict['READY from MOVING']:
             time.sleep(0.01)
             self.get_position()
+        # get position
+        self.get_position()
         # get position
         self.get_position()
         
@@ -206,18 +215,30 @@ class GUI(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        # input table
+        # mm input table
         input_table = pw.InputTable()
+        input_table.add('Position', None)
         input_table.add('Current', self.driver.current_position_mm)
-        input_table.add('Zero', self.driver.zero_position)
-        self.zero_destination = self.driver.zero_position.associate(display=False)
-        input_table.add('Zero dest.', self.zero_destination)
+        self.mm_destination = self.driver.current_position_mm.associate(display=False)
+        input_table.add('Destination', self.mm_destination)
         settings_layout.addWidget(input_table)
-        # set button
-        self.set_button = pw.SetButton('SET ZERO')
-        settings_layout.addWidget(self.set_button)
-        self.set_button.clicked.connect(self.on_set_zero)
-        g.module_control.disable_when_true(self.set_button)
+        # set mm button
+        self.set_mm_button = pw.SetButton('SET POSITION')
+        settings_layout.addWidget(self.set_mm_button)
+        self.set_mm_button.clicked.connect(self.on_set_mm)
+        g.module_control.disable_when_true(self.set_mm_button)
+        # zero input table
+        input_table = pw.InputTable()
+        input_table.add('Zero', None)
+        input_table.add('Current', self.driver.zero_position)
+        self.zero_destination = self.driver.zero_position.associate(display=False)
+        input_table.add('Destination', self.zero_destination)
+        settings_layout.addWidget(input_table)
+        # set zero button
+        self.set_zero_button = pw.SetButton('SET ZERO')
+        settings_layout.addWidget(self.set_zero_button)
+        self.set_zero_button.clicked.connect(self.on_set_zero)
+        g.module_control.disable_when_true(self.set_zero_button)
         # horizontal line
         settings_layout.addWidget(pw.line('H'))
         # home button
@@ -233,6 +254,11 @@ class GUI(QtCore.QObject):
         
     def on_home(self):
         self.driver.address.hardware.q.push('home')
+        
+    def on_set_mm(self):
+        new_mm = self.mm_destination.read('mm')
+        new_mm = np.clip(new_mm, 1e-3, 300-1e-3)
+        self.driver.address.hardware.q.push('set_position_mm', [new_mm])
         
     def on_set_zero(self):
         new_zero = self.zero_destination.read('mm')

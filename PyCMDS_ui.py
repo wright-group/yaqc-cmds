@@ -1,8 +1,28 @@
+### ensure folders exist ######################################################
+
+
+import os
+
+folders = []
+folders.append(['data'])
+folders.append(['logs'])
+folders.append(['coset', 'files'])
+folders.append(['opas', 'pico', 'OPA1 curves'])
+folders.append(['opas', 'pico', 'OPA2 curves'])
+folders.append(['opas', 'pico', 'OPA3 curves'])
+folders.append(['opas', 'TOPAS-C', 'OPA1 (10743) curves'])
+folders.append(['opas', 'TOPAS-C', 'OPA2 (10742) curves'])
+
+for folder in folders:
+    folder_path = os.path.join(os.getcwd(), *folder)
+    if not os.path.isdir(folder_path):
+        os.mkdir(folder_path)
+
+
 #### import ####################################################################
 #BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
 
-import os
 import sys
 import imp
 import copy
@@ -21,7 +41,7 @@ import project.ini_handler as ini
 g.logger.log('info', 'Startup', 'PyCMDS is attempting startup')
 
 import project.style as style
-import project.widgets as custom_widgets
+import project.widgets as pw
 import project.classes as pc
 import project.file_dialog_handler
 
@@ -108,7 +128,7 @@ class MainWindow(QtGui.QMainWindow):
         module_box = QtGui.QVBoxLayout()
         
         # module combobox
-        module_combobox = custom_widgets.module_combobox()
+        module_combobox = pw.module_combobox()
         module_combobox.setMinimumWidth(300)
         module_combobox.setMinimumHeight(30)
         g.module_combobox.write(module_combobox)
@@ -120,7 +140,7 @@ class MainWindow(QtGui.QMainWindow):
         g.module_widget.write(module_widget)
         
         # module scroll area
-        module_scroll_area = custom_widgets.scroll_area()
+        module_scroll_area = pw.scroll_area()
         module_scroll_area.setWidget(module_widget)
         module_box.addWidget(module_scroll_area)    
         
@@ -129,7 +149,7 @@ class MainWindow(QtGui.QMainWindow):
         hardware_box = QtGui.QVBoxLayout()
         
         # exit button
-        exit_button = custom_widgets.Shutdown_button()
+        exit_button = pw.Shutdown_button()
         exit_button.setMinimumWidth(300)
         exit_button.setMinimumHeight(30)
         exit_button.shutdown_go.connect(self._shutdown)
@@ -141,7 +161,7 @@ class MainWindow(QtGui.QMainWindow):
         g.hardware_widget.write(hardware_widget)
     
         # hardware scroll area
-        hardware_scroll_area = custom_widgets.scroll_area()
+        hardware_scroll_area = pw.scroll_area()
         hardware_scroll_area.setWidget(hardware_widget)
         hardware_box.addWidget(hardware_scroll_area)        
 
@@ -184,7 +204,7 @@ class MainWindow(QtGui.QMainWindow):
         g.daq_plot_widget.write(daq_plot_widget)
         
         # tab widget
-        self.tabs = QtGui.QTabWidget()
+        self.tabs = pw.TabWidget()
         self.tabs.addTab(hardware_advanced_widget, 'Hardware')
         self.tabs.addTab(coset_widget, 'CoSet')
         self.tabs.addTab(module_advanced_widget, 'Module')

@@ -197,6 +197,8 @@ class Address(QtCore.QObject):
         
         # initialize DAQ
         header_dictionary = collections.OrderedDict()
+        header_dictionary['PyCMDS version'] = g.version.read()
+        header_dictionary['system name'] = g.system_name.read()
         header_dictionary['file created'] = wt.kit.get_timestamp()
         header_dictionary['data name'] = self.scan.daq_widget.name.read()
         header_dictionary['data info'] = self.scan.daq_widget.info.read()

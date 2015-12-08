@@ -777,7 +777,7 @@ class Hardware(QtCore.QObject):
             return
         self.q.push('set_offset', [offset])
 
-    def set_position(self, destination, input_units=None):
+    def set_position(self, destination, input_units=None, force_send=False):
         if input_units is None:
             pass
         else:
@@ -786,7 +786,8 @@ class Hardware(QtCore.QObject):
                                              self.native_units)
         # do nothing if new destination is same as current destination
         if destination == self.destination.read(self.native_units):
-            return
+            if not force_send:
+                return
         self.destination.write(destination, self.native_units)
         self.q.push('set_position', [destination])
 

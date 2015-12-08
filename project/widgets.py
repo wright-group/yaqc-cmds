@@ -322,6 +322,12 @@ class TableWidget(QtGui.QTableWidget):
         StyleSheet = 'QTableWidget::item{padding: 0px}'
         StyleSheet += 'QHeaderView::section{background: background_color; color:white; font: bold 14px}'.replace('background_color', colors['background'])
         self.setStyleSheet(StyleSheet)
+        
+class TabWidget(QtGui.QTabWidget):
+    def __init__(self):
+        QtGui.QTabWidget.__init__(self)
+        StyleSheet = 'QTabBar::tab{width: 130px;}'
+        self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
 
@@ -513,7 +519,7 @@ class HardwareFrontPanel(QtCore.QObject):
         for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
             for current_object, destination_object in zip(front_panel_elements[0], front_panel_elements[1]):
                 if current_object.set_method == 'set_position':
-                    hardware.set_position(destination_object.read(), destination_object.units)
+                    hardware.set_position(destination_object.read(), destination_object.units, force_send=True)
                 else:
                     hardware.q.push(current_object.set_method, [destination_object.read()])
         g.coset_control.read().launch()

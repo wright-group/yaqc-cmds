@@ -1,3 +1,13 @@
+# PyCMDS folders
+data/
+logs/
+coset/files/
+opas/pico/OPA1 curves/
+opas/pico/OPA2 curves/
+opas/pico/OPA3 curves/
+opas/TOPAS-C/OPA1 (10743) curves/
+opas/TOPAS-C/OPA2 (10742) curves/
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db

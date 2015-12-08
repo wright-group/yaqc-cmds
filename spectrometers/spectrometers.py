@@ -3,6 +3,7 @@
 
 import os
 import imp
+import collections
 
 from PyQt4 import QtCore
 
@@ -25,7 +26,9 @@ class Monochromator(pc.Address):
 
 
 # list module path, module name, class name, initialization arguments, friendly name
-hardware_dict = {'MicroHR': [os.path.join(main_dir, 'spectrometers', 'MicroHR', 'MicroHR.py'), 'MicroHR', 'MicroHR', [], 'wm']}
+hardware_dict = collections.OrderedDict()
+hardware_dict['MicroHR'] = [os.path.join(main_dir, 'spectrometers', 'MicroHR', 'MicroHR.py'), 'MicroHR', 'MicroHR', [], 'wm']
+
 hardwares = []
 for key in hardware_dict.keys():
     if ini.read('hardware', key):

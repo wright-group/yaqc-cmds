@@ -304,4 +304,6 @@ slack_control = SimpleGlobal()
 
 slack_enabled = SimpleGlobal()
 
+system_name = GlobalWithIni(ini.main, 'main', 'system name')
+
 version = SimpleGlobal()
