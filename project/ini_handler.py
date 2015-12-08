@@ -74,7 +74,7 @@ class Ini(QtCore.QMutex):
 ### shared inis initialized here ##############################################
 
 
-main = Ini(os.path.join(main_dir, 'project', 'PyCMDS.ini'))
+main = Ini(os.path.join(main_dir, 'PyCMDS.ini'))
 daq = Ini(os.path.join(main_dir, 'daq', 'daq.ini'))
 delays = Ini(os.path.join(main_dir, 'delays', 'delays.ini'))
 opas = Ini(os.path.join(main_dir, 'opas', 'opas.ini'))
