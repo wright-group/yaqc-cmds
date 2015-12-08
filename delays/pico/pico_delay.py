@@ -23,7 +23,7 @@ if g.offline.read():
 else:
     import project.precision_micro_motors.precision_motors as motors
 
-ps_per_mm = 6.671281903963041 # a mm on the delay stage (factor of 2)
+ps_per_mm = 6.671281903963041  # a mm on the delay stage (factor of 2)
 
 
 ### delay object ##############################################################
@@ -182,9 +182,6 @@ class gui(QtCore.QObject):
         self.delay.offset.write(0)
         name = self.delay.address.hardware.name
         g.coset_control.read().zero(name)
-    
-    def show_advanced(self):
-        pass
 
     def stop(self):
         pass

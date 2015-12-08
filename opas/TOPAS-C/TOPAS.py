@@ -12,7 +12,7 @@ from ctypes import *
 import WrightTools as wt
 import WrightTools.units as wt_units
 
-import project
+#import project
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
@@ -23,7 +23,7 @@ main_dir = g.main_dir.read()
 
 #IMPORTANT: THE WINDLL CALL MUST HAPPEN WITHIN THE TOPAS DRIVER FOLDER (os.chdir())
 
-driver_folder = os.path.join(main_dir, 'opas', 'TOPAS', 'driver')
+driver_folder = os.path.join(main_dir, 'opas', 'TOPAS-C', 'driver')
 os.chdir(driver_folder)
 dll_path = os.path.join(driver_folder, 'TopasAPI.dll')
 dll = ctypes.WinDLL(dll_path)

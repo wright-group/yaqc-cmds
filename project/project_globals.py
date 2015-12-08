@@ -116,9 +116,6 @@ class daq_plot_widget:
         self.value = value
 daq_plot_widget = daq_plot_widget()
 
-emulate_mono = SimpleGlobal()
-emulate_mono.write(False)
-
 hardware_advanced_box = SimpleGlobal()
 
 hardware_initialized = SimpleGlobal()
@@ -303,5 +300,10 @@ class shutdown:
         main_window.read().close()
 shutdown = shutdown()
 
-version = SimpleGlobal()
+slack_control = SimpleGlobal()
 
+slack_enabled = SimpleGlobal()
+
+system_name = GlobalWithIni(ini.main, 'main', 'system name')
+
+version = SimpleGlobal()

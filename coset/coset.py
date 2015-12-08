@@ -401,7 +401,7 @@ class GUI(QtCore.QObject):
         container_widget.setLayout(container_box)
         self.tabs.addTab(container_widget, name)
         # sub-tabs
-        tabs = QtGui.QTabWidget()
+        tabs = pw.TabWidget()
         container_box.addWidget(tabs)
         for hardware in hardwares:
             coset_hardware = CoSetHW(hardware)
