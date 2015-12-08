@@ -1,3 +1,13 @@
+# PyCMDS folders
+data/
+logs/
+coset/files/
+opas/pico/OPA1 curves/
+opas/pico/OPA2 curves/
+opas/pico/OPA3 curves/
+opas/TOPAS-C/OPA1 (10743) curves/
+opas/TOPAS-C/OPA2 (10742) curves/
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -46,7 +56,3 @@ Temporary Items
 .apdisk
 modules/_play.py
 modules/2D_Delay_scan.py
-project/precision_micro_motors/precision_motors.ini
-opas/pico/OPA2 curves/Old_curves/
-opas/pico/OPA1 curves/Old_curves/
-opas/pico/OPA3 curves/Old_curves/

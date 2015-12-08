@@ -23,9 +23,8 @@ import WrightTools as wt
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
-import project.slack as slack
-slack = slack.control
 app = g.app.read()
+slack = g.slack_control.read()
 
 
 ### import hardware control ###################################################
@@ -198,6 +197,8 @@ class Address(QtCore.QObject):
         
         # initialize DAQ
         header_dictionary = collections.OrderedDict()
+        header_dictionary['PyCMDS version'] = g.version.read()
+        header_dictionary['system name'] = g.system_name.read()
         header_dictionary['file created'] = wt.kit.get_timestamp()
         header_dictionary['data name'] = self.scan.daq_widget.name.read()
         header_dictionary['data info'] = self.scan.daq_widget.info.read()
@@ -434,11 +435,12 @@ class GUI(QtCore.QObject):
             if channel_index == 0:
                 output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
         # send message on slack
-        slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
-        if len(data.shape) < 3:
-            print output_image_path
-            slack.upload_file(output_image_path)
-                
+        if g.slack_enabled.read():
+            slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
+            if len(data.shape) < 3:
+                print output_image_path
+                slack.upload_file(output_image_path)
+                    
         
     def update(self):
         pass

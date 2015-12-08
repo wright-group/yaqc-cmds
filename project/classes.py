@@ -7,7 +7,6 @@ import time
 import numpy as np
 
 from PyQt4 import QtCore
-from PyQt4 import QtGui
 
 import project_globals as g
 
@@ -371,7 +370,7 @@ class NumberLimits(PyCMDS_Object):
 class Number(PyCMDS_Object):
 
     def __init__(self, initial_value=np.nan, single_step=1., decimals=3, 
-                 limits=NumberLimits(), units=None, *args, **kwargs):
+                 limits=None, units=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, initial_value=initial_value,
                                *args, **kwargs)
         self.type = 'number'
@@ -388,6 +387,8 @@ class Number(PyCMDS_Object):
                 self.units_kind = dic['kind']
         # limits
         self.limits = limits
+        if self.limits is None:
+            self.limits = NumberLimits()
         if self.units is None:
             self.limits.units = None
         if self.units is not None and self.limits.units is None:
@@ -776,7 +777,7 @@ class Hardware(QtCore.QObject):
             return
         self.q.push('set_offset', [offset])
 
-    def set_position(self, destination, input_units=None):
+    def set_position(self, destination, input_units=None, force_send=False):
         if input_units is None:
             pass
         else:
@@ -785,7 +786,8 @@ class Hardware(QtCore.QObject):
                                              self.native_units)
         # do nothing if new destination is same as current destination
         if destination == self.destination.read(self.native_units):
-            return
+            if not force_send:
+                return
         self.destination.write(destination, self.native_units)
         self.q.push('set_position', [destination])
 

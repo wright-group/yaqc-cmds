@@ -1,0 +1,96 @@
+; TopasLPT.inf
+;
+; Installation file (.inf) for the TOPAS LPT Interface device.
+;
+; (c) Copyright 2002-2003 Light COnversion Ltd 
+;
+
+[Version]
+Signature="$Chicago$"
+Class=Topas
+ClassGuid={53DA102A-A4FF-4b78-BEDC-85AB1C834F58}
+Provider=%LightCon%
+DriverVer=04/08/2003,2.0.0.2
+
+; =================== Class Sections ===========================
+
+[ClassInstall32]
+Addreg=TopasClassReg     
+
+[ClassInstall]
+Addreg=TopasClassReg             
+
+[TopasClassReg]
+HKR,,,0,%TopasClassName%
+HKR,,SilentInstall,,1
+HKR,,Icon,,-23
+; ==============================================================
+[Manufacturer]
+%LightCon% = TopasLPT
+
+[TopasLPT]
+%TopasLPT%=TopasLPT.Install, *LightCon\TopasLPT
+
+[DestinationDirs]
+TopasLPT.Files.Driver=10,System32\Drivers
+TopasLPT.Files.Driver.NTx86=10,System32\Drivers
+
+[SourceDisksNames]
+1="Topas LPT interface Driver disk",,,
+
+[SourceDisksFiles]
+
+
+[SourceDisksFiles.x86]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Windows 98
+
+[TopasLPT.Install]
+CopyFiles=TopasLPT.Files.Driver
+AddReg=TopasLPT.AddReg
+
+[TopasLPT.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,TopasLPT.sys
+
+[TopasLPT.Files.Driver]
+TopasLPT.sys
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Windows 2000
+
+[TopasLPT.Install.NTx86]
+CopyFiles=TopasLPT.Files.Driver.NTx86
+
+[TopasLPT.Files.Driver.NTx86]
+TopasLPT.sys,,,%COPYFLG_NOSKIP%
+
+[TopasLPT.Install.NTx86.Services]
+AddService = TopasLPT, %SPSVCINST_ASSOCSERVICE%, TopasLPT.Service
+
+[TopasLPT.Service]
+DisplayName    = %TopasLPT.ServiceName%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_IGNORE%
+ServiceBinary  = %10%\System32\Drivers\TopasLPT.sys
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Strings
+
+[Strings]
+LightCon="Light Conversion Ltd"
+TopasLPT="Topas LPT interface"
+TopasLPT.ServiceName="TopasLPT"
+TopasClassName= "Topas"
+
+SPSVCINST_ASSOCSERVICE=0x00000002	; Driver service is associated with device being installed
+COPYFLG_NOSKIP=2	; Do not allow user to skip file
+SERVICE_KERNEL_DRIVER=1
+SERVICE_AUTO_START=2
+SERVICE_DEMAND_START=3
+SERVICE_ERROR_NORMAL=1
+SERVICE_ERROR_IGNORE=0
+
+0x00000001
