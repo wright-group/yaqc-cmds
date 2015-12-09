@@ -24,8 +24,6 @@ import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 app = g.app.read()
-slack = g.slack_control.read()
-
 
 ### import hardware control ###################################################
 
@@ -436,6 +434,7 @@ class GUI(QtCore.QObject):
                 output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
         # send message on slack
         if g.slack_enabled.read():
+            slack = g.slack_control.read()
             slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
             if len(data.shape) < 3:
                 print output_image_path
