@@ -1,3 +1,8 @@
+'''
+PyCMDS thread safe wrapper for pyvisa com port communication
+'''
+
+
 ### import ####################################################################
 
 
@@ -19,13 +24,14 @@ open_coms = {}
 
 class COM(QtCore.QMutex):
     
-    def __init__(self, port, baud_rate=57600):
+    def __init__(self, port, baud_rate, timeout):
         QtCore.QMutex.__init__(self)
         self.port_index = port
         self.rm = pyvisa.ResourceManager()
         self.instrument = resource_manager.open_resource('ASRL%i::INSTR'%self.port_index)
         self.instrument.baud_rate = baud_rate
         self.instrument.end_input = pyvisa.constants.SerialTermination.termination_char
+        self.instrument.timeout = timeout
         self.external_lock_control = False
         g.shutdown.add_method(self.close)
 
@@ -50,11 +56,13 @@ class COM(QtCore.QMutex):
 
 creating_com = pc.Busy()
 
-def get_com(port, baud_rate=57600):
+def get_com(port, baud_rate=57600, timeout=1000):
     '''
     int port
     
     returns com object
+    
+    timeout in ms
     '''
     # one at a time
     while creating_com.read():
@@ -67,7 +75,7 @@ def get_com(port, baud_rate=57600):
             out = open_coms[key]
     # otherwise open new com
     if not out:
-        out = COM(port, baud_rate)
+        out = COM(port, baud_rate, timeout)
         open_coms[port] = out 
     # finish
     creating_com.write(False)

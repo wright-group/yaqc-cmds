@@ -134,6 +134,17 @@ class PyCMDS_Object(QtCore.QObject):
         if disable_under_module_control:
             g.main_window.read().module_control.connect(self.on_module_control)
             
+    def associate(self, display=None, pre_name=''):
+        # display
+        if display is None:
+            display = self.display
+        # name
+        name = pre_name + self.name
+        # new object
+        new_obj = self.__class__(initial_value=self.read(), display=display,
+                                 name=name)
+        return new_obj
+            
     def on_module_control(self):
         if g.module_control.read():
             if self.has_widget:
