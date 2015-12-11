@@ -35,20 +35,29 @@ class COM(QtCore.QMutex):
         self.external_lock_control = False
         g.shutdown.add_method(self.close)
 
+    def _read(self):
+        return str(self.instrument.read())
+
     def close(self):
         self.instrument.close()
+        
+    def flush(self, then_delay=0.):
+        if not self.external_lock_control: self.lock()
+        self.instrument.flush(pyvisa.constants.VI_IO_IN_BUF)
+        self.instrument.flush(pyvisa.constants.VI_IO_OUT_BUF)
+        if not self.external_lock_control: self.unlock()
     
     def read(self):
         if not self.external_lock_control: self.lock()
-        value = self.instrument.read()
+        value = self._read()
         if not self.external_lock_control: self.unlock()
-        return value
+        return str(value)
         
     def write(self, string, then_read=False):
         if not self.external_lock_control: self.lock()
         self.instrument.write(unicode(string))
         if then_read:
-            value = str(self.instrument.read())
+            value = self._read()
         else:
             value = None
         if not self.external_lock_control: self.unlock()

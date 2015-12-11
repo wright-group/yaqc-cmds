@@ -5,6 +5,8 @@ import os
 import collections
 import time
 
+import numpy as np
+
 from PyQt4 import QtGui, QtCore
 
 import project.classes as pc
@@ -26,8 +28,8 @@ class Driver():
     def __init__(self):
         self.native_units = 'OD'
         # mutex attributes
-        self.limits = pc.NumberLimits(0, 4, units=self.native_units)
-        self.limits_steps = pc.NumberLimits(0, 2500)
+        self.limits = pc.NumberLimits(-1, 4, units=self.native_units)
+        self.limits_steps = pc.NumberLimits(-2500, 2500)
         self.current_position = pc.Number(name='OD', initial_value=0.,
                                           limits=self.limits,
                                           units=self.native_units, 
@@ -50,6 +52,7 @@ class Driver():
         # first go to steps = 1000
         self.set_steps([1000])
         # now home
+        self.port.flush()
         command = ' '.join(['H', str(self.index)])
         self.port.write(command)
         done = False
@@ -58,12 +61,15 @@ class Driver():
             recieved = str(recieved).rstrip()
             if 'ready' in recieved:
                 done = True
+        self.port.flush()
+        time.sleep(0.25)
         self.current_position_steps.write(0)
         self.get_position()
 
     def get_position(self):
         difference_steps = self.current_position_steps.read() - self.zero_position.read()
-        od = difference_steps * (self.fraction_per_100.read()/100.)
+        fraction = self.fraction_per_100.read()
+        od = difference_steps * (-np.sign(fraction)*np.log10(np.abs(fraction))/100.)
         self.current_position.write(od, 'OD')
         return od
 
@@ -84,6 +90,7 @@ class Driver():
         # recorded
         self.recorded['nd' + str(self.index)] = [self.current_position, self.native_units, 1., '0', False]
         # finish
+        self.get_position()
         self.initialized.write(True)
         self.address.initialized_signal.emit()
 
@@ -103,8 +110,8 @@ class Driver():
     def set_offset(self, offset):
         # update zero
         offset_from_here = offset - self.offset.read('OD')
-        offset_steps = offset_from_here*100/self.fraction_per_100.read()
-        new_zero = self.zero_position.read() + offset_steps
+        offset_steps = offset_from_here*100/np.log10(np.abs(self.fraction_per_100.read()))
+        new_zero = self.zero_position.read() + int(offset_steps)
         self.set_zero(new_zero)
         self.offset.write(offset)
         # return to old position
@@ -112,27 +119,14 @@ class Driver():
         self.set_position(destination)       
         
     def set_position(self, destination):
-        steps = int(100 * (destination - self.current_position.read()) / (self.fraction_per_100.read()))
-        command = ' '.join(['M', str(self.index), str(steps)])
-        self.port.write(command)
-        done = False
-        while not done:
-            recieved = self.port.read()  # unicode
-            recieved = str(recieved).rstrip()
-            if 'ready' in recieved:
-                done = True
-        # record current position (steps)
-        self.current_position_steps.write(self.current_position_steps.read() + steps)
-        section = 'ND{}'.format(self.index)
-        option = 'current position (steps)'
-        ini.write(section, option, self.current_position_steps.read())
-        # get position (OD)
-        self.get_position()
+        steps = (100*destination/np.log10(np.abs(self.fraction_per_100.read())))+self.zero_position.read()
+        self.set_steps([steps])
         
     def set_steps(self, inputs=[]):
-        steps = inputs[0]
+        steps = int(inputs[0])
         steps_from_here = steps - self.current_position_steps.read()
         command = ' '.join(['M', str(self.index), str(steps_from_here)])
+        #self.port.flush()
         self.port.write(command)
         done = False
         while not done:
@@ -140,6 +134,8 @@ class Driver():
             recieved = str(recieved).rstrip()
             if 'ready' in recieved:
                 done = True
+        self.port.flush()
+        time.sleep(0.25)
         # record current position (steps)
         self.current_position_steps.write(steps)
         section = 'ND{}'.format(self.index)
@@ -269,20 +265,39 @@ class GUI(QtCore.QObject):
 
 if __name__ == '__main__':
     import pyvisa
+    
     resource_manager = pyvisa.ResourceManager()
     instrument = resource_manager.open_resource('ASRL%i::INSTR'%11)
     instrument.baud_rate = 57600
     instrument.end_input = pyvisa.constants.SerialTermination.termination_char
     instrument.timeout = 5000
+    
 
-    instrument.write('M 1 200')
-    done = False
-    while not done:
-        recieved = instrument.read()  # unicode
-        recieved = str(recieved).rstrip()
-        if recieved == 'ready':
-            done = True
+    for _ in range(4):
+        
+        instrument.flush(pyvisa.constants.VI_IO_IN_BUF)
+        instrument.flush(pyvisa.constants.VI_IO_OUT_BUF)
+    
+        instrument.write('M 1 200')
+        done = False
+        print 'written'
+        
+        import WrightTools as wt
+        
+        with wt.kit.Timer():
+        
+            while not done:
+                recieved = instrument.read()  # unicode
+                recieved = str(recieved).rstrip()
+                if recieved == 'ready':
+                    done = True
+            
+        time.sleep(0.25)
+        print 'done'
+        print ''
 
+
+    print 'hello'
     instrument.close()
     
     
