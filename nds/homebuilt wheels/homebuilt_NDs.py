@@ -171,7 +171,7 @@ class GUI(QtCore.QObject):
     def __init__(self, driver):
         QtCore.QObject.__init__(self)
         self.driver = driver
-
+        
     def create_frame(self, layout):
         layout.setMargin(5)
         self.layout = layout
@@ -230,7 +230,7 @@ class GUI(QtCore.QObject):
         # horizontal line
         settings_layout.addWidget(pw.line('H'))
         # home button
-        self.home_button = pw.SetButton('HOME')
+        self.home_button = pw.SetButton('HOME', 'advanced')
         settings_layout.addWidget(self.home_button)
         self.home_button.clicked.connect(self.on_home)
         g.module_control.disable_when_true(self.home_button)
