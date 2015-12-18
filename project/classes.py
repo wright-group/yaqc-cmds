@@ -218,6 +218,8 @@ class Combo(PyCMDS_Object):
         self.data_type = type(allowed_values[0])
         if initial_value is None:
             self.write(self.allowed_values[0])
+        else:
+            self.write(initial_value)
 
     def associate(self, display=None, pre_name=''):
         # display

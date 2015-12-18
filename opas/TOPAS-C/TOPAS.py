@@ -67,6 +67,12 @@ error_dict = {0 : None,
               32: 'Tuning curve type mismatch',
               33: 'Configuration file not found',
               34: 'Invalid wavelength for this combination'}
+              
+              
+curve_indicies = {'Base': 1,
+                  'Mixer 1': 2,
+                  'Mixer 2': 3,
+                  'Mixer 3': 4}
 
 
 ### api object ################################################################
@@ -663,14 +669,18 @@ class OPA:
                     for motor_index, position in zip(motor_indexes, original_positions):
                         self.api.start_motor_motion(motor_index, position)
         # wait for motors to finish moving
-        while self.is_busy():
-            time.sleep(0.01)
-            self.get_motor_positions()
-        self.get_motor_positions()
+        self.wait_until_still()
         # return shutter
         self.set_shutter([original_shutter])
-
+        
+    def _set_motors(self, motor_indexes, motor_destinations):
+        for motor_index, destination in zip(motor_indexes, motor_destinations):
+            error, destination_steps = self.api.convert_position_to_steps(motor_index, destination)
+            self.api.start_motor_motion(motor_index, destination_steps)
+        self.wait_until_still()
+        
     def close(self):
+        self.api.set_shutter(False)
         self.api.close()
         
     def home_motor(self, inputs):
@@ -681,18 +691,42 @@ class OPA:
     def home_all(self, inputs=[]):
         self._home_motors(np.arange(len(self.motor_names)))
 
-    def load_curve(self, filepath, polyorder = 4):
-        pass
+    def load_curve(self, inputs=[]):
+        '''
+        inputs can be none (so it loads current curves) 
+        or ['curve type', filepath]
+        '''
+        # TODO: actually support external curve loading
+        # load curves into TOPAS
+        if False:
+            self.api.close()
+            for curve_path_type, curve_path_mutex in self.curve_paths.items():
+                curve_path = curve_path_mutex.read()
+                # TODO: write ini
+            self.api = TOPAS(self.TOPAS_ini_filepath)
+        # update own curve object
+        interaction = self.interaction_string_combo.read()
+        crv_paths = [m.read() for m in self.curve_paths.values()]
+        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, interaction)
+        # update limits
+        min_nm = self.curve.colors.min()
+        max_nm = self.curve.colors.max()
+        self.limits.write(min_nm, max_nm, 'nm')
 
     def get_points(self):
         pass
 
     def get_position(self):
-        pass
+        motor_indexes = [self.motor_names.index(n) for n in self.curve.get_motor_names(full=False)]
+        motor_positions = [self.motor_positions.values()[i].read() for i in motor_indexes]
+        position = self.curve.get_color(motor_positions, units='nm')
+        self.current_position.write(position, 'nm')
+        return position
 
     def get_motor_positions(self, inputs=[]):
         for motor_index, motor_mutex in enumerate(self.motor_positions.values()):
-            error, position = self.api.get_motor_position(motor_index)
+            error, position_steps = self.api.get_motor_position(motor_index)
+            error, position = self.api.convert_position_to_units(motor_index, position_steps)
             motor_mutex.write(position)
     
     def get_speed_parameters(self, inputs):
@@ -710,18 +744,41 @@ class OPA:
         # load api 
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'opas', 'TOPAS-C', 'configuration', str(self.serial_number) + '.ini')
         self.api = TOPAS(self.TOPAS_ini_filepath)
+        self.api.set_shutter(False)
+        self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
+        self.TOPAS_ini.return_raw = True
         # motor positions
         self.motor_positions = collections.OrderedDict()
         for motor_index, motor_name in enumerate(self.motor_names):
-            error, min_position, max_position = self.api.get_motor_positions_range(motor_index)
+            error, min_position_steps, max_position_steps = self.api.get_motor_positions_range(motor_index)
+            error, min_position = self.api.convert_position_to_units(motor_index, min_position_steps)
+            error, max_position = self.api.convert_position_to_units(motor_index, max_position_steps)
             limits = pc.NumberLimits(min_position, max_position)
-            print min_position, max_position, '**************************'
-            number = pc.Number(initial_value=0, limits=limits, display=True)
+            number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
             self.motor_positions[motor_name] = number
         self.get_motor_positions()
         # tuning curves
-        self.curve_path = pc.Filepath()
-        
+        self.curve_paths = collections.OrderedDict()
+        for curve_type in curve_indicies.keys():
+            section = 'Optical Device'
+            option = 'Curve ' + str(curve_indicies[curve_type])
+            initial_value = self.TOPAS_ini.read(section, option)
+            curve_filepath = pc.Filepath(initial_value=initial_value)
+            self.curve_paths[curve_type] = curve_filepath
+        # interaction string
+        allowed_values = []
+        for curve_path_mutex in self.curve_paths.values():
+            with open(curve_path_mutex.read()) as crv:
+                crv_lines = crv.readlines()
+            for line in crv_lines:
+                if 'NON' in line:
+                    allowed_values.append(line.rstrip())
+        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
+        current_value = ini.read('OPA%i'%self.index, 'current interaction string')
+        self.interaction_string_combo.write(current_value)
+        self.interaction_string_combo.updated.connect(self.load_curve)
+        g.module_control.disable_when_true(self.interaction_string_combo)
+        self.load_curve()
         # finish
         self.get_position()
         self.initialized.write(True)
@@ -741,7 +798,16 @@ class OPA:
         pass
 
     def set_position(self, destination):
-        pass
+        # coerce destination to be within current tune range
+        destination = np.clip(destination, self.curve.colors.min(), self.curve.colors.max())
+        # get destinations from curve
+        motor_names = self.curve.get_motor_names()
+        motor_destinations = self.curve.get_motor_positions(destination, 'nm')
+        # send command
+        motor_indexes = [self.motor_names.index(n) for n in motor_names]
+        self._set_motors(motor_indexes, motor_destinations)
+        # finish
+        self.get_position()
         
     def set_position_except(self, inputs):
         '''
@@ -757,20 +823,12 @@ class OPA:
         '''
         motor_name, destination = inputs
         motor_index = self.motor_names.index(motor_name)
-        self.api.start_motor_motion(motor_index, destination)
-        while self.is_busy():
-            time.sleep(0.01)
-            self.get_motor_positions()
-        self.get_motor_positions()
-        self.get_position()
+        self._set_motors([motor_index], [destination])
 
     def set_motors(self, inputs):
-        for motor_index, destination in enumerate(inputs):
-            self.api.set_motor_position(motor_index, destination)
-        while self.is_busy():
-            time.sleep(0.01)
-            self.get_motor_positions()
-        self.get_motor_positions()
+        motor_indexes = range(len(inputs))
+        motor_positions = inputs
+        self._set_motors(motor_indexes, motor_positions)
     
     def set_shutter(self, inputs):
         shutter_state = inputs[0]
@@ -784,7 +842,10 @@ class OPA:
         return error
     
     def wait_until_still(self, inputs=[]):
-        pass
+        while self.is_busy():
+            time.sleep(0.01)
+            self.get_motor_positions()
+        self.get_motor_positions()
     
     
 def OPA_offline(OPA):
@@ -903,14 +964,30 @@ class GUI(QtCore.QObject):
         serial_number_display = pc.Number(initial_value=self.driver.serial_number, decimals=0, display=True)
         input_table.add('Serial Number', serial_number_display)
         settings_layout.addWidget(input_table)
-        # display control
+        # plot control
         input_table = pw.InputTable()
         input_table.add('Display', None)
+        self.plot_motor = pc.Combo(allowed_values=self.driver.curve.get_motor_names())
+        self.plot_motor.updated.connect(self.update_plot)
+        input_table.add('Motor', self.plot_motor)
+        allowed_values = wt.units.energy.keys()
+        allowed_values.remove('kind')
+        self.plot_units = pc.Combo(initial_value='nm', allowed_values=allowed_values)
+        self.plot_units.updated.connect(self.update_plot)
+        input_table.add('Units', self.plot_units)
         settings_layout.addWidget(input_table)
         # curves
         input_table = pw.InputTable()
         input_table.add('Curves', None)
+        for name, obj in self.driver.curve_paths.items():
+            input_table.add(name, obj)
+        input_table.add('Interaction String', self.driver.interaction_string_combo)
+        self.low_energy_limit_display = pc.Number(units='nm', display=True)
+        input_table.add('Low Energy Limit', self.low_energy_limit_display)
+        self.high_energy_limit_display = pc.Number(units='nm', display=True)
+        input_table.add('High Energy LImit', self.high_energy_limit_display)
         settings_layout.addWidget(input_table)
+        self.driver.limits.updated.connect(self.on_limits_updated)
         # motors
         input_table = pw.InputTable()
         input_table.add('Motors', None)
@@ -923,6 +1000,11 @@ class GUI(QtCore.QObject):
         g.module_control.disable_when_true(self.home_all_button)
         # stretch
         settings_layout.addStretch(1)
+        # signals and slots
+        self.driver.interaction_string_combo.updated.connect(self.update_plot)
+        # finish
+        self.update_plot()
+        self.on_limits_updated()
 
     def update(self):
         if False:
@@ -940,15 +1022,20 @@ class GUI(QtCore.QObject):
             self.mixer_destination.write(motor_positions[2])
 
     def update_plot(self):
-        if False:
-            points = self.opa.get_points()
-            xi = wt_units.converter(points[0], 'wn', self.plot_units.read())
-            motor_index = self.opa.motor_names.index(self.plot_motor.read())+1
-            yi = points[motor_index]
-            self.plot_widget.set_labels(xlabel=self.plot_units.read())
-            self.plot_curve.clear()
-            self.plot_curve.setData(xi, yi)
-            self.plot_widget.graphics_layout.update()
+        # units
+        units = self.plot_units.read()
+        # xi
+        colors = self.driver.curve.colors
+        xi = wt_units.converter(colors, 'nm', units)
+        # yi
+        self.plot_motor.set_allowed_values(self.driver.curve.get_motor_names())
+        motor_name = self.plot_motor.read()
+        motor_index = self.driver.curve.get_motor_names().index(motor_name)
+        yi = self.driver.curve.get_motor_positions(colors, units)[motor_index]
+        self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
+        self.plot_curve.clear()
+        self.plot_curve.setData(xi, yi)
+        self.plot_widget.graphics_layout.update()
 
     def update_limits(self):
         if False:
@@ -958,6 +1045,11 @@ class GUI(QtCore.QObject):
 
     def on_home_all(self):
         self.driver.address.hardware.q.push('home_all')
+        
+    def on_limits_updated(self):
+        low_energy_limit, high_energy_limit = self.driver.limits.read('wn')
+        self.low_energy_limit_display.write(low_energy_limit, 'wn')
+        self.high_energy_limit_display.write(high_energy_limit, 'wn')
         
     def show_advanced(self):
         pass

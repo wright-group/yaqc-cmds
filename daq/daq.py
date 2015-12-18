@@ -388,6 +388,7 @@ enqueued_actions = pc.Enqueued()
 
 class DAQ(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
+    task_changed = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     running = False
     processing_timer = wt.kit.Timer(verbose=False)
@@ -545,6 +546,7 @@ class DAQ(QtCore.QObject):
         # finish --------------------------------------------------------------
             
         self.task_created = True
+        self.task_changed.emit()
             
     def run_task(self, inputs):
         '''
@@ -742,10 +744,10 @@ class DAQ(QtCore.QObject):
              DAQmxClearTask(self.task_handle)
 
 # begin address object in seperate thread
-address_thread = QtCore.QThread()
-address_obj = DAQ()
-address_obj.moveToThread(address_thread)
-address_thread.start()
+daq_thread = QtCore.QThread()
+daq = DAQ()
+daq.moveToThread(daq_thread)
+daq_thread.start()
 
 # create queue to communiate with address thread
 queue = QtCore.QMetaObject()
@@ -756,7 +758,7 @@ def q(method, inputs = []):
     #busy.unlock()
     busy.write(True)
     # send Qt SIGNAL to address thread    
-    queue.invokeMethod(address_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
+    queue.invokeMethod(daq, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
 
 ### control####################################################################
@@ -1027,7 +1029,7 @@ class Control():
         data_q('shutdown')
         self.wait_until_daq_done()
         self.wait_until_data_done()
-        address_thread.quit()
+        daq_thread.quit()
         data_thread.quit()
         #close gui
         gui.stop()
@@ -1064,7 +1066,7 @@ class GUI(QtCore.QObject):
         QtCore.QObject.__init__(self)
         control.wait_until_daq_done()
         self.create_frame()
-        address_obj.update_ui.connect(self.update)
+        daq.update_ui.connect(self.update)
         data_obj.update_ui.connect(self.update)
         shot_channel_combo.updated.connect(self.update)
         value_channel_combo.updated.connect(self.update)
@@ -1358,7 +1360,7 @@ class GUI(QtCore.QObject):
         input_table.add('Channel', value_channel_combo)   
         input_table.add('Settings', None)
         input_table.add('Free run', freerun)
-        busy.update_signal = address_obj.update_ui
+        busy.update_signal = daq.update_ui
         input_table.add('DAQ status', busy)
         data_busy.update_signal = data_obj.update_ui
         input_table.add('Data status', data_busy)
