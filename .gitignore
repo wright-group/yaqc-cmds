@@ -7,6 +7,15 @@ opas/pico/OPA2 curves/
 opas/pico/OPA3 curves/
 opas/TOPAS-C/OPA1 (10743) curves/
 opas/TOPAS-C/OPA2 (10742) curves/
+opas/TOPAS-C/configuration
+opas/TOPAS-C/manuals
+
+# PDFs
+*.pdf
+!PyCMDS Manual.pdf
+
+# drivers
+*devcon.exe
 
 # Windows image file caches
 Thumbs.db

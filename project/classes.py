@@ -98,7 +98,7 @@ class PyCMDS_Object(QtCore.QObject):
 
     def __init__(self, initial_value=None,
                  ini=None, section='', option='',
-                 import_from_ini=False, save_to_ini_at_shutdown=False,
+                 import_from_ini=True, save_to_ini_at_shutdown=True,
                  display=False, name='', label = '', set_method=None,
                  disable_under_module_control=False,
                  *args, **kwargs):
@@ -133,6 +133,17 @@ class PyCMDS_Object(QtCore.QObject):
         # disable under module control
         if disable_under_module_control:
             g.main_window.read().module_control.connect(self.on_module_control)
+            
+    def associate(self, display=None, pre_name=''):
+        # display
+        if display is None:
+            display = self.display
+        # name
+        name = pre_name + self.name
+        # new object
+        new_obj = self.__class__(initial_value=self.read(), display=display,
+                                 name=name)
+        return new_obj
             
     def on_module_control(self):
         if g.module_control.read():
@@ -207,6 +218,8 @@ class Combo(PyCMDS_Object):
         self.data_type = type(allowed_values[0])
         if initial_value is None:
             self.write(self.allowed_values[0])
+        else:
+            self.write(initial_value)
 
     def associate(self, display=None, pre_name=''):
         # display

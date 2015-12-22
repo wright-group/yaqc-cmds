@@ -4,6 +4,11 @@
 import numpy as np
 
 from PyQt4 import QtGui, QtCore
+from colorsys import rgb_to_hls, hls_to_rgb
+from PyQt4.QtGui import QApplication, QWidget, QPainter, QGridLayout, QSizePolicy, QStyleOption
+from PyQt4.QtCore import pyqtSignal, Qt, QSize, QTimer, QByteArray, QRectF, pyqtProperty
+from PyQt4.QtSvg import QSvgRenderer
+
 import pyqtgraph as pg
 from pyqtgraph import exporters
 
@@ -57,6 +62,16 @@ class scroll_area(QtGui.QScrollArea):
         StyleSheet = 'QScrollArea, QWidget{background: custom_color;}'.replace('custom_color', colors['background'])
         StyleSheet += 'QScrollBar{background: custom_color;}'.replace('custom_color', colors['widget_background'])
         self.setStyleSheet(StyleSheet)
+
+
+class Led(QtGui.QCheckBox):
+    def __init__(self):
+        QtGui.QCheckBox.__init__(self)
+        self.setDisabled(True)
+        StyleSheet = 'QCheckBox::indicator:checked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_checked.png);}'
+        StyleSheet += 'QCheckBox::indicator:unchecked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_unchecked.png);}'
+        self.setStyleSheet(StyleSheet)
+
 
 ### general ###################################################################
 
@@ -251,7 +266,10 @@ class InputTable(QtGui.QWidget):
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #control
-        control = QtGui.QCheckBox()
+        if global_object.display:
+            control = Led()
+        else:
+            control = QtGui.QCheckBox()
         global_object.give_control(control)
         #finish
         self.layout().addWidget(control, self.row_number, 1)

@@ -12,6 +12,7 @@ folders.append(['opas', 'pico', 'OPA2 curves'])
 folders.append(['opas', 'pico', 'OPA3 curves'])
 folders.append(['opas', 'TOPAS-C', 'OPA1 (10743) curves'])
 folders.append(['opas', 'TOPAS-C', 'OPA2 (10742) curves'])
+folders.append(['opas', 'TOPAS-C', 'configuration'])
 
 for folder in folders:
     folder_path = os.path.join(os.getcwd(), *folder)
@@ -255,6 +256,7 @@ class MainWindow(QtGui.QMainWindow):
         import opas.opas
         import spectrometers.spectrometers
         import delays.delays
+        import nds.nds
         import daq.daq
     
     def _initialize_widgets(self):
