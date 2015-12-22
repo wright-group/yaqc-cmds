@@ -1,28 +1,27 @@
 import os
-os.chdir(r'C:\Users\John\Desktop\PyCMDS 00.01')
 
-#import-------------------------------------------------------------------------
+#import------------------------------------------------------------------------
 
 import numpy as np
-import packages.serial as serial
+import serial
 import struct
 
-import packages.pyqtgraph.pyqtgraph as pg
+import pyqtgraph as pg
 
-#initialize---------------------------------------------------------------------
+#initialize--------------------------------------------------------------------
 
 ser = serial.Serial()
 ser.baudrate = 9600
-ser.port = 'COM8'
+ser.port = 'COM16'
 
-#read---------------------------------------------------------------------------
+#read--------------------------------------------------------------------------
 
 ser.open()
 ser.write('S')
 raw_string = ser.readline()
 ser.close()
 
-#process------------------------------------------------------------------------
+#process-----------------------------------------------------------------------
 
 out = np.zeros(256)
 

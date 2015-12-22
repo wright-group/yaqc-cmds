@@ -119,7 +119,8 @@ class Driver():
         self.set_position(destination)       
         
     def set_position(self, destination):
-        steps = (100*destination/np.log10(np.abs(self.fraction_per_100.read())))+self.zero_position.read()
+        fraction = self.fraction_per_100.read()
+        steps = self.zero_position.read()-(np.sign(fraction)*100*destination/np.log10(np.abs(fraction)))
         self.set_steps([steps])
         
     def set_steps(self, inputs=[]):

@@ -98,7 +98,7 @@ class PyCMDS_Object(QtCore.QObject):
 
     def __init__(self, initial_value=None,
                  ini=None, section='', option='',
-                 import_from_ini=False, save_to_ini_at_shutdown=False,
+                 import_from_ini=True, save_to_ini_at_shutdown=True,
                  display=False, name='', label = '', set_method=None,
                  disable_under_module_control=False,
                  *args, **kwargs):

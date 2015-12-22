@@ -573,11 +573,12 @@ class DAQ(QtCore.QObject):
 
         start_time = time.time()
         
-        #array_detector = array_detector_reference.read()
+        array_detector = array_detector_reference.read()
         
         # tell array detector to begin ----------------------------------------
         
-        #array_detector.control.read()   
+        if array_detector is not None:
+            array_detector.read()   
         
         # collect samples array -----------------------------------------------
         
@@ -602,8 +603,9 @@ class DAQ(QtCore.QObject):
         last_samples.write(self.samples)
             
         # wait for array detector to finish -----------------------------------
-            
-        #array_detector.control.wait_until_done()
+        
+        if array_detector is not None:
+            array_detector.wait_until_done()
             
         seconds_for_acquisition.write(time.time() - start_time)
         
@@ -1100,6 +1102,16 @@ class GUI(QtCore.QObject):
         shots_widget.setLayout(shots_box)
         self.tabs.addTab(shots_widget, 'Shots')
         self.create_shots_tab(shots_box)
+        
+        # array tab
+        array_widget = QtGui.QWidget()
+        array_box = QtGui.QHBoxLayout()
+        array_box.setContentsMargins(0, 10, 0, 0)
+        array_widget.setLayout(array_box)
+        self.tabs.addTab(array_widget, 'InGaAs')
+        import InGaAs_array
+        InGaAs_array.InGaAs.hardware.gui.create_frame(array_widget)
+        array_detector_reference.write(InGaAs_array.InGaAs.hardware)
 
         # values tab
         values_widget = QtGui.QWidget()
