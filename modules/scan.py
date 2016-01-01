@@ -211,6 +211,17 @@ class Address(QtCore.QObject):
             header_dictionary[axis.name + ' points'] = axis.points
             if 'D' in axis.identity:
                 header_dictionary[axis.name + ' centers'] = axis.centers
+        if self.scan.daq_widget.use_array.read():
+            header_dictionary['axis names'].append('wa')
+            header_dictionary['wa points'] = np.linspace(-1000, 3000, 256)
+            header_dictionary['axis units'].append('wn')
+            if 'wm' in header_dictionary['axis names']:
+                header_dictionary['axis identities'].append('Dwa')
+                for axis in axes:
+                    if axis.name == 'wm':
+                        header_dictionary['wa centers'] = axis.points
+            else:
+                header_dictionary['axis identities'].append('wa')
         header_dictionary['constant names'] = [c.name for c in constants]
         header_dictionary['constant identities'] = [c.identity for c in constants]
         header_dictionary['shots'] = self.scan.daq_widget.shots.read()

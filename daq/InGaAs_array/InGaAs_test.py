@@ -13,20 +13,34 @@ import pyqtgraph as pg
 ser = serial.Serial()
 ser.baudrate = 9600
 ser.port = 'COM16'
+ser.timeout = 0.1
 
 #read--------------------------------------------------------------------------
 
 ser.open()
 ser.write('S')
-raw_string = ser.readline()
+
+
+eol = r'ready\n'
+leneol = len(eol)
+line = ''
+while True:
+    c = ser.read(1)
+    if c:
+        line += c
+        if line[-leneol:] == eol:
+            break
+    else:
+        break
 ser.close()
+
 
 #process-----------------------------------------------------------------------
 
 out = np.zeros(256)
 
 #remove 'ready' from end
-string = raw_string[:512]
+string = line[:512]
 #encode to hex
 vals = np.array([elem.encode("hex") for elem in string])
 #reshape

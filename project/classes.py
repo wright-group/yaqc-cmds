@@ -750,8 +750,8 @@ class Hardware(QtCore.QObject):
     def get_destination(self, output_units='same'):
         return self.destination.read(output_units=output_units)
 
-    def get_position(self):
-        return self.current_position.read()
+    def get_position(self, output_units='same'):
+        return self.current_position.read(output_units=output_units)
 
     def is_valid(self, destination, input_units=None):
         if input_units is None:

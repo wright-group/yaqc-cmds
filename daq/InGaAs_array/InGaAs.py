@@ -16,12 +16,15 @@ import WrightTools as wt
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
+import project.kit as kit
 from project.ini_handler import Ini
 app = g.app.read()
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'daq',
                                  'InGaAs_array',
                                  'InGaAs.ini'))
+                                 
+import spectrometers.spectrometers as spectrometers
 
 
 ### define ####################################################################
@@ -53,7 +56,7 @@ class enqueued_actions(QtCore.QMutex):
         self.unlock()
 enqueued_actions = enqueued_actions()
 
-class data(QtCore.QMutex):
+class Data(QtCore.QMutex):
     def __init__(self):
         QtCore.QMutex.__init__(self)
         self.WaitCondition = QtCore.QWaitCondition()
@@ -67,21 +70,9 @@ class data(QtCore.QMutex):
         self.unlock()
     def wait_for_update(self, timeout=5000):
         if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-data = data()
-
-class data_map(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.value = []
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-data_map = data_map()
-
+data = Data()
+data_map = Data()
+data_map.write(np.arange(256))
 
 ### address####################################################################
 
@@ -90,6 +81,22 @@ class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     
+    def _read(self):
+        # handle communication with special end of line 'ready'
+        eol = r'ready\n'
+        leneol = len(eol)
+        line = ''
+        while True:
+            c = self.serial_port.read(1)
+            if c:
+                line += c
+                if line[-leneol:] == eol:
+                    break
+            else:
+                break
+        self.serial_port.flush()
+        return line
+        
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
         '''
@@ -119,11 +126,13 @@ class Address(QtCore.QObject):
     def initialize(self, inputs):
         if g.debug.read(): print 'InGaAs initializing'
         g.logger.log('info', 'InGaAs initializing')
-        #initialize serial port
+        # initialize serial port
         self.serial_port = serial.Serial()
         self.serial_port.baudrate = 9600
         self.serial_port.port = 'COM' + str(ini.read('main', 'serial port'))
-        #initialize arrays for later use
+        self.serial_port.timeout = 0.1  # might need to make this larger...
+        self.serial_port.open()
+        # initialize arrays for later use
         self.spectra_averaged = 1
         self.out = np.zeros(256)
         self.buffer = np.zeros([256, self.spectra_averaged])
@@ -136,28 +145,27 @@ class Address(QtCore.QObject):
             for i in range(self.spectra_averaged):
                 done = False
                 while not done:
-                    #get data as string from arduino
-                    self.serial_port.open()
-                    self.serial_port.flush()
+                    # get data as string from arduino
                     self.serial_port.write('S')
-                    raw_string = self.serial_port.readline()
-                    self.serial_port.close()
-                    #remove 'ready' from end
-                    string = raw_string[:512]
-                    #encode to hex
-                    vals = np.array([elem.encode("hex") for elem in string])
-                    if vals.shape == (512,):
+                    raw_string = self._read()
+                    if len(raw_string) == 519:
                         done = True
-                #reshape
+                    else:
+                        print 'InGaAs array bad read!'
+                # remove 'ready\n' from end
+                string = raw_string[:512]
+                # encode to hex
+                vals = np.array([elem.encode("hex") for elem in string])
+                # reshape
                 vals = vals.reshape(256, -1)
                 vals = np.flipud(vals)
-                #transform to floats
-                for j in range(len(vals)):
-                    raw_pixel = int('0x' + vals[j, 0] + vals[j, 1], 16)
-                    pixel = 0.00195*(raw_pixel - (2060. + -0.0142*i)) 
-                    self.buffer[j, i] = pixel
+                # transform to floats
+                raw_pixels = [int('0x' + vals[j, 0] + vals[j, 1], 16) for j in np.arange(256)]
+                # hardcoded processing
+                pixels = 0.00195*(raw_pixels - (2060. + -0.0142*np.arange(256)))
+                self.buffer[:, i] = pixels
             self.out = np.mean(self.buffer, axis=1)
-        #finish
+        # finish
         data.write(self.out)
         self.update_ui.emit()
         acquisition_timer.write(self.timer.interval, 's_t')
@@ -168,17 +176,14 @@ class Address(QtCore.QObject):
         integration_time_us = integration_time*1000
         integration_time_us = np.clip(integration_time_us, 50, 1e6)
         string = 'A%d'%integration_time_us
-        self.serial_port.open()
         self.serial_port.write(string)
-        raw_string = self.serial_port.readline()
-        self.serial_port.close()
+        self._read()
         # write spectra averaged
         self.spectra_averaged = spectra_averaged
         self.buffer = np.zeros([256, self.spectra_averaged])
         # write gain
-        self.serial_port.open()
         self.serial_port.write('G1')  # currently gain does nothing: force high
-        self.serial_port.close()
+        self._read()
                       
     def shutdown(self, inputs):
         '''
@@ -187,6 +192,7 @@ class Address(QtCore.QObject):
         all hardware address objects must have this, even if trivial
         '''
         if self.serial_port.isOpen():
+            self.serial_port.flush()
             self.serial_port.close()
 
 #begin address object in seperate thread
@@ -227,17 +233,46 @@ class Hardware():
                                           decimals=0,
                                           limits=spectra_averaged_limits)
         self.spectra_averaged.updated.connect(self.write_settings)
+        # get spec hardware
+        self.spectrometer_hardware = spectrometers.hardwares[0]
+        self.spectrometer_hardware.current_position.updated.connect(self.calculate_map)
         # finish
         g.shutdown.read().connect(self.shutdown)
         self.initialize()
         self.gui = GUI(self)
+        self.data = data
+        self.map = data_map
+        self.size = 256
+
+        
+    def get_data(self):
+        return self.data.read()
+    
+    def get_map(self):
+        return self.map.read()
         
     def initialize(self):
         q('initialize')
         self.write_settings()
         
-    def calculate_map(self, mono_setpoint = None):
-        pass
+    def calculate_map(self, mono_setpoint=None):
+        '''
+        mono setpoint in nm
+        '''
+        # get setpoint
+        if mono_setpoint is None:
+            mono_setpoint = self.spectrometer_hardware.get_position('nm')
+        # calculate
+        arr = kit.grating_linear_dispersion(spec_inclusion_angle=24.,
+                                            spec_focal_length=140.,
+                                            spec_focal_length_tilt=0.,
+                                            spec_grooves_per_mm=150.,
+                                            spec_central_wavelength=mono_setpoint,
+                                            spec_order=1,
+                                            number_of_pixels=256,
+                                            pixel_width=50.,
+                                            calibration_pixel=100)
+        self.map.write(arr)
         
     def read(self):
         q('read')
@@ -294,8 +329,9 @@ class GUI(QtCore.QObject):
         #plot
         self.plot_widget = pw.Plot1D()
         self.plot_curve = self.plot_widget.add_line()
-        self.plot_widget.set_labels(ylabel = 'arbitrary units')
-        self.plot_line = self.plot_widget.add_line(color = 'y')  
+        self.plot_v_line = self.plot_widget.add_infinite_line()
+        self.plot_v_line.show()
+        self.plot_widget.set_labels(ylabel='arbitrary units', xlabel='nm')
         display_layout.addWidget(self.plot_widget)
         
         #vertical line---------------------------------------------------------
@@ -319,6 +355,12 @@ class GUI(QtCore.QObject):
         # input table
         input_table = pw.InputTable()
         input_table.add('Display', None)
+        pixel_limits = pc.NumberLimits(0, 255)
+        self.display_pixel_index = pc.Number(ini=ini, section='main',
+                                             option='display pixel index',
+                                             limits=pixel_limits,
+                                             decimals=0)
+        input_table.add('Pixel Index', self.display_pixel_index)
         input_table.add('Settings', None)
         input_table.add('Integration Time (ms)', self.hardware.integration_time)
         input_table.add('Spectra Averaged', self.hardware.spectra_averaged)
@@ -330,24 +372,17 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
     
     def update(self):
-                
-        #import globals locally------------------------------------------------
-        
-        #...
-                
         if not data.read() == None:
-            local_data = data.read()
-            
-            #plot--------------------------------------------------------------
-
-            x = np.linspace(0, len(local_data), len(local_data))           
-            in_data = np.array([x, local_data])
+            # plot
+            xi = data_map.read()
+            yi = data.read()
             self.plot_curve.clear()
-            self.plot_curve.setData(in_data[0], in_data[1])
-            
-            #data readout------------------------------------------------------
-
-            self.big_display.setValue(local_data[100])
+            self.plot_curve.setData(xi, yi)
+            self.plot_widget.set_xlim(xi.min(), xi.max())
+            display_pixel_index = int(self.display_pixel_index.read())
+            self.plot_v_line.setValue(xi[display_pixel_index])
+            # data readout
+            self.big_display.setValue(yi[display_pixel_index])
               
     def stop(self):
         pass

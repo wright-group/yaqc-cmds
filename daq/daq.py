@@ -210,6 +210,8 @@ last_shots = pc.Mutex()
 
 idx = pc.Mutex()  # holds tuple
 
+use_array = pc.Bool(initial_value=False, disable_under_module_control=True)
+use_array.updated.connect(lambda: g.use_array.write(use_array.read()))
 
 ### misc objects ##############################################################
 
@@ -282,6 +284,8 @@ class Data(QtCore.QObject):
             # for now just take number of channels and say all are not signed
             # (for future compatability)
             header_dictionary['channel signed'] = [False for _ in value_channel_combo.allowed_values]
+            if use_array.read():
+                header_dictionary['channel signed'].append(False)
         elif cols_kind == 'shots':
             cols = shot_cols.read()
         # add col properties to header
@@ -343,8 +347,13 @@ class Data(QtCore.QObject):
             
     def write_data(self, inputs):
         data_file = open(data_path.read(), 'a')
-        np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
-        data_file.write('\n')
+        if len(inputs[0].shape) == 2:
+            for row in inputs[0].T:
+                np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline = '\t')
+                data_file.write('\n')
+        else:
+            np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
+            data_file.write('\n')
         data_file.close()
         
     def write_shots(self, inputs):
@@ -577,8 +586,8 @@ class DAQ(QtCore.QObject):
         
         # tell array detector to begin ----------------------------------------
         
-        if array_detector is not None:
-            array_detector.read()   
+        if array_detector is not None and use_array.read():           
+            array_detector.read()
         
         # collect samples array -----------------------------------------------
         
@@ -604,7 +613,7 @@ class DAQ(QtCore.QObject):
             
         # wait for array detector to finish -----------------------------------
         
-        if array_detector is not None:
+        if array_detector is not None and use_array.read():
             array_detector.wait_until_done()
             
         seconds_for_acquisition.write(time.time() - start_time)
@@ -665,7 +674,7 @@ class DAQ(QtCore.QObject):
         for chopper in active_choppers:
             shots_array[index] = 0
             index += 1
-            # DIGITIZE CHOPPER
+            # TODO: DIGITIZE CHOPPER
             
         # export shots
         last_shots.write(shots_array)
@@ -692,12 +701,18 @@ class DAQ(QtCore.QObject):
         # SAVE ################################################################
         
         if self.save:
-            data_row = np.full(len(data_cols.read()), np.nan)
+            if use_array.read():
+                data_row = np.full([len(data_cols.read()), array_detector.size], np.nan)
+            else:
+                data_row = np.full(len(data_cols.read()), np.nan)
             shot_rows = np.full([len(shot_cols.read()), self.shots], np.nan)
             # read from hardware
             i = 0
             for val in idx.read():
                 data_row[i] = val
+                i += 1
+            if use_array.read():
+                data_row[i] = np.arange(256)
                 i += 1
             data_row[i] = time.time()
             i += 1
@@ -711,8 +726,19 @@ class DAQ(QtCore.QObject):
                             data_row[i] = hardware.recorded[key][0].read(out_units)
                         i += 1
             for col in range(i):
-                shot_rows[col] = data_row[col]
+                if use_array.read():
+                    shot_rows[col] = data_row[col, 0]
+                else:
+                    shot_rows[col] = data_row[col]
                 shot_i = i
+            # array
+            if use_array.read():
+                color = spectrometers.hardwares[0].get_position('nm')
+                array_detector.calculate_map(color)
+                data_row[i] = array_detector.get_map()
+                i += 1
+                data_row[i] = array_detector.get_data()
+                i += 1
             # values
             for val in out:
                 data_row[i] = val
@@ -830,7 +856,7 @@ class Control():
             if chopper.active.read():
                 samples[chopper.index.read()] = -(i+1)
         # check if proposed is valid
-        # TO DO!!!!!!!!!!!!!!!
+        # TODO: !!!!!!!!!!!!!!!
         # apply to channels
         channels.write(proposed_channels)
         for channel in channels.read():
@@ -869,6 +895,8 @@ class Control():
         '''
         prepare environment for scanning
         '''
+        # write
+        use_array.write(widget.use_array.read())
         # set index back to zero
         scan_index.write(0)
         # get params from widget
@@ -911,6 +939,16 @@ class Control():
                 dictionary['kind'] = None
                 name = '_'.join([axis_name, 'index'])
                 cols[name] = dictionary
+            if use_array.read():
+                dictionary = collections.OrderedDict()
+                dictionary['index'] = len(cols)
+                dictionary['units'] = None
+                dictionary['tolerance'] = 0.5
+                dictionary['label'] = ''
+                dictionary['object'] = None
+                dictionary['kind'] = None
+                name = 'wa_index'
+                cols[name] = dictionary
             # time
             dictionary = collections.OrderedDict()
             dictionary['index'] = len(cols)
@@ -920,6 +958,7 @@ class Control():
             dictionary['object'] = None
             dictionary['kind'] = None
             cols['time'] = dictionary
+            # creation hardware
             for module in hardware_modules:
                 for hardware in module.hardwares:
                     for key in hardware.recorded:
@@ -932,6 +971,25 @@ class Control():
                         dictionary['kind'] = 'hardware'
                         cols[key] = dictionary
         # data
+        if use_array.read():
+            # map
+            dictionary = collections.OrderedDict()
+            dictionary['index'] = len(new_data_cols)
+            dictionary['units'] = 'nm'
+            dictionary['tolerance'] = 0.01
+            dictionary['label'] = 'a'
+            dictionary['object'] = None
+            dictionary['kind'] = 'hardware'
+            new_data_cols['wa'] = dictionary
+            # values
+            dictionary = collections.OrderedDict()
+            dictionary['index'] = len(new_data_cols)
+            dictionary['units'] = 'V'
+            dictionary['tolerance'] = None
+            dictionary['label'] = 'a'
+            dictionary['object'] = None
+            dictionary['kind'] = 'channel'
+            new_data_cols['array'] = dictionary
         for name in value_channel_combo.allowed_values:
             dictionary = collections.OrderedDict()
             name = name
@@ -971,7 +1029,8 @@ class Control():
             dictionary['label'] = ''
             dictionary['object'] = None
             dictionary['kind'] = 'chopper'
-            new_shot_cols[name] = dictionary
+            new_shot_cols[name] = dictionary            
+        # finish
         data_cols.write(new_data_cols)
         shot_cols.write(new_shot_cols)
         print new_data_cols.keys()
@@ -1050,6 +1109,8 @@ class Widget(QtGui.QWidget):
         self.setLayout(layout)
         layout.setMargin(0)
         input_table = pw.InputTable()
+        self.use_array = pc.Bool(disable_under_module_control=True)
+        input_table.add('Use Array', self.use_array)
         self.shots = pc.Number(initial_value=200, decimals=0, disable_under_module_control=True)
         input_table.add('Shots', self.shots)
         self.save_shots = pc.Bool(disable_under_module_control=True)
@@ -1379,6 +1440,7 @@ class GUI(QtCore.QObject):
         input_table.add('Loop time', seconds_since_last_task)
         input_table.add('Acquisiton time', seconds_for_acquisition)
         input_table.add('Scan Index', scan_index)
+        input_table.add('Use Array', use_array)
         settings_layout.addWidget(input_table)
         
         # streach

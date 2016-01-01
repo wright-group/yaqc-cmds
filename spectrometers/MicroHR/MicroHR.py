@@ -124,7 +124,7 @@ class MicroHR:
             time.sleep(0.01)
         # update own limits
         if self.grating_index.read() == 1:
-            self.limits.write(0, 1500, 'nm')
+            self.limits.write(0, 3000, 'nm')
         elif self.grating_index.read() == 2:
             self.limits.write(0, 15000, 'nm')
         # set position for new grating

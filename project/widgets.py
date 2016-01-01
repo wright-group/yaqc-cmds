@@ -733,7 +733,7 @@ class Plot1D(pg.GraphicsView):
         self.plot_object.addItem(line)
         return line  
         
-    def set_labels(self, xlabel = None, ylabel = None):
+    def set_labels(self, xlabel=None, ylabel=None):
         if xlabel:
             self.plot_object.setLabel('bottom', text=xlabel)
             self.plot_object.showLabel('bottom')

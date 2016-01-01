@@ -306,4 +306,14 @@ slack_enabled = SimpleGlobal()
 
 system_name = GlobalWithIni(ini.main, 'main', 'system name')
 
+class UseArray:
+    def __init__(self):
+        self.value = False
+    def read(self):
+        return self.value
+    def write(self, value):
+        print 'USE ARRAY UPDATED!!!!!!!!!!!!'
+        self.value = value
+use_array = UseArray()
+
 version = SimpleGlobal()
