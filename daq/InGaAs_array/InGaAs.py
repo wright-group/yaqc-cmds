@@ -255,7 +255,7 @@ class Hardware():
         q('initialize')
         self.write_settings()
         
-    def calculate_map(self, mono_setpoint=None):
+    def calculate_map(self, mono_setpoint=None, write=True):
         '''
         mono setpoint in nm
         '''
@@ -272,7 +272,9 @@ class Hardware():
                                             number_of_pixels=256,
                                             pixel_width=50.,
                                             calibration_pixel=100)
-        self.map.write(arr)
+        if write:
+            self.map.write(arr)
+        return arr
         
     def read(self):
         q('read')
@@ -328,9 +330,9 @@ class GUI(QtCore.QObject):
         
         #plot
         self.plot_widget = pw.Plot1D()
+        self.plot_widget.set_ylim(0, 4)
         self.plot_curve = self.plot_widget.add_line()
-        self.plot_v_line = self.plot_widget.add_infinite_line()
-        self.plot_v_line.show()
+        self.plot_v_line = self.plot_widget.add_infinite_line(hide=False)
         self.plot_widget.set_labels(ylabel='arbitrary units', xlabel='nm')
         display_layout.addWidget(self.plot_widget)
         

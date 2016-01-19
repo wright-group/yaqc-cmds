@@ -7,6 +7,7 @@ module_name = 'MOTORTUNE'
 ### import ####################################################################
 
 
+import os
 import sys
 import time
 import numexpr as ne
@@ -138,6 +139,12 @@ class GUI(scan.GUI):
         # line
         line = pw.line('H')
         layout.addWidget(line)
+        # processing
+        input_table = pw.InputTable()
+        input_table.add('Processing', None)
+        self.do_post_process = pc.Bool(initial_value=True)
+        input_table.add('Process', self.do_post_process)
+        layout.addWidget(input_table)
         # scan widget
         layout.addWidget(self.scan.widget)
         # finish
@@ -179,7 +186,7 @@ class GUI(scan.GUI):
                 npts = motor.npts.read()
                 if self.use_tune_points.read():
                     center = 0.
-                    identity = 'D'+name+'F'+opa_friendly_name
+                    identity = 'D'+name#+'F'+opa_friendly_name
                     motor_positions = curve.motors[motor_index].positions
                     kwargs = {'centers': motor_positions, 
                               'centers_units': motor_units,
@@ -231,6 +238,53 @@ class GUI(scan.GUI):
                             lambda: opa_hardware.q.push('get_motor_positions'),
                             lambda: opa_hardware.q.push('get_position')]
         self.scan.launch(axes, constants=[], pre_wait_methods=pre_wait_methods)
+        
+    def on_done(self):
+        '''
+        Make pickle and figures.
+        '''
+        if not self.do_post_process.read():
+            return
+        # get path
+        data_path = daq.data_path.read() 
+        # make data object
+        data = wt.data.from_PyCMDS(data_path, verbose=False)
+        data.save(data_path.replace('.data', '.p'), verbose=False)
+        # chop data if over 2D
+        if len(data.shape) > 2:
+            chopped_datas = data.chop(0, 1, verbose=False)
+        # make figures for each channel
+        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        # chop data if over 2D
+        for channel_index, channel_name in enumerate(data.channel_names):
+            image_fname = channel_name + ' ' + file_name
+            if len(data.shape) == 1:
+                artist = wt.artists.mpl_1D(data, verbose=False)
+                artist.plot(channel_index, autosave=True, output_folder=data_folder,
+                            fname=image_fname, verbose=False)
+            elif len(data.shape) == 2:
+                artist = wt.artists.mpl_2D(data, verbose=False)
+                artist.plot(channel_index, autosave=True, output_folder=data_folder,
+                            fname=image_fname, verbose=False)
+            else:
+                channel_folder = os.path.join(data_folder, channel_name)
+                os.mkdir(channel_folder)
+                for index, chopped_data in enumerate(chopped_datas):
+                    this_image_fname = image_fname + str(index).zfill(3)
+                    artist = wt.artists.mpl_2D(chopped_data, verbose=False)
+                    artist.plot(channel_index, autosave=True, output_folder=channel_folder,
+                                fname=this_image_fname, verbose=False)
+                    g.app.read().processEvents()  # gui should not hang...
+            # hack in a way to get the first image written
+            if channel_index == 0:
+                output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
+        # send message on slack
+        if g.slack_enabled.read():
+            slack = g.slack_control.read()
+            slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
+            if len(data.shape) < 3:
+                print output_image_path
+                slack.upload_file(output_image_path)
         
     def update_mono_settings(self):
         self.mono_center.set_disabled(True)

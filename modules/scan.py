@@ -56,8 +56,12 @@ class Axis:
         if 'F' in operators:  # last name should be a 'following' in this case
             names.pop(-1)
         for name in names:
-            if name.replace('D', '') not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.friendly_name == name.replace('D', '')][0]
+            if name[0] == 'D':
+                clean_name = name.replace('D', '', 1)
+            else:
+                clean_name = name
+            if clean_name not in self.hardware_dict.keys():
+                hardware_object = [h for h in all_hardwares if h.friendly_name == clean_name][0]
                 self.hardware_dict[name] = [hardware_object, 'set_position', None]
 
         
@@ -131,7 +135,7 @@ class Address(QtCore.QObject):
 
         # treat 'scan about center' axes
         for axis_index, axis in enumerate(axes):
-            if 'D' in axis.identity:
+            if axis.identity[0] == 'D':
                 centers = axis.centers
                 centers_follow = axis.centers_follow
                 centers_follow_index = [a.name for a in axes].index(centers_follow)
@@ -209,17 +213,31 @@ class Address(QtCore.QObject):
         header_dictionary['axis units'] = [a.units for a in axes]
         for axis in axes:
             header_dictionary[axis.name + ' points'] = axis.points
-            if 'D' in axis.identity:
-                header_dictionary[axis.name + ' centers'] = axis.centers
+            if axis.identity[0] == 'D':
+                centers = axis.centers
+                if self.scan.daq_widget.use_array.read():  # expand into array dimensions
+                    centers = np.expand_dims(centers, axis=-1)
+                    centers = np.repeat(centers, 256, axis=-1)
+                header_dictionary[axis.name + ' centers'] = centers
         if self.scan.daq_widget.use_array.read():
             header_dictionary['axis names'].append('wa')
-            header_dictionary['wa points'] = np.linspace(-1000, 3000, 256)
+            header_dictionary['wa points'] = wt.units.converter(daq.array_detector_reference.read().get_map(), 'nm', 'wn')
             header_dictionary['axis units'].append('wn')
-            if 'wm' in header_dictionary['axis names']:
+            if 'wm' in ''.join(header_dictionary['axis identities']):
                 header_dictionary['axis identities'].append('Dwa')
-                for axis in axes:
-                    if axis.name == 'wm':
-                        header_dictionary['wa centers'] = axis.points
+                for d in destinations_list:
+                    if d.hardware.friendly_name == 'wm':
+                        centers = d.arr
+                        centers_nm = wt.units.converter(centers, d.units, 'nm')
+                        centers_wn = wt.units.converter(centers, d.units, 'wn')
+                        header_dictionary['wa centers'] = centers_wn
+                        map_nm = daq.array_detector_reference.read().calculate_map(centers_nm.min(), write=False)
+                        map_wn = wt.units.converter(map_nm, 'nm', 'wn')
+                        print map_wn.min(), map_wn.max(), ')))))))))))))))))))))))))))))))))))))))))))))'
+                        print centers_wn.max()
+                        map_wn -= centers_wn.max()
+                        print map_wn.min(), map_wn.max(), ')))))))))))))))))))))))))))))))))))))))))))))'
+                        header_dictionary['wa points'] = map_wn
             else:
                 header_dictionary['axis identities'].append('wa')
         header_dictionary['constant names'] = [c.name for c in constants]
@@ -259,13 +277,19 @@ class Address(QtCore.QObject):
             # update
             self.fraction_complete.write(i/npts)
             self.update_ui.emit()
+            # slice
+            # TODO: create a perminant implementation of this
+            # for now I just index on every acquisition 
+            # to prevent data from acumulating...
+            daq.control.index_slice()
             # check continue
             if not self.check_continue():
                 break
         
         # finish scan ---------------------------------------------------------
 
-        self.fraction_complete.write(1.)    
+        daq.control.wait_until_data_done()
+        self.fraction_complete.write(1.)  
         self.going.write(False)
         g.module_control.write(False)
         g.logger.log('info', 'Scan done', '')

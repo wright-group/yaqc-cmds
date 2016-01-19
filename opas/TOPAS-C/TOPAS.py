@@ -88,20 +88,21 @@ os.chdir(main_dir)
 
 dll_busy = pc.Busy()
 
-global opas_loaded
-opas_loaded = []
+# NOTE: Cannot load more than 3 TOPAS OPAs (DLL restriction)
+indicies = {}
 
 class TOPAS():
     
     def __init__(self, ini_filepath):
         self.open = False
-        global opas_loaded
-        if len(opas_loaded) >= 3:
-            print 'Cannot load more than 3 TOPAS OPAs: DLL restriction'
-            return
-        self.index = len(opas_loaded)
-        opas_loaded.append(self)
-        self._open_device(ini_filepath)
+        self.ini_filepath = ini_filepath
+        # get index
+        serial = int(os.path.basename(self.ini_filepath).split('.')[0])
+        if serial not in indicies.keys():
+            indicies[serial] = len(indicies.keys())
+        self.index = indicies[serial]
+        # open
+        self._open_device(self.ini_filepath)
         
     def _open_device(self, ini_filepath):
         '''
@@ -740,13 +741,15 @@ class OPA:
         or ['curve type', filepath]
         '''
         # TODO: actually support external curve loading
-        # load curves into TOPAS
-        if False:
-            self.api.close()
-            for curve_path_type, curve_path_mutex in self.curve_paths.items():
-                curve_path = curve_path_mutex.read()
-                # TODO: write ini
-            self.api = TOPAS(self.TOPAS_ini_filepath)
+        # write to TOPAS ini
+        self.api.close()
+        for curve_type, curve_path_mutex in self.curve_paths.items():
+            curve_path = curve_path_mutex.read()            
+            section = 'Optical Device'
+            option = 'Curve ' + str(curve_indicies[curve_type])
+            self.TOPAS_ini.write(section, option, curve_path)
+            print section, option, curve_path
+        self.api = TOPAS(self.TOPAS_ini_filepath)
         # update own curve object
         interaction = self.interaction_string_combo.read()
         crv_paths = [m.read() for m in self.curve_paths.values()]
@@ -755,10 +758,11 @@ class OPA:
         min_nm = self.curve.colors.min()
         max_nm = self.curve.colors.max()
         self.limits.write(min_nm, max_nm, 'nm')
-        print 'CURVE UPDATED'
+        # update position
+        self.get_position()
 
     def get_points(self):
-        pass
+        return self.curve.colors
 
     def get_position(self):
         motor_indexes = [self.motor_names.index(n) for n in self.curve.get_motor_names(full=False)]
@@ -1000,9 +1004,8 @@ class GUI(QtCore.QObject):
         self.plot_widget = pw.Plot1D()
         self.plot_widget.plot_object.setMouseEnabled(False, False)
         self.plot_curve = self.plot_widget.add_scatter()
-        self.plot_widget.set_labels(ylabel = 'mm')
-        self.plot_green_line = self.plot_widget.add_line(color = 'g')
-        self.plot_red_line = self.plot_widget.add_line(color = 'r')
+        self.plot_h_line = self.plot_widget.add_infinite_line(angle=0, hide=False)
+        self.plot_v_line = self.plot_widget.add_infinite_line(angle=90, hide=False)
         display_layout.addWidget(self.plot_widget)
         # vertical line
         line = pw.line('V')
@@ -1039,6 +1042,7 @@ class GUI(QtCore.QObject):
         input_table.add('Curves', None)
         for name, obj in self.driver.curve_paths.items():
             input_table.add(name, obj)
+            obj.updated.connect(self.update_plot)
         input_table.add('Interaction String', self.driver.interaction_string_combo)
         self.low_energy_limit_display = pc.Number(units='nm', display=True)
         input_table.add('Low Energy Limit', self.low_energy_limit_display)
@@ -1060,24 +1064,31 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
         # signals and slots
         self.driver.interaction_string_combo.updated.connect(self.update_plot)
+        self.driver.address.update_ui.connect(self.update)
         # finish
+        self.update()
         self.update_plot()
         self.on_limits_updated()
 
     def update(self):
-        if False:
-            # set button disable
-            if self.opa.address.busy.read():
-                self.home_all_button.setDisabled(True)
-                [m.setDisabled(True) for m in self.motor_destination_buttons]
-            else:
-                self.home_all_button.setDisabled(False)
-                [m.setDisabled(False) for m in self.motor_destination_buttons]
-            # update destination motor positions
-            motor_positions = [mp.read() for mp in self.opa.motor_positions]
-            self.grating_destination.write(motor_positions[0])
-            self.bbo_destination.write(motor_positions[1])
-            self.mixer_destination.write(motor_positions[2])
+        print 'TOPAS update'
+        # set button disable
+        if self.driver.address.busy.read():
+            self.home_all_button.setDisabled(True)
+            for motor_mutex in self.driver.motor_positions.values():
+                motor_mutex.set_disabled(True)
+        else:
+            self.home_all_button.setDisabled(False)
+            for motor_mutex in self.driver.motor_positions.values():
+                motor_mutex.set_disabled(False)
+        # update destination motor positions
+        # TODO: 
+        # update plot lines
+        motor_name = self.plot_motor.read()
+        motor_position = self.driver.motor_positions[motor_name].read()
+        self.plot_h_line.setValue(motor_position)
+        units = self.plot_units.read()
+        self.plot_v_line.setValue(self.driver.current_position.read(units))
 
     def update_plot(self):
         # units
@@ -1094,6 +1105,7 @@ class GUI(QtCore.QObject):
         self.plot_curve.clear()
         self.plot_curve.setData(xi, yi)
         self.plot_widget.graphics_layout.update()
+        self.update()
 
     def update_limits(self):
         if False:
