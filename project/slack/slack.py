@@ -11,9 +11,11 @@ from PyQt4 import QtGui, QtCore
 
 import project.classes as pc
 import project.logging_handler as logging_handler
-from project.ini_handler import Ini
 import project.project_globals as g
+from project.ini_handler import Ini
 import bots
+main_dir = g.main_dir.read()
+ini = Ini(os.path.join(main_dir, 'project', 'slack', 'bots.ini'))
 #import daq.daq as daq
 
 import WrightTools as wt
@@ -70,6 +72,7 @@ class Address(QtCore.QObject):
         # remove method from enqueued
         self.enqueued.pop()
         if not self.enqueued.read():
+            self.ctrl.rtmbot.autoping()
             self.queue_emptied.emit()
             self.busy.write(False)
             
@@ -112,7 +115,8 @@ class Control:
         # connect
         g.shutdown.add_method(self.close)
         # signal startup
-        self.send_message('signing on')
+        self.send_message('signing on', ini.read('bots', 'channel'))
+        g.slack_control.write(self)
         
     def _get_data_folders(self, full=False):
         data_directory = os.path.join(g.main_dir.read(), 'data')
@@ -231,6 +235,7 @@ class Control:
             midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
             if (now - midnight).seconds < 60:
                 self.delete_files()
+                self.most_recent_delete = time.time()
             
     def read_messages(self):
         messages = messages_mutex.read()
@@ -243,6 +248,9 @@ class Control:
             # unpack some things
             text = message['text']
             channel = message['channel']
+            # only process messages that are posted in the appropriate channel
+            if not channel == ini.read('bots', 'channel'):
+                continue
             # only process messages that start with '@witch'
             if not text.startswith('<@U0EALA010>'):
                 continue

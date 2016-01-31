@@ -2,7 +2,9 @@
 Acquisition infrastructure shared by all modules.
 '''
 
+
 ### import ####################################################################
+
 
 import os
 import sys
@@ -23,8 +25,6 @@ import WrightTools as wt
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
-import project.slack as slack
-slack = slack.control
 app = g.app.read()
 
 
@@ -56,8 +56,12 @@ class Axis:
         if 'F' in operators:  # last name should be a 'following' in this case
             names.pop(-1)
         for name in names:
-            if name.replace('D', '') not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.friendly_name == name.replace('D', '')][0]
+            if name[0] == 'D':
+                clean_name = name.replace('D', '', 1)
+            else:
+                clean_name = name
+            if clean_name not in self.hardware_dict.keys():
+                hardware_object = [h for h in all_hardwares if h.friendly_name == clean_name][0]
                 self.hardware_dict[name] = [hardware_object, 'set_position', None]
 
         
@@ -119,19 +123,16 @@ class Address(QtCore.QObject):
     
     @QtCore.pyqtSlot(collections.OrderedDict)
     def run(self, scan_dictionary):
-
         # create destination objects ------------------------------------------
-
         # get destination arrays
         axes = scan_dictionary['axes']
         if len(axes) == 1:
             arrs = [axes[0].points]
         else:
             arrs = np.meshgrid(*[a.points for a in axes], indexing='ij')
-
         # treat 'scan about center' axes
         for axis_index, axis in enumerate(axes):
-            if 'D' in axis.identity:
+            if axis.identity[0] == 'D':
                 centers = axis.centers
                 centers_follow = axis.centers_follow
                 centers_follow_index = [a.name for a in axes].index(centers_follow)
@@ -144,7 +145,6 @@ class Address(QtCore.QObject):
                 arrs[axis_index] += centers
                 # transpose out
                 arrs[axis_index] = np.transpose(arrs[axis_index], axes=transpose_order)
-                
         # create destination objects
         destinations_list = []
         for i in range(len(axes)):
@@ -156,7 +156,6 @@ class Address(QtCore.QObject):
                 passed_args = axis.hardware_dict[key][2]
                 destinations = Destinations(arr, axis.units, hardware, method, passed_args)
                 destinations_list.append(destinations)
-                
         # add constants
         constants = scan_dictionary['constants']
         for constant in constants:
@@ -179,25 +178,20 @@ class Address(QtCore.QObject):
                 hardware = constant.hardware
                 destinations = Destinations(arr, units, hardware, 'set_position', None)
                 destinations_list.append(destinations)
-
-        # check if scan is valid for hardware ---------------------------------
-                
+        # check if scan is valid for hardware ---------------------------------               
         # TODO: !!!
-
         # run through aquisition order handler --------------------------------
-
         order = orderers[self.scan.aquisition_order_combo.read_index()]
-        idxs, slices = order.process(destinations_list)
-        
-        # initialize scan -----------------------------------------------------
-        
+        idxs, slices = order.process(destinations_list)       
+        # initialize scan -----------------------------------------------------       
         g.module_control.write(True)
         self.going.write(True)
         self.fraction_complete.write(0.)
         g.logger.log('info', 'Scan begun', '')
-        
-        # initialize DAQ
+        # assemble headers
         header_dictionary = collections.OrderedDict()
+        header_dictionary['PyCMDS version'] = g.version.read()
+        header_dictionary['system name'] = g.system_name.read()
         header_dictionary['file created'] = wt.kit.get_timestamp()
         header_dictionary['data name'] = self.scan.daq_widget.name.read()
         header_dictionary['data info'] = self.scan.daq_widget.info.read()
@@ -207,15 +201,40 @@ class Address(QtCore.QObject):
         header_dictionary['axis units'] = [a.units for a in axes]
         for axis in axes:
             header_dictionary[axis.name + ' points'] = axis.points
-            if 'D' in axis.identity:
-                header_dictionary[axis.name + ' centers'] = axis.centers
+            if axis.identity[0] == 'D':
+                centers = axis.centers
+                if self.scan.daq_widget.use_array.read():  # expand into array dimensions
+                    centers = np.expand_dims(centers, axis=-1)
+                    centers = np.repeat(centers, 256, axis=-1)
+                header_dictionary[axis.name + ' centers'] = centers
+        # TODO: this has to go!
+        if self.scan.daq_widget.use_array.read():
+            header_dictionary['axis names'].append('wa')
+            header_dictionary['wa points'] = wt.units.converter(daq.array_detector_reference.read().get_map(), 'nm', 'wn')
+            header_dictionary['axis units'].append('wn')
+            if 'wm' in ''.join(header_dictionary['axis identities']):
+                header_dictionary['axis identities'].append('Dwa')
+                for d in destinations_list:
+                    if d.hardware.friendly_name == 'wm':
+                        centers = d.arr
+                        centers_nm = wt.units.converter(centers, d.units, 'nm')
+                        centers_wn = wt.units.converter(centers, d.units, 'wn')
+                        header_dictionary['wa centers'] = centers_wn
+                        map_nm = daq.array_detector_reference.read().calculate_map(centers_nm.min(), write=False)
+                        map_wn = wt.units.converter(map_nm, 'nm', 'wn')
+                        print map_wn.min(), map_wn.max(), ')))))))))))))))))))))))))))))))))))))))))))))'
+                        print centers_wn.max()
+                        map_wn -= centers_wn.max()
+                        print map_wn.min(), map_wn.max(), ')))))))))))))))))))))))))))))))))))))))))))))'
+                        header_dictionary['wa points'] = map_wn
+            else:
+                header_dictionary['axis identities'].append('wa')
         header_dictionary['constant names'] = [c.name for c in constants]
         header_dictionary['constant identities'] = [c.identity for c in constants]
         header_dictionary['shots'] = self.scan.daq_widget.shots.read()
+        # initialize daq
         daq.control.initialize_scan(header_dictionary, self.scan.daq_widget)
-        
         # acquire -------------------------------------------------------------
-        
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
             idx = tuple(idx)
@@ -240,19 +259,23 @@ class Address(QtCore.QObject):
             # wait for hardware
             g.hardware_waits.wait()
             # launch DAQ
-            daq.control.acquire()
+            daq.control.acquire(save=True)
             # wait for DAQ
-            daq.control.wait_until_daq_done()
+            daq.control.wait_until_done()
             # update
             self.fraction_complete.write(i/npts)
             self.update_ui.emit()
+            # slice
+            # TODO: create a perminant implementation of this
+            # for now I just index on every acquisition 
+            # to prevent data from acumulating...
+            daq.control.index_slice()
             # check continue
             if not self.check_continue():
                 break
-        
         # finish scan ---------------------------------------------------------
-
-        self.fraction_complete.write(1.)    
+        daq.control.wait_until_file_done()
+        self.fraction_complete.write(1.)  
         self.going.write(False)
         g.module_control.write(False)
         g.logger.log('info', 'Scan done', '')
@@ -434,11 +457,13 @@ class GUI(QtCore.QObject):
             if channel_index == 0:
                 output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
         # send message on slack
-        slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
-        if len(data.shape) < 3:
-            print output_image_path
-            slack.upload_file(output_image_path)
-                
+        if g.slack_enabled.read():
+            slack = g.slack_control.read()
+            slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
+            if len(data.shape) < 3:
+                print output_image_path
+                slack.upload_file(output_image_path)
+                    
         
     def update(self):
         pass

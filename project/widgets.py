@@ -4,6 +4,11 @@
 import numpy as np
 
 from PyQt4 import QtGui, QtCore
+from colorsys import rgb_to_hls, hls_to_rgb
+from PyQt4.QtGui import QApplication, QWidget, QPainter, QGridLayout, QSizePolicy, QStyleOption
+from PyQt4.QtCore import pyqtSignal, Qt, QSize, QTimer, QByteArray, QRectF, pyqtProperty
+from PyQt4.QtSvg import QSvgRenderer
+
 import pyqtgraph as pg
 from pyqtgraph import exporters
 
@@ -19,14 +24,18 @@ colors = g.colors_dict.read()
 
 
 class ExpandingWidget(QtGui.QWidget):
+
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.setSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Maximum)
         self.setLayout(QtGui.QVBoxLayout())
         self.setMinimumHeight(0)
+        self.setMinimumWidth(0)
         self.layout().setStretchFactor(self, 1)
+    
     def sizeHint(self):
         return QtCore.QSize(16777215, 16777215)
+
     def add_to_layout(self, layout):
         layout.addWidget(self)
         layout.setStretchFactor(self, 16777215)
@@ -58,11 +67,22 @@ class scroll_area(QtGui.QScrollArea):
         StyleSheet += 'QScrollBar{background: custom_color;}'.replace('custom_color', colors['widget_background'])
         self.setStyleSheet(StyleSheet)
 
+
+class Led(QtGui.QCheckBox):
+    def __init__(self):
+        QtGui.QCheckBox.__init__(self)
+        self.setDisabled(True)
+        StyleSheet = 'QCheckBox::indicator:checked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_checked.png);}'
+        StyleSheet += 'QCheckBox::indicator:unchecked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_unchecked.png);}'
+        self.setStyleSheet(StyleSheet)
+
+
 ### general ###################################################################
 
 
-class spinbox_as_display(QtGui.QDoubleSpinBox):
-    def __init__(self, font_size = 14, decimals = 6, justify = 'right'):
+class SpinboxAsDisplay(QtGui.QDoubleSpinBox):
+
+    def __init__(self, font_size=14, decimals=6, justify='right'):
         QtGui.QDoubleSpinBox.__init__(self)
         self.setValue(0.0)
         self.setDisabled(True)
@@ -70,16 +90,16 @@ class spinbox_as_display(QtGui.QDoubleSpinBox):
         self.setDecimals(decimals)
         self.setMinimum(-100000)
         self.setMaximum(100000)
-        if justify == 'right': self.setAlignment(QtCore.Qt.AlignRight)
-        else: self.setAlignment(QtCore.Qt.AlignLeft)
+        if justify == 'right': 
+            self.setAlignment(QtCore.Qt.AlignRight)
+        else: 
+            self.setAlignment(QtCore.Qt.AlignLeft)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(600)
         self.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
         StyleSheet = 'QDoubleSpinBox{color: custom_color_1; font: bold font_sizepx; border: 0px solid #000000;}'.replace('custom_color_1', g.colors_dict.read()['text_light']).replace('font_size', str(int(font_size)))
         StyleSheet += 'QScrollArea, QWidget{background: custom_color;  border-color: black;}'.replace('custom_color', g.colors_dict.read()['background'])                
         self.setStyleSheet(StyleSheet)
-    '''
-    def textFromValue(self, value):
-        return "{:.xf}".replace('x', int(self.decimals_input)).format(value)
-    '''
 
 
 class Shutdown_button(QtGui.QPushButton):
@@ -251,7 +271,10 @@ class InputTable(QtGui.QWidget):
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #control
-        control = QtGui.QCheckBox()
+        if global_object.display:
+            control = Led()
+        else:
+            control = QtGui.QCheckBox()
         global_object.give_control(control)
         #finish
         self.layout().addWidget(control, self.row_number, 1)
@@ -321,6 +344,12 @@ class TableWidget(QtGui.QTableWidget):
         QtGui.QTableWidget.__init__(self)
         StyleSheet = 'QTableWidget::item{padding: 0px}'
         StyleSheet += 'QHeaderView::section{background: background_color; color:white; font: bold 14px}'.replace('background_color', colors['background'])
+        self.setStyleSheet(StyleSheet)
+        
+class TabWidget(QtGui.QTabWidget):
+    def __init__(self):
+        QtGui.QTabWidget.__init__(self)
+        StyleSheet = 'QTabBar::tab{width: 130px;}'
         self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
@@ -513,7 +542,7 @@ class HardwareFrontPanel(QtCore.QObject):
         for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
             for current_object, destination_object in zip(front_panel_elements[0], front_panel_elements[1]):
                 if current_object.set_method == 'set_position':
-                    hardware.set_position(destination_object.read(), destination_object.units)
+                    hardware.set_position(destination_object.read(), destination_object.units, force_send=True)
                 else:
                     hardware.q.push(current_object.set_method, [destination_object.read()])
         g.coset_control.read().launch()
@@ -709,7 +738,7 @@ class Plot1D(pg.GraphicsView):
         self.plot_object.addItem(line)
         return line  
         
-    def set_labels(self, xlabel = None, ylabel = None):
+    def set_labels(self, xlabel=None, ylabel=None):
         if xlabel:
             self.plot_object.setLabel('bottom', text=xlabel)
             self.plot_object.showLabel('bottom')
