@@ -760,6 +760,8 @@ class OPA:
         self.limits.write(min_nm, max_nm, 'nm')
         # update position
         self.get_position()
+        # save current interaction string
+        ini.write('OPA%i'%self.index, 'current interaction string', interaction)
 
     def get_points(self):
         return self.curve.colors

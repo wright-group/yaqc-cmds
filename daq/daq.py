@@ -225,6 +225,9 @@ shots_processing_module_path = pc.Filepath(ini=ini, section='DAQ',
 seconds_for_shots_processing = pc.Number(initial_value=np.nan, display=True, decimals=3)
 save_shots_bool = pc.Bool(ini=ini, section='DAQ', option='save shots', display=True,
                           import_from_ini=True, save_to_ini_at_shutdown=True)
+
+limits = pc.NumberLimits(0, 10000)
+ms_wait = pc.Number(decimals=0 , ini=ini, section='DAQ', option='ms wait', limits=limits)                                           
                                            
 # values
 value_channel_combo = pc.Combo()
@@ -566,6 +569,11 @@ class DAQ(QtCore.QObject):
         inputs[0] : bool
             Toggle save behavior.
         '''
+        
+        # ms wait before doing anything else
+        
+        wait = ms_wait.read() / 1000.
+        time.sleep(wait)
         
         ### measure ###########################################################
         
@@ -1433,6 +1441,7 @@ class GUI(QtCore.QObject):
         input_table.add('Channel', value_channel_combo)   
         input_table.add('Settings', None)
         input_table.add('Free run', freerun)
+        input_table.add('ms wait', ms_wait)
         busy.update_signal = daq.update_ui
         input_table.add('DAQ status', busy)
         data_busy.update_signal = data_obj.update_ui

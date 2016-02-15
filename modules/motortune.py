@@ -187,7 +187,8 @@ class GUI(scan.GUI):
                 if self.use_tune_points.read():
                     center = 0.
                     identity = 'D'+name#+'F'+opa_friendly_name
-                    motor_positions = curve.motors[motor_index].positions
+                    curve_motor_index = curve.get_motor_names(full=False).index(motor.name)
+                    motor_positions = curve.motors[curve_motor_index].positions
                     kwargs = {'centers': motor_positions, 
                               'centers_units': motor_units,
                               'centers_follow': opa_friendly_name}
@@ -215,6 +216,8 @@ class GUI(scan.GUI):
             if self.use_tune_points.read():
                 center = 0.
                 identity = 'D'+name
+                curve = curve.copy()
+                curve.convert('wn')
                 kwargs = {'centers': curve.colors,
                           'centers_units': curve.units,
                           'centers_follow': opa_friendly_name}
