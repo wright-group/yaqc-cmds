@@ -253,11 +253,13 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read():
             print 'initialize hardware'
         # import
+        import daq.daq as daq
+        daq.control.wait_until_done()
         import opas.opas
         import spectrometers.spectrometers
         import delays.delays
         import nds.nds
-        import daq.daq
+        
     
     def _initialize_widgets(self):
         if g.debug.read():
@@ -313,7 +315,7 @@ class MainWindow(QtGui.QMainWindow):
         screen = QtGui.QDesktopWidget().screenGeometry() 
         size = self.geometry() 
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
-    
+
 def main():
     global MainWindow
     MainWindow = MainWindow()

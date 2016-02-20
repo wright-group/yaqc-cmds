@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import collections
 
 import numpy as np
 
@@ -40,38 +41,10 @@ acquisition_timer = pc.Number(display=True, units='s_t')
 
 busy = pc.Busy()
 
-class enqueued_actions(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.value = []
-    def read(self):
-        return self.value
-    def push(self, value):  
-        self.lock()
-        self.value.append(value)
-        self.unlock()
-    def pop(self):
-        self.lock()
-        self.value = self.value[1:]
-        self.unlock()
-enqueued_actions = enqueued_actions()
+enqueued_actions = pc.Enqueued()
 
-class Data(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=5000):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-data = Data()
-data_map = Data()
+data = pc.Data()
+data_map = pc.Data()
 data_map.write(np.arange(256))
 
 freerun = pc.Bool(initial_value=False)
@@ -173,7 +146,7 @@ class Address(QtCore.QObject):
                 self.buffer[:, i] = pixels
             self.out = np.mean(self.buffer, axis=1)
         # finish
-        data.write(self.out)
+        data.write_properties((256,), ['array signal'], [self.out])
         self.update_ui.emit()
         acquisition_timer.write(self.timer.interval, 's_t')    
                       
@@ -227,11 +200,19 @@ def q(method, inputs = []):
 
 class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
+    settings_updated = QtCore.pyqtSignal()
     
     def __init__(self, inputs=[]):
         QtCore.QObject.__init__(self)
+        self.active = False
         self.name = 'InGaAs'
         self.shape = (256, )
+        self.data = data
+        self.map = data_map
+        self.has_map = True
+        self.map_axes = {'wa': ['a', 'nm']}
+        self.freerun = freerun
+        self.freerun.updated.connect(lambda: q('loop'))
         # mutex attributes
         integration_time_limits = pc.NumberLimits(1, 1e3)
         self.integration_time = pc.Number(ini=ini, section='main',
@@ -251,6 +232,7 @@ class Hardware(QtCore.QObject):
         # finish
         g.shutdown.read().connect(self.shutdown)
         self.Widget = Widget
+        self.initialized = False
 
     def acquire(self):
         q('read')
@@ -276,8 +258,53 @@ class Hardware(QtCore.QObject):
             self.map.write(arr)
         return arr
         
+    def get_axis_properties(self, destinations_list):
+        '''
+        Get the axis properties to record for the given scan, given hardware
+        positions.
+        
+        Parameters
+        ----------
+        destinations_list : list of modules.scan.Destination objects
+            The scan destinations
+            
+        Returns
+        -------
+        tuple : (identity, units, points, centers, interpolate)
+        '''
+        scanned_hardware_names = [d.hardware.friendly_name for d in destinations_list]        
+        if 'wm' in scanned_hardware_names:
+            # calculate points, centers
+            destinations = [d for d in destinations_list if d.hardware.friendly_name == 'wm'][0]
+            centers_nm = wt.units.converter(destinations.arr, destinations.units, 'nm')
+            centers_wn = wt.units.converter(destinations.arr, destinations.units, 'wn')
+            map_nm = self.calculate_map(mono_setpoint=centers_nm.min(), write=False)
+            map_wn = wt.units.converter(map_nm, 'nm', 'wn')
+            map_wn -= centers_wn.max()
+            map_nm = wt.units.converter(map_wn, 'wn', 'nm')
+            # assemble outputs
+            identity = 'Dwa'
+            units = 'wn'
+            points = map_wn
+            centers = centers_wn
+            interpolate = True
+            print points
+        else:
+            identity = 'wa'
+            units = 'nm'
+            points = self.get_map()
+            centers = None
+            interpolate = False
+        return identity, units, points, centers, interpolate
+        
     def get_data(self):
         return self.data.read()
+        
+    def get_headers(self):
+        out = collections.OrderedDict()
+        out['integration time (ms)'] = self.integration_time.read()
+        out['spectra averaged'] = self.spectra_averaged.read()
+        return out
     
     def get_map(self):
         return self.map.read()
@@ -286,17 +313,22 @@ class Hardware(QtCore.QObject):
         # detector
         q('initialize')
         self.write_settings()
-        self.data = data
-        self.map = data_map
+        self.acquire()
+        self.wait_until_done()
         # gui
         self.gui = GUI(self)
         self.gui.create_frame(parent_widget)
+        # finish
+        self.active = True
+        self.initialized = True
+        self.settings_updated.emit()
         
     def set_freerun(self, state):
         freerun.write(state)
         q('loop')
     
     def shutdown(self):
+        self.set_freerun(False)
         if g.debug.read(): 
             print 'InGaAs shutting down'
         g.logger.log('info', 'InGaAs shutdown')
@@ -306,8 +338,20 @@ class Hardware(QtCore.QObject):
         self.gui.stop()
     
     def wait_until_done(self, timeout = 10):
+        '''
+        timeout in seconds
+        
+        will only refer to timeout when busy.wait_for_update fires
+        '''
+        start_time = time.time()
         while busy.read():
-            busy.wait_for_update()
+            if time.time()-start_time < timeout:
+                if not enqueued_actions.read(): 
+                    q('check_busy')
+                busy.wait_for_update()
+            else: 
+                g.logger.log('warning', 'DAQ dait until done timed out', 'timeout set to {} seconds'.format(timeout))
+                break
             
     def write_settings(self):
         integration_time = int(self.integration_time.read())  # ms
@@ -413,7 +457,7 @@ class GUI(QtCore.QObject):
         if not data.read() == None:
             # plot
             xi = data_map.read()
-            yi = data.read()
+            yi = data.read()[0]
             self.plot_curve.clear()
             self.plot_curve.setData(xi, yi)
             self.plot_widget.set_xlim(xi.min(), xi.max())
