@@ -123,16 +123,13 @@ class Address(QtCore.QObject):
     
     @QtCore.pyqtSlot(collections.OrderedDict)
     def run(self, scan_dictionary):
-
         # create destination objects ------------------------------------------
-
         # get destination arrays
         axes = scan_dictionary['axes']
         if len(axes) == 1:
             arrs = [axes[0].points]
         else:
             arrs = np.meshgrid(*[a.points for a in axes], indexing='ij')
-
         # treat 'scan about center' axes
         for axis_index, axis in enumerate(axes):
             if axis.identity[0] == 'D':
@@ -148,7 +145,6 @@ class Address(QtCore.QObject):
                 arrs[axis_index] += centers
                 # transpose out
                 arrs[axis_index] = np.transpose(arrs[axis_index], axes=transpose_order)
-                
         # create destination objects
         destinations_list = []
         for i in range(len(axes)):
@@ -160,7 +156,6 @@ class Address(QtCore.QObject):
                 passed_args = axis.hardware_dict[key][2]
                 destinations = Destinations(arr, axis.units, hardware, method, passed_args)
                 destinations_list.append(destinations)
-                
         # add constants
         constants = scan_dictionary['constants']
         for constant in constants:
@@ -183,70 +178,36 @@ class Address(QtCore.QObject):
                 hardware = constant.hardware
                 destinations = Destinations(arr, units, hardware, 'set_position', None)
                 destinations_list.append(destinations)
-
-        # check if scan is valid for hardware ---------------------------------
-                
+        # check if scan is valid for hardware ---------------------------------               
         # TODO: !!!
-
         # run through aquisition order handler --------------------------------
-
         order = orderers[self.scan.aquisition_order_combo.read_index()]
-        idxs, slices = order.process(destinations_list)
-        
-        # initialize scan -----------------------------------------------------
-        
+        idxs, slices = order.process(destinations_list)       
+        # initialize scan -----------------------------------------------------       
         g.module_control.write(True)
         self.going.write(True)
         self.fraction_complete.write(0.)
         g.logger.log('info', 'Scan begun', '')
-        
-        # initialize DAQ
-        header_dictionary = collections.OrderedDict()
-        header_dictionary['PyCMDS version'] = g.version.read()
-        header_dictionary['system name'] = g.system_name.read()
-        header_dictionary['file created'] = wt.kit.get_timestamp()
-        header_dictionary['data name'] = self.scan.daq_widget.name.read()
-        header_dictionary['data info'] = self.scan.daq_widget.info.read()
-        header_dictionary['data origin'] = self.scan.gui.module_name
-        header_dictionary['axis names'] = [a.name for a in axes]
-        header_dictionary['axis identities'] = [a.identity for a in axes]
-        header_dictionary['axis units'] = [a.units for a in axes]
+        # put info into headers -----------------------------------------------
+        # clear values from previous scan
+        daq.headers.clear()
+        # data info
+        daq.headers.data_info['data name'] = self.scan.daq_widget.name.read()
+        daq.headers.data_info['data info'] = self.scan.daq_widget.info.read()
+        daq.headers.data_info['data origin'] = self.scan.gui.module_name
+        # axes (will be added onto in daq, potentially)
+        daq.headers.axis_info['axis names'] = [a.name for a in axes]
+        daq.headers.axis_info['axis identities'] = [a.identity for a in axes]
+        daq.headers.axis_info['axis units'] = [a.units for a in axes]
+        daq.headers.axis_info['axis interpolate'] = [False for a in axes]
         for axis in axes:
-            header_dictionary[axis.name + ' points'] = axis.points
-            if axis.identity[0] == 'D':
-                centers = axis.centers
-                if self.scan.daq_widget.use_array.read():  # expand into array dimensions
-                    centers = np.expand_dims(centers, axis=-1)
-                    centers = np.repeat(centers, 256, axis=-1)
-                header_dictionary[axis.name + ' centers'] = centers
-        if self.scan.daq_widget.use_array.read():
-            header_dictionary['axis names'].append('wa')
-            header_dictionary['wa points'] = wt.units.converter(daq.array_detector_reference.read().get_map(), 'nm', 'wn')
-            header_dictionary['axis units'].append('wn')
-            if 'wm' in ''.join(header_dictionary['axis identities']):
-                header_dictionary['axis identities'].append('Dwa')
-                for d in destinations_list:
-                    if d.hardware.friendly_name == 'wm':
-                        centers = d.arr
-                        centers_nm = wt.units.converter(centers, d.units, 'nm')
-                        centers_wn = wt.units.converter(centers, d.units, 'wn')
-                        header_dictionary['wa centers'] = centers_wn
-                        map_nm = daq.array_detector_reference.read().calculate_map(centers_nm.min(), write=False)
-                        map_wn = wt.units.converter(map_nm, 'nm', 'wn')
-                        print map_wn.min(), map_wn.max(), ')))))))))))))))))))))))))))))))))))))))))))))'
-                        print centers_wn.max()
-                        map_wn -= centers_wn.max()
-                        print map_wn.min(), map_wn.max(), ')))))))))))))))))))))))))))))))))))))))))))))'
-                        header_dictionary['wa points'] = map_wn
-            else:
-                header_dictionary['axis identities'].append('wa')
-        header_dictionary['constant names'] = [c.name for c in constants]
-        header_dictionary['constant identities'] = [c.identity for c in constants]
-        header_dictionary['shots'] = self.scan.daq_widget.shots.read()
-        daq.control.initialize_scan(header_dictionary, self.scan.daq_widget)
-        
+            daq.headers.axis_info[axis.name + ' points'] = axis.points
+        # constants
+        daq.headers.constant_info['constant names'] = [c.name for c in constants]
+        daq.headers.constant_info['constant identities'] = [c.identity for c in constants]
         # acquire -------------------------------------------------------------
-        
+        # initialize daq
+        daq.control.initialize_scan(self.scan.daq_widget, destinations_list)
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
             idx = tuple(idx)
@@ -271,24 +232,19 @@ class Address(QtCore.QObject):
             # wait for hardware
             g.hardware_waits.wait()
             # launch DAQ
-            daq.control.acquire()
+            daq.control.acquire(save=True)
             # wait for DAQ
-            daq.control.wait_until_daq_done()
+            daq.control.wait_until_done()
             # update
             self.fraction_complete.write(i/npts)
             self.update_ui.emit()
             # slice
-            # TODO: create a perminant implementation of this
-            # for now I just index on every acquisition 
-            # to prevent data from acumulating...
-            daq.control.index_slice()
+            # TODO:
             # check continue
             if not self.check_continue():
                 break
-        
         # finish scan ---------------------------------------------------------
-
-        daq.control.wait_until_data_done()
+        daq.control.wait_until_file_done()
         self.fraction_complete.write(1.)  
         self.going.write(False)
         g.module_control.write(False)

@@ -24,14 +24,18 @@ colors = g.colors_dict.read()
 
 
 class ExpandingWidget(QtGui.QWidget):
+
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.setSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Maximum)
         self.setLayout(QtGui.QVBoxLayout())
         self.setMinimumHeight(0)
+        self.setMinimumWidth(0)
         self.layout().setStretchFactor(self, 1)
+    
     def sizeHint(self):
         return QtCore.QSize(16777215, 16777215)
+
     def add_to_layout(self, layout):
         layout.addWidget(self)
         layout.setStretchFactor(self, 16777215)
@@ -76,8 +80,9 @@ class Led(QtGui.QCheckBox):
 ### general ###################################################################
 
 
-class spinbox_as_display(QtGui.QDoubleSpinBox):
-    def __init__(self, font_size = 14, decimals = 6, justify = 'right'):
+class SpinboxAsDisplay(QtGui.QDoubleSpinBox):
+
+    def __init__(self, font_size=14, decimals=6, justify='right'):
         QtGui.QDoubleSpinBox.__init__(self)
         self.setValue(0.0)
         self.setDisabled(True)
@@ -85,16 +90,16 @@ class spinbox_as_display(QtGui.QDoubleSpinBox):
         self.setDecimals(decimals)
         self.setMinimum(-100000)
         self.setMaximum(100000)
-        if justify == 'right': self.setAlignment(QtCore.Qt.AlignRight)
-        else: self.setAlignment(QtCore.Qt.AlignLeft)
+        if justify == 'right': 
+            self.setAlignment(QtCore.Qt.AlignRight)
+        else: 
+            self.setAlignment(QtCore.Qt.AlignLeft)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(600)
         self.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
         StyleSheet = 'QDoubleSpinBox{color: custom_color_1; font: bold font_sizepx; border: 0px solid #000000;}'.replace('custom_color_1', g.colors_dict.read()['text_light']).replace('font_size', str(int(font_size)))
         StyleSheet += 'QScrollArea, QWidget{background: custom_color;  border-color: black;}'.replace('custom_color', g.colors_dict.read()['background'])                
         self.setStyleSheet(StyleSheet)
-    '''
-    def textFromValue(self, value):
-        return "{:.xf}".replace('x', int(self.decimals_input)).format(value)
-    '''
 
 
 class Shutdown_button(QtGui.QPushButton):
@@ -136,7 +141,7 @@ class InputTable(QtGui.QWidget):
     def busy(self, name, global_object):
         # heading
         heading = QtGui.QLabel(name)
-        if name in ['DAQ status', 'Data status']:  # hardcoded exceptions
+        if name in ['DAQ status', 'Status']:  # hardcoded exceptions
             StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         else:
             StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])

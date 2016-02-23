@@ -71,6 +71,53 @@ class Busy(QtCore.QMutex):
             return self.WaitCondition.wait(self, msecs=timeout)
 
 
+class Data(QtCore.QMutex):
+    
+    def __init__(self):
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.shape = (1, )
+        self.size = 1
+        self.channels = []
+        self.cols = []
+        self.map = None
+
+    def read(self):
+        return self.channels
+        
+    def read_properties(self):
+        '''
+        Returns
+        -------
+        tuple
+            shape, cols, map
+        '''
+        self.lock()
+        outs = self.shape, self.cols, self.map
+        self.unlock()
+        return outs
+        
+    def write(self, channels):
+        self.lock()
+        self.channels = channels
+        self.WaitCondition.wakeAll()
+        self.unlock()
+        
+    def write_properties(self, shape, cols, channels, map=None):
+        self.lock()
+        self.shape = shape
+        self.size = np.prod(shape)
+        self.channels = channels
+        self.cols = cols
+        self.map = map
+        self.WaitCondition.wakeAll()
+        self.unlock()
+
+    def wait_for_update(self, timeout=5000):
+        if self.value:
+            return self.WaitCondition.wait(self, msecs=timeout)
+
+
 ### gui items #################################################################
 
 
@@ -150,7 +197,8 @@ class PyCMDS_Object(QtCore.QObject):
             if self.has_widget:
                 self.widget.setDisabled(True)
         else:
-            self.widget.setDisabled(self.disabled)
+            if self.has_widget:
+                self.widget.setDisabled(self.disabled)
 
     def read(self):
         return self.value.read()

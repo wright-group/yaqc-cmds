@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import collections
 
 import numpy as np
 
@@ -36,43 +37,18 @@ pixel_width = 50.  # um
 ### globals####################################################################
 
 
-acquisition_timer = pc.Number(display=True, units='s_t')
+acquisition_timer = pc.Number(display=True)
 
 busy = pc.Busy()
 
-class enqueued_actions(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.value = []
-    def read(self):
-        return self.value
-    def push(self, value):  
-        self.lock()
-        self.value.append(value)
-        self.unlock()
-    def pop(self):
-        self.lock()
-        self.value = self.value[1:]
-        self.unlock()
-enqueued_actions = enqueued_actions()
+enqueued = pc.Enqueued()
 
-class Data(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-    def wait_for_update(self, timeout=5000):
-        if self.value: return self.WaitCondition.wait(self, msecs=timeout)
-data = Data()
-data_map = Data()
+data = pc.Data()
+data_map = pc.Data()
 data_map.write(np.arange(256))
+
+freerun = pc.Bool(initial_value=False)
+
 
 ### address####################################################################
 
@@ -96,20 +72,6 @@ class Address(QtCore.QObject):
                 break
         self.serial_port.flush()
         return line
-        
-    @QtCore.pyqtSlot(str, list)
-    def dequeue(self, method, inputs):
-        '''
-        accepts queued signals from 'queue' (address using q method)
-        method must be string, inputs must be list
-        '''
-        #DO NOT CHANGE THIS METHOD UNLESS YOU ~REALLY~ KNOW WHAT YOU ARE DOING!
-        #if g.debug.read(): print 'InGaAs dequeue:', method, inputs
-        getattr(self, str(method))(inputs) #method passed as qstring
-        enqueued_actions.pop()
-        if not enqueued_actions.read(): 
-            self.queue_emptied.emit()
-            self.check_busy([])
             
     def check_busy(self, inputs):
         '''
@@ -117,11 +79,24 @@ class Address(QtCore.QObject):
         must always write busy whether answer is True or False
         should include a sleep if answer is True to prevent very fast loops: time.sleep(0.1)
         '''
-        if enqueued_actions.read():
+        if enqueued.read():
             time.sleep(0.1)
             busy.write(True)
         else:
             busy.write(False)
+        
+    @QtCore.pyqtSlot(str, list)
+    def dequeue(self, method, inputs):
+        '''
+        accepts queued signals from 'queue' (address using q method)
+        method must be string, inputs must be list
+        '''
+        if g.debug.read(): print 'InGaAs dequeue:', method, inputs
+        enqueued.pop()
+        getattr(self, str(method))(inputs) #method passed as qstring
+        if not enqueued.read(): 
+            self.queue_emptied.emit()
+            self.check_busy([])
             
     def initialize(self, inputs):
         if g.debug.read(): print 'InGaAs initializing'
@@ -139,6 +114,13 @@ class Address(QtCore.QObject):
         # finish
         self.timer = wt.kit.Timer(verbose=False)
         self.read([])
+        
+    def loop(self, inputs):
+        while freerun.read() and not enqueued.read():
+            self.read()
+            busy.write(False)
+        else:
+            print 'InGaAs exiting loop!'
     
     def read(self, inputs=[]):
         with self.timer:
@@ -166,9 +148,19 @@ class Address(QtCore.QObject):
                 self.buffer[:, i] = pixels
             self.out = np.mean(self.buffer, axis=1)
         # finish
-        data.write(self.out)
+        data.write_properties((256,), ['array signal'], [self.out])
         self.update_ui.emit()
-        acquisition_timer.write(self.timer.interval, 's_t')
+        acquisition_timer.write(self.timer.interval)    
+                      
+    def shutdown(self, inputs):
+        '''
+        cleanly shut down
+        
+        all hardware address objects must have this, even if trivial
+        '''
+        if self.serial_port.isOpen():
+            self.serial_port.flush()
+            self.serial_port.close()
         
     def write_settings(self, inputs):
         integration_time, spectra_averaged = inputs
@@ -184,16 +176,7 @@ class Address(QtCore.QObject):
         # write gain
         self.serial_port.write('G1')  # currently gain does nothing: force high
         self._read()
-                      
-    def shutdown(self, inputs):
-        '''
-        cleanly shut down
-        
-        all hardware address objects must have this, even if trivial
-        '''
-        if self.serial_port.isOpen():
-            self.serial_port.flush()
-            self.serial_port.close()
+
 
 #begin address object in seperate thread
 address_thread = QtCore.QThread()
@@ -204,22 +187,29 @@ address_thread.start()
 busy.update_signal = address_obj.update_ui
 
 #create queue to communiate with address thread
-queue = QtCore.QMetaObject()
-def q(method, inputs = []):
-    #add to friendly queue list 
-    enqueued_actions.push([method, time.time()])
-    #busy
-    if not busy.read(): busy.write(True)
-    #send Qt SIGNAL to address thread
-    queue.invokeMethod(address_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
+q = pc.Q(enqueued, busy, address_obj)
+
+### hardware ##################################################################
 
 
-### control####################################################################
-
-
-class Hardware():
+class Hardware(QtCore.QObject):
+    update_ui = QtCore.pyqtSignal()
+    settings_updated = QtCore.pyqtSignal()
     
-    def __init__(self):
+    def __init__(self, inputs=[]):
+        QtCore.QObject.__init__(self)
+        self.active = False
+        self.busy = busy
+        self.busy.update_signal = self.update_ui
+        self.name = 'InGaAs'
+        self.shape = (256, )
+        self.data = data
+        self.acquisition_time = acquisition_timer
+        self.map = data_map
+        self.has_map = True
+        self.map_axes = {'wa': ['a', 'nm']}
+        self.freerun = freerun
+        self.freerun.updated.connect(lambda: q.push('loop'))
         # mutex attributes
         integration_time_limits = pc.NumberLimits(1, 1e3)
         self.integration_time = pc.Number(ini=ini, section='main',
@@ -238,23 +228,12 @@ class Hardware():
         self.spectrometer_hardware.current_position.updated.connect(self.calculate_map)
         # finish
         g.shutdown.read().connect(self.shutdown)
-        self.initialize()
-        self.gui = GUI(self)
-        self.data = data
-        self.map = data_map
-        self.size = 256
+        self.Widget = Widget
+        self.initialized = False
 
-        
-    def get_data(self):
-        return self.data.read()
-    
-    def get_map(self):
-        return self.map.read()
-        
-    def initialize(self):
-        q('initialize')
-        self.write_settings()
-        
+    def acquire(self):
+        q.push('read')
+
     def calculate_map(self, mono_setpoint=None, write=True):
         '''
         mono setpoint in nm
@@ -276,31 +255,130 @@ class Hardware():
             self.map.write(arr)
         return arr
         
-    def read(self):
-        q('read')
+    def get_axis_properties(self, destinations_list):
+        '''
+        Get the axis properties to record for the given scan, given hardware
+        positions.
+        
+        Parameters
+        ----------
+        destinations_list : list of modules.scan.Destination objects
+            The scan destinations
+            
+        Returns
+        -------
+        tuple : (identity, units, points, centers, interpolate)
+        '''
+        scanned_hardware_names = [d.hardware.friendly_name for d in destinations_list]        
+        if 'wm' in scanned_hardware_names:
+            # calculate points, centers
+            destinations = [d for d in destinations_list if d.hardware.friendly_name == 'wm'][0]
+            centers_nm = wt.units.converter(destinations.arr, destinations.units, 'nm')
+            centers_wn = wt.units.converter(destinations.arr, destinations.units, 'wn')
+            map_nm = self.calculate_map(mono_setpoint=centers_nm.min(), write=False)
+            map_wn = wt.units.converter(map_nm, 'nm', 'wn')
+            map_wn -= centers_wn.max()
+            map_nm = wt.units.converter(map_wn, 'wn', 'nm')
+            # assemble outputs
+            identity = 'Dwa'
+            units = 'wn'
+            points = map_wn
+            centers = centers_wn
+            interpolate = True
+            print points
+        else:
+            identity = 'wa'
+            units = 'nm'
+            points = self.get_map()
+            centers = None
+            interpolate = False
+        return identity, units, points, centers, interpolate
+        
+    def get_data(self):
+        return self.data.read()
+        
+    def get_headers(self):
+        out = collections.OrderedDict()
+        out['integration time (ms)'] = self.integration_time.read()
+        out['spectra averaged'] = self.spectra_averaged.read()
+        return out
+    
+    def get_map(self):
+        return self.map.read()
+        
+    def initialize(self, parent_widget):
+        # detector
+        q.push('initialize')
+        self.write_settings()
+        self.acquire()
+        self.wait_until_done()
+        # gui
+        self.gui = GUI(self)
+        self.gui.create_frame(parent_widget)
+        # finish
+        self.active = True
+        self.initialized = True
+        self.settings_updated.emit()
+        
+    def set_freerun(self, state):
+        freerun.write(state)
+        q.push('loop')
+    
+    def shutdown(self):
+        self.set_freerun(False)
+        if g.debug.read(): 
+            print 'InGaAs shutting down'
+        g.logger.log('info', 'InGaAs shutdown')
+        q.push('shutdown')
+        self.wait_until_done()
+        address_thread.quit()
+        self.gui.stop()
     
     def wait_until_done(self, timeout = 10):
+        '''
+        timeout in seconds
+        
+        will only refer to timeout when busy.wait_for_update fires
+        '''
+        start_time = time.time()
         while busy.read():
-            busy.wait_for_update()
+            time.sleep(0)  # yield?
+            QtCore.QThread.yieldCurrentThread()
+            if time.time()-start_time < timeout:
+                busy.wait_for_update()
+            else: 
+                print 'InGaAs TIMED OUT!!!!!!!!!!!'
+                g.logger.log('warning', 'InGaAs wait until done timed out', 'timeout set to {} seconds'.format(timeout))
+                break
             
     def write_settings(self):
         integration_time = int(self.integration_time.read())  # ms
         spectra_averaged = int(self.spectra_averaged.read())  # int
-        q('write_settings', [integration_time, spectra_averaged])
-                
-    def shutdown(self):
-        if g.debug.read(): 
-            print 'InGaAs shutting down'
-        g.logger.log('info', 'InGaAs shutdown')
-        q('shutdown')
-        self.wait_until_done()
-        address_thread.quit()
-        self.gui.stop()
+        q.push('write_settings', [integration_time, spectra_averaged])
         
 
-### gui########################################################################
+### gui #######################################################################
 
-        
+
+class Widget(QtGui.QWidget):
+
+    def __init__(self):
+        QtGui.QWidget.__init__(self)
+        layout = QtGui.QVBoxLayout()
+        self.setLayout(layout)
+        layout.setMargin(0)
+        input_table = pw.InputTable()
+        input_table.add('InGaAs', None)
+        self.use = pc.Bool(disable_under_module_control=True)
+        input_table.add('Use', self.use)
+        self.integration_time = pc.Number(initial_value=10, decimals=0, disable_under_module_control=True)
+        input_table.add('Integration Time (ms)', self.integration_time)
+        self.spectra_averaged = pc.Number(initial_value=1, decimals=0, disable_under_module_control=True)
+        input_table.add('Spectra Averaged', self.spectra_averaged)
+        self.save_shots = pc.Bool(disable_under_module_control=True)
+        layout.addWidget(input_table)
+
+
 class GUI(QtCore.QObject):
 
     def __init__(self, hardware):
@@ -309,25 +387,26 @@ class GUI(QtCore.QObject):
         address_obj.update_ui.connect(self.update)
         
     def create_frame(self, parent_widget):
-        
         #get parent widget-----------------------------------------------------
-        
         parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         layout = parent_widget.layout()
-        
         #display area----------------------------------------------------------
-
         #container widget
         display_container_widget = pw.ExpandingWidget()
         display_container_widget.setLayout(QtGui.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
-        
         #big number
-        self.big_display = pw.spinbox_as_display(font_size = 100)
-        display_layout.addWidget(self.big_display)
-        
+        big_number_container_widget = QtGui.QWidget()
+        big_number_container_widget.setLayout(QtGui.QHBoxLayout())
+        big_number_container_layout = big_number_container_widget.layout()
+        big_number_container_layout.setMargin(0)
+        big_number_container_layout.addStretch(1)
+        self.big_display = pw.SpinboxAsDisplay(font_size=100)
+        big_number_container_layout.addWidget(self.big_display)
+        display_layout.addWidget(big_number_container_widget)        
         #plot
         self.plot_widget = pw.Plot1D()
         self.plot_widget.set_ylim(0, 4)
@@ -335,14 +414,10 @@ class GUI(QtCore.QObject):
         self.plot_v_line = self.plot_widget.add_infinite_line(hide=False)
         self.plot_widget.set_labels(ylabel='arbitrary units', xlabel='nm')
         display_layout.addWidget(self.plot_widget)
-        
         #vertical line---------------------------------------------------------
-
         line = pw.line('V')      
         layout.addWidget(line)
-        
         # settings area -------------------------------------------------------
-        
         # container widget / scroll area
         settings_container_widget = QtGui.QWidget()
         settings_scroll_area = pw.scroll_area(130)
@@ -353,7 +428,6 @@ class GUI(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
-
         # input table
         input_table = pw.InputTable()
         input_table.add('Display', None)
@@ -366,10 +440,7 @@ class GUI(QtCore.QObject):
         input_table.add('Settings', None)
         input_table.add('Integration Time (ms)', self.hardware.integration_time)
         input_table.add('Spectra Averaged', self.hardware.spectra_averaged)
-        input_table.add('Status', busy)
-        input_table.add('Acquisition Time', acquisition_timer)
         settings_layout.addWidget(input_table)
-
         #streach
         settings_layout.addStretch(1)
     
@@ -377,7 +448,7 @@ class GUI(QtCore.QObject):
         if not data.read() == None:
             # plot
             xi = data_map.read()
-            yi = data.read()
+            yi = data.read()[0]
             self.plot_curve.clear()
             self.plot_curve.setData(xi, yi)
             self.plot_widget.set_xlim(xi.min(), xi.max())
@@ -388,6 +459,3 @@ class GUI(QtCore.QObject):
               
     def stop(self):
         pass
-
-
-hardware = Hardware()
