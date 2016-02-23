@@ -48,6 +48,10 @@ loop_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 idx = pc.Mutex()  # holds tuple
 
+ms_wait_limits = pc.NumberLimits(0, 10000)
+ms_wait = pc.Number(ini=ini, section='settings', option='ms wait', decimals=0,
+                    limits=ms_wait_limits, display=True)
+
 
 ### file writing class ########################################################
 
@@ -244,6 +248,8 @@ class Control():
         now = time.time()
         loop_time.write(now - self.t_last)
         self.t_last = now
+        # ms wait
+        time.sleep(ms_wait.read()/1000.)
         # acquire
         for hardware in self.hardwares:
             if hardware.active:
@@ -324,6 +330,8 @@ class Control():
         headers.pycmds_info['PyCMDS version'] = g.version.read()
         headers.pycmds_info['system name'] = g.system_name.read()
         headers.pycmds_info['file created'] = wt.kit.get_timestamp()
+        # apply daq settings from widget
+        ms_wait.write(widget.ms_wait.read())
         # add acquisition axes
         for hardware, hardware_widget in zip(self.hardwares, widget.hardware_widgets):
             if hardware_widget.use.read():
@@ -462,15 +470,20 @@ control = Control()
 
 
 class Widget(QtGui.QWidget):
-    # TODO: make the widget modular
-    # perhaps the widget actually belongs in scan.py?
 
     def __init__(self):
         QtGui.QWidget.__init__(self)
         layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
-        # hardware
+        # daq settings
+        input_table = pw.InputTable()
+        input_table.add('DAQ Settings', None)
+        self.ms_wait = pc.Number(initial_value=0, limits=ms_wait_limits, 
+                                 decimals=0, disable_under_module_control=True)
+        input_table.add('ms Wait', self.ms_wait)
+        layout.addWidget(input_table)
+        # device settings
         self.hardware_widgets = []
         for hardware in control.hardwares:
             widget = hardware.Widget()
@@ -626,6 +639,7 @@ class GUI(QtCore.QObject):
         # global daq settings
         input_table = pw.InputTable()
         input_table.add('Settings', None)
+        input_table.add('ms Wait', ms_wait)
         for device in control.hardwares:
             input_table.add(device.name, None)
             input_table.add('Status', device.busy)
@@ -635,7 +649,7 @@ class GUI(QtCore.QObject):
         data_busy.update_signal = data_obj.update_ui
         input_table.add('Status', data_busy)
         input_table.add('Scan', None)
-        input_table.add('Loop time', loop_time)
+        input_table.add('Loop Time', loop_time)
         self.idx_string = pc.String(initial_value='None', display=True)
         input_table.add('Scan Index', self.idx_string)
         settings_layout.addWidget(input_table)

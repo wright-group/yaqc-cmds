@@ -297,7 +297,10 @@ class Scan(QtCore.QObject):
         input_table = pw.InputTable()
         input_table.add('Acquisition', None)
         input_table.add('Order', self.aquisition_order_combo)
-        self.layout.addWidget(input_table)
+        #   this feature is perhaps a good idea, but it isn't truly implemented
+        #   right now so I'm turning off exposure to users - Blaise 2016.02.23
+        if False: 
+            self.layout.addWidget(input_table)
         # daq widget
         self.daq_widget = daq.Widget()
         self.layout.addWidget(self.daq_widget)
