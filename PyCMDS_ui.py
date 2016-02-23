@@ -253,13 +253,11 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read():
             print 'initialize hardware'
         # import
-        import daq.daq as daq
-        daq.control.wait_until_done()
         import opas.opas
         import spectrometers.spectrometers
         import delays.delays
         import nds.nds
-        
+        import daq.daq as daq
     
     def _initialize_widgets(self):
         if g.debug.read():

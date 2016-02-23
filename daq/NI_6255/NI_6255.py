@@ -6,6 +6,7 @@ import sys
 import imp
 import time
 import copy
+import threading
 
 import collections
 
@@ -22,17 +23,12 @@ import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 import project.ini_handler as ini
-import opas.opas as opas
-import spectrometers.spectrometers as spectrometers
-import delays.delays as delays
 from project.ini_handler import Ini
-hardware_modules = [opas, spectrometers, delays]
 app = g.app.read()
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'daq',
                                  'NI_6255',
                                  'NI_6255.ini'))
-
 
 from PyDAQmx import *
 
@@ -212,7 +208,7 @@ seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals
 
 busy = pc.Busy()
 
-enqueued_actions = pc.Enqueued()
+enqueued = pc.Enqueued()
 
 class Address(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
@@ -220,6 +216,10 @@ class Address(QtCore.QObject):
     queue_emptied = QtCore.pyqtSignal()
     running = False
     processing_timer = wt.kit.Timer(verbose=False)
+    
+    def __init__(self):
+        QtCore.QObject.__init__(self)
+        self.task_created = False
     
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
@@ -229,9 +229,9 @@ class Address(QtCore.QObject):
         '''
         #DO NOT CHANGE THIS METHOD UNLESS YOU ~REALLY~ KNOW WHAT YOU ARE DOING!
         if g.debug.read(): print 'NI 6255 dequeue:', method, inputs
-        enqueued_actions.pop()
+        enqueued.pop()
         getattr(self, str(method))(inputs) #method passed as qstring
-        if not enqueued_actions.read(): 
+        if not enqueued.read(): 
             self.queue_emptied.emit()
             self.check_busy([])
             
@@ -242,7 +242,7 @@ class Address(QtCore.QObject):
         should include a sleep if answer is True to prevent very fast loops: time.sleep(0.1)
         '''
         # simply check if additional actions are enqueued, and if running
-        if enqueued_actions.read():
+        if enqueued.read():
             time.sleep(0.01)
             busy.write(True)
         elif self.running:
@@ -252,20 +252,19 @@ class Address(QtCore.QObject):
             busy.write(False)
             
     def loop(self, inputs):
-        while freerun.read() and not enqueued_actions.read():
+        while freerun.read() and not enqueued.read():
             self.run_task([])
             busy.write(False)
-            # conclusively, it is possible to get to this without
-            # filling out data >:-(
-            print data.read_properties()
+        else:
+            print 'NI 6255 exiting loop!'
 
     def initialize(self, inputs):
-        self.task_created = False
         self.previous_time = time.time()
         if g.debug.read(): 
-            print 'DAQ initializing'
-        g.logger.log('info', 'DAQ initializing')
+            print 'NI 6255 initializing'
+        g.logger.log('info', 'NI 6255 initializing')
         self.create_task([])
+        self.run_task([])
         print 'NI 6255 done initializing' 
     
     def create_task(self, inputs):
@@ -365,7 +364,7 @@ class Address(QtCore.QObject):
         # finish --------------------------------------------------------------
         self.task_created = True
         self.task_changed.emit()
-            
+
     def run_task(self, inputs):
         '''
         Acquire once using the created task.
@@ -393,7 +392,7 @@ class Address(QtCore.QObject):
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
-            DAQmxClearTask(self.task_handle)    
+            DAQmxClearTask(self.task_handle)
         # export samples
         samples.write(self.samples)
         ### process ###########################################################
@@ -453,24 +452,17 @@ class Address(QtCore.QObject):
         shots.write(shots_array)
         # do math -------------------------------------------------------------
         # pass through shots processing module
-        if False:
-            with self.processing_timer:
-                path = shots_processing_module_path.read()
-                print path
-                name = os.path.basename(path).split('.')[0]
-                directory = os.path.dirname(path)
-                f, p, d = imp.find_module(name, [directory])
-                print f
-                processing_module = imp.load_module(name, f, p, d)
-                print 'what'
-                channel_names = [channel.name.read() for channel in active_channels]
-                chopper_names = [chopper.name.read() for chopper in active_choppers]
-                kinds = ['channel' for _ in channel_names] + ['chopper' for _ in chopper_names]
-                names = channel_names + chopper_names
-                out, out_names = processing_module.process(shots_array, names, kinds)
-        else:
-            with self.processing_timer:
-                out, out_names = np.random.random(4), ['a', 'b', 'c', 'd']
+        with self.processing_timer:
+            path = shots_processing_module_path.read()
+            name = os.path.basename(path).split('.')[0]
+            directory = os.path.dirname(path)
+            f, p, d = imp.find_module(name, [directory])
+            processing_module = imp.load_module(name, f, p, d)
+            channel_names = [channel.name.read() for channel in active_channels]
+            chopper_names = [chopper.name.read() for chopper in active_choppers]
+            kinds = ['channel' for _ in channel_names] + ['chopper' for _ in chopper_names]
+            names = channel_names + chopper_names
+            out, out_names = processing_module.process(shots_array, names, kinds)
         seconds_for_shots_processing.write(self.processing_timer.interval)
         # export last data
         data.write_properties((1,), out_names, out)
@@ -479,6 +471,8 @@ class Address(QtCore.QObject):
         seconds_since_last_task.write(time.time() - self.previous_time)
         self.previous_time = time.time()
         self.running = False
+        stop_time = time.time()
+        seconds_for_acquisition.write(stop_time - start_time)
 
     def shutdown(self, inputs):
          if self.task_created:
@@ -490,20 +484,13 @@ address_thread = QtCore.QThread()
 address = Address()
 address.moveToThread(address_thread)
 address_thread.start()
+address_thread.setPriority(QtCore.QThread.HighestPriority)
 
-# create queue to communicate with address thread
-queue = QtCore.QMetaObject()
-def q(method, inputs = []):
-    # add to friendly queue list 
-    enqueued_actions.push([method, time.time()])
-    print method
-    # busy
-    busy.write(True)
-    # send Qt SIGNAL to address thread    
-    queue.invokeMethod(address, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
+# create q to communicate with address thread
+q = pc.Q(enqueued, busy, address)
 
 
-### hardware ##################################################################
+### device ####################################################################
 
 
 class Hardware(QtCore.QObject):
@@ -517,16 +504,20 @@ class Hardware(QtCore.QObject):
         self.has_map = False
         self.name = 'NI 6255'
         self.data = data
+        self.busy = busy
+        self.busy.update_signal = self.update_ui
         self.shots = shots
+        self.acquisition_time = seconds_for_acquisition
         self.shots_compatible = True
         self.Widget = Widget
         self.initialized = False
         self.freerun = freerun
-        self.freerun.updated.connect(lambda: q('loop'))
+        self.freerun.updated.connect(lambda: q.push('loop'))
         nshots.updated.connect(self.update_task)
+        self.update_sample_correspondances(channels.read(), choppers.read())
         
     def acquire(self):
-        q('run_task')
+        q.push('run_task')
         
     def get_headers(self):
         out = collections.OrderedDict()
@@ -534,10 +525,23 @@ class Hardware(QtCore.QObject):
         return out
         
     def initialize(self, parent_widget):
-        # daq
-        q('initialize')
-        self.update_sample_correspondances(channels.read(), choppers.read())
-        self.set_freerun(True)
+        # daq    
+        q.push('initialize')
+        # populate data with fake data
+        fake = np.random.random(900)
+        path = shots_processing_module_path.read()
+        name = os.path.basename(path).split('.')[0]
+        directory = os.path.dirname(path)
+        f, p, d = imp.find_module(name, [directory])
+        processing_module = imp.load_module(name, f, p, d)
+        active_channels = [channel for channel in channels.read() if channel.active.read()]
+        active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
+        channel_names = [channel.name.read() for channel in active_channels]
+        chopper_names = [chopper.name.read() for chopper in active_choppers]
+        kinds = ['channel' for _ in channel_names] + ['chopper' for _ in chopper_names]
+        names = channel_names + chopper_names
+        out, out_names = processing_module.process(fake, names, kinds)
+        self.data.write_properties((1,), out_names, None)
         # gui
         self.gui = GUI(self)
         self.gui.create_frame(parent_widget)
@@ -553,11 +557,12 @@ class Hardware(QtCore.QObject):
     def shutdown(self):   
         # stop looping
         self.set_freerun(False)
+        self.wait_until_done()
         # log
         if g.debug.read(): print 'daq shutting down'
         g.logger.log('info', 'DAQ shutdown')
         # shutdown other threads
-        q('shutdown')
+        q.push('shutdown')
         self.wait_until_done()
         address_thread.quit()
         #close gui
@@ -625,15 +630,16 @@ class Hardware(QtCore.QObject):
         self.update_task()
         
     def update_task(self):
-        if freerun.read():
-            return_to_freerun = True
-            freerun.write(False)
-            self.wait_until_done()
-        else: 
-            return_to_freerun = False
-        q('create_task')
-        if return_to_freerun: 
-            freerun.write(True)
+        if self.initialized:
+            if freerun.read():
+                return_to_freerun = True
+                freerun.write(False)
+                self.wait_until_done()
+            else: 
+                return_to_freerun = False
+            q.push('create_task')
+            if return_to_freerun: 
+                freerun.write(True)
         self.settings_updated.emit()
     
     def wait_until_done(self, timeout=10):
@@ -642,24 +648,17 @@ class Hardware(QtCore.QObject):
         
         will only refer to timeout when busy.wait_for_update fires
         '''
-        # THE DAQ JUST NEEEEEEEEEEEEEEDS TO TIME OUT A COUPLE OF TIMES?!?!?!?!
-        # but it can't be failing the first time, right?
-        if True:
-            start_time = time.time()
-            while busy.read():
-                if time.time()-start_time < timeout:
-                    if not enqueued_actions.read(): 
-                        q('check_busy')
-                    busy.wait_for_update()
-                else: 
-                    print 'NI 6255 TIMED OUT!!!!!!!!!!!'
-                    print enqueued_actions.read()
-                    g.logger.log('warning', 'DAQ dait until done timed out', 'timeout set to {} seconds'.format(timeout))
-                    break
-        else:
-            while busy.read():
-                print 'waiting', enqueued_actions.read()
+        start_time = time.time()
+        while busy.read():
+            time.sleep(0)  # yield?
+            QtCore.QThread.yieldCurrentThread()
+            if time.time()-start_time < timeout:
                 busy.wait_for_update()
+            else: 
+                print 'NI 6255 TIMED OUT!!!!!!!!!!!'
+                g.logger.log('warning', 'NI 6255 wait until done timed out', 'timeout set to {} seconds'.format(timeout))
+                break
+    
 
 ### gui #######################################################################
 
@@ -686,6 +685,7 @@ class GUI(QtCore.QObject):
     def __init__(self, control):
         QtCore.QObject.__init__(self)
         self.control = control
+        self.samples_tab_initialized = False
         
     def create_frame(self, parent_widget):
         # get layout
@@ -718,7 +718,7 @@ class GUI(QtCore.QObject):
     def create_samples_tab(self, layout):
         # display -------------------------------------------------------------
         # container widget
-        display_container_widget = QtGui.QWidget()
+        display_container_widget = pw.ExpandingWidget()
         display_container_widget.setLayout(QtGui.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
@@ -840,7 +840,7 @@ class GUI(QtCore.QObject):
     def create_shots_tab(self, layout):
         # display -------------------------------------------------------------
         # container widget
-        display_container_widget = QtGui.QWidget()
+        display_container_widget = pw.ExpandingWidget()
         display_container_widget.setLayout(QtGui.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
@@ -878,7 +878,6 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
         shot_channel_combo.updated.emit()
 
-
     def on_add_channel(self):
         allowed_values = [channel.section for channel in destination_channels.read() if channel.active.read()]
         new_channel_section = 'Channel %i'%len(allowed_values)
@@ -892,7 +891,7 @@ class GUI(QtCore.QObject):
     def on_add_chopper(self):
         pass
 
-    def on_apply_channel(self):        
+    def on_apply_channel(self):
         new_channel_index = int(self.samples_channel_combo.read()[-1])
         new_channel = destination_channels.read()[new_channel_index]
         new_channel.active.write(True)
@@ -971,6 +970,9 @@ class GUI(QtCore.QObject):
         xi = np.arange(len(yi))
         self.shots_plot_scatter.clear()
         self.shots_plot_scatter.setData(xi, yi)
+        # finish
+        if not self.samples_tab_initialized:
+            self.update_samples_tab()
 
     def update_samples_tab(self):
         # TODO: I need this check for a race condition during startup that I 
@@ -978,6 +980,8 @@ class GUI(QtCore.QObject):
         # - Blaise 2016.01.30
         if samples.read() is None:
             return
+        else:
+            self.samples_tab_initialized = True
         # buttons
         num_channels = len(self.samples_channel_combo.allowed_values)
         self.add_channel_button.setDisabled(False)
@@ -1029,3 +1033,79 @@ class GUI(QtCore.QObject):
 
     def stop(self):
         pass
+
+
+### testing ###################################################################
+
+
+if __name__ == '__main__':
+    
+    
+    def update_sample_correspondances(proposed_channels, proposed_choppers):
+        '''
+        Parameters
+        ----------
+        channels : list of Channel objects
+            The proposed channel settings.
+        choppers : list of Chopper objects
+            The proposed chopper settings.
+        '''
+        # sections is a list of lists: [correspondance, start index, stop index]
+        sections = []
+        for i in range(len(proposed_channels)):
+            channel = proposed_channels[i]
+            if channel.active.read():                
+                correspondance = i + 1  # channels go from 1 --> infinity
+                start = channel.signal_start_index.read()
+                stop = channel.signal_stop_index.read()
+                sections.append([correspondance, start, stop])
+                if channel.use_baseline.read():
+                    start = channel.baseline_start_index.read()
+                    stop = channel.baseline_stop_index.read()
+                    sections.append([correspondance, start, stop])
+        # desired is a list of lists containing all of the channels 
+        # that desire to be read at a given sample
+        desired = [[] for _ in range(900)]
+        for section in sections:
+            correspondance = section[0]
+            start = int(section[1])
+            stop = int(section[2])
+            for i in range(start, stop+1):
+                desired[i].append(correspondance)
+                desired[i] = [val for val in set(desired[i])]  # remove non-unique
+                desired[i].sort()
+        # samples is the proposed sample correspondances
+        samples = np.full(900, 0, dtype=int)
+        for i in range(len(samples)):
+            lis = desired[i]
+            if not len(lis) == 0:
+                samples[i] = lis[i%len(lis)]
+        # choppers
+        for i, chopper in enumerate(proposed_choppers):
+            if chopper.active.read():
+                samples[chopper.index.read()] = -(i+1)
+        # check if proposed is valid
+        # TODO: !!!!!!!!!!!!!!!
+        # apply to channels
+        channels.write(proposed_channels)
+        for channel in channels.read():
+            channel.save()
+        choppers.write(proposed_choppers)
+        for chopper in choppers.read():
+            chopper.save()
+        # update channel names
+        channel_names = [channel.name.read() for channel in channels.read() if channel.active.read()]
+        chopper_names = [chopper.name.read() for chopper in choppers.read() if chopper.active.read()]
+        allowed_values = channel_names + chopper_names
+        shot_channel_combo.set_allowed_values(allowed_values)
+        # finish
+        sample_correspondances.write(samples)
+    update_sample_correspondances(channels.read(), choppers.read())
+    q.push('initialize')
+    q.push('loop')
+    while busy.read():
+        print data.read()
+        busy.wait_for_update()
+    
+    
+    

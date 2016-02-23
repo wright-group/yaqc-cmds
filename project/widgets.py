@@ -141,7 +141,7 @@ class InputTable(QtGui.QWidget):
     def busy(self, name, global_object):
         # heading
         heading = QtGui.QLabel(name)
-        if name in ['DAQ status', 'Data status']:  # hardcoded exceptions
+        if name in ['DAQ status', 'Status']:  # hardcoded exceptions
             StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         else:
             StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])

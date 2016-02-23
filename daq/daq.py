@@ -22,13 +22,8 @@ import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 import project.ini_handler as ini
-import opas.opas as opas
-import spectrometers.spectrometers as spectrometers
-import delays.delays as delays
-scan_hardware_modules = [opas, spectrometers, delays]
-app = g.app.read()
-main_dir = g.main_dir.read()
 ini = ini.daq
+main_dir = g.main_dir.read()
 
 
 ### define ####################################################################
@@ -49,8 +44,7 @@ array_detector_reference = pc.Mutex()
 origin = pc.Mutex()
 
 # additional
-seconds_since_last_task = pc.Number(initial_value=np.nan, display=True, decimals=3)
-seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals=3)
+loop_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 idx = pc.Mutex()  # holds tuple
 
@@ -246,10 +240,16 @@ class Control():
                 self.hardwares.append(hardware_obj)
     
     def acquire(self, save=False):
+        # loop time
+        now = time.time()
+        loop_time.write(now - self.t_last)
+        self.t_last = now
+        # acquire
         for hardware in self.hardwares:
             if hardware.active:
                 hardware.acquire()
         self.wait_until_done()
+        # save
         if save:
             # TODO: everyting related to shots
             # 1D things -------------------------------------------------------
@@ -307,13 +307,15 @@ class Control():
         # initialize hardwares
         for i, hardware in enumerate(self.hardwares):
             hardware.initialize(hardware_widgets[i])
+            hardware.active = True
         # begin freerunning
         self.set_freerun(True)
-        print '1 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^'
-        print self.hardwares[0].data.read_properties()
+        # Ideally I would wait for the devices here
+        # however the NI 6255 hangs forever for reasons I don't understand
         # finish
-        self.wait_until_done()
-        self.gui.create_main_tab()
+        for i, hardware in enumerate(self.hardwares):
+            hardware.update_ui.connect(self.gui.create_main_tab)
+        self.t_last = time.time()
         
     def initialize_scan(self, widget, destinations_list):
         # stop freerunning
@@ -456,7 +458,7 @@ class Control():
 control = Control()
 
 
-### gui########################################################################
+### gui #######################################################################
 
 
 class Widget(QtGui.QWidget):
@@ -488,16 +490,19 @@ class Widget(QtGui.QWidget):
         layout.addWidget(input_table)
         
         
-class DisplaySettings:
+class DisplaySettings(QtCore.QObject):
+    updated = QtCore.pyqtSignal()
     
     def __init__(self, device):
         '''
         Display settings for a particular device.
         '''
+        QtCore.QObject.__init__(self)
         self.device = device
-        self.device.wait_until_done()
+        #self.device.wait_until_done()
         self.widget = pw.InputTable()
         self.channel_combo = pc.Combo()
+        self.channel_combo.updated.connect(lambda: self.updated.emit())
         self.widget.add('Channel', self.channel_combo)
         self.shape_controls = []
         if self.device.shape != (1,):
@@ -507,19 +512,26 @@ class DisplaySettings:
                 control = pc.Number(initial_value=0, decimals=0, limits=limits)
                 self.widget.add(' '.join([map_axis_names[i], 'index']), control)
                 self.shape_controls.append(control)
+                control.updated.connect(lambda: self.updated.emit())
+    
+    def get_channel_index(self):
+        return self.channel_combo.read_index()
+        
+    def get_map_index(self):
+        if len(self.shape_controls) == 0:
+            return None
+        return tuple(c.read() for c in self.shape_controls)
     
     def hide(self):
         self.widget.hide()
 
+    def show(self):
+        self.widget.show()
+
     def update_channels(self):
-        time.sleep(10)
-        return # TODO:
-        while len(self.device.data.read_properties()[1]) == 0:
-            print 'hello'
-            self.device.acquire()
-            self.device.wait_until_done()
         allowed_values = self.device.data.read_properties()[1]
-        self.channel_combo.set_allowed_values(allowed_values)
+        if not len(allowed_values) == 0:
+            self.channel_combo.set_allowed_values(allowed_values)
 
 
 class GUI(QtCore.QObject):
@@ -527,14 +539,9 @@ class GUI(QtCore.QObject):
     def __init__(self, control):
         QtCore.QObject.__init__(self)
         self.control = control
-        control.wait_until_done()
         self.create_frame()
-        #daq.update_ui.connect(self.update)
-        #data_obj.update_ui.connect(self.update)
-        #shot_channel_combo.updated.connect(self.update)
-        #value_channel_combo.updated.connect(self.update)
-        #print 'daq gui init done'
-        
+        self.main_tab_created = False
+
     def create_frame(self):
         # get parent widget
         parent_widget = g.daq_widget.read()
@@ -549,14 +556,18 @@ class GUI(QtCore.QObject):
             widget = QtGui.QWidget()
             self.tabs.addTab(widget, hardware.name)
             self.hardware_widgets.append(widget)
-        # signals and slots
-        for hardware in self.control.hardwares:
-            hardware.update_ui.connect(self.update)
         # finish
         layout.addWidget(self.tabs)
         
     def create_main_tab(self):
-        print '2 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^'
+        if self.main_tab_created:
+            return
+        for device in control.hardwares:
+            if len(device.data.read_properties()[1]) == 0:
+                print 'next time'
+                return
+        self.main_tab_created = True
+        print 'create main tab'
         # create main daq tab
         main_widget = QtGui.QWidget()
         layout = QtGui.QHBoxLayout()
@@ -566,8 +577,6 @@ class GUI(QtCore.QObject):
         # display -------------------------------------------------------------
         # container widget
         display_container_widget = pw.ExpandingWidget()
-        #display_rect = display_container_widget.rect()
-        #display_rectf = QtCore.QRectF(display_rect)
         display_container_widget.setLayout(QtGui.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
@@ -602,24 +611,31 @@ class GUI(QtCore.QObject):
         # display settings
         input_table = pw.InputTable()
         input_table.add('Display', None)
-        self.hardware_combo = pc.Combo()
-        input_table.add('Device', self.hardware_combo)
+        allowed_values = [device.name for device in control.hardwares]
+        self.device_combo = pc.Combo(allowed_values=allowed_values)
+        self.device_combo.updated.connect(self.on_update_device)
+        input_table.add('Device', self.device_combo)
         settings_layout.addWidget(input_table)
-        self.display_settings_widgets = {}
+        self.display_settings_widgets = collections.OrderedDict()
         for hardware in control.hardwares:
             display_settings = DisplaySettings(hardware)
             self.display_settings_widgets[hardware.name] = display_settings
             settings_layout.addWidget(display_settings.widget)
             hardware.settings_updated.connect(self.on_update_channels)
+            display_settings.updated.connect(self.on_update_device)
         # global daq settings
         input_table = pw.InputTable()
         input_table.add('Settings', None)
-        for device in control.hardwares:    
-            input_table.add(device.name + ' Freerun', device.freerun)
+        for device in control.hardwares:
+            input_table.add(device.name, None)
+            input_table.add('Status', device.busy)
+            input_table.add('Freerun', device.freerun)
+            input_table.add('Time', device.acquisition_time)
+        input_table.add('Data', None)
         data_busy.update_signal = data_obj.update_ui
-        input_table.add('Data status', data_busy)
-        input_table.add('Loop time', seconds_since_last_task)
-        input_table.add('Acquisiton time', seconds_for_acquisition)
+        input_table.add('Status', data_busy)
+        input_table.add('Scan', None)
+        input_table.add('Loop time', loop_time)
         self.idx_string = pc.String(initial_value='None', display=True)
         input_table.add('Scan Index', self.idx_string)
         settings_layout.addWidget(input_table)
@@ -627,10 +643,20 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
         # finish --------------------------------------------------------------
         self.on_update_channels()
+        self.on_update_device()
+        for hardware in self.control.hardwares:
+            hardware.update_ui.connect(self.update)
         
     def on_update_channels(self):
         for display_settings in self.display_settings_widgets.values():
             display_settings.update_channels()
+            
+    def on_update_device(self):
+        current_device_index = self.device_combo.read_index()
+        for display_settings in self.display_settings_widgets.values():
+            display_settings.hide()
+        self.display_settings_widgets.values()[current_device_index].show()
+        self.update()
 
     def set_slice_xlim(self, xmin, xmax):
         self.values_plot_widget.set_xlim(xmin, xmax)
@@ -639,10 +665,20 @@ class GUI(QtCore.QObject):
         '''
         Runs each time an update_ui signal fires (basically every run_task)
         '''
-        # values
-        #self.big_display.setValue(last_data.read()[value_channel_combo.read_index()])
-        if False:        
-            self.idx_string.write(str(idx.read()))
+        # scan index
+        self.idx_string.write(str(idx.read()))
+        # big number
+        current_device_index = self.device_combo.read_index()
+        device = control.hardwares[current_device_index]        
+        widget = self.display_settings_widgets.values()[current_device_index]
+        channel_index = widget.get_channel_index()
+        map_index = widget.get_map_index()
+        if map_index is None:
+            big_number = device.data.read()[channel_index]
+        else:
+            big_number = device.data.read()[channel_index][map_index]
+        self.big_display.setValue(big_number)    
+        
         
         # current slice display
         # TODO: fix this for new module implementation
@@ -668,3 +704,8 @@ class GUI(QtCore.QObject):
 
 
 control.initialize()
+
+import opas.opas as opas
+import spectrometers.spectrometers as spectrometers
+import delays.delays as delays
+scan_hardware_modules = [opas, spectrometers, delays]
