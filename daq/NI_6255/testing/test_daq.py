@@ -13,11 +13,11 @@ import os
 
 #user inputs-------------------------------------------------------------------
 
-daq_analog_physical_channels = [0, 1, 2, 3, 4]
+daq_analog_physical_channels = [3, 1, 2, 3, 4]
 daq_analog_min = -1.0
-daq_analog_max = 2.0
+daq_analog_max = 6.0
 
-daq_digital_physical_channels = [5]
+daq_digital_physical_channels = [3]
 daq_digital_min = -1.0
 daq_digital_max = 10.0
 daq_digital_cutoff = 2.25
@@ -146,7 +146,7 @@ def get_plot_arrays(channel):
 import matplotlib.pyplot as plt
 plt.close()
 
-x, y = get_plot_arrays(1)
+x, y = get_plot_arrays(0)
 plt.scatter(x, y, c='r')
 x, y = get_plot_arrays(4)
 #plt.scatter(x, y, c='g')

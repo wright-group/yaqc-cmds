@@ -148,7 +148,7 @@ class Address(QtCore.QObject):
                 self.buffer[:, i] = pixels
             self.out = np.mean(self.buffer, axis=1)
         # finish
-        data.write_properties((256,), ['array signal'], [self.out])
+        data.write_properties((256,), ['array_signal'], [self.out])
         self.update_ui.emit()
         acquisition_timer.write(self.timer.interval)    
                       
@@ -233,6 +233,10 @@ class Hardware(QtCore.QObject):
 
     def acquire(self):
         q.push('read')
+        
+    def apply_settings_from_widget(self, widget):
+        self.integration_time.write(widget.integration_time.read())
+        self.spectra_averaged.write(widget.spectra_averaged.read())
 
     def calculate_map(self, mono_setpoint=None, write=True):
         '''

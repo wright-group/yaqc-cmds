@@ -169,12 +169,6 @@ class Chopper():
 choppers = pc.Mutex([Chopper(i) for i in range(7)])
 destination_choppers = pc.Mutex([Chopper(i) for i in range(7)])
 
-# sample correspondances holds an array of integers
-# zero : rest sample
-# positive : channel
-# negative : chopper
-sample_correspondances = pc.Mutex(initial_value=np.zeros(900))
-
 
 # shots
 shot_channel_combo = pc.Combo()
@@ -187,14 +181,20 @@ seconds_for_shots_processing = pc.Number(initial_value=np.nan, display=True, dec
 save_shots_bool = pc.Bool(ini=ini, section='DAQ', option='save shots', display=True,
                           import_from_ini=True, save_to_ini_at_shutdown=True)
 
-
 axes = pc.Mutex()
 
 origin = pc.Mutex()
 
 # daq
-nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', import_from_ini = True, save_to_ini_at_shutdown = True, decimals = 0)
+nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', disable_under_module_control=True, decimals=0)
+nsamples = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='samples', decimals=0, display=True)
 scan_index = pc.Number(initial_value=0, display=True, decimals=0)
+
+# sample correspondances holds an array of integers
+# zero : rest sample
+# positive : channel
+# negative : chopper
+sample_correspondances = pc.Mutex(initial_value=np.zeros(nsamples.read()))
 
 freerun = pc.Bool(initial_value=False)
 
@@ -283,7 +283,7 @@ class Address(QtCore.QObject):
         # import --------------------------------------------------------------
         self.shots = nshots.read()
         # calculate the number of 'virtual samples' to take -------------------
-        self.virtual_samples = 900  # TODO: replace with control
+        self.virtual_samples = nsamples.read()
         # create task ---------------------------------------------------------
         try:
             self.task_handle = TaskHandle()
@@ -326,7 +326,7 @@ class Address(QtCore.QObject):
                     min_voltage = channel.min.read()
                     max_voltage = channel.max.read()
                 elif correspondance < 0:
-                    physical_channel = channels.read()[-correspondance-1].physical_correspondance.read()
+                    physical_channel = choppers.read()[-correspondance-1].physical_correspondance.read()
                     min_voltage = -1.
                     max_voltage = 6.
                 channel_name = 'sample_' + str(name_index).zfill(3)
@@ -359,7 +359,7 @@ class Address(QtCore.QObject):
             DAQmxClearTask(self.task_handle)
             return
         # create arrays for task to fill --------------------------------------
-        self.samples = np.zeros(self.shots*900, dtype=numpy.float64)
+        self.samples = np.zeros(self.shots*nsamples.read(), dtype=numpy.float64)
         self.samples_len = len(self.samples)  # do not want to call for every acquisition
         # finish --------------------------------------------------------------
         self.task_created = True
@@ -400,7 +400,7 @@ class Address(QtCore.QObject):
         active_channels = [channel for channel in channels.read() if channel.active.read()]
         active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
         shots_array = np.full((len(active_channels)+len(active_choppers), self.shots), np.nan)
-        folded_samples = self.samples.copy().reshape((900, -1), order='F')
+        folded_samples = self.samples.copy().reshape((nsamples.read(), -1), order='F')
         index = 0
         # channels
         for channel_index, channel in enumerate(active_channels):
@@ -445,9 +445,14 @@ class Address(QtCore.QObject):
             index += 1
         # choppers
         for chopper in active_choppers:
-            shots_array[index] = 0
-            index += 1
-            # TODO: DIGITIZE CHOPPER    
+            cutoff = 1.  # volts
+            out = folded_samples[chopper.index.read()]
+            out[out>cutoff] = 1.
+            out[out<cutoff] = -1.
+            if chopper.invert.read():
+                out *= -1
+            shots_array[index] = out
+            index += 1  
         # export shots
         shots.write(shots_array)
         # do math -------------------------------------------------------------
@@ -519,6 +524,9 @@ class Hardware(QtCore.QObject):
     def acquire(self):
         q.push('run_task')
         
+    def apply_settings_from_widget(self, widget):
+        nshots.write(widget.shots.read())
+        
     def get_headers(self):
         out = collections.OrderedDict()
         out['shots'] = nshots.read()
@@ -528,7 +536,7 @@ class Hardware(QtCore.QObject):
         # daq    
         q.push('initialize')
         # populate data with fake data
-        fake = np.random.random(900)
+        fake = np.random.random(nsamples.read())
         path = shots_processing_module_path.read()
         name = os.path.basename(path).split('.')[0]
         directory = os.path.dirname(path)
@@ -592,7 +600,7 @@ class Hardware(QtCore.QObject):
                     sections.append([correspondance, start, stop])
         # desired is a list of lists containing all of the channels 
         # that desire to be read at a given sample
-        desired = [[] for _ in range(900)]
+        desired = [[] for _ in range(nsamples.read())]
         for section in sections:
             correspondance = section[0]
             start = int(section[1])
@@ -602,7 +610,7 @@ class Hardware(QtCore.QObject):
                 desired[i] = [val for val in set(desired[i])]  # remove non-unique
                 desired[i].sort()
         # samples is the proposed sample correspondances
-        samples = np.full(900, 0, dtype=int)
+        samples = np.full(nsamples.read(), 0, dtype=int)
         for i in range(len(samples)):
             lis = desired[i]
             if not len(lis) == 0:
@@ -724,7 +732,7 @@ class GUI(QtCore.QObject):
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
         # plot
-        self.samples_plot_widget = pw.Plot1D()
+        self.samples_plot_widget = pw.Plot1D(yAutoRange=False)
         self.samples_plot_scatter = self.samples_plot_widget.add_scatter(color=0.25)
         self.samples_plot_active_scatter = self.samples_plot_widget.add_scatter()
         self.samples_plot_widget.set_labels(xlabel='sample', ylabel='volts')
@@ -768,6 +776,12 @@ class GUI(QtCore.QObject):
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
         input_table = pw.InputTable()
+        input_table.add('Display', None)
+        self.sample_shots_displayed = pc.Number(initial_value=1, limits=pc.NumberLimits(1, 10), decimals=0)
+        self.sample_shots_displayed.updated.connect(self.on_sample_shots_displayed_updated)
+        input_table.add('Shots Displayed', self.sample_shots_displayed)
+        input_table.add('Settings', None)
+        input_table.add('Samples per Shot', nsamples)
         input_table.add('Rest Channel', rest_channel)
         settings_layout.addWidget(input_table)
         # channels
@@ -776,6 +790,8 @@ class GUI(QtCore.QObject):
         # channel_combobox
         allowed_values = [channel.section for channel in channels.read() if channel.active.read()]
         self.samples_channel_combo = pc.Combo(allowed_values=allowed_values)
+        self.samples_channel_combo.updated.connect(self.on_sample_shots_displayed_updated)
+        self.on_sample_shots_displayed_updated()
         input_table = pw.InputTable()
         input_table.add('Channel', self.samples_channel_combo)
         settings_layout.addWidget(input_table)
@@ -867,7 +883,8 @@ class GUI(QtCore.QObject):
         # input table
         input_table = pw.InputTable()
         input_table.add('Display', None)
-        input_table.add('Channel', shot_channel_combo)   
+        input_table.add('Channel', shot_channel_combo)
+        shot_channel_combo.updated.connect(self.on_shot_channel_updated)
         input_table.add('Settings', None)
         input_table.add('Shots', nshots)
         input_table.add('Save Shots', save_shots_bool)
@@ -883,13 +900,18 @@ class GUI(QtCore.QObject):
         new_channel_section = 'Channel %i'%len(allowed_values)
         allowed_values.append(new_channel_section)
         self.samples_channel_combo.set_allowed_values(allowed_values)
-        print self.samples_channel_combo.allowed_values
         self.samples_channel_combo.write(new_channel_section)
         # do not activate channel until changes are applied
         self.update_samples_tab()
         
     def on_add_chopper(self):
-        pass
+        allowed_values = [chopper.section for chopper in destination_choppers.read() if chopper.active.read()]
+        new_chopper_section = 'Chopper %i'%len(allowed_values)
+        allowed_values.append(new_chopper_section)
+        self.samples_chopper_combo.set_allowed_values(allowed_values)
+        self.samples_chopper_combo.write(new_chopper_section)
+        # do not activate chopper until changes are applied
+        self.update_samples_tab()
 
     def on_apply_channel(self):
         new_channel_index = int(self.samples_channel_combo.read()[-1])
@@ -897,16 +919,17 @@ class GUI(QtCore.QObject):
         new_channel.active.write(True)
         new_channels = copy.copy(channels.read())
         new_channels[new_channel_index] = new_channel
-        hardware.update_sample_correspondances(new_channels, choppers.read())
+        self.control.update_sample_correspondances(new_channels, choppers.read())
         self.update_samples_tab()
     
     def on_apply_chopper(self):
-        new_chopper_index = self.samples_channel_combo.read_index()
+        new_chopper_index = int(self.samples_chopper_combo.read()[-1])
         new_chopper = destination_choppers.read()[new_chopper_index]
         new_chopper.active.write(True)
         new_choppers = copy.copy(choppers.read())
         new_choppers[new_chopper_index] = new_chopper
-        hardware.update_sample_correspondances(channels.read(), new_choppers)
+        print new_chopper.name.read()
+        self.control.update_sample_correspondances(channels.read(), new_choppers)
         self.update_samples_tab()
         
     def on_remove_channel(self):
@@ -916,22 +939,68 @@ class GUI(QtCore.QObject):
                 channel.get_saved()  # revert to saved
                 channel.active.write(False)
                 channel.save()
-                print channel.section
                 break
+        self.control.update_sample_correspondances(channels.read(), choppers.read())
         allowed_values = [channel.section for channel in destination_channels.read() if channel.active.read()]
         self.samples_channel_combo.set_allowed_values(allowed_values)
         self.samples_channel_combo.write(allowed_values[-1])
         self.update_samples_tab()
-        
+
     def on_remove_chopper(self):
-        pass
-        
+        # loop through choppers backwards
+        for chopper in choppers.read()[::-1]:
+            if chopper.active.read():
+                chopper.get_saved()  # revert to saved
+                chopper.active.write(False)
+                chopper.save()
+                break
+        self.control.update_sample_correspondances(channels.read(), choppers.read())
+        allowed_values = [chopper.section for chopper in destination_choppers.read() if chopper.active.read()]
+        self.samples_chopper_combo.set_allowed_values(allowed_values)
+        self.samples_chopper_combo.write(allowed_values[-1])
+        self.update_samples_tab()
+
     def on_revert_channel(self):
         channel_index = int(self.samples_channel_combo.read()[-1])
         destination_channels.read()[channel_index].get_saved()
-        
+
     def on_revert_chopper(self):
-        pass
+        chopper_index = int(self.samples_chopper_combo.read()[-1])
+        destination_choppers.read()[chopper_index].get_saved()
+        
+    def on_sample_shots_displayed_updated(self):
+        # all samples
+        self.sample_xi = range(nsamples.read())*int(self.sample_shots_displayed.read())
+        # signal samples
+        current_channel_object = channels.read()[self.samples_channel_combo.read_index()]
+        signal_start_index = int(current_channel_object.signal_start_index.read())
+        signal_stop_index = int(current_channel_object.signal_stop_index.read())
+        self.signal_indicies = np.array([i for i in np.arange(signal_start_index, signal_stop_index) if sample_correspondances.read()[i] == self.samples_channel_combo.read_index() + 1], dtype=np.int)
+        self.signal_xi = list(self.signal_indicies)*int(self.sample_shots_displayed.read())            
+        for i in range(1, int(self.sample_shots_displayed.read())):
+            self.signal_indicies = np.hstack((self.signal_indicies, self.signal_indicies+i*nsamples.read()))
+        # baseline samples
+        baseline_start_index = int(current_channel_object.baseline_start_index.read())
+        baseline_stop_index = int(current_channel_object.baseline_start_index.read())
+        self.baseline_indicies = np.array([i for i in np.arange(baseline_start_index, baseline_stop_index) if sample_correspondances.read()[i] == self.samples_channel_combo.read_index() + 1], dtype=np.int)
+        self.baseline_xi = list(self.baseline_indicies)*int(self.sample_shots_displayed.read())            
+        for i in range(1, int(self.sample_shots_displayed.read())):
+            self.baseline_indicies = np.hstack((self.baseline_indicies, self.baseline_indicies+i*nsamples.read()))
+
+    def on_shot_channel_updated(self):
+        # update y range to be range of channel
+        channel_index = shot_channel_combo.read_index()
+        active_channels = [channel for channel in channels.read() if channel.active.read()]
+        if channel_index > len(active_channels)-1:
+            # must be a chopper
+            ymin = -1
+            ymax = 1
+        else:
+            # is a channel
+            channel = active_channels[channel_index]
+            ymin = channel.min.read()
+            ymax = channel.max.read()
+        self.shots_plot_widget.set_ylim(ymin, ymax)
     
     def set_slice_xlim(self, xmin, xmax):
         self.values_plot_widget.set_xlim(xmin, xmax)
@@ -943,27 +1012,22 @@ class GUI(QtCore.QObject):
         # TODO: I need this check for a race condition during startup that I 
         # do not understand. Eventually it should be removed.
         # - Blaise 2016.01.30
-        if samples.read() is None:
+        if samples.read() is None:            
             return
-        # samples
-        yi = samples.read()[:900]
-        xi = np.arange(len(yi))
+        # all samples
+        yi = samples.read()[:nsamples.read()*self.sample_shots_displayed.read()]
         self.samples_plot_scatter.clear()
-        self.samples_plot_scatter.setData(xi, yi)
+        self.samples_plot_scatter.setData(self.sample_xi, yi)
+        # active samples
         self.samples_plot_active_scatter.hide()
         current_channel_object = channels.read()[self.samples_channel_combo.read_index()]
         if current_channel_object.active.read():
             self.samples_plot_active_scatter.show()
-            signal_start_index = current_channel_object.signal_start_index.read()
-            signal_stop_index = current_channel_object.signal_stop_index.read()
-            signal_indicies = [i for i in np.arange(signal_start_index, signal_stop_index) if sample_correspondances.read()[i] == self.samples_channel_combo.read_index() + 1]
-            yi = samples.read()[signal_indicies]
-            xi = signal_indicies
+            xi = self.signal_xi
+            yi = samples.read()[self.signal_indicies]
             if current_channel_object.use_baseline.read():
-                baseline_start_index = current_channel_object.baseline_start_index.read()
-                baseline_stop_index = current_channel_object.baseline_stop_index.read()
-                yi = np.append(yi, samples.read()[baseline_start_index:baseline_stop_index])
-                xi = np.append(xi, np.arange(baseline_start_index, baseline_stop_index))
+                xi = np.hstack((xi, self.baseline_xi))
+                yi = np.hstack((yi, samples.read()[self.baseline_indicies]))
             self.samples_plot_active_scatter.setData(xi, yi)
         # shots
         yi = shots.read()[shot_channel_combo.read_index()]
@@ -996,7 +1060,7 @@ class GUI(QtCore.QObject):
             widget.hide()
         self.channel_widgets[channel_index].show()
         # chopper ui
-        chopper_index = int(self.samples_channel_combo.read()[-1])
+        chopper_index = int(self.samples_chopper_combo.read()[-1])
         for widget in self.chopper_widgets:
             widget.hide()
         self.chopper_widgets[chopper_index].show()
@@ -1008,8 +1072,7 @@ class GUI(QtCore.QObject):
         self.samples_plot_baseline_start_line.hide()
         self.samples_plot_baseline_stop_line.hide()
         self.samples_plot_chopper_line.hide()
-        current_channel_index = int(self.samples_channel_combo.read()[-1])
-        current_channel_object = channels.read()[current_channel_index]
+        current_channel_object = channels.read()[channel_index]
         if current_channel_object.active.read():
             self.samples_plot_max_voltage_line.show()
             self.samples_plot_max_voltage_line.setValue(current_channel_object.max.read())
@@ -1024,10 +1087,14 @@ class GUI(QtCore.QObject):
                 self.samples_plot_baseline_start_line.setValue(current_channel_object.baseline_start_index.read())
                 self.samples_plot_baseline_stop_line.show()
                 self.samples_plot_baseline_stop_line.setValue(current_channel_object.baseline_stop_index.read())
-        current_chopper_object = choppers.read()[self.samples_chopper_combo.read_index()]
+        current_chopper_object = choppers.read()[chopper_index]
         if current_chopper_object.active.read():   
             self.samples_plot_chopper_line.show()
             self.samples_plot_chopper_line.setValue(current_chopper_object.index.read())
+        # finish
+        ymin = current_channel_object.min.read()
+        ymax = current_channel_object.max.read()
+        self.samples_plot_widget.set_ylim(ymin, ymax)
         if not freerun.read():
             self.update()
 
@@ -1039,73 +1106,5 @@ class GUI(QtCore.QObject):
 
 
 if __name__ == '__main__':
-    
-    
-    def update_sample_correspondances(proposed_channels, proposed_choppers):
-        '''
-        Parameters
-        ----------
-        channels : list of Channel objects
-            The proposed channel settings.
-        choppers : list of Chopper objects
-            The proposed chopper settings.
-        '''
-        # sections is a list of lists: [correspondance, start index, stop index]
-        sections = []
-        for i in range(len(proposed_channels)):
-            channel = proposed_channels[i]
-            if channel.active.read():                
-                correspondance = i + 1  # channels go from 1 --> infinity
-                start = channel.signal_start_index.read()
-                stop = channel.signal_stop_index.read()
-                sections.append([correspondance, start, stop])
-                if channel.use_baseline.read():
-                    start = channel.baseline_start_index.read()
-                    stop = channel.baseline_stop_index.read()
-                    sections.append([correspondance, start, stop])
-        # desired is a list of lists containing all of the channels 
-        # that desire to be read at a given sample
-        desired = [[] for _ in range(900)]
-        for section in sections:
-            correspondance = section[0]
-            start = int(section[1])
-            stop = int(section[2])
-            for i in range(start, stop+1):
-                desired[i].append(correspondance)
-                desired[i] = [val for val in set(desired[i])]  # remove non-unique
-                desired[i].sort()
-        # samples is the proposed sample correspondances
-        samples = np.full(900, 0, dtype=int)
-        for i in range(len(samples)):
-            lis = desired[i]
-            if not len(lis) == 0:
-                samples[i] = lis[i%len(lis)]
-        # choppers
-        for i, chopper in enumerate(proposed_choppers):
-            if chopper.active.read():
-                samples[chopper.index.read()] = -(i+1)
-        # check if proposed is valid
-        # TODO: !!!!!!!!!!!!!!!
-        # apply to channels
-        channels.write(proposed_channels)
-        for channel in channels.read():
-            channel.save()
-        choppers.write(proposed_choppers)
-        for chopper in choppers.read():
-            chopper.save()
-        # update channel names
-        channel_names = [channel.name.read() for channel in channels.read() if channel.active.read()]
-        chopper_names = [chopper.name.read() for chopper in choppers.read() if chopper.active.read()]
-        allowed_values = channel_names + chopper_names
-        shot_channel_combo.set_allowed_values(allowed_values)
-        # finish
-        sample_correspondances.write(samples)
-    update_sample_correspondances(channels.read(), choppers.read())
-    q.push('initialize')
-    q.push('loop')
-    while busy.read():
-        print data.read()
-        busy.wait_for_update()
-    
-    
+    print 'hello'
     

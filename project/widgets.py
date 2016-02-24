@@ -668,7 +668,7 @@ class module_go_button(QtGui.QPushButton):
 
 class Plot1D(pg.GraphicsView):
     
-    def __init__(self, title=None):
+    def __init__(self, title=None, xAutoRange=True, yAutoRange=True):
         pg.GraphicsView.__init__(self)
         #create layout
         self.graphics_layout = pg.GraphicsLayout(border = 'w')
@@ -684,6 +684,7 @@ class Plot1D(pg.GraphicsView):
         self.y_axis.setLabel(**self.labelStyle)
         self.plot_object.showGrid(x = True, y = True, alpha = 0.5)
         self.plot_object.setMouseEnabled(False, True)
+        self.plot_object.enableAutoRange(x=xAutoRange, y=yAutoRange)
         #title
         if title: 
             self.plot_object.setTitle(title)

@@ -577,7 +577,7 @@ class String(PyCMDS_Object):
         self.widget.setText(str(self.value.read()))
         # connect signals and slots
         self.updated.connect(lambda: self.widget.setText(self.value.read()))
-        self.widget.editingFinished.connect(lambda: self.write(self.widget.text()))
+        self.widget.editingFinished.connect(lambda: self.write(str(self.widget.text())))
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True
             

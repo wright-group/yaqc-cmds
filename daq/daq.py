@@ -333,10 +333,12 @@ class Control():
         # apply daq settings from widget
         ms_wait.write(widget.ms_wait.read())
         # add acquisition axes
-        for hardware, hardware_widget in zip(self.hardwares, widget.hardware_widgets):
-            if hardware_widget.use.read():
-                # TODO: apply settings from widget to hardware
+        for hardware, device_widget in zip(self.hardwares, widget.device_widgets):
+            if device_widget.use.read():
+                # apply settings from widget to hardware
                 hardware.active = True
+                hardware.apply_settings_from_widget(device_widget)
+                # record device axes, if applicable
                 if hardware.has_map:
                     for key in hardware.map_axes.keys():
                         # add axis
@@ -357,8 +359,6 @@ class Control():
                                 headers.axis_info[subkey] = centers
             else:
                 hardware.active = False
-        # TODO: expand existing axes...
-        # see https://github.com/wright-group/PyCMDS/blob/blaise-active/modules/scan.py#L206
         # add cols information
         self.update_cols(widget)
         # add channel signed choices
@@ -421,8 +421,8 @@ class Control():
                         label.append(scan_hardware.recorded[key][3])
                         name.append(key)
             # acquisition maps
-            for hardware, hardware_widget in zip(self.hardwares, widget.hardware_widgets):
-                if hardware_widget.use.read():
+            for hardware, device_widget in zip(self.hardwares, widget.device_widgets):
+                if device_widget.use.read():
                     if hardware.has_map:
                         for i in range(len(hardware.map_axes)):
                             kind.append('hardware')
@@ -431,8 +431,8 @@ class Control():
                             label.append(hardware.map_axes.values()[i][0])
                             name.append(hardware.map_axes.keys()[i])
             # acquisitions
-            for hardware, hardware_widget in zip(self.hardwares, widget.hardware_widgets):
-                if hardware_widget.use.read():
+            for hardware, device_widget in zip(self.hardwares, widget.device_widgets):
+                if device_widget.use.read():
                     for col in hardware.data.cols:
                         kind.append('channel')
                         tolerance.append(None)
@@ -484,11 +484,11 @@ class Widget(QtGui.QWidget):
         input_table.add('ms Wait', self.ms_wait)
         layout.addWidget(input_table)
         # device settings
-        self.hardware_widgets = []
+        self.device_widgets = []
         for hardware in control.hardwares:
             widget = hardware.Widget()
             layout.addWidget(widget)
-            self.hardware_widgets.append(widget)
+            self.device_widgets.append(widget)
         # file
         input_table = pw.InputTable()
         input_table.add('File', None)
@@ -660,6 +660,8 @@ class GUI(QtCore.QObject):
         self.on_update_device()
         for hardware in self.control.hardwares:
             hardware.update_ui.connect(self.update)
+        # set tab structure to display main tab
+        self.tabs.setCurrentIndex(self.tabs.count()-1)  # zero indexed
         
     def on_update_channels(self):
         for display_settings in self.display_settings_widgets.values():

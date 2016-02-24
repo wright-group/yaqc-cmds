@@ -30,6 +30,8 @@ class Ini(QtCore.QMutex):
         put all interaction with ini file itself behind a 'busy' to make
         it a psuedo-Mutex. prevents bizzare race conditions that I don't 
         understand
+        
+        DO NOT CALL THIS METHOD DIRECTLY!
         '''
         self.lock()
         if operation == 'read':
@@ -62,7 +64,7 @@ class Ini(QtCore.QMutex):
                         with_apostrophe=False)
 
     def write(self, section, option, value, with_apostrophe=False):
-        if type(value) == str:
+        if type(value) in [str]:
             with_apostrophe = True 
         self._do('write', 
                  section=section, 
