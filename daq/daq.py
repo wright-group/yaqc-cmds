@@ -29,11 +29,11 @@ main_dir = g.main_dir.read()
 ### define ####################################################################
 
 
-# dictionary of how to access all PyCMDS-compatible DAQ hardwares
+# dictionary of how to access all PyCMDS-compatible DAQ devices
 # [module path, class name, initialization arguments, friendly name]
-hardware_dict = collections.OrderedDict()
-hardware_dict['NI 6255'] = [os.path.join(main_dir, 'daq', 'NI_6255', 'NI_6255.py'), 'Hardware', [None], 'ni6255']
-hardware_dict['InGaAs array'] = [os.path.join(main_dir, 'daq', 'InGaAs_array', 'InGaAs.py'), 'Hardware', [None], 'InGaAs'] 
+device_dict = collections.OrderedDict()
+device_dict['NI 6251'] = [os.path.join(main_dir, 'daq', 'NI_6251', 'NI_6251.py'), 'Device', [None], 'ni6251']
+device_dict['InGaAs array'] = [os.path.join(main_dir, 'daq', 'InGaAs_array', 'InGaAs.py'), 'Device', [None], 'InGaAs'] 
 
 
 
@@ -48,23 +48,82 @@ loop_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 idx = pc.Mutex()  # holds tuple
 
+save_shots = pc.Bool(display=True)
+
 ms_wait_limits = pc.NumberLimits(0, 10000)
 ms_wait = pc.Number(ini=ini, section='settings', option='ms wait', decimals=0,
                     limits=ms_wait_limits, display=True)
+                    
+### classes ###################################################################
+                    
 
+class CurrentSlice(QtCore.QObject):
+    indexed = QtCore.pyqtSignal()
+    appended = QtCore.pyqtSignal()
+    
+    def __init__(self):
+        QtCore.QObject.__init__(self)
+        
+    def begin(self, shape):
+        '''
+        Tell current slice that a new scan is beginning. Mostly works to 
+        reset y limits.
+        
+        Parameters
+        ----------
+        shape : list of ints
+            Number of channels for all devices.
+        '''
+        self.xi = []
+        self.data = []
+        self.ymins = []
+        self.ymaxs = []
+        for n_channels in shape:
+            self.ymins.append([-1e-6]*n_channels)
+            self.ymaxs.append([1e-6]*n_channels)
+        
+    def index(self, d):
+        '''
+        Clear the old data from memory, and define new parameters for the next
+        slice.
+        
+        Parameters
+        ----------
+        d : dictionary
+            The new slice dictionary, passed all the way from the acquisition
+            orderer module.
+        '''
+        self.name = d['name']
+        self.units = d['units']
+        self.points = d['points']
+        self.xi = []
+        self.data = []
+        self.indexed.emit()
+        
+    def append(self, position, data):
+        '''
+        Add new values into the slice.
+        
+        Parameters
+        ----------
+        position : float
+            The axis position (in the slices' own axis / units)
+        data : list of lists of arrays
+            List of 1) devices, 2) channels, containing arrays
+        '''
+        self.xi.append(position)
+        self.data.append(data)
+        for device_index, device in enumerate(data):
+            for channel_index, channel in enumerate(data[device_index]):
+                minimum = np.min(data[device_index][channel_index])
+                maximum = np.max(data[device_index][channel_index])
+                if self.ymins[device_index][channel_index] > minimum:
+                    self.ymins[device_index][channel_index] = minimum
+                if self.ymaxs[device_index][channel_index] < maximum:
+                    self.ymaxs[device_index][channel_index] = maximum
+        self.appended.emit()
 
-### file writing class ########################################################
-
-
-data_busy = pc.Busy()
-
-data_path = pc.Mutex()
-
-enqueued_data = pc.Enqueued()
-
-fit_path = pc.Mutex()
-
-shot_path = pc.Mutex()
+current_slice = CurrentSlice()
 
 
 class Headers:
@@ -119,6 +178,20 @@ class Headers:
         return out
 
 headers = Headers()
+
+
+### file writing class ########################################################
+
+
+data_busy = pc.Busy()
+
+data_path = pc.Mutex()
+
+enqueued_data = pc.Enqueued()
+
+fit_path = pc.Mutex()
+
+shot_path = pc.Mutex()
 
 
 class FileAddress(QtCore.QObject):
@@ -198,8 +271,7 @@ class FileAddress(QtCore.QObject):
         pass
                       
     def shutdown(self, inputs):
-        #cleanly shut down
-        #all hardware classes must have this
+        # TODO: ?
         pass
 
 #begin address object in seperate thread
@@ -225,23 +297,23 @@ def q(method, inputs = []):
 class Control():
     
     def __init__(self):
-        self.hardwares = []
+        self.devices = []
         g.main_window.read().module_control.connect(self.module_control_update)
-        # import hardwares
-        for key in hardware_dict.keys():
-            if ini.read('hardware', key):
-                lis = hardware_dict[key]
+        # import devices
+        for key in device_dict.keys():
+            if ini.read('device', key):
+                lis = device_dict[key]
                 module_path = lis[0]
                 name = os.path.basename(module_path).split('.')[0]
                 if False:
                     directory = os.path.dirname(module_path)
                     f, p, d = imp.find_module(name, [directory])
-                    hardware_module = imp.load_module(name, f, p, d)
+                    device_module = imp.load_module(name, f, p, d)
                 else:
-                    hardware_module = imp.load_source(name, module_path)
-                hardware_class = getattr(hardware_module, lis[1])
-                hardware_obj = hardware_class(inputs=lis[2])
-                self.hardwares.append(hardware_obj)
+                    device_module = imp.load_source(name, module_path)
+                device_class = getattr(device_module, lis[1])
+                device_obj = device_class(inputs=lis[2])
+                self.devices.append(device_obj)
     
     def acquire(self, save=False):
         # loop time
@@ -251,26 +323,26 @@ class Control():
         # ms wait
         time.sleep(ms_wait.read()/1000.)
         # acquire
-        for hardware in self.hardwares:
-            if hardware.active:
-                hardware.acquire()
+        for device in self.devices:
+            if device.active:
+                device.acquire()
         self.wait_until_done()
         # save
         if save:
             # TODO: everyting related to shots
             # 1D things -------------------------------------------------------
-            data_rows = np.prod([h.data.size for h in self.hardwares if h.active])
+            data_rows = np.prod([d.data.size for d in self.devices if d.active])
             data_shape = (len(headers.data_cols['name']), data_rows)
             data_arr = np.full(data_shape, np.nan)
             data_i = 0
             # scan indicies
-            for i in idx.read():  # scan hardware
+            for i in idx.read():  # scan device
                 data_arr[data_i] = i
                 data_i += 1
-            for hardware in self.hardwares:  # daq
-                if hardware.active and hardware.has_map:
-                    map_indicies = [i for i in np.ndindex(hardware.data.shape)]
-                    for i in range(len(hardware.data.shape)):
+            for device in self.devices:  # daq
+                if device.active and device.has_map:
+                    map_indicies = [i for i in np.ndindex(device.data.shape)]
+                    for i in range(len(device.data.shape)):
                         data_arr[data_i] = [mi[i] for mi in map_indicies]
                         data_i += 1
             # time
@@ -288,39 +360,44 @@ class Control():
                         data_i += 1
             # potentially multidimensional things -----------------------------
             # acquisition maps
-            for hardware in self.hardwares:
-                if hardware.active and hardware.has_map:
-                    data_arr[data_i] = hardware.get_map()
+            for device in self.devices:
+                if device.active and device.has_map:
+                    data_arr[data_i] = device.get_map()
                     data_i += 1
             # acquisitions
-            for hardware in self.hardwares:
-                if hardware.active:
-                    channels = hardware.data.read()  # list of arrays
+            for device in self.devices:
+                if device.active:
+                    channels = device.data.read()  # list of arrays
                     for arr in channels:
                         data_arr[data_i] = arr
                         data_i += 1
             # send to file_address
             q('write_data', [data_arr])
-
-    def index_slice(self):
-        # TODO:
-        pass
-
+            # fill slice
+            slice_axis_index = headers.data_cols['name'].index(current_slice.name)
+            slice_position = np.mean(data_arr[slice_axis_index])
+            native_units = headers.data_cols['units'][slice_axis_index]
+            slice_position = wt.units.converter(slice_position, native_units, current_slice.units)
+            data_arrs = []
+            for device in self.devices:
+                data_arrs.append(device.data.read())
+            current_slice.append(slice_position, data_arrs)
+        
     def initialize(self):
         # initialize own gui
         self.gui = GUI(self)
-        hardware_widgets = self.gui.hardware_widgets
-        # initialize hardwares
-        for i, hardware in enumerate(self.hardwares):
-            hardware.initialize(hardware_widgets[i])
-            hardware.active = True
+        device_widgets = self.gui.device_widgets
+        # initialize devices
+        for i, device in enumerate(self.devices):
+            device.initialize(device_widgets[i])
+            device.active = True
         # begin freerunning
         self.set_freerun(True)
         # Ideally I would wait for the devices here
-        # however the NI 6255 hangs forever for reasons I don't understand
+        # however the NI 6251 hangs forever for reasons I don't understand
         # finish
-        for i, hardware in enumerate(self.hardwares):
-            hardware.update_ui.connect(self.gui.create_main_tab)
+        for i, device in enumerate(self.devices):
+            device.update_ui.connect(self.gui.create_main_tab)
         self.t_last = time.time()
         
     def initialize_scan(self, widget, destinations_list):
@@ -332,18 +409,19 @@ class Control():
         headers.pycmds_info['file created'] = wt.kit.get_timestamp()
         # apply daq settings from widget
         ms_wait.write(widget.ms_wait.read())
+        save_shots.write(widget.save_shots.read())
         # add acquisition axes
-        for hardware, device_widget in zip(self.hardwares, widget.device_widgets):
+        for device, device_widget in zip(self.devices, widget.device_widgets):
             if device_widget.use.read():
-                # apply settings from widget to hardware
-                hardware.active = True
-                hardware.apply_settings_from_widget(device_widget)
+                # apply settings from widget to device
+                device.active = True
+                device.apply_settings_from_widget(device_widget)
                 # record device axes, if applicable
-                if hardware.has_map:
-                    for key in hardware.map_axes.keys():
+                if device.has_map:
+                    for key in device.map_axes.keys():
                         # add axis
                         headers.axis_info['axis names'].append(key)
-                        identity, units, points, centers, interpolate = hardware.get_axis_properties(destinations_list)
+                        identity, units, points, centers, interpolate = device.get_axis_properties(destinations_list)
                         headers.axis_info['axis identities'].append(identity)
                         headers.axis_info['axis units'].append(units)
                         headers.axis_info['axis interpolate'].append(interpolate)
@@ -358,19 +436,21 @@ class Control():
                                 centers = np.repeat(centers, points.size, axis=-1)
                                 headers.axis_info[subkey] = centers
             else:
-                hardware.active = False
+                device.active = False
         # add cols information
         self.update_cols(widget)
         # add channel signed choices
         # TODO: better implementation. for now, just assume not signed
         headers.channel_info['channel signed'] = [False for kind in headers.data_cols['kind'] if kind == 'channel']
         # add daq information to headers
-        for hardware in self.hardwares:
-            if hardware.active:
-                for key, value in hardware.get_headers().items():
-                    headers.daq_info[' '.join([hardware.name, key])] = value
+        for device in self.devices:
+            if device.active:
+                for key, value in device.get_headers().items():
+                    headers.daq_info[' '.join([device.name, key])] = value
         # create files
         q('create_data', [widget])
+        # refresh current slice properties
+        current_slice.begin([len(device.data.cols) for device in self.devices])
         # wait until daq is done before letting module continue
         self.wait_until_done()
         self.wait_until_file_done()
@@ -384,8 +464,8 @@ class Control():
             self.set_freerun(True)
 
     def set_freerun(self, state):
-        for hardware in self.hardwares:
-            hardware.set_freerun(state)
+        for device in self.devices:
+            device.set_freerun(state)
     
     def shutdown(self):
         # TODO
@@ -405,6 +485,15 @@ class Control():
                 units.append(None)
                 label.append('')
                 name.append('_'.join([n, 'index']))
+            if cols_type == 'shots':
+                # shot indicies
+                for device in self.devices:
+                    if device.shots_compatible:
+                        kind.append(None)
+                        tolerance.append(None)
+                        units.append(None)
+                        label.append('')
+                        name.append('_'.join([device.name, 'shot', 'index']))
             # time
             kind.append(None)
             tolerance.append(0.01)
@@ -421,19 +510,22 @@ class Control():
                         label.append(scan_hardware.recorded[key][3])
                         name.append(key)
             # acquisition maps
-            for hardware, device_widget in zip(self.hardwares, widget.device_widgets):
+            for device, device_widget in zip(self.devices, widget.device_widgets):
                 if device_widget.use.read():
-                    if hardware.has_map:
-                        for i in range(len(hardware.map_axes)):
+                    if device.has_map:
+                        for i in range(len(device.map_axes)):
                             kind.append('hardware')
                             tolerance.append(None)
-                            units.append(hardware.map_axes.values()[i][1])
-                            label.append(hardware.map_axes.values()[i][0])
-                            name.append(hardware.map_axes.keys()[i])
+                            units.append(device.map_axes.values()[i][1])
+                            label.append(device.map_axes.values()[i][0])
             # acquisitions
-            for hardware, device_widget in zip(self.hardwares, widget.device_widgets):
+            for device, device_widget in zip(self.devices, widget.device_widgets):
                 if device_widget.use.read():
-                    for col in hardware.data.cols:
+                    if device.shots_compatible and cols_type == 'shots':
+                        mutex = device.shots
+                    else:
+                        mutex = device.data
+                    for col in mutex.cols:
                         kind.append('channel')
                         tolerance.append(None)
                         units.append('V')  # TODO: better units support?
@@ -456,12 +548,12 @@ class Control():
             
     def wait_until_done(self):
         '''
-        Wait until the acquisition hardwares are no longer busy. Does not wait
+        Wait until the acquisition devices are no longer busy. Does not wait
         for the file writing queue to empty.
         '''
-        for hardware in self.hardwares:
-            if hardware.active:
-                hardware.wait_until_done()
+        for device in self.devices:
+            if device.active:
+                device.wait_until_done()
 
 control = Control()
 
@@ -485,14 +577,15 @@ class Widget(QtGui.QWidget):
         layout.addWidget(input_table)
         # device settings
         self.device_widgets = []
-        for hardware in control.hardwares:
-            widget = hardware.Widget()
+        for device in control.devices:
+            widget = device.Widget()
             layout.addWidget(widget)
             self.device_widgets.append(widget)
         # file
         input_table = pw.InputTable()
         input_table.add('File', None)
         self.save_shots = pc.Bool(disable_under_module_control=True)
+        self.save_shots.set_disabled(True)
         input_table.add('Save Shots', self.save_shots)
         self.description = pc.String(disable_under_module_control=True)
         input_table.add('Description', self.description)
@@ -563,19 +656,19 @@ class GUI(QtCore.QObject):
         layout = parent_widget.layout()
         # create tab structure
         self.tabs = QtGui.QTabWidget()
-        # create tabs for each hardware
-        self.hardware_widgets = []
-        for hardware in self.control.hardwares:
+        # create tabs for each device
+        self.device_widgets = []
+        for device in self.control.devices:
             widget = QtGui.QWidget()
-            self.tabs.addTab(widget, hardware.name)
-            self.hardware_widgets.append(widget)
+            self.tabs.addTab(widget, device.name)
+            self.device_widgets.append(widget)
         # finish
         layout.addWidget(self.tabs)
         
     def create_main_tab(self):
         if self.main_tab_created:
             return
-        for device in control.hardwares:
+        for device in control.devices:
             if len(device.data.read_properties()[1]) == 0:
                 print 'next time'
                 return
@@ -604,9 +697,10 @@ class GUI(QtCore.QObject):
         big_number_container_layout.addWidget(self.big_display)
         display_layout.addWidget(big_number_container_widget)
         # plot
-        self.values_plot_widget = pw.Plot1D()
-        self.values_plot_scatter = self.values_plot_widget.add_scatter()
-        display_layout.addWidget(self.values_plot_widget)
+        self.plot_widget = pw.Plot1D()
+        self.plot_scatter = self.plot_widget.add_scatter()
+        self.plot_line = self.plot_widget.add_line()
+        display_layout.addWidget(self.plot_widget)
         # vertical line -------------------------------------------------------
         line = pw.line('V')      
         layout.addWidget(line)
@@ -624,30 +718,31 @@ class GUI(QtCore.QObject):
         # display settings
         input_table = pw.InputTable()
         input_table.add('Display', None)
-        allowed_values = [device.name for device in control.hardwares]
+        allowed_values = [device.name for device in control.devices]
         self.device_combo = pc.Combo(allowed_values=allowed_values)
         self.device_combo.updated.connect(self.on_update_device)
         input_table.add('Device', self.device_combo)
         settings_layout.addWidget(input_table)
         self.display_settings_widgets = collections.OrderedDict()
-        for hardware in control.hardwares:
-            display_settings = DisplaySettings(hardware)
-            self.display_settings_widgets[hardware.name] = display_settings
+        for device in control.devices:
+            display_settings = DisplaySettings(device)
+            self.display_settings_widgets[device.name] = display_settings
             settings_layout.addWidget(display_settings.widget)
-            hardware.settings_updated.connect(self.on_update_channels)
+            device.settings_updated.connect(self.on_update_channels)
             display_settings.updated.connect(self.on_update_device)
         # global daq settings
         input_table = pw.InputTable()
         input_table.add('Settings', None)
         input_table.add('ms Wait', ms_wait)
-        for device in control.hardwares:
+        for device in control.devices:
             input_table.add(device.name, None)
             input_table.add('Status', device.busy)
             input_table.add('Freerun', device.freerun)
             input_table.add('Time', device.acquisition_time)
-        input_table.add('Data', None)
-        data_busy.update_signal = data_obj.update_ui
+        input_table.add('File', None)
+        data_busy.update_signal = data_obj.update_ui        
         input_table.add('Status', data_busy)
+        input_table.add('Save Shots', save_shots)
         input_table.add('Scan', None)
         input_table.add('Loop Time', loop_time)
         self.idx_string = pc.String(initial_value='None', display=True)
@@ -658,11 +753,36 @@ class GUI(QtCore.QObject):
         # finish --------------------------------------------------------------
         self.on_update_channels()
         self.on_update_device()
-        for hardware in self.control.hardwares:
-            hardware.update_ui.connect(self.update)
+        for device in self.control.devices:
+            device.update_ui.connect(self.update)
+        current_slice.indexed.connect(self.on_slice_index)
+        current_slice.appended.connect(self.on_slice_append)
         # set tab structure to display main tab
         self.tabs.setCurrentIndex(self.tabs.count()-1)  # zero indexed
+
+    def on_slice_append(self):
+        device_index = self.device_combo.read_index()
+        device_display_settings = self.display_settings_widgets.values()[device_index]
+        channel_index = device_display_settings.channel_combo.read_index()
+        # limits
+        ymin = current_slice.ymins[device_index][channel_index]
+        ymax = current_slice.ymaxs[device_index][channel_index]
+        self.plot_widget.set_ylim(ymin, ymax)
+        # data
+        xi = current_slice.xi
+        # TODO: in case of multidimensional devices...
+        yi = [current_slice.data[i][device_index][channel_index] for i, _ in enumerate(xi)]
+        # finish
+        self.plot_scatter.setData(xi, yi)
+        self.plot_line.setData(xi, yi)
         
+    def on_slice_index(self):
+        xlabel = '{0} ({1})'.format(current_slice.name, current_slice.units)
+        self.plot_widget.set_labels(xlabel=xlabel)
+        xmin = min(current_slice.points)
+        xmax = max(current_slice.points)
+        self.plot_widget.set_xlim(xmin, xmax)
+
     def on_update_channels(self):
         for display_settings in self.display_settings_widgets.values():
             display_settings.update_channels()
@@ -673,9 +793,6 @@ class GUI(QtCore.QObject):
             display_settings.hide()
         self.display_settings_widgets.values()[current_device_index].show()
         self.update()
-
-    def set_slice_xlim(self, xmin, xmax):
-        self.values_plot_widget.set_xlim(xmin, xmax)
         
     def update(self):
         '''
@@ -685,7 +802,7 @@ class GUI(QtCore.QObject):
         self.idx_string.write(str(idx.read()))
         # big number
         current_device_index = self.device_combo.read_index()
-        device = control.hardwares[current_device_index]        
+        device = control.devices[current_device_index]        
         widget = self.display_settings_widgets.values()[current_device_index]
         channel_index = widget.get_channel_index()
         map_index = widget.get_map_index()
@@ -694,23 +811,6 @@ class GUI(QtCore.QObject):
         else:
             big_number = device.data.read()[channel_index][map_index]
         self.big_display.setValue(big_number)    
-        
-        
-        # current slice display
-        # TODO: fix this for new module implementation
-        if False:
-            if g.module_control.read():
-                xcol = data_cols.read()[current_slice.col]['index']
-                ycol_key = value_channel_combo.read()
-                ycol = data_cols.read()[ycol_key]['index']       
-                vals = np.array(current_slice.read())
-                if vals.size == 0:
-                    return  # this is probably not great implementation...
-                if len(vals.shape) == 1:
-                    vals = vals[None, :]
-                xi = vals[:, xcol]
-                yi = vals[:, ycol]
-                self.values_plot_scatter.setData(xi, yi)
 
     def stop(self):
         pass

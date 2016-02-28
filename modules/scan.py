@@ -182,7 +182,7 @@ class Address(QtCore.QObject):
         # TODO: !!!
         # run through aquisition order handler --------------------------------
         order = orderers[self.scan.aquisition_order_combo.read_index()]
-        idxs, slices = order.process(destinations_list)       
+        idxs, slices = order.process(destinations_list)
         # initialize scan -----------------------------------------------------       
         g.module_control.write(True)
         self.going.write(True)
@@ -208,6 +208,7 @@ class Address(QtCore.QObject):
         # acquire -------------------------------------------------------------
         # initialize daq
         daq.control.initialize_scan(self.scan.daq_widget, destinations_list)
+        slice_index = 0
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
             idx = tuple(idx)
@@ -229,6 +230,11 @@ class Address(QtCore.QObject):
             # execute pre_wait_methods
             for method in scan_dictionary['pre_wait_methods']:
                 method()
+            # slice
+            if slice_index < len(slices):  # takes care of last slice
+                if slices[slice_index]['index'] == i:
+                    daq.current_slice.index(slices[slice_index])
+                    slice_index += 1
             # wait for hardware
             g.hardware_waits.wait()
             # launch DAQ
@@ -238,8 +244,6 @@ class Address(QtCore.QObject):
             # update
             self.fraction_complete.write(i/npts)
             self.update_ui.emit()
-            # slice
-            # TODO:
             # check continue
             if not self.check_continue():
                 break
@@ -352,6 +356,7 @@ class GUI(QtCore.QObject):
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
+        self.wait_window = pw.MessageWindow()#title=self.module_name, text='Please wait.')
         # create scan object
         self.scan = Scan(self)
         self.scan.update_ui.connect(self.update)
@@ -396,6 +401,8 @@ class GUI(QtCore.QObject):
         '''
         Make pickle and figures.
         '''
+        # begin
+        self.wait_window.show()
         # get path
         data_path = daq.data_path.read() 
         # make data object
@@ -436,6 +443,11 @@ class GUI(QtCore.QObject):
             if len(data.shape) < 3:
                 print output_image_path
                 slack.upload_file(output_image_path)
+        # upload on google drive
+        if g.google_drive_enabled.read():
+            g.google_drive_control.read().upload(data_folder)
+        # finish
+        self.wait_window.hide()
                     
         
     def update(self):

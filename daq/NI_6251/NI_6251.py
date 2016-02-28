@@ -27,8 +27,8 @@ from project.ini_handler import Ini
 app = g.app.read()
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'daq',
-                                 'NI_6255',
-                                 'NI_6255.ini'))
+                                 'NI_6251',
+                                 'NI_6251.ini'))
 
 from PyDAQmx import *
 
@@ -228,7 +228,7 @@ class Address(QtCore.QObject):
         method must be string, inputs must be list
         '''
         #DO NOT CHANGE THIS METHOD UNLESS YOU ~REALLY~ KNOW WHAT YOU ARE DOING!
-        if g.debug.read(): print 'NI 6255 dequeue:', method, inputs
+        if g.debug.read(): print 'NI 6251 dequeue:', method, inputs
         enqueued.pop()
         getattr(self, str(method))(inputs) #method passed as qstring
         if not enqueued.read(): 
@@ -256,16 +256,16 @@ class Address(QtCore.QObject):
             self.run_task([])
             busy.write(False)
         else:
-            print 'NI 6255 exiting loop!'
+            print 'NI 6251 exiting loop!'
 
     def initialize(self, inputs):
         self.previous_time = time.time()
         if g.debug.read(): 
-            print 'NI 6255 initializing'
-        g.logger.log('info', 'NI 6255 initializing')
+            print 'NI 6251 initializing'
+        g.logger.log('info', 'NI 6251 initializing')
         self.create_task([])
         self.run_task([])
-        print 'NI 6255 done initializing' 
+        print 'NI 6251 done initializing' 
     
     def create_task(self, inputs):
         '''
@@ -498,7 +498,7 @@ q = pc.Q(enqueued, busy, address)
 ### device ####################################################################
 
 
-class Hardware(QtCore.QObject):
+class Device(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     settings_updated = QtCore.pyqtSignal()
     
@@ -507,7 +507,7 @@ class Hardware(QtCore.QObject):
         self.active = False
         self.shape = (1,)
         self.has_map = False
-        self.name = 'NI 6255'
+        self.name = 'NI 6251'
         self.data = data
         self.busy = busy
         self.busy.update_signal = self.update_ui
@@ -663,8 +663,8 @@ class Hardware(QtCore.QObject):
             if time.time()-start_time < timeout:
                 busy.wait_for_update()
             else: 
-                print 'NI 6255 TIMED OUT!!!!!!!!!!!'
-                g.logger.log('warning', 'NI 6255 wait until done timed out', 'timeout set to {} seconds'.format(timeout))
+                print 'NI 6251 TIMED OUT!!!!!!!!!!!'
+                g.logger.log('warning', 'NI 6251 wait until done timed out', 'timeout set to {} seconds'.format(timeout))
                 break
     
 
@@ -679,7 +679,7 @@ class Widget(QtGui.QWidget):
         self.setLayout(layout)
         layout.setMargin(0)
         input_table = pw.InputTable()
-        input_table.add('NI 6255', None)
+        input_table.add('NI 6251', None)
         self.use = pc.Bool(initial_value=True, disable_under_module_control=True)
         input_table.add('Use', self.use)
         self.shots = pc.Number(initial_value=100, decimals=0, disable_under_module_control=True)

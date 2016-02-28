@@ -783,35 +783,41 @@ class choice_window(QtGui.QMessageBox):
         return self.exec_()
 
 
-class wait_window(QtGui.QMessageBox):
+class MessageWindow(QtGui.QWidget):
 
-    def __init__(self, wait_for, text='', wait_to_be='True'):
-        '''
-        waits for a boolean to be true or false
-        '''
-        QtGui.QMessageBox.__init__(self)
-        self.setWindowTitle('wait')
-        self.setText('wait wait wait')
+    def __init__(self, text='Please wait.', title='Wait'):
+        QtGui.QWidget.__init__(self, parent=None)
+        self.setWindowTitle(title)
         self.isActiveWindow()
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        print 'here', wait_for.read()
-        if wait_to_be == 'True':
-            while not wait_for.read():
-                self.show()
-                wait_for.wait_for_update()
-            self.close()
-        else:
-            while wait_for.read():
-                self.show()
-                wait_for.wait_for_update()
-            self.close()
-            
+        #disable 'x'
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
+        # set geometry
+        self.window_verti_size = 50
+        self.window_horiz_size = 200
+        self.setGeometry(0,0, self.window_horiz_size, self.window_verti_size)
+        self._center()
+        # add content
+        self.label = QtGui.QLabel(text)
+        self.label.setAlignment(QtCore.Qt.AlignCenter)
+        layout = QtGui.QHBoxLayout()
+        layout.addWidget(self.label)
+        self.setLayout(layout)
+        # finish
+        self.show()
+        self.hide()
+      
+    def _center(self):
+        # a function which ensures that the window appears in the center of the screen at startup
+        screen = QtGui.QDesktopWidget().screenGeometry() 
+        size = self.geometry() 
+        self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
+
+
 ### testing ###################################################################
-            
+    
+        
 if __name__ == '__main__':
     print 'hello world'
     plt = Plot1D()
-    
-    
-    
-    

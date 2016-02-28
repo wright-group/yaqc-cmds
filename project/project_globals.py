@@ -121,6 +121,10 @@ hardware_advanced_box = SimpleGlobal()
 hardware_initialized = SimpleGlobal()
 hardware_initialized.write(False)
 
+google_drive_control = SimpleGlobal()
+
+google_drive_enabled = SimpleGlobal()
+
 class hardware_waits:
     def __init__(self):
         '''

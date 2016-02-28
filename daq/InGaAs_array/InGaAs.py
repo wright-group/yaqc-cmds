@@ -192,7 +192,7 @@ q = pc.Q(enqueued, busy, address_obj)
 ### hardware ##################################################################
 
 
-class Hardware(QtCore.QObject):
+class Device(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     settings_updated = QtCore.pyqtSignal()
     
@@ -207,6 +207,7 @@ class Hardware(QtCore.QObject):
         self.acquisition_time = acquisition_timer
         self.map = data_map
         self.has_map = True
+        self.shots_compatible = False
         self.map_axes = {'wa': ['a', 'nm']}
         self.freerun = freerun
         self.freerun.updated.connect(lambda: q.push('loop'))
