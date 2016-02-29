@@ -202,6 +202,8 @@ class Address(QtCore.QObject):
         daq.headers.axis_info['axis interpolate'] = [False for a in axes]
         for axis in axes:
             daq.headers.axis_info[axis.name + ' points'] = axis.points
+            if axis.identity[0] == 'D':
+                daq.headers.axis_info[axis.name + ' centers'] = axis.centers
         # constants
         daq.headers.constant_info['constant names'] = [c.name for c in constants]
         daq.headers.constant_info['constant identities'] = [c.identity for c in constants]

@@ -35,7 +35,6 @@ app = g.app.read()
 
 import spectrometers.spectrometers as specs
 import opas.opas as opas
-import daq.daq as daq
 
  
 ### gui #######################################################################
@@ -61,13 +60,14 @@ class GUI(scan.GUI):
         input_table.add('Spectrometer', None)
         input_table.add('Width', self.mono_width)
         input_table.add('Number', self.mono_npts)
-        self.channel_choice_combo = pc.Combo(ini=ini, section='main',
-                                             option='channel name',
-                                             import_from_ini=True,
-                                             save_to_ini_at_shutdown=True,
-                                             disable_under_module_control=True)
-        input_table.add('Processing', None)
-        input_table.add('Channel', self.channel_choice_combo)
+        if False:
+            self.channel_choice_combo = pc.Combo(ini=ini, section='main',
+                                                 option='channel name',
+                                                 import_from_ini=True,
+                                                 save_to_ini_at_shutdown=True,
+                                                 disable_under_module_control=True)
+            input_table.add('Processing', None)
+            input_table.add('Channel', self.channel_choice_combo)
         layout.addWidget(input_table)
         # scan widget
         layout.addWidget(self.scan.widget)
@@ -77,8 +77,8 @@ class GUI(scan.GUI):
         self.frame.setLayout(layout)
         g.module_widget.add_child(self.frame)
         g.module_combobox.add_module(module_name, self.show_frame)
-        daq.daq.task_changed.connect(self.on_daq_task_changed)
-        self.on_daq_task_changed()
+        #daq.daq.task_changed.connect(self.on_daq_task_changed)
+        #self.on_daq_task_changed()
 
     def launch_scan(self):
         axes = []
@@ -93,7 +93,7 @@ class GUI(scan.GUI):
         axes.append(axis)
         # mono axis
         name = 'wm'
-        identity = 'DwmF' + opa_friendly_name
+        identity = 'Dwm'
         kwargs = {'centers': curve.colors,
                   'centers_units': curve.units,
                   'centers_follow': opa_friendly_name}
@@ -114,6 +114,8 @@ class GUI(scan.GUI):
         '''
         Make pickle and figures.
         '''
+        scan.GUI.on_done(self)
+        return  # TODO:
         # get path
         data_path = daq.data_path.read() 
         # make data object

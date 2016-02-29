@@ -288,6 +288,9 @@ class GUI(scan.GUI):
             if len(data.shape) < 3:
                 print output_image_path
                 slack.upload_file(output_image_path)
+        # upload on google drive
+        if g.google_drive_enabled.read():
+            g.google_drive_control.read().upload(data_folder)
         
     def update_mono_settings(self):
         self.mono_center.set_disabled(True)
