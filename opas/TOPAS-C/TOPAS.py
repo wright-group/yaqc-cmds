@@ -88,20 +88,21 @@ os.chdir(main_dir)
 
 dll_busy = pc.Busy()
 
-global opas_loaded
-opas_loaded = []
+# NOTE: Cannot load more than 3 TOPAS OPAs (DLL restriction)
+indicies = {}
 
 class TOPAS():
     
     def __init__(self, ini_filepath):
         self.open = False
-        global opas_loaded
-        if len(opas_loaded) >= 3:
-            print 'Cannot load more than 3 TOPAS OPAs: DLL restriction'
-            return
-        self.index = len(opas_loaded)
-        opas_loaded.append(self)
-        self._open_device(ini_filepath)
+        self.ini_filepath = ini_filepath
+        # get index
+        serial = int(os.path.basename(self.ini_filepath).split('.')[0])
+        if serial not in indicies.keys():
+            indicies[serial] = len(indicies.keys())
+        self.index = indicies[serial]
+        # open
+        self._open_device(self.ini_filepath)
         
     def _open_device(self, ini_filepath):
         '''
@@ -495,7 +496,7 @@ class TOPAS():
         # finish
         return [error]
     
-    def _set_speed_parameters(self, motor_index, min_speed, max_speed, acceleration):
+    def set_speed_parameters(self, motor_index, min_speed, max_speed, acceleration):
         '''
         int motor_index, int min_speed, int max_speed \n
         returns [error code]
@@ -626,13 +627,14 @@ class OPA:
         # objects to be sent to PyCMDS
         self.exposed = [self.current_position, self.shutter_position]
         self.recorded = collections.OrderedDict()
-        self.motor_names = ['Crystal 1', 'Delay 1', 'Crystal 2', 'Delay 2', 'Mixer 1', 'Mixer 2', 'Mixer 3']
+        self.motor_names = ['Crystal_1', 'Delay_1', 'Crystal_2', 'Delay_2', 'Mixer_1', 'Mixer_2', 'Mixer_3']
         # finish
         self.gui = GUI(self)
         self.initialized = pc.Bool()
         
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
+        section = 'OPA' + str(self.index)
         # close shutter
         original_shutter = self.shutter_position.read()
         self.set_shutter([False])
@@ -641,6 +643,7 @@ class OPA:
         for motor_index in motor_indexes:
             error, current_position = self.api.get_motor_position(motor_index)
             original_positions.append(current_position)
+        # send motors to left reference switch --------------------------------
         # set all max, current positions to spoof values
         overflow = 8388607
         for motor_index in motor_indexes:
@@ -653,31 +656,72 @@ class OPA:
         motor_indexes_not_homed = copy.copy(motor_indexes)
         while len(motor_indexes_not_homed) > 0:
             for motor_index in motor_indexes_not_homed:
-                time.sleep(0.01)
+                time.sleep(0.1)
                 error, left, right = self.api.get_reference_switch_status(motor_index)
                 if left:
                     motor_indexes_not_homed.remove(motor_index)
                     # set counter to zero
                     self.api.set_motor_position(motor_index, 0)
-                    # set range back to real values
-                    section = 'OPA' + str(self.index)
-                    for motor_index in motor_indexes:
-                        min_position = ini.read(section, 'motor {} min position (us)'.format(motor_index))
-                        max_position = ini.read(section, 'motor {} max position (us)'.format(motor_index))
-                        self.api.set_motor_positions_range(motor_index, min_position, max_position)
-                    # launch return motion
-                    for motor_index, position in zip(motor_indexes, original_positions):
-                        self.api.start_motor_motion(motor_index, position)
+        # send motors to 400 steps --------------------------------------------
+        for motor_index in motor_indexes:
+            self.api.start_motor_motion(motor_index, 400)
+        self.wait_until_still()
+        # send motors left reference switch slowly ----------------------------
+        # set motor speed
+        for motor_index in motor_indexes:
+            min_velocity = ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
+            max_velocity = ini.read(section, 'motor {} max velocity (us/s)'.format(motor_index))
+            acceleration = ini.read(section, 'motor {} acceleration (us/s^2)'.format(motor_index))
+            error = self.api.set_speed_parameters(motor_index, min_velocity, int(max_velocity/2), acceleration)
+        # set all max, current positions to spoof values
+        for motor_index in motor_indexes:
+            self.api.set_motor_positions_range(motor_index, 0, overflow)
+            self.api.set_motor_position(motor_index, overflow)
+        # send motors towards zero
+        for motor_index in motor_indexes:
+            self.api.start_motor_motion(motor_index, 0)
+        # wait for motors to hit left reference switch
+        motor_indexes_not_homed = copy.copy(motor_indexes)
+        while len(motor_indexes_not_homed) > 0:
+            for motor_index in motor_indexes_not_homed:
+                time.sleep(0.1)
+                error, left, right = self.api.get_reference_switch_status(motor_index)
+                if left:
+                    motor_indexes_not_homed.remove(motor_index)
+                    # set counter to zero
+                    self.api.set_motor_position(motor_index, 0)
+        # send motors to 400 steps (which is now true zero) -------------------
+        for motor_index in motor_indexes:
+            self.api.start_motor_motion(motor_index, 400)
+        self.wait_until_still()
+        for motor_index in motor_indexes:
+            self.api.set_motor_position(motor_index, 0)
+        # finish --------------------------------------------------------------
+        # set speed back to real values
+        for motor_index in motor_indexes:
+            min_velocity = ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
+            max_velocity = ini.read(section, 'motor {} max velocity (us/s)'.format(motor_index))
+            acceleration = ini.read(section, 'motor {} acceleration (us/s^2)'.format(motor_index))
+            error = self.api.set_speed_parameters(motor_index, min_velocity, max_velocity, acceleration)
+        # set range back to real values
+        for motor_index in motor_indexes:
+            min_position = ini.read(section, 'motor {} min position (us)'.format(motor_index))
+            max_position = ini.read(section, 'motor {} max position (us)'.format(motor_index))
+            error = self.api.set_motor_positions_range(motor_index, min_position, max_position)
+        # launch return motion
+        for motor_index, position in zip(motor_indexes, original_positions):
+            self.api.start_motor_motion(motor_index, position)
         # wait for motors to finish moving
         self.wait_until_still()
         # return shutter
         self.set_shutter([original_shutter])
         
-    def _set_motors(self, motor_indexes, motor_destinations):
+    def _set_motors(self, motor_indexes, motor_destinations, wait=True):
         for motor_index, destination in zip(motor_indexes, motor_destinations):
             error, destination_steps = self.api.convert_position_to_steps(motor_index, destination)
             self.api.start_motor_motion(motor_index, destination_steps)
-        self.wait_until_still()
+        if wait:
+            self.wait_until_still()
         
     def close(self):
         self.api.set_shutter(False)
@@ -697,13 +741,15 @@ class OPA:
         or ['curve type', filepath]
         '''
         # TODO: actually support external curve loading
-        # load curves into TOPAS
-        if False:
-            self.api.close()
-            for curve_path_type, curve_path_mutex in self.curve_paths.items():
-                curve_path = curve_path_mutex.read()
-                # TODO: write ini
-            self.api = TOPAS(self.TOPAS_ini_filepath)
+        # write to TOPAS ini
+        self.api.close()
+        for curve_type, curve_path_mutex in self.curve_paths.items():
+            curve_path = curve_path_mutex.read()            
+            section = 'Optical Device'
+            option = 'Curve ' + str(curve_indicies[curve_type])
+            self.TOPAS_ini.write(section, option, curve_path)
+            print section, option, curve_path
+        self.api = TOPAS(self.TOPAS_ini_filepath)
         # update own curve object
         interaction = self.interaction_string_combo.read()
         crv_paths = [m.read() for m in self.curve_paths.values()]
@@ -712,9 +758,13 @@ class OPA:
         min_nm = self.curve.colors.min()
         max_nm = self.curve.colors.max()
         self.limits.write(min_nm, max_nm, 'nm')
+        # update position
+        self.get_position()
+        # save current interaction string
+        ini.write('OPA%i'%self.index, 'current interaction string', interaction)
 
     def get_points(self):
-        pass
+        return self.curve.colors
 
     def get_position(self):
         motor_indexes = [self.motor_names.index(n) for n in self.curve.get_motor_names(full=False)]
@@ -741,6 +791,7 @@ class OPA:
         self.address = address
         self.index = inputs[0]
         self.serial_number = ini.read('OPA' + str(self.index), 'serial number')
+        self.recorded['w%d'%self.index] = [self.current_position, 'nm', 1., str(self.index)]
         # load api 
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'opas', 'TOPAS-C', 'configuration', str(self.serial_number) + '.ini')
         self.api = TOPAS(self.TOPAS_ini_filepath)
@@ -751,11 +802,14 @@ class OPA:
         self.motor_positions = collections.OrderedDict()
         for motor_index, motor_name in enumerate(self.motor_names):
             error, min_position_steps, max_position_steps = self.api.get_motor_positions_range(motor_index)
-            error, min_position = self.api.convert_position_to_units(motor_index, min_position_steps)
-            error, max_position = self.api.convert_position_to_units(motor_index, max_position_steps)
+            valid_position_steps = np.arange(min_position_steps, max_position_steps+1)
+            valid_positions_units = [self.api.convert_position_to_units(motor_index, s)[1] for s in valid_position_steps]
+            min_position = min(valid_positions_units)
+            max_position = max(valid_positions_units)
             limits = pc.NumberLimits(min_position, max_position)
             number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
             self.motor_positions[motor_name] = number
+            self.recorded['w%d_'%self.index + motor_name] = [number, None, 1., motor_name]
         self.get_motor_positions()
         # tuning curves
         self.curve_paths = collections.OrderedDict()
@@ -764,6 +818,7 @@ class OPA:
             option = 'Curve ' + str(curve_indicies[curve_type])
             initial_value = self.TOPAS_ini.read(section, option)
             curve_filepath = pc.Filepath(initial_value=initial_value)
+            curve_filepath.updated.connect(self.load_curve)
             self.curve_paths[curve_type] = curve_filepath
         # interaction string
         allowed_values = []
@@ -815,7 +870,16 @@ class OPA:
         
         does not wait until still...
         '''
-        pass
+        destination = inputs[0]
+        exceptions = inputs[1]  # list of integers
+        motor_destinations = self.curve.get_motor_positions(destination, 'nm')
+        motor_indexes = []
+        motor_positions = []
+        for i in [self.motor_names.index(n) for n in self.curve.get_motor_names()]:
+            if i not in exceptions:
+                motor_indexes.append(i)
+                motor_positions.append(motor_destinations[i])
+        self._set_motors(motor_indexes, motor_positions, wait=False)
         
     def set_motor(self, inputs):
         '''
@@ -843,7 +907,7 @@ class OPA:
     
     def wait_until_still(self, inputs=[]):
         while self.is_busy():
-            time.sleep(0.01)
+            time.sleep(0.1)  # I've experienced hard crashes when wait set to 0.01 - Blaise 2015.12.30
             self.get_motor_positions()
         self.get_motor_positions()
     
@@ -942,9 +1006,8 @@ class GUI(QtCore.QObject):
         self.plot_widget = pw.Plot1D()
         self.plot_widget.plot_object.setMouseEnabled(False, False)
         self.plot_curve = self.plot_widget.add_scatter()
-        self.plot_widget.set_labels(ylabel = 'mm')
-        self.plot_green_line = self.plot_widget.add_line(color = 'g')
-        self.plot_red_line = self.plot_widget.add_line(color = 'r')
+        self.plot_h_line = self.plot_widget.add_infinite_line(angle=0, hide=False)
+        self.plot_v_line = self.plot_widget.add_infinite_line(angle=90, hide=False)
         display_layout.addWidget(self.plot_widget)
         # vertical line
         line = pw.line('V')
@@ -981,6 +1044,7 @@ class GUI(QtCore.QObject):
         input_table.add('Curves', None)
         for name, obj in self.driver.curve_paths.items():
             input_table.add(name, obj)
+            obj.updated.connect(self.update_plot)
         input_table.add('Interaction String', self.driver.interaction_string_combo)
         self.low_energy_limit_display = pc.Number(units='nm', display=True)
         input_table.add('Low Energy Limit', self.low_energy_limit_display)
@@ -1002,24 +1066,31 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
         # signals and slots
         self.driver.interaction_string_combo.updated.connect(self.update_plot)
+        self.driver.address.update_ui.connect(self.update)
         # finish
+        self.update()
         self.update_plot()
         self.on_limits_updated()
 
     def update(self):
-        if False:
-            # set button disable
-            if self.opa.address.busy.read():
-                self.home_all_button.setDisabled(True)
-                [m.setDisabled(True) for m in self.motor_destination_buttons]
-            else:
-                self.home_all_button.setDisabled(False)
-                [m.setDisabled(False) for m in self.motor_destination_buttons]
-            # update destination motor positions
-            motor_positions = [mp.read() for mp in self.opa.motor_positions]
-            self.grating_destination.write(motor_positions[0])
-            self.bbo_destination.write(motor_positions[1])
-            self.mixer_destination.write(motor_positions[2])
+        print 'TOPAS update'
+        # set button disable
+        if self.driver.address.busy.read():
+            self.home_all_button.setDisabled(True)
+            for motor_mutex in self.driver.motor_positions.values():
+                motor_mutex.set_disabled(True)
+        else:
+            self.home_all_button.setDisabled(False)
+            for motor_mutex in self.driver.motor_positions.values():
+                motor_mutex.set_disabled(False)
+        # update destination motor positions
+        # TODO: 
+        # update plot lines
+        motor_name = self.plot_motor.read()
+        motor_position = self.driver.motor_positions[motor_name].read()
+        self.plot_h_line.setValue(motor_position)
+        units = self.plot_units.read()
+        self.plot_v_line.setValue(self.driver.current_position.read(units))
 
     def update_plot(self):
         # units
@@ -1036,6 +1107,7 @@ class GUI(QtCore.QObject):
         self.plot_curve.clear()
         self.plot_curve.setData(xi, yi)
         self.plot_widget.graphics_layout.update()
+        self.update()
 
     def update_limits(self):
         if False:
@@ -1100,7 +1172,7 @@ if __name__ == '__main__':
         #log errors and handle them within the OPA object
         #make some convinient methods that are exposed higher up
         
-    if True:
+    if False:
         topas = TOPAS(r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS-C\configuration\10742.ini')
         print topas.set_shutter(False)
         with wt.kit.Timer():

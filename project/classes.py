@@ -71,6 +71,53 @@ class Busy(QtCore.QMutex):
             return self.WaitCondition.wait(self, msecs=timeout)
 
 
+class Data(QtCore.QMutex):
+    
+    def __init__(self):
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.shape = (1, )
+        self.size = 1
+        self.channels = []
+        self.cols = []
+        self.map = None
+
+    def read(self):
+        return self.channels
+        
+    def read_properties(self):
+        '''
+        Returns
+        -------
+        tuple
+            shape, cols, map
+        '''
+        self.lock()
+        outs = self.shape, self.cols, self.map
+        self.unlock()
+        return outs
+        
+    def write(self, channels):
+        self.lock()
+        self.channels = channels
+        self.WaitCondition.wakeAll()
+        self.unlock()
+        
+    def write_properties(self, shape, cols, channels, map=None):
+        self.lock()
+        self.shape = shape
+        self.size = np.prod(shape)
+        self.channels = channels
+        self.cols = cols
+        self.map = map
+        self.WaitCondition.wakeAll()
+        self.unlock()
+
+    def wait_for_update(self, timeout=5000):
+        if self.value:
+            return self.WaitCondition.wait(self, msecs=timeout)
+
+
 ### gui items #################################################################
 
 
@@ -150,7 +197,8 @@ class PyCMDS_Object(QtCore.QObject):
             if self.has_widget:
                 self.widget.setDisabled(True)
         else:
-            self.widget.setDisabled(self.disabled)
+            if self.has_widget:
+                self.widget.setDisabled(self.disabled)
 
     def read(self):
         return self.value.read()
@@ -529,7 +577,7 @@ class String(PyCMDS_Object):
         self.widget.setText(str(self.value.read()))
         # connect signals and slots
         self.updated.connect(lambda: self.widget.setText(self.value.read()))
-        self.widget.editingFinished.connect(lambda: self.write(self.widget.text()))
+        self.widget.editingFinished.connect(lambda: self.write(str(self.widget.text())))
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True
             
@@ -750,8 +798,8 @@ class Hardware(QtCore.QObject):
     def get_destination(self, output_units='same'):
         return self.destination.read(output_units=output_units)
 
-    def get_position(self):
-        return self.current_position.read()
+    def get_position(self, output_units='same'):
+        return self.current_position.read(output_units=output_units)
 
     def is_valid(self, destination, input_units=None):
         if input_units is None:

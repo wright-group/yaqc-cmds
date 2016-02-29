@@ -10,6 +10,10 @@ opas/TOPAS-C/OPA2 (10742) curves/
 opas/TOPAS-C/configuration
 opas/TOPAS-C/manuals
 
+# Google Drive Credentials
+*.json
+*mycreds.txt
+
 # PDFs
 *.pdf
 !PyCMDS Manual.pdf
