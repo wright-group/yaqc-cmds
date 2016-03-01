@@ -12,6 +12,7 @@ folders.append(['opas', 'pico', 'OPA2 curves'])
 folders.append(['opas', 'pico', 'OPA3 curves'])
 folders.append(['opas', 'TOPAS-C', 'OPA1 (10743) curves'])
 folders.append(['opas', 'TOPAS-C', 'OPA2 (10742) curves'])
+folders.append(['opas', 'TOPAS-C', 'configuration'])
 
 for folder in folders:
     folder_path = os.path.join(os.getcwd(), *folder)
@@ -112,7 +113,8 @@ class MainWindow(QtGui.QMainWindow):
         self._initialize_widgets()
         self._load_modules()
         
-        # open slack bot
+        # open internet things
+        self._load_google_drive()
         self._load_witch()
         
         #log completion
@@ -255,6 +257,7 @@ class MainWindow(QtGui.QMainWindow):
         import opas.opas
         import spectrometers.spectrometers
         import delays.delays
+        import nds.nds
         import daq.daq
     
     def _initialize_widgets(self):
@@ -281,6 +284,12 @@ class MainWindow(QtGui.QMainWindow):
                 path = os.path.join(g.main_dir.read(), 'modules', name + '.py')
                 imp.load_source(name, path)
                 
+    def _load_google_drive(self):
+        google_drive_ini = ini.Ini(os.path.join(g.main_dir.read(), 'project', 'google_drive', 'google_drive.ini'))
+        g.google_drive_enabled.write(google_drive_ini.read('main', 'enable'))
+        if g.google_drive_enabled.read():
+            import project.google_drive.google_drive as google_drive
+                
     def _load_witch(self):
         # check if witch is enabled
         bots_ini = ini.Ini(os.path.join(g.main_dir.read(), 'project', 'slack', 'bots.ini'))
@@ -306,12 +315,11 @@ class MainWindow(QtGui.QMainWindow):
         g.shutdown.fire()
         
     def _center(self):
-        #a function which ensures that the window appears in the center of the screen at startup
-        
+        # a function which ensures that the window appears in the center of the screen at startup
         screen = QtGui.QDesktopWidget().screenGeometry() 
         size = self.geometry() 
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
-    
+
 def main():
     global MainWindow
     MainWindow = MainWindow()

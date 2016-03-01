@@ -96,6 +96,7 @@ class MicroHR:
             time.sleep(0.1)
         self.set_turret(init_grating_index)
         self.set_position(init_wavelength)
+        # finish
         self.initialized.write(True)
         self.address.initialized_signal.emit()
 
@@ -123,10 +124,11 @@ class MicroHR:
         while self.is_busy():
             time.sleep(0.01)
         # update own limits
+        max_limit = ini.read('grating {}'.format(self.grating_index.read()), 'maximum wavelength (nm)')
         if self.grating_index.read() == 1:
-            self.limits.write(0, 1500, 'nm')
+            self.limits.write(0, max_limit, 'nm')
         elif self.grating_index.read() == 2:
-            self.limits.write(0, 15000, 'nm')
+            self.limits.write(0, max_limit, 'nm')
         # set position for new grating
         self.set_position(self.current_position.read(self.native_units))
 
@@ -216,6 +218,16 @@ class GUI(QtCore.QObject):
         input_table = pw.InputTable()
         self.current_position = self.driver.current_position.associate()
         input_table.add('Current', self.current_position)
+        details = self.driver.get_grating_details()
+        for grating_index in [0, 1]:
+            input_table.add('Grating {}'.format(grating_index+1), None)
+            grooves_per_mm = pc.Number(initial_value=float(details[1][grating_index]), display=True)
+            input_table.add('gr/mm', grooves_per_mm)
+            blaze_wavelength = pc.Number(initial_value=float(details[2][grating_index]), display=True)
+            input_table.add('Blaze Wavelength (nm)', blaze_wavelength)
+            sn = float(details[-1][grating_index][4:])
+            serial_number = pc.Number(initial_value=sn, display=True, decimals=0)
+            input_table.add('S/N', serial_number)
         settings_layout.addWidget(input_table)
         # finish
         settings_layout.addStretch(1)

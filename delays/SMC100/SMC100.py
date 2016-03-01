@@ -243,7 +243,7 @@ class GUI(QtCore.QObject):
         settings_layout.addWidget(pw.line('H'))
         # home button
         input_table = pw.InputTable()
-        self.home_button = pw.SetButton('HOME')
+        self.home_button = pw.SetButton('HOME', 'advanced')
         settings_layout.addWidget(self.home_button)
         self.home_button.clicked.connect(self.on_home)
         g.module_control.disable_when_true(self.home_button)

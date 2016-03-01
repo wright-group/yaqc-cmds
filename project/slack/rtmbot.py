@@ -21,11 +21,11 @@ main_dir = g.main_dir.read()
 ini_path = os.path.join(main_dir, 'project', 'slack', 'bots.ini')
 ini = Ini(ini_path)
 
-team_creation = 1446058800
-
+# read from ini
 debug = ini.read("bots","DEBUG") == "True"
 default_channel = ini.read("bots","CHANNEL")
 witch_token = ini.read('bots',"Token")
+team_creation = ini.read('bots', 'team_creation')
 
 def dbg(debug_string):
     if debug:

@@ -72,6 +72,7 @@ class Address(QtCore.QObject):
         # remove method from enqueued
         self.enqueued.pop()
         if not self.enqueued.read():
+            self.ctrl.rtmbot.autoping()
             self.queue_emptied.emit()
             self.busy.write(False)
             

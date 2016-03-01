@@ -1,33 +1,46 @@
 import os
-os.chdir(r'C:\Users\John\Desktop\PyCMDS 00.01')
 
-#import-------------------------------------------------------------------------
+#import------------------------------------------------------------------------
 
 import numpy as np
-import packages.serial as serial
+import serial
 import struct
 
-import packages.pyqtgraph.pyqtgraph as pg
+import pyqtgraph as pg
 
-#initialize---------------------------------------------------------------------
+#initialize--------------------------------------------------------------------
 
 ser = serial.Serial()
 ser.baudrate = 9600
-ser.port = 'COM8'
+ser.port = 'COM16'
+ser.timeout = 0.1
 
-#read---------------------------------------------------------------------------
+#read--------------------------------------------------------------------------
 
 ser.open()
 ser.write('S')
-raw_string = ser.readline()
+
+
+eol = r'ready\n'
+leneol = len(eol)
+line = ''
+while True:
+    c = ser.read(1)
+    if c:
+        line += c
+        if line[-leneol:] == eol:
+            break
+    else:
+        break
 ser.close()
 
-#process------------------------------------------------------------------------
+
+#process-----------------------------------------------------------------------
 
 out = np.zeros(256)
 
 #remove 'ready' from end
-string = raw_string[:512]
+string = line[:512]
 #encode to hex
 vals = np.array([elem.encode("hex") for elem in string])
 #reshape

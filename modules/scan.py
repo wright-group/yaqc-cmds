@@ -2,7 +2,9 @@
 Acquisition infrastructure shared by all modules.
 '''
 
+
 ### import ####################################################################
+
 
 import os
 import sys
@@ -24,6 +26,7 @@ import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 app = g.app.read()
+
 
 ### import hardware control ###################################################
 
@@ -53,8 +56,12 @@ class Axis:
         if 'F' in operators:  # last name should be a 'following' in this case
             names.pop(-1)
         for name in names:
-            if name.replace('D', '') not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.friendly_name == name.replace('D', '')][0]
+            if name[0] == 'D':
+                clean_name = name.replace('D', '', 1)
+            else:
+                clean_name = name
+            if clean_name not in self.hardware_dict.keys():
+                hardware_object = [h for h in all_hardwares if h.friendly_name == clean_name][0]
                 self.hardware_dict[name] = [hardware_object, 'set_position', None]
 
         
@@ -116,19 +123,16 @@ class Address(QtCore.QObject):
     
     @QtCore.pyqtSlot(collections.OrderedDict)
     def run(self, scan_dictionary):
-
         # create destination objects ------------------------------------------
-
         # get destination arrays
         axes = scan_dictionary['axes']
         if len(axes) == 1:
             arrs = [axes[0].points]
         else:
             arrs = np.meshgrid(*[a.points for a in axes], indexing='ij')
-
         # treat 'scan about center' axes
         for axis_index, axis in enumerate(axes):
-            if 'D' in axis.identity:
+            if axis.identity[0] == 'D':
                 centers = axis.centers
                 centers_follow = axis.centers_follow
                 centers_follow_index = [a.name for a in axes].index(centers_follow)
@@ -141,7 +145,6 @@ class Address(QtCore.QObject):
                 arrs[axis_index] += centers
                 # transpose out
                 arrs[axis_index] = np.transpose(arrs[axis_index], axes=transpose_order)
-                
         # create destination objects
         destinations_list = []
         for i in range(len(axes)):
@@ -153,7 +156,6 @@ class Address(QtCore.QObject):
                 passed_args = axis.hardware_dict[key][2]
                 destinations = Destinations(arr, axis.units, hardware, method, passed_args)
                 destinations_list.append(destinations)
-                
         # add constants
         constants = scan_dictionary['constants']
         for constant in constants:
@@ -176,45 +178,39 @@ class Address(QtCore.QObject):
                 hardware = constant.hardware
                 destinations = Destinations(arr, units, hardware, 'set_position', None)
                 destinations_list.append(destinations)
-
-        # check if scan is valid for hardware ---------------------------------
-                
+        # check if scan is valid for hardware ---------------------------------               
         # TODO: !!!
-
         # run through aquisition order handler --------------------------------
-
         order = orderers[self.scan.aquisition_order_combo.read_index()]
         idxs, slices = order.process(destinations_list)
-        
-        # initialize scan -----------------------------------------------------
-        
+        # initialize scan -----------------------------------------------------       
         g.module_control.write(True)
         self.going.write(True)
         self.fraction_complete.write(0.)
         g.logger.log('info', 'Scan begun', '')
-        
-        # initialize DAQ
-        header_dictionary = collections.OrderedDict()
-        header_dictionary['PyCMDS version'] = g.version.read()
-        header_dictionary['system name'] = g.system_name.read()
-        header_dictionary['file created'] = wt.kit.get_timestamp()
-        header_dictionary['data name'] = self.scan.daq_widget.name.read()
-        header_dictionary['data info'] = self.scan.daq_widget.info.read()
-        header_dictionary['data origin'] = self.scan.gui.module_name
-        header_dictionary['axis names'] = [a.name for a in axes]
-        header_dictionary['axis identities'] = [a.identity for a in axes]
-        header_dictionary['axis units'] = [a.units for a in axes]
+        # put info into headers -----------------------------------------------
+        # clear values from previous scan
+        daq.headers.clear()
+        # data info
+        daq.headers.data_info['data name'] = self.scan.daq_widget.name.read()
+        daq.headers.data_info['data info'] = self.scan.daq_widget.info.read()
+        daq.headers.data_info['data origin'] = self.scan.gui.module_name
+        # axes (will be added onto in daq, potentially)
+        daq.headers.axis_info['axis names'] = [a.name for a in axes]
+        daq.headers.axis_info['axis identities'] = [a.identity for a in axes]
+        daq.headers.axis_info['axis units'] = [a.units for a in axes]
+        daq.headers.axis_info['axis interpolate'] = [False for a in axes]
         for axis in axes:
-            header_dictionary[axis.name + ' points'] = axis.points
-            if 'D' in axis.identity:
-                header_dictionary[axis.name + ' centers'] = axis.centers
-        header_dictionary['constant names'] = [c.name for c in constants]
-        header_dictionary['constant identities'] = [c.identity for c in constants]
-        header_dictionary['shots'] = self.scan.daq_widget.shots.read()
-        daq.control.initialize_scan(header_dictionary, self.scan.daq_widget)
-        
+            daq.headers.axis_info[axis.name + ' points'] = axis.points
+            if axis.identity[0] == 'D':
+                daq.headers.axis_info[axis.name + ' centers'] = axis.centers
+        # constants
+        daq.headers.constant_info['constant names'] = [c.name for c in constants]
+        daq.headers.constant_info['constant identities'] = [c.identity for c in constants]
         # acquire -------------------------------------------------------------
-        
+        # initialize daq
+        daq.control.initialize_scan(self.scan.daq_widget, destinations_list)
+        slice_index = 0
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
             idx = tuple(idx)
@@ -236,22 +232,26 @@ class Address(QtCore.QObject):
             # execute pre_wait_methods
             for method in scan_dictionary['pre_wait_methods']:
                 method()
+            # slice
+            if slice_index < len(slices):  # takes care of last slice
+                if slices[slice_index]['index'] == i:
+                    daq.current_slice.index(slices[slice_index])
+                    slice_index += 1
             # wait for hardware
             g.hardware_waits.wait()
             # launch DAQ
-            daq.control.acquire()
+            daq.control.acquire(save=True)
             # wait for DAQ
-            daq.control.wait_until_daq_done()
+            daq.control.wait_until_done()
             # update
             self.fraction_complete.write(i/npts)
             self.update_ui.emit()
             # check continue
             if not self.check_continue():
                 break
-        
         # finish scan ---------------------------------------------------------
-
-        self.fraction_complete.write(1.)    
+        daq.control.wait_until_file_done()
+        self.fraction_complete.write(1.)  
         self.going.write(False)
         g.module_control.write(False)
         g.logger.log('info', 'Scan done', '')
@@ -303,7 +303,10 @@ class Scan(QtCore.QObject):
         input_table = pw.InputTable()
         input_table.add('Acquisition', None)
         input_table.add('Order', self.aquisition_order_combo)
-        self.layout.addWidget(input_table)
+        #   this feature is perhaps a good idea, but it isn't truly implemented
+        #   right now so I'm turning off exposure to users - Blaise 2016.02.23
+        if False: 
+            self.layout.addWidget(input_table)
         # daq widget
         self.daq_widget = daq.Widget()
         self.layout.addWidget(self.daq_widget)
@@ -355,6 +358,7 @@ class GUI(QtCore.QObject):
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
+        self.wait_window = pw.MessageWindow()#title=self.module_name, text='Please wait.')
         # create scan object
         self.scan = Scan(self)
         self.scan.update_ui.connect(self.update)
@@ -399,6 +403,8 @@ class GUI(QtCore.QObject):
         '''
         Make pickle and figures.
         '''
+        # begin
+        self.wait_window.show()
         # get path
         data_path = daq.data_path.read() 
         # make data object
@@ -439,6 +445,11 @@ class GUI(QtCore.QObject):
             if len(data.shape) < 3:
                 print output_image_path
                 slack.upload_file(output_image_path)
+        # upload on google drive
+        if g.google_drive_enabled.read():
+            g.google_drive_control.read().upload(data_folder)
+        # finish
+        self.wait_window.hide()
                     
         
     def update(self):
