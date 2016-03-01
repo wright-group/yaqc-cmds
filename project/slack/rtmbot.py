@@ -23,8 +23,6 @@ ini = Ini(ini_path)
 
 team_creation = 1446058800
 
-slack_witch_token='xoxp-13447916375-14360340034-14534548373-adc85de01e'
-
 debug = ini.read("bots","DEBUG") == "True"
 default_channel = ini.read("bots","CHANNEL")
 witch_token = ini.read('bots',"Token")

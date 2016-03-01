@@ -89,7 +89,7 @@ class Constant():
         allowed_values = [h.friendly_name for h in all_hardwares]
         self.hardware_name_combo = pc.Combo(allowed_values=allowed_values)
         self.hardware_name_combo.write('wm')
-        self.hardware_name_combo.set_disabled(True)
+        #self.hardware_name_combo.set_disabled(True)
         self.widget.add('Hardware', self.hardware_name_combo)
         # expression
         self.expression = pc.String(initial_value='w1+w2+12500')
@@ -185,7 +185,7 @@ class GUI(scan.GUI):
         return [add_button, remove_button]
         
     def add_constant(self):
-        if len(self.constants) == 1: return  # temporary...
+        #if len(self.constants) == 1: return  # temporary...
         constant = Constant()
         self.constants_container_widget.layout().addWidget(constant.widget)
         self.constants.append(constant)
