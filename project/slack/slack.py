@@ -234,6 +234,7 @@ class Control:
             midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
             if (now - midnight).seconds < 60:
                 self.delete_files()
+                self.most_recent_delete = time.time()
             
     def read_messages(self):
         messages = messages_mutex.read()

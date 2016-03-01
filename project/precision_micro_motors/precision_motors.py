@@ -156,6 +156,7 @@ class Motor():
         if go and abs(self.ctrl.GetPositionEx(self.axis)-destination) >= self.tolerance:
             ini.write(self.ini_section, 'last_destination', int(destination))
             self.last_destination = int(destination)
+            print self.axis, int(destination+self.offset)
             self.ctrl.MoveAbsolute(self.axis, int(destination+self.offset))
         if wait:
             self.wait_until_still()
@@ -172,7 +173,6 @@ class Motor():
             
         if go and abs(self.ctrl.GetPositionEx(self.axis)-destination) >= self.tolerance:
             ini.write(self.ini_section, 'last_destination', int(self.current_position + distance))
-            self.last_destination = int(self.current_position + distance)
             self.ctrl.MoveRelative(self.axis, int(distance+self.offset))
         if wait:
             self.wait_until_still()

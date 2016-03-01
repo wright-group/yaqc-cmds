@@ -167,9 +167,7 @@ class OPA:
             m.move_absolute(destination)
         
     def set_motors(self, inputs):
-        r = 3        
-        if self.index == 3:
-            r=2
+        r = 3
         for axis in range(r):
             position = inputs[axis]
             if position >= 0 and position <=50:
