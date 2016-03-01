@@ -1,0 +1,250 @@
+Documentation for DynacronDelay_control Arduino sketch 
+Darien Morrow - darienmorrow@gmail.com - dmorrow3@wisc.edu
+first created January 7, 2016
+last updated January 7, 2016
+
+-----------------------------------------------------------------------------------------
+
+The Arduino communicates with the user by a serial port (57600 baud).
+
+After a connection is achieved the Arduino will send a message of "ready".
+
+The Arduino then will await serial communication from the user.
+It understands the following commands:
+'M' MoveStage
+'A' AchieveStagePosition
+'T' TranslateStage
+'K' TranslateStageNoQuestionsAsked
+'H' HomeStage
+'P' PrintPositionOfStage
+'G' GetStagePosition
+'U' updates
+'S' EEPROMWritelong
+'R' EEPROMReadlong
+'Q' EEPROMQuery
+'L' EEPROMLet
+
+Some of these commands should be followed by numerals; this will be discussed below. 
+
+Once the Arduino receives a proper combination of character and numeral it goes to work.
+>>> It first sends a "busy" message.
+>>> Then it does the action(s) associated with the given command. 
+>>> 	It may print periodically to the serial port as it goes.
+>>>			This is up to the user.
+>>> It reports to the user its achievement.  
+>>> It then ends with a "ready" message.
+>>> The Arduino is then ready for the next command desired by the user.  
+
+If the Arduino is moving the stage, the Arduino's onboard LED will be on while movement 
+	signals are being sent.
+	The onboard LED will be turned off after movement signals are accomplished.
+	
+The Arduino stores the stages absolute current position (in units of steps)
+	in volatile memory.
+	
+Upon startup of the Arduino, the current position (according to volatile memory)
+	is set to the saved position (in EEPROM).
+
+The Arduino may be configured by the user to periodically print stage position updates.
+	This feature is toggled with the "updates" function. 
+	This feature works for MoveStage, AchieveStagePosition, and TranslateStage.
+	This feature is automatically disabled at startup.
+	This feature requires the user to specify the number of steps that should happen 
+	before each printed position statement.
+	This feature does INCREASE the amount of time that it takes the stage to move.
+	If the feature prints every small number of steps then the stage will move slowly.
+	If the feature prints every large number steps the stage will move at "normal" speeds.
+
+-----------------------------------------------------------------------------------------
+
+'M' MoveStage
+	Correct form of command: M float 
+		Note: Positive or negative floats are allowed.
+	Example form of command: M 9.889
+	Description of command:
+		This function moves the stage the specified amount (in mm) in relative terms.
+		A positive input entails that the stage will move towards the far limit (CW).
+ 		A negative input entails that the stage will move towards the near limit (CCW).
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		Moved the stage 1.9998665809
+		Current position of stage 1.9998665809
+		ready
+
+
+'A' AchieveStagePosition
+	Correct form of command: A float
+		Note: Only floats 0 or greater are allowed.
+	Example form of command: A -9.889
+	Description of command:
+		This function moves the stage to the specified, absolute position (in mm).
+		The dynamic range of the specific stage is 0 - ~250mm. 
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		Moved the stage 3.9997331619
+		Current position of stage 5.9995994567
+		ready
+
+
+'T' TranslateStage
+	Correct form of command: T int
+		Note: Positive or negative integers are allowed
+	Example form of command: T -90998
+	Description of command:
+		This function translates the stage a given number of steps.
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		Moved the stage (in steps) 100
+		Moved the stage (in mm) -0.0846683597
+		Current position of stage (in steps) 6986
+		Current position of stage (in mm) 5.9149312973
+		ready
+
+
+'K' TranslateStageNoQuestionsAsked
+	Correct form of command: T int
+		Note: Positive or negative integers are allowed
+	Example form of command: T 90998
+	Description of command:
+		This function translates the stage a given number of steps.
+		IMPORTANT: This function does not keep local track of where the stage is.
+			Once this function is used the stage ought to be homed.
+			OR the user ought to keep track of the stage's position.
+		This function does not account for limit switches. 
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		Moved the stage (in steps) 1000
+		Moved the stage (in mm) 0.8466835975
+		Now I don't know where I am :(.
+		I hope you know where I am.
+		ready
+
+
+'H' HomeStage
+	Correct form of command: H
+	Example form of command: H
+	Description of command:
+		This function moves the stage to the near limit (CCW).
+		It then moves the stage back away from the limit (toward CW limit).
+		It moves the stage until the limit switch is deactivated.
+		It then sets the current position of the stage as 0 (steps). 
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		homed
+		ready
+	Special Notes:
+		The author recommends that the HomeStage function be used at the start 
+		of a experiment and then not be used at all during the experiment.
+		The author has found the limit switches to be "sticky" and therefore imprecise.
+		If HomeStage is used more than once the user may find the absolute position of
+		the stage in the lab reference frame to be different even though the absolute 
+		position of the stage (according to itself) is the same 
+		(that is, it is at 0 steps).
+
+
+'P' PrintPositionOfStage
+	Correct form of command: P
+	Example form of command: P
+	Description of command:
+		This function returns the current stage position (in steps) to the user.
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		22440
+		ready
+
+
+'G' GetStagePosition
+	Correct form of command: G
+	Example form of command: G
+	Description of command:
+		This function returns the current stage position (in mm) to the user.
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		Current position of stage 18.9995803833
+		ready
+
+
+'U' updates
+	Correct form of command: U int
+	Example form of command: U 1000
+		Note: Integers 0 and greater are allowed.
+	Description of command:
+		This function overwrites the global variable 'updates'. 
+		Upon startup updates = 0.
+		If updates = x > 0, then functions that move the stage will print the stage's 
+		position every x steps. 
+		If updates = 0 then no printouts will be offered to the user during movement.
+		Note: The HomeStage function never prints the current position during movement.
+	Example of correspondence from Arduino to user after command has been sent:
+		// "U 1000" was typed into console. 
+		busy
+		ready
+		// "A 27" was typed into console.
+		busy
+		Current position of stage 22.8460636138
+		Current position of stage 23.6927471160
+		Current position of stage 24.5394306182
+		Current position of stage 25.3861141204
+		Current position of stage 26.2327976226
+		Moved the stage 5.0005130767
+		Current position of stage 26.9998912811
+		ready
+	Special Notes:
+		If the specified integer is small the speed of delay stage movement is very slow.
+		This is because the Arduino is spending many microseconds to send each message...
+		The author recommends that only integers over 1000 be used (10000 is rather nice). 
+
+
+'S' EEPROMWritelong
+	Correct form of command: S 
+	Example form of command: S 
+	Description of command:
+		This function saves the current position of the stage (in steps) to EEPROM.
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		EEPROM position set to position_current
+		ready
+	Special Notes:
+		EEPROM has a finite number of write/erase cycles.
+		Arduino documentation estimates that it has a lifetime of 100000 write cycle/cell.
+		This function shouldn't be used on a second by second basis.
+			Fun fact: if a cell is written to every second,
+			then that cell will have a lifetime on the order of half an hour. 
+		It should be used before power-cycling the Arduino. 
+		If it is not used before power-cycling, the stage should be homed upon reboot.		
+
+
+'R' EEPROMReadlong
+	Correct form of command: R 
+	Example form of command: R 
+	Description of command:
+		This function reads and prints the saved EEPROM position (in steps).
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		22440
+		ready
+
+
+'Q' EEPROMQuery
+	Correct form of command: Q 
+	Example form of command: Q 
+	Description of command:
+		This function prints the saved EEPROM position (in mm).
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		Current position of stage according to EEPROM 18.9995803833
+		ready
+
+
+'L' EEPROMLet
+	Correct form of command: L
+	Example form of command: L
+	Description of command:
+		This function lets/sets position_current to be the saved EEPROM position.
+		In other words, this function:
+		tells the Arduino that the current stage position is the saved EEPROM position. 
+	Example of correspondence from Arduino to user after command has been sent:
+		busy
+		position_current set to EEPROM position
+		ready
+

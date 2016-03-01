@@ -4,6 +4,11 @@
 import numpy as np
 
 from PyQt4 import QtGui, QtCore
+from colorsys import rgb_to_hls, hls_to_rgb
+from PyQt4.QtGui import QApplication, QWidget, QPainter, QGridLayout, QSizePolicy, QStyleOption
+from PyQt4.QtCore import pyqtSignal, Qt, QSize, QTimer, QByteArray, QRectF, pyqtProperty
+from PyQt4.QtSvg import QSvgRenderer
+
 import pyqtgraph as pg
 from pyqtgraph import exporters
 
@@ -19,14 +24,18 @@ colors = g.colors_dict.read()
 
 
 class ExpandingWidget(QtGui.QWidget):
+
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.setSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Maximum)
         self.setLayout(QtGui.QVBoxLayout())
         self.setMinimumHeight(0)
+        self.setMinimumWidth(0)
         self.layout().setStretchFactor(self, 1)
+    
     def sizeHint(self):
         return QtCore.QSize(16777215, 16777215)
+
     def add_to_layout(self, layout):
         layout.addWidget(self)
         layout.setStretchFactor(self, 16777215)
@@ -58,11 +67,22 @@ class scroll_area(QtGui.QScrollArea):
         StyleSheet += 'QScrollBar{background: custom_color;}'.replace('custom_color', colors['widget_background'])
         self.setStyleSheet(StyleSheet)
 
+
+class Led(QtGui.QCheckBox):
+    def __init__(self):
+        QtGui.QCheckBox.__init__(self)
+        self.setDisabled(True)
+        StyleSheet = 'QCheckBox::indicator:checked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_checked.png);}'
+        StyleSheet += 'QCheckBox::indicator:unchecked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_unchecked.png);}'
+        self.setStyleSheet(StyleSheet)
+
+
 ### general ###################################################################
 
 
-class spinbox_as_display(QtGui.QDoubleSpinBox):
-    def __init__(self, font_size = 14, decimals = 6, justify = 'right'):
+class SpinboxAsDisplay(QtGui.QDoubleSpinBox):
+
+    def __init__(self, font_size=14, decimals=6, justify='right'):
         QtGui.QDoubleSpinBox.__init__(self)
         self.setValue(0.0)
         self.setDisabled(True)
@@ -70,16 +90,16 @@ class spinbox_as_display(QtGui.QDoubleSpinBox):
         self.setDecimals(decimals)
         self.setMinimum(-100000)
         self.setMaximum(100000)
-        if justify == 'right': self.setAlignment(QtCore.Qt.AlignRight)
-        else: self.setAlignment(QtCore.Qt.AlignLeft)
+        if justify == 'right': 
+            self.setAlignment(QtCore.Qt.AlignRight)
+        else: 
+            self.setAlignment(QtCore.Qt.AlignLeft)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(600)
         self.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
         StyleSheet = 'QDoubleSpinBox{color: custom_color_1; font: bold font_sizepx; border: 0px solid #000000;}'.replace('custom_color_1', g.colors_dict.read()['text_light']).replace('font_size', str(int(font_size)))
         StyleSheet += 'QScrollArea, QWidget{background: custom_color;  border-color: black;}'.replace('custom_color', g.colors_dict.read()['background'])                
         self.setStyleSheet(StyleSheet)
-    '''
-    def textFromValue(self, value):
-        return "{:.xf}".replace('x', int(self.decimals_input)).format(value)
-    '''
 
 
 class Shutdown_button(QtGui.QPushButton):
@@ -121,7 +141,7 @@ class InputTable(QtGui.QWidget):
     def busy(self, name, global_object):
         # heading
         heading = QtGui.QLabel(name)
-        if name in ['DAQ status', 'Data status']:  # hardcoded exceptions
+        if name in ['DAQ status', 'Status']:  # hardcoded exceptions
             StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         else:
             StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
@@ -251,7 +271,10 @@ class InputTable(QtGui.QWidget):
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #control
-        control = QtGui.QCheckBox()
+        if global_object.display:
+            control = Led()
+        else:
+            control = QtGui.QCheckBox()
         global_object.give_control(control)
         #finish
         self.layout().addWidget(control, self.row_number, 1)
@@ -645,7 +668,7 @@ class module_go_button(QtGui.QPushButton):
 
 class Plot1D(pg.GraphicsView):
     
-    def __init__(self, title=None):
+    def __init__(self, title=None, xAutoRange=True, yAutoRange=True):
         pg.GraphicsView.__init__(self)
         #create layout
         self.graphics_layout = pg.GraphicsLayout(border = 'w')
@@ -661,6 +684,7 @@ class Plot1D(pg.GraphicsView):
         self.y_axis.setLabel(**self.labelStyle)
         self.plot_object.showGrid(x = True, y = True, alpha = 0.5)
         self.plot_object.setMouseEnabled(False, True)
+        self.plot_object.enableAutoRange(x=xAutoRange, y=yAutoRange)
         #title
         if title: 
             self.plot_object.setTitle(title)
@@ -715,7 +739,7 @@ class Plot1D(pg.GraphicsView):
         self.plot_object.addItem(line)
         return line  
         
-    def set_labels(self, xlabel = None, ylabel = None):
+    def set_labels(self, xlabel=None, ylabel=None):
         if xlabel:
             self.plot_object.setLabel('bottom', text=xlabel)
             self.plot_object.showLabel('bottom')
@@ -759,35 +783,41 @@ class choice_window(QtGui.QMessageBox):
         return self.exec_()
 
 
-class wait_window(QtGui.QMessageBox):
+class MessageWindow(QtGui.QWidget):
 
-    def __init__(self, wait_for, text='', wait_to_be='True'):
-        '''
-        waits for a boolean to be true or false
-        '''
-        QtGui.QMessageBox.__init__(self)
-        self.setWindowTitle('wait')
-        self.setText('wait wait wait')
+    def __init__(self, text='Please wait.', title='Wait'):
+        QtGui.QWidget.__init__(self, parent=None)
+        self.setWindowTitle(title)
         self.isActiveWindow()
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        print 'here', wait_for.read()
-        if wait_to_be == 'True':
-            while not wait_for.read():
-                self.show()
-                wait_for.wait_for_update()
-            self.close()
-        else:
-            while wait_for.read():
-                self.show()
-                wait_for.wait_for_update()
-            self.close()
-            
+        #disable 'x'
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
+        # set geometry
+        self.window_verti_size = 50
+        self.window_horiz_size = 200
+        self.setGeometry(0,0, self.window_horiz_size, self.window_verti_size)
+        self._center()
+        # add content
+        self.label = QtGui.QLabel(text)
+        self.label.setAlignment(QtCore.Qt.AlignCenter)
+        layout = QtGui.QHBoxLayout()
+        layout.addWidget(self.label)
+        self.setLayout(layout)
+        # finish
+        self.show()
+        self.hide()
+      
+    def _center(self):
+        # a function which ensures that the window appears in the center of the screen at startup
+        screen = QtGui.QDesktopWidget().screenGeometry() 
+        size = self.geometry() 
+        self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
+
+
 ### testing ###################################################################
-            
+    
+        
 if __name__ == '__main__':
     print 'hello world'
     plt = Plot1D()
-    
-    
-    
-    
