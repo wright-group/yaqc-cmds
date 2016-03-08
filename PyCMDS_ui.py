@@ -10,9 +10,9 @@ folders.append(['coset', 'files'])
 folders.append(['opas', 'pico', 'OPA1 curves'])
 folders.append(['opas', 'pico', 'OPA2 curves'])
 folders.append(['opas', 'pico', 'OPA3 curves'])
-folders.append(['opas', 'TOPAS-C', 'OPA1 (10743) curves'])
-folders.append(['opas', 'TOPAS-C', 'OPA2 (10742) curves'])
-folders.append(['opas', 'TOPAS-C', 'configuration'])
+folders.append(['opas', 'TOPAS_C', 'OPA1 (10743) curves'])
+folders.append(['opas', 'TOPAS_C', 'OPA2 (10742) curves'])
+folders.append(['opas', 'TOPAS_C', 'configuration'])
 
 for folder in folders:
     folder_path = os.path.join(os.getcwd(), *folder)

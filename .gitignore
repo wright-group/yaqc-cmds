@@ -5,10 +5,10 @@ coset/files/
 opas/pico/OPA1 curves/
 opas/pico/OPA2 curves/
 opas/pico/OPA3 curves/
-opas/TOPAS-C/OPA1 (10743) curves/
-opas/TOPAS-C/OPA2 (10742) curves/
-opas/TOPAS-C/configuration
-opas/TOPAS-C/manuals
+opas/TOPAS_C/OPA1 (10743) curves/
+opas/TOPAS_C/OPA2 (10742) curves/
+opas/TOPAS_C/configuration
+opas/TOPAS_C/manuals
 
 # Google Drive Credentials
 *.json

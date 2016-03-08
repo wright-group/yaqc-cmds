@@ -30,8 +30,8 @@ hardware_dict = collections.OrderedDict()
 hardware_dict['OPA1 micro'] = [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [1], 'w1']
 hardware_dict['OPA2 micro'] = [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [2], 'w2']
 hardware_dict['OPA3 micro'] = [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [3], 'w3']
-hardware_dict['OPA1 TOPAS-C'] = [os.path.join(main_dir, 'OPAs', 'TOPAS-C', 'TOPAS.py'), 'TOPAS', 'OPA', [1], 'w1']
-hardware_dict['OPA2 TOPAS-C'] = [os.path.join(main_dir, 'OPAs', 'TOPAS-C', 'TOPAS.py'), 'TOPAS', 'OPA', [2], 'w2']
+hardware_dict['OPA1 TOPAS-C'] = [os.path.join(main_dir, 'OPAs', 'TOPAS_C', 'TOPAS.py'), 'TOPAS', 'OPA', [1], 'w1']
+hardware_dict['OPA2 TOPAS-C'] = [os.path.join(main_dir, 'OPAs', 'TOPAS_C', 'TOPAS.py'), 'TOPAS', 'OPA', [2], 'w2']
 
 hardwares = []
 for key in hardware_dict.keys():
