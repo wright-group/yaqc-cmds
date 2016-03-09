@@ -102,7 +102,7 @@ class SMC100():
         position = float(str(position).split('TP')[1])
         self.current_position_mm.write(position, 'mm')
         # calculate delay (fs)
-        delay = (position - self.zero_position.read()) * fs_per_mm
+        delay = (position - self.zero_position.read()) * fs_per_mm * self.factor.read()
         self.current_position.write(delay, 'fs')
         # return
         return delay
@@ -119,18 +119,20 @@ class SMC100():
         self.axis = ini.read('D' + str(self.index), 'axis')
         # load communications channel
         self.port = com_handler.get_com(COM_channel)
-        # read zero position from ini
+        # read from ini
+        self.factor = pc.Number(ini=ini, section='D{}'.format(self.index), option='factor', decimals=0, disable_under_module_control=True)
+        self.factor.updated.connect(self.on_factor_updated)        
         self.zero_position = pc.Number(name='Zero', initial_value=12.5,
                                        ini=ini, section='D{}'.format(self.index),
                                        option='zero position (mm)', import_from_ini=True,
                                        save_to_ini_at_shutdown=True,
                                        limits=self.motor_limits,
                                        decimals=5,
-                                       units='mm', display=True)
+                                       units='mm', display=True)                                   
         self.set_zero(self.zero_position.read())
-        # recorded
-        self.recorded['d' + str(self.index)] = [self.current_position, self.native_units, 1., '0', False]
-        self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., '0', False]
+        self.label = pc.String(ini=ini, section='D{}'.format(self.index), option='label', disable_under_module_control=True)
+        self.label.updated.connect(self.update_recorded)
+        self.update_recorded()
         # finish
         self.get_position()
         self.initialized.write(True)
@@ -138,6 +140,16 @@ class SMC100():
 
     def is_busy(self):
         return False
+        
+    def on_factor_updated(self):
+        if self.factor.read() == 0:
+            self.factor.write(1)
+        # record factor
+        self.factor.save()
+        # update limits
+        min_value = -self.zero_position.read() * fs_per_mm * self.factor.read()
+        max_value = (25. - self.zero_position.read()) * fs_per_mm * self.factor.read()
+        self.limits.write(min_value, max_value, 'fs')
         
     def set_offset(self, offset):
         # update zero
@@ -152,7 +164,7 @@ class SMC100():
         
     def set_position(self, destination):
         # get destination_mm
-        destination_mm = self.zero_position.read() + destination/fs_per_mm
+        destination_mm = self.zero_position.read() + destination/(fs_per_mm * self.factor.read())
         self.set_position_mm([destination_mm])
         
     def set_position_mm(self, inputs):
@@ -170,13 +182,21 @@ class SMC100():
         
     def set_zero(self, zero):
         self.zero_position.write(zero)
-        min_value = -self.zero_position.read() * fs_per_mm
-        max_value = (25. - self.zero_position.read()) * fs_per_mm
+        min_value = -self.zero_position.read() * fs_per_mm * self.factor.read()
+        max_value = (25. - self.zero_position.read()) * fs_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, 'fs')
         # write new position to ini
         section = 'D{}'.format(self.index)
         option = 'zero position (mm)'
         ini.write(section, option, zero)
+        
+    def update_recorded(self):
+        print 'SMC100 update recorded'
+        self.recorded.clear()
+        self.recorded['d' + str(self.index)] = [self.current_position, self.native_units, 1., self.label.read(), False]
+        self.recorded['d' + str(self.index) + '_position'] = [self.current_position_mm, 'mm', 1., self.label.read(), False]
+        self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
+
 
 class SMC100_offline(SMC100):
     
@@ -215,8 +235,12 @@ class GUI(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        # mm input table
+        # settings
         input_table = pw.InputTable()
+        input_table.add('Settings', None)
+        input_table.add('Label', self.driver.label)
+        input_table.add('Factor', self.driver.factor)
+        # mm input table
         input_table.add('Position', None)
         input_table.add('Current', self.driver.current_position_mm)
         self.mm_destination = self.driver.current_position_mm.associate(display=False)

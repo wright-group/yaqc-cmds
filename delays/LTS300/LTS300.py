@@ -220,7 +220,7 @@ class app(wx.App):
         position = self.motor_control.GetPosition()
         self.current_position_mm.write(position, 'mm')
         # calculate delay (fs)
-        delay = (position - self.zero_position.read()) * ps_per_mm
+        delay = (position - self.zero_position.read()) * ps_per_mm * self.factor.read()
         self.current_position.write(delay, 'ps')
         return delay
         
@@ -250,7 +250,9 @@ class app(wx.App):
         # load motor_control
         motor_serial_number = ini.read('main', 'serial number')
         self.motor_control = APTMotor(self.frame_aptcontrols, motor_serial_number)
-        # read zero position from ini
+        # read from ini
+        self.factor = pc.Number(ini=ini, section='main', option='factor', decimals=0, disable_under_module_control=True)
+        self.factor.updated.connect(self.on_factor_updated)
         self.zero_position = pc.Number(name='Zero', initial_value=12.5,
                                        ini=ini, section='main', option='zero position (mm)',
                                        import_from_ini=True,
@@ -259,16 +261,26 @@ class app(wx.App):
                                        decimals=3,
                                        units='mm', display=True)
         self.set_zero(self.zero_position.read())
-        # recorded
-        self.recorded['d0'] = [self.current_position, self.native_units, 1., '0', False]
-        self.recorded['d0_zero'] = [self.zero_position, 'mm', 1., '0', False]
-        # finish
+        self.label = pc.String(ini=ini, section='main', option='label', disable_under_module_control=True)
+        self.label.updated.connect(self.update_recorded)
+        self.update_recorded()
+       # finish
         self.get_position()
         self.initialized.write(True)
         self.address.initialized_signal.emit()
     
     def is_busy(self):
         return not self.motor_control.MotorIsNotMoving()
+        
+    def on_factor_updated(self):
+        if self.factor.read() == 0:
+            self.factor.write(1)
+        # record factor
+        self.factor.save()
+        # update limits
+        min_value = -self.zero_position.read() * ps_per_mm * self.factor.read()
+        max_value = (300. - self.zero_position.read()) * ps_per_mm * self.factor.read()
+        self.limits.write(min_value, max_value, 'ps')
         
     def set_offset(self, offset):
         # update zero
@@ -283,7 +295,7 @@ class app(wx.App):
     
     def set_position(self, destination):
         # get destination_mm
-        destination_mm = self.zero_position.read() + destination/ps_per_mm
+        destination_mm = self.zero_position.read() + destination/(ps_per_mm * self.factor.read())
         self.set_position_mm([destination_mm])
         
     def set_position_mm(self, inputs):
@@ -295,11 +307,17 @@ class app(wx.App):
             self.get_position()
         # get position
         self.get_position()
+        
+    def update_recorded(self):
+        self.recorded.clear()
+        self.recorded['d0'] = [self.current_position, self.native_units, 1., self.label.read(), False]
+        self.recorded['d0_position'] = [self.current_position_mm, 'mm', 1., self.label.read(), False]
+        self.recorded['d0_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False]      
     
     def set_zero(self, zero):
         self.zero_position.write(zero)
-        min_value = -self.zero_position.read() * ps_per_mm
-        max_value = (300. - self.zero_position.read()) * ps_per_mm
+        min_value = -self.zero_position.read() * ps_per_mm * self.factor.read()
+        max_value = (300. - self.zero_position.read()) * ps_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, 'ps')
         # write new position to ini
         section = 'main'
@@ -345,8 +363,12 @@ class GUI(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        # mm input table
+        # settings
         input_table = pw.InputTable()
+        input_table.add('Settings', None)
+        input_table.add('Label', self.driver.label)
+        input_table.add('Factor', self.driver.factor)
+        # mm input table
         input_table.add('Position', None)
         input_table.add('Current', self.driver.current_position_mm)
         self.mm_destination = self.driver.current_position_mm.associate(display=False)

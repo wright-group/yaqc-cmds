@@ -537,6 +537,9 @@ class Control():
                         units.append('V')  # TODO: better units support?
                         label.append('')  # TODO: ?
                         name.append(col)
+            # clean up
+            for i, s in enumerate(label):
+                label[i] = s.replace('prime', r'\'')
             # finish
             if cols_type == 'data':
                 cols = headers.data_cols
