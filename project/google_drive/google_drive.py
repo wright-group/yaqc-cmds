@@ -1,9 +1,10 @@
-# Darien Morrow - darienmorrow@gmail.com - dmorrow3@wisc.edu
-# First created: February 17, 2016
 """
 Basic tools for interacting with Google Drive using pydrive wrapper of 
 Google Drive's API.
 """
+
+# Darien Morrow - darienmorrow@gmail.com - dmorrow3@wisc.edu
+# First created: February 17, 2016
 
 
 ### import ####################################################################
@@ -35,7 +36,11 @@ class Address(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.busy = busy
         self.enqueued = enqueued
-        # initialize google drive
+        # get ID of PyCMDS data folder
+        self.PyCMDS_data_ID = ini.read('main', 'PyCMDS data ID')
+
+    def _authenticate(self):
+        # authenticate self.drive...
         creds_path = os.path.join(os.path.dirname(__file__), 'mycreds.txt')
         gauth = GoogleAuth()
         gauth.LoadCredentialsFile(creds_path)  # try to load saved client credentials.
@@ -46,9 +51,7 @@ class Address(QtCore.QObject):
         else:
             gauth.Authorize()  # initialize the saved credentials.
         gauth.SaveCredentialsFile(creds_path) # save the current credentials to a file
-        self.drive = GoogleDrive(gauth)  # create instance of GoogleDrive and call it drive  
-        # get ID of PyCMDS data folder
-        self.PyCMDS_data_ID = ini.read('main', 'PyCMDS data ID')
+        self.drive = GoogleDrive(gauth)  # create instance of GoogleDrive and call it drive 
         
     def close(self):
         # TODO: ?
@@ -79,6 +82,8 @@ class Address(QtCore.QObject):
 
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
+        # re-authenticate every time the class does anything
+        self._authenticate()
         # execute method
         getattr(self, str(method))(inputs)  # method passed as qstring
         # remove method from enqueued
@@ -103,7 +108,7 @@ class Address(QtCore.QObject):
             A small Google Drive dictionary of the file's metadata.
         """    
         
-        file1 = self.drive.CreateFile({"id":ID})    
+        file1 = self.drive.CreateFile({"id":ID})
         file1.FetchMetadata()  
         return file1    
     
@@ -244,11 +249,5 @@ g.google_drive_control.write(control)
 
 
 if __name__ == '__main__':
-    address = Address()
-    folderpath = r'C:\Users\John\Desktop\PyCMDS\data\SCAN [d1] 2016.02.27 16_40_03'
-    system_name = 'test'
-    date = '2016.02.28'
-    address.upload(system_name, date, folderpath)
-    address.close()
-
+    pass
     
