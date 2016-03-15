@@ -78,6 +78,7 @@ class CurrentSlice(QtCore.QObject):
         self.data = []
         self.ymins = []
         self.ymaxs = []
+        self.use_actual = False
         for n_channels in shape:
             self.ymins.append([-1e-6]*n_channels)
             self.ymaxs.append([1e-6]*n_channels)
@@ -96,6 +97,7 @@ class CurrentSlice(QtCore.QObject):
         self.name = d['name']
         self.units = d['units']
         self.points = d['points']
+        self.use_actual = d['use actual']
         self.xi = []
         self.data = []
         self.indexed.emit()
@@ -111,7 +113,10 @@ class CurrentSlice(QtCore.QObject):
         data : list of lists of arrays
             List of 1) devices, 2) channels, containing arrays
         '''
-        self.xi.append(position)
+        if self.use_actual:
+            self.xi.append(position)
+        else:
+            self.xi.append(self.points[len(self.xi)])
         self.data.append(data)
         for device_index, device in enumerate(data):
             for channel_index, channel in enumerate(data[device_index]):
@@ -518,6 +523,7 @@ class Control():
                             tolerance.append(None)
                             units.append(device.map_axes.values()[i][1])
                             label.append(device.map_axes.values()[i][0])
+                            name.append(device.map_axes.keys()[i])
             # acquisitions
             for device, device_widget in zip(self.devices, widget.device_widgets):
                 if device_widget.use.read():
@@ -531,6 +537,9 @@ class Control():
                         units.append('V')  # TODO: better units support?
                         label.append('')  # TODO: ?
                         name.append(col)
+            # clean up
+            for i, s in enumerate(label):
+                label[i] = s.replace('prime', r'\'')
             # finish
             if cols_type == 'data':
                 cols = headers.data_cols
@@ -770,7 +779,7 @@ class GUI(QtCore.QObject):
         self.plot_widget.set_ylim(ymin, ymax)
         # data
         xi = current_slice.xi
-        # TODO: in case of multidimensional devices...
+        # TODO: in case of device with shape...
         yi = [current_slice.data[i][device_index][channel_index] for i, _ in enumerate(xi)]
         # finish
         self.plot_scatter.setData(xi, yi)

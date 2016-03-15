@@ -25,7 +25,7 @@ import project.project_globals as g
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'opas',
-                                 'TOPAS-C',
+                                 'TOPAS_C',
                                  'TOPAS.ini'))
                                  
                                  
@@ -80,7 +80,7 @@ curve_indicies = {'Base': 1,
 
 #IMPORTANT: THE WINDLL CALL MUST HAPPEN WITHIN THE TOPAS DRIVER FOLDER (os.chdir())
 
-driver_folder = os.path.join(main_dir, 'opas', 'TOPAS-C', 'configuration', 'drivers')
+driver_folder = os.path.join(main_dir, 'opas', 'TOPAS_C', 'configuration', 'drivers')
 os.chdir(driver_folder)
 dll_path = os.path.join(driver_folder, 'TopasAPI.dll')
 dll = ctypes.WinDLL(dll_path)
@@ -762,6 +762,9 @@ class OPA:
         self.get_position()
         # save current interaction string
         ini.write('OPA%i'%self.index, 'current interaction string', interaction)
+        
+    def get_crv_paths(self):
+        return [o.read() for o in self.curve_paths.values()]
 
     def get_points(self):
         return self.curve.colors
@@ -769,7 +772,9 @@ class OPA:
     def get_position(self):
         motor_indexes = [self.motor_names.index(n) for n in self.curve.get_motor_names(full=False)]
         motor_positions = [self.motor_positions.values()[i].read() for i in motor_indexes]
-        position = self.curve.get_color(motor_positions, units='nm')
+        position = self.curve.get_color(motor_positions, units='nm')        
+        if not np.isnan(self.address.hardware.destination.read()):
+            position = self.address.hardware.destination.read()
         self.current_position.write(position, 'nm')
         return position
 
@@ -793,7 +798,7 @@ class OPA:
         self.serial_number = ini.read('OPA' + str(self.index), 'serial number')
         self.recorded['w%d'%self.index] = [self.current_position, 'nm', 1., str(self.index)]
         # load api 
-        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'opas', 'TOPAS-C', 'configuration', str(self.serial_number) + '.ini')
+        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'opas', 'TOPAS_C', 'configuration', str(self.serial_number) + '.ini')
         self.api = TOPAS(self.TOPAS_ini_filepath)
         self.api.set_shutter(False)
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
@@ -871,6 +876,8 @@ class OPA:
         does not wait until still...
         '''
         destination = inputs[0]
+        self.address.hardware.destination.write(destination)
+        self.current_position.write(destination, 'nm')
         exceptions = inputs[1]  # list of integers
         motor_destinations = self.curve.get_motor_positions(destination, 'nm')
         motor_indexes = []
@@ -1137,7 +1144,7 @@ class GUI(QtCore.QObject):
 if __name__ == '__main__':
     
     if False:
-        OPA1 = TOPAS(r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS-C\configuration\10743.ini')
+        OPA1 = TOPAS(r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS_C\configuration\10743.ini')
         print OPA1.set_shutter(False)
         print OPA1.get_motor_position(0)
         print OPA1.set_motor_position(0, 3478)
@@ -1173,7 +1180,7 @@ if __name__ == '__main__':
         #make some convinient methods that are exposed higher up
         
     if False:
-        topas = TOPAS(r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS-C\configuration\10742.ini')
+        topas = TOPAS(r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS_C\configuration\10742.ini')
         print topas.set_shutter(False)
         with wt.kit.Timer():
             print topas.start_motor_motion(0, 1000)
