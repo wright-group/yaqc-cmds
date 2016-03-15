@@ -13,6 +13,10 @@ def process(destinations_list):
             s['name'] = destinations_list[-1].hardware.friendly_name
             s['units'] = destinations_list[-1].units
             s['points'] = destinations_list[-1].arr[idx]
+            if destinations_list[-1].method == 'set_position':
+                s['use actual'] = True
+            else:
+                s['use actual'] = False
             slices.append(s)
     else:
         # 1D scan
@@ -21,5 +25,9 @@ def process(destinations_list):
         s['name'] = destinations_list[0].hardware.friendly_name
         s['units'] = destinations_list[0].units
         s['points'] = destinations_list[0].arr
+        if destinations_list[0].method == 'set_position':
+            s['use actual'] = True
+        else:
+            s['use actual'] = False
         slices = [s]
     return out, slices
