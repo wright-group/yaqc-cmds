@@ -96,9 +96,102 @@ class Preamp(Procedure):
     
     def process(self, OPA_index, data_filepath, old_crvs):
         wt.tuning.TOPAS_C.process_preamp_motortune(OPA_index, data_filepath, old_crvs)
-        # TODO:
-        output_image_path = r'C:\Users\John\Desktop\PyCMDS\data\TOPAS-C AUTOTUNE [w1, w1_Delay_1, wa] 2016.03.03 16_34_38\TOPAS-C AUTOTUNE [w1, w1_Delay_1, wa] 2016.03.03 16_34_38.png'
-        return output_image_path
+        # TODO: return output image path
+        
+        
+class PowerampD2(Procedure):
+    
+    def __init__(self):
+        self.input_table = pw.InputTable()
+        self.input_table.add('Procedure', None)
+        self.width = pc.Number(ini=ini, section='poweramp d2', option='width', save_to_ini_at_shutdown=False, disable_under_module_control=True)
+        self.input_table.add('D2 Width', self.width)        
+        self.number = pc.Number(ini=ini, section='poweramp d2', option='number', decimals=0, save_to_ini_at_shutdown=False, disable_under_module_control=True)
+        self.input_table.add('Number', self.number)
+        
+    def assemble_axes(self, opa_index):
+        axes = []
+        # get OPA properties
+        opa_hardware = opas.hardwares[opa_index]
+        opa_friendly_name = opas.hardwares[opa_index].friendly_name
+        curve = opa_hardware.address.ctrl.curve
+        # tune points        
+        motors_excepted = [3]  # list of indicies
+        identity = opa_friendly_name + '=wm'
+        hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]],
+                         'wm': [spectrometers.hardwares[0], 'set_position', None]}
+        axis = scan.Axis(curve.colors, curve.units, opa_friendly_name, identity, hardware_dict)
+        axes.append(axis)
+        # motor points
+        motor_units = None
+        name = '_'.join([opa_friendly_name, 'Delay_2'])
+        width = self.width.read()/2.
+        npts = self.number.read()
+        center = 0.
+        identity = 'D'+name
+        curve_motor_index = curve.get_motor_names(full=False).index('Delay_2')
+        motor_positions = curve.motors[curve_motor_index].positions
+        kwargs = {'centers': motor_positions, 
+                  'centers_units': motor_units,
+                  'centers_follow': opa_friendly_name}
+        points = np.linspace(center-width, center+width, npts)
+        hardware_dict = {name: [opa_hardware, 'set_motor', ['Delay_2', 'destination']]}
+        axis = scan.Axis(points, motor_units, name, identity, hardware_dict, **kwargs)
+        axes.append(axis)
+        # fnish
+        return axes
+    
+    def process(self, OPA_index, data_filepath, old_crvs):
+        wt.tuning.TOPAS_C.process_D2_motortune(OPA_index, data_filepath, old_crvs)
+        # TODO: return output image path
+        
+        
+class PowerampC2(Procedure):
+    
+    def __init__(self):
+        self.input_table = pw.InputTable()
+        self.input_table.add('Procedure', None)
+        self.width = pc.Number(ini=ini, section='poweramp c2', option='width', save_to_ini_at_shutdown=False, disable_under_module_control=True)
+        self.input_table.add('C2 Width', self.width)        
+        self.number = pc.Number(ini=ini, section='poweramp c2', option='number', decimals=0, save_to_ini_at_shutdown=False, disable_under_module_control=True)
+        self.input_table.add('Number', self.number)
+        
+    def assemble_axes(self, opa_index):
+        axes = []
+        # get OPA properties
+        opa_hardware = opas.hardwares[opa_index]
+        opa_friendly_name = opas.hardwares[opa_index].friendly_name
+        curve = opa_hardware.address.ctrl.curve
+        # tune points        
+        motors_excepted = [2]  # list of indicies
+        identity = opa_friendly_name + '=wm'
+        hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]],
+                         'wm': [spectrometers.hardwares[0], 'set_position', None]}
+        axis = scan.Axis(curve.colors, curve.units, opa_friendly_name, identity, hardware_dict)
+        axes.append(axis)
+        # motor points
+        motor_units = None
+        name = '_'.join([opa_friendly_name, 'Crystal_2'])
+        width = self.width.read()/2.
+        npts = self.number.read()
+        center = 0.
+        identity = 'D'+name
+        curve_motor_index = curve.get_motor_names(full=False).index('Crystal_2')
+        motor_positions = curve.motors[curve_motor_index].positions
+        kwargs = {'centers': motor_positions, 
+                  'centers_units': motor_units,
+                  'centers_follow': opa_friendly_name}
+        points = np.linspace(center-width, center+width, npts)
+        hardware_dict = {name: [opa_hardware, 'set_motor', ['Crystal_2', 'destination']]}
+        axis = scan.Axis(points, motor_units, name, identity, hardware_dict, **kwargs)
+        axes.append(axis)
+        # fnish
+        return axes
+    
+    def process(self, OPA_index, data_filepath, old_crvs):
+        wt.tuning.TOPAS_C.process_C2_motortune(OPA_index, data_filepath, old_crvs)
+        # TODO: return output image path
+        
  
 ### gui #######################################################################
 
@@ -109,6 +202,8 @@ class GUI(scan.GUI):
         # compile procedure dictionary
         self.procedures = collections.OrderedDict()
         self.procedures['preamp'] = Preamp()
+        self.procedures['poweramp D2'] = PowerampD2()
+        self.procedures['poweramp C2'] = PowerampC2()
         # initialize gui
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
@@ -119,6 +214,7 @@ class GUI(scan.GUI):
         input_table.add('OPA', self.opa_combo)
         # procedure combo
         self.procedure_combo = pc.Combo(allowed_values=self.procedures.keys(), disable_under_module_control=True)
+        self.procedure_combo.updated.connect(self.on_procedures_updated)
         input_table.add('Procedure', self.procedure_combo)
         layout.addWidget(input_table)
         # procedure guis

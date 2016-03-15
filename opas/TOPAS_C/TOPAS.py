@@ -772,7 +772,9 @@ class OPA:
     def get_position(self):
         motor_indexes = [self.motor_names.index(n) for n in self.curve.get_motor_names(full=False)]
         motor_positions = [self.motor_positions.values()[i].read() for i in motor_indexes]
-        position = self.curve.get_color(motor_positions, units='nm')
+        position = self.curve.get_color(motor_positions, units='nm')        
+        if not np.isnan(self.address.hardware.destination.read()):
+            position = self.address.hardware.destination.read()
         self.current_position.write(position, 'nm')
         return position
 
@@ -874,6 +876,8 @@ class OPA:
         does not wait until still...
         '''
         destination = inputs[0]
+        self.address.hardware.destination.write(destination)
+        self.current_position.write(destination, 'nm')
         exceptions = inputs[1]  # list of integers
         motor_destinations = self.curve.get_motor_positions(destination, 'nm')
         motor_indexes = []
