@@ -536,7 +536,7 @@ class Device(QtCore.QObject):
         # daq    
         q.push('initialize')
         # populate data with fake data
-        fake = np.random.random(nsamples.read())
+        fake = np.random.random((8, nsamples.read()))
         path = shots_processing_module_path.read()
         name = os.path.basename(path).split('.')[0]
         directory = os.path.dirname(path)
