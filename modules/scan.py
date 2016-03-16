@@ -11,6 +11,7 @@ import sys
 import imp
 import time
 import copy
+import shutil
 import collections
 import ConfigParser
 
@@ -369,6 +370,16 @@ class GUI(QtCore.QObject):
         self.create_advanced_frame()
         self.show_frame()  # check once at startup
         
+    def autocopy(self, data_folder):
+        '''
+        Copy the data to the data folder defined in daq (if enabled).
+        '''
+        if daq.autocopy_enable.read():
+            src = data_folder
+            name = src.split(os.sep)[-1]
+            dst = os.path.join(daq.autocopy_path.read(), name)
+            shutil.copytree(src, dst)
+            
     def create_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
@@ -449,8 +460,8 @@ class GUI(QtCore.QObject):
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload(data_folder)
         # finish
+        self.autocopy(data_folder)
         self.wait_window.hide()
-                    
         
     def update(self):
         pass
