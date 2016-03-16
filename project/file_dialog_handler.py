@@ -73,6 +73,7 @@ class FileDialog(QtCore.QObject):
         
     def getExistingDirectory(self, inputs=[]):
         caption, directory, options = inputs
+        options = QtGui.QFileDialog.ShowDirsOnly
         out = self.clean(QtGui.QFileDialog.getExistingDirectory(g.main_window.read(), caption, directory, options))
         directory_filepath.write(out)        
     
