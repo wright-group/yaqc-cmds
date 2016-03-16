@@ -36,9 +36,7 @@ autocopy_ini.return_raw = True
 # [module path, class name, initialization arguments, friendly name]
 device_dict = collections.OrderedDict()
 device_dict['NI 6251'] = [os.path.join(main_dir, 'daq', 'NI_6251', 'NI_6251.py'), 'Device', [None], 'ni6251']
-device_dict['InGaAs array'] = [os.path.join(main_dir, 'daq', 'InGaAs_array', 'InGaAs.py'), 'Device', [None], 'InGaAs'] 
-
-
+device_dict['InGaAs array'] = [os.path.join(main_dir, 'daq', 'InGaAs_array', 'InGaAs.py'), 'Device', [None], 'InGaAs']
 
 axes = pc.Mutex()
 
