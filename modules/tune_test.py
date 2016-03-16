@@ -135,5 +135,7 @@ class GUI(scan.GUI):
             if len(data.shape) < 3:
                 print output_image_path
                 slack.upload_file(output_image_path)
+        # finish
+        self.autocopy(data_folder)
 
 gui = GUI(module_name)
