@@ -291,6 +291,8 @@ class GUI(scan.GUI):
         # upload on google drive
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload(data_folder)
+        # finish
+        self.autocopy(data_folder)
         
     def update_mono_settings(self):
         self.mono_center.set_disabled(True)

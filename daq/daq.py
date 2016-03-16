@@ -6,6 +6,7 @@ import sys
 import imp
 import time
 import copy
+from distutils import util
 
 import collections
 
@@ -19,11 +20,13 @@ import pyqtgraph as pg
 import WrightTools as wt
 
 import project.project_globals as g
+main_dir = g.main_dir.read()
 import project.classes as pc
 import project.widgets as pw
-import project.ini_handler as ini
-ini = ini.daq
-main_dir = g.main_dir.read()
+import project.ini_handler as ini_handler
+ini = ini_handler.daq
+autocopy_ini = ini_handler.Ini(os.path.join(main_dir, 'daq', 'autocopy.ini'))
+autocopy_ini.return_raw = True
 
 
 ### define ####################################################################
@@ -51,6 +54,13 @@ save_shots = pc.Bool(display=True)
 ms_wait_limits = pc.NumberLimits(0, 10000)
 ms_wait = pc.Number(ini=ini, section='settings', option='ms wait', decimals=0,
                     limits=ms_wait_limits, display=True)
+                
+# autocopy
+enable = bool(util.strtobool(autocopy_ini.read('main', 'enable')))
+path = autocopy_ini.read('main', 'path')
+autocopy_enable = pc.Bool(initial_value=enable)
+autocopy_path = pc.Filepath(initial_value=path, kind='directory')
+
                     
 ### classes ###################################################################
                     
@@ -750,6 +760,8 @@ class GUI(QtCore.QObject):
         data_busy.update_signal = data_obj.update_ui        
         input_table.add('Status', data_busy)
         input_table.add('Save Shots', save_shots)
+        input_table.add('Autocopy', autocopy_enable)
+        input_table.add('Autocopy Path', autocopy_path)
         input_table.add('Scan', None)
         input_table.add('Loop Time', loop_time)
         self.idx_string = pc.String(initial_value='None', display=True)
@@ -764,8 +776,17 @@ class GUI(QtCore.QObject):
             device.update_ui.connect(self.update)
         current_slice.indexed.connect(self.on_slice_index)
         current_slice.appended.connect(self.on_slice_append)
+        autocopy_enable.updated.connect(self.on_autocopy_updated)
+        autocopy_path.updated.connect(self.on_autocopy_updated)
+        self.on_autocopy_updated()
         # set tab structure to display main tab
         self.tabs.setCurrentIndex(self.tabs.count()-1)  # zero indexed
+
+    def on_autocopy_updated(self):
+        enable = str(autocopy_enable.read())
+        path = autocopy_path.read()
+        autocopy_ini.write('main', 'enable', enable)
+        autocopy_ini.write('main', 'path', path)
 
     def on_slice_append(self):
         device_index = self.device_combo.read_index()

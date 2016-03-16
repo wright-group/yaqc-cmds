@@ -256,6 +256,7 @@ class GUI(scan.GUI):
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload(data_folder)
         # finish
+        self.autocopy(data_folder)
         self.wait_window.hide()
     
     def on_procedures_updated(self):

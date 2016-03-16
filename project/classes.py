@@ -350,16 +350,19 @@ class Combo(PyCMDS_Object):
 
 class Filepath(PyCMDS_Object):
 
-    def __init__(self, caption='Open', directory=None, options=[],
+    def __init__(self, caption='Open', directory=None, options=[], kind='file',
                  *args, **kwargs):
         '''
         holds the filepath as a string \n
+        
+        Kind one in {'file', 'directory'}
         '''
         PyCMDS_Object.__init__(self, *args, **kwargs)
         self.type = 'filepath'
         self.caption = caption
         self.directory = directory
         self.options = options
+        self.kind = kind
         
     def give_control(self, control_widget):
         self.widget = control_widget
@@ -386,11 +389,16 @@ class Filepath(PyCMDS_Object):
             else:
                 directory_string = g.main_dir.read()
         # filter
-        filter_string = ';;'.join(self.options + ['All Files (*.*)'])
-        out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
-        if os.path.isfile(out):
-            self.write(out)
-
+        
+        if self.kind == 'file':
+            filter_string = ';;'.join(self.options + ['All Files (*.*)'])
+            out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
+            if os.path.isfile(out):
+                self.write(out)
+        elif self.kind == 'directory':
+            out = file_dialog_handler.dir_dialog(self.caption, directory_string, '')
+            if os.path.isdir(out):
+                self.write(out)
 
 class NumberLimits(PyCMDS_Object):
 
