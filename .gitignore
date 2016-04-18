@@ -9,6 +9,9 @@ opas/TOPAS_C/OPA1 (10743) curves/
 opas/TOPAS_C/OPA2 (10742) curves/
 opas/TOPAS_C/configuration
 opas/TOPAS_C/manuals
+opas/TOPAS_800/configuration
+opas/TOPAS_800/manuals
+opas/TOPAS_800/OPA4 (16426) curves/
 
 # Google Drive Credentials
 *.json
