@@ -32,6 +32,7 @@ hardware_dict['OPA2 micro'] = [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.
 hardware_dict['OPA3 micro'] = [os.path.join(main_dir, 'OPAs', 'pico', 'pico_opa.py'), 'pico_opa', 'OPA', [3], 'w3']
 hardware_dict['OPA1 TOPAS-C'] = [os.path.join(main_dir, 'OPAs', 'TOPAS_C', 'TOPAS.py'), 'TOPAS', 'OPA', [1], 'w1']
 hardware_dict['OPA2 TOPAS-C'] = [os.path.join(main_dir, 'OPAs', 'TOPAS_C', 'TOPAS.py'), 'TOPAS', 'OPA', [2], 'w2']
+hardware_dict['OPA4 TOPAS-800'] = [os.path.join(main_dir, 'OPAs', 'TOPAS_800', 'TOPAS.py'), 'TOPAS', 'OPA', [4], 'w4']
 
 hardwares = []
 for key in hardware_dict.keys():
