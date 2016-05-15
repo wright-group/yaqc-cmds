@@ -13,7 +13,7 @@ import os
 
 #user inputs-------------------------------------------------------------------
 
-daq_analog_physical_channels = [3, 1, 2, 3, 4]
+daq_analog_physical_channels = [0, 1, 2, 4, 5]
 daq_analog_min = -1.0
 daq_analog_max = 6.0
 
@@ -146,14 +146,21 @@ def get_plot_arrays(channel):
 import matplotlib.pyplot as plt
 plt.close()
 
-x, y = get_plot_arrays(0)
-plt.scatter(x, y, c='r')
+x, y = get_plot_arrays(3)
+plt.plot(x, y, c='r', lw=4, alpha=0.5)
 x, y = get_plot_arrays(4)
-#plt.scatter(x, y, c='g')
+plt.plot(x, y, c='g', lw=4, alpha=0.5)
 if digitize: plt.ylim(-0.5, 1.5)
 plt.grid()
 plt.xlabel('us')
 plt.ylabel('V')
+
+
+plt.axvline(700)
+plt.axvline(800)
+
+plt.xlim(0, 5000)
+
 
 '''
 import packages.pyqtgraph.pyqtgraph as pg

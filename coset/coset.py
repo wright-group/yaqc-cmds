@@ -259,7 +259,7 @@ class CoSetHW:
                 break  # should only be one
         # load in
         self.load_file(path)
-        ini.write(self.hardware.name, corr.control_name, corr.path)
+        ini.write(self.hardware.name, corr.control_name, corr.path, with_apostrophe=True)
         self.display_combobox.write(corr.control_name)
         
     def on_remove_file(self, row):

@@ -257,7 +257,7 @@ class MainWindow(QtGui.QMainWindow):
         import opas.opas
         import spectrometers.spectrometers
         import delays.delays
-        #import nds.nds
+        import nds.nds
         import daq.daq
     
     def _initialize_widgets(self):

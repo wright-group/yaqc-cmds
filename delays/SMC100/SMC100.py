@@ -154,7 +154,7 @@ class SMC100():
     def set_offset(self, offset):
         # update zero
         offset_from_here = offset - self.offset.read('fs')
-        offset_mm = offset_from_here/fs_per_mm
+        offset_mm = offset_from_here/(fs_per_mm*self.factor.read())
         new_zero = self.zero_position.read('mm') + offset_mm
         self.set_zero(new_zero)
         self.offset.write(offset)

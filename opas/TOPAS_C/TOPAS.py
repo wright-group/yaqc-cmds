@@ -753,7 +753,7 @@ class OPA:
         # update own curve object
         interaction = self.interaction_string_combo.read()
         crv_paths = [m.read() for m in self.curve_paths.values()]
-        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, interaction)
+        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, 'TOPAS-C', interaction)
         # update limits
         min_nm = self.curve.colors.min()
         max_nm = self.curve.colors.max()

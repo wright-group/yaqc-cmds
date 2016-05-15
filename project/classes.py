@@ -400,6 +400,11 @@ class Filepath(PyCMDS_Object):
             if os.path.isdir(out):
                 self.write(out)
 
+    def read(self):
+        # want python string, not QString
+        return str(PyCMDS_Object.read(self))
+
+
 class NumberLimits(PyCMDS_Object):
 
     def __init__(self, min_value=-1000000., max_value=1000000., units=None):

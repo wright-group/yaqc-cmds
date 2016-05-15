@@ -139,7 +139,7 @@ class Chopper():
         self.name = pc.String(inital_value='Name', ini=ini, section=ini_section, option='name')
         self.physical_correspondance = pc.Number(decimals=0, limits=pc.NumberLimits(0, 7, None), ini=ini, section=ini_section, option='physical correspondance')
         self.invert = pc.Bool(ini=ini, section=ini_section, option='invert')
-        sample_limits=pc.NumberLimits(0, 899, None)
+        sample_limits = pc.NumberLimits(0, 899, None)
         self.index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='index')
         # a list of all properties
         self.properties = [self.active, self.name,
@@ -327,6 +327,7 @@ class Address(QtCore.QObject):
                     max_voltage = channel.max.read()
                 elif correspondance < 0:
                     physical_channel = choppers.read()[-correspondance-1].physical_correspondance.read()
+                    print 'chopper', physical_channel
                     min_voltage = -1.
                     max_voltage = 6.
                 channel_name = 'sample_' + str(name_index).zfill(3)
@@ -445,14 +446,14 @@ class Address(QtCore.QObject):
             index += 1
         # choppers
         for chopper in active_choppers:
-            cutoff = 1.  # volts
+            cutoff = 1. # volts
             out = folded_samples[chopper.index.read()]
-            out[out>cutoff] = 1.
-            out[out<cutoff] = -1.
+            out[out<=cutoff] = -1.
+            out[out>cutoff] = 1.            
             if chopper.invert.read():
                 out *= -1
             shots_array[index] = out
-            index += 1  
+            index += 1
         # export shots
         shots.write(shots_array)
         # do math -------------------------------------------------------------
