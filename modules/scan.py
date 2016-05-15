@@ -449,16 +449,21 @@ class GUI(QtCore.QObject):
             # hack in a way to get the first image written
             if channel_index == 0:
                 output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
+        # upload on google drive
+        if g.google_drive_enabled.read():
+            folder_url, image_url = g.google_drive_control.read().upload(data_folder, output_image_path)
+        else:
+            folder_url = None
+            image_url = None
         # send message on slack
         if g.slack_enabled.read():
             slack = g.slack_control.read()
-            slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
-            if len(data.shape) < 3:
-                print output_image_path
-                slack.upload_file(output_image_path)
-        # upload on google drive
-        if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload(data_folder)
+            field = {}
+            field['title'] = file_name
+            field['title_link'] = folder_url
+            field['image_url'] = image_url
+            message = 'scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text())
+            slack.send_message(message, attachments=[field])
         # finish
         self.autocopy(data_folder)
         self.wait_window.hide()
