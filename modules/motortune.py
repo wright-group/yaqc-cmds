@@ -40,7 +40,7 @@ import daq.daq as daq
 
 
 class motor_gui():
-    
+
     def __init__(self, name, center, width, number, use_tune_points):
         self.name = name
         self.use_tune_points = use_tune_points
@@ -58,7 +58,7 @@ class motor_gui():
         self.npts = pc.Number(initial_value=number, decimals=0, disable_under_module_control=True)
         self.input_table.add('Number', self.npts)
         self.update_disabled()
-        
+
     def update_disabled(self):
         self.center.set_disabled(True)
         self.width.set_disabled(True)
@@ -75,7 +75,7 @@ class motor_gui():
 
 
 class OPA_gui():
-    
+
     def __init__(self, hardware, layout, use_tune_points):
         self.hardware = hardware
         motor_names = self.hardware.address.ctrl.motor_names
@@ -85,11 +85,11 @@ class OPA_gui():
             layout.addWidget(motor.input_table)
             self.motors.append(motor)
         self.hide()  # initialize hidden
-            
+
     def hide(self):
         for motor in self.motors:
             motor.input_table.hide()
-    
+
     def show(self):
         for motor in self.motors:
             motor.input_table.show()
@@ -161,9 +161,9 @@ class GUI(scan.GUI):
         opa_hardware = opa_gui.hardware
         opa_friendly_name = opas.hardwares[self.opa_combo.read_index()].friendly_name
         curve = opa_hardware.address.ctrl.curve
-        # tune points        
+        # tune points
         if self.use_tune_points.read():
-            motors_excepted = []  # list of indicies  
+            motors_excepted = []  # list of indicies
             for motor_index, motor in enumerate(opa_gui.motors):
                 if not motor.method.read() == 'Set':
                     motors_excepted.append(motor_index)
@@ -189,7 +189,7 @@ class GUI(scan.GUI):
                     identity = 'D'+name#+'F'+opa_friendly_name
                     curve_motor_index = curve.get_motor_names(full=False).index(motor.name)
                     motor_positions = curve.motors[curve_motor_index].positions
-                    kwargs = {'centers': motor_positions, 
+                    kwargs = {'centers': motor_positions,
                               'centers_units': motor_units,
                               'centers_follow': opa_friendly_name}
                 else:
@@ -212,7 +212,7 @@ class GUI(scan.GUI):
             name = 'wm'
             units = 'wn'
             width = self.mono_width.read()/2.
-            npts = self.mono_npts.read() 
+            npts = self.mono_npts.read()
             if self.use_tune_points.read():
                 center = 0.
                 identity = 'D'+name
@@ -241,7 +241,7 @@ class GUI(scan.GUI):
                             lambda: opa_hardware.q.push('get_motor_positions'),
                             lambda: opa_hardware.q.push('get_position')]
         self.scan.launch(axes, constants=[], pre_wait_methods=pre_wait_methods)
-        
+
     def on_done(self):
         '''
         Make pickle and figures.
@@ -249,7 +249,7 @@ class GUI(scan.GUI):
         if not self.do_post_process.read():
             return
         # get path
-        data_path = daq.data_path.read() 
+        data_path = daq.data_path.read()
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
         data.save(data_path.replace('.data', '.p'), verbose=False)
@@ -258,6 +258,27 @@ class GUI(scan.GUI):
             chopped_datas = data.chop(0, 1, verbose=False)
         # make figures for each channel
         data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        # Hard-coded matching of pyro to OPA. This will need to be fixed once we fix the pyro channels.
+        #TODO: rely on something other than hard coding for this task? Maybe have a data.is_interesting() method
+        if 'wm' in data.axis_names:
+            important_index = 0
+        elif 'w1' in data.axis_names or 'w1 BBO' in data.axis_names or 'w1Mixer' in data.axis_names:
+            try:
+                important_index = data.channel_names.index('pyro3_mean')
+            except:
+                important_index = 0
+        elif 'w2' in data.axis_names or 'w1 BBO' in data.axis_names or 'w1Mixer' in data.axis_names:
+            try:
+                important_index = data.channel_names.index('pyro2_mean')
+            except:
+                important_index = 0
+        elif 'w4' in data.axis_names:
+            try:
+                important_index = data.channel_names.index('pyro1_mean')
+            except:
+                important_index = 0
+        else:
+            important_index = 0
         # chop data if over 2D
         for channel_index, channel_name in enumerate(data.channel_names):
             image_fname = channel_name + ' ' + file_name
@@ -279,21 +300,33 @@ class GUI(scan.GUI):
                                 fname=this_image_fname, verbose=False)
                     g.app.read().processEvents()  # gui should not hang...
             # hack in a way to get the first image written
-            if channel_index == 0:
-                output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
+            if channel_index == important_index:
+                if important_index/10 == 0:
+                    file_num_str = ' 00' + str(important_index)+'.png
+                elif important_index/100 == 0:
+                    file_num_str = ' 0' + str(important_index)+'.png
+                elif important_index/1000 == 0:
+                    file_num_str = ' ' + str(important_index)+'.png
+                output_image_path = os.path.join(data_folder, image_fname + file_num_str)
         # send message on slack
         if g.slack_enabled.read():
             slack = g.slack_control.read()
             slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
             if len(data.shape) < 3:
                 print output_image_path
-                slack.upload_file(output_image_path)
+                try:
+                    slack.upload_file(output_image_path)
+                except:
+                    try:
+                        slack.upload_file(output_image_path = os.path.join(data_folder, image_fname + ' 000.png'))
+                    except:
+                        slack.send_message('File upload failed')
         # upload on google drive
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload(data_folder)
         # finish
         self.autocopy(data_folder)
-        
+
     def update_mono_settings(self):
         self.mono_center.set_disabled(True)
         self.mono_width.set_disabled(True)
