@@ -301,13 +301,7 @@ class GUI(scan.GUI):
                     g.app.read().processEvents()  # gui should not hang...
             # hack in a way to get the first image written
             if channel_index == important_index:
-                if important_index/10 == 0:
-                    file_num_str = ' 00' + str(important_index)+'.png
-                elif important_index/100 == 0:
-                    file_num_str = ' 0' + str(important_index)+'.png
-                elif important_index/1000 == 0:
-                    file_num_str = ' ' + str(important_index)+'.png
-                output_image_path = os.path.join(data_folder, image_fname + file_num_str)
+                output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
         # send message on slack
         if g.slack_enabled.read():
             slack = g.slack_control.read()
