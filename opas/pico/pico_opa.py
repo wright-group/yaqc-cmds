@@ -26,86 +26,9 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'opas',
                                                      'pico',
                                                      'pico_opa.ini'))
 
-
-### curve object ##############################################################
-
-
-class Curve:
-
-    def __init__(self, filepath, n = 4):
-        '''
-        filepath string \npoints
-        n integer degree of polynomial fit
-        '''
-        self.filepath = filepath
-
-        self.points = np.genfromtxt(filepath).T
-
-        self.min = self.points[0].min()
-        self.max = self.points[0].max()
-        self.num = len(self.points[0])
-
-        # fit motor polynomials -----------------------------------------------
-
-        m0 = np.polynomial.polynomial.polyfit(self.points[0], self.points[1], n, full=True)
-        m1 = np.polynomial.polynomial.polyfit(self.points[0], self.points[2], n, full=True)
-        m2 = np.polynomial.polynomial.polyfit(self.points[0], self.points[3], n, full=True)
-        self.motor_functions = [m0, m1, m2]
-
-    def get_motor_positions(self, color):
-        '''
-        color in wn \n
-        returns list [m0, m1, m2], mm
-        '''
-        return [np.polynomial.polynomial.polyval(color, self.motor_functions[i][0]) for i in range(3)]
-
-    def get_color(self, m0, m1, m2):
-        '''
-        returns color from motor positions
-        '''
-        # Modify stored function by subtracting motor position, find roots ----
-
-        a1 = self.motor_functions[0][0][::-1].copy()
-        a2 = self.motor_functions[1][0][::-1].copy()
-        a3 = self.motor_functions[2][0][::-1].copy()
-
-        a1[4] -= m0
-        a2[4] -= m1
-        a3[4] -= m2
-
-        color_a1 = np.real(np.roots(a1)[3])
-        color_a2 = np.real(np.roots(a2)[3])
-        color_a3 = np.real(np.roots(a3)[3])
-
-        # Round the color values to make them equal ---------------------------
-
-        d = 0
-        color = [0, 0, 0]
-        color[0] = np.around(color_a1, decimals=d)
-        color[1] = np.around(color_a2, decimals=d)
-        color[2] = np.around(color_a3, decimals=d)
-
-        # only return color if all motors signify same wavenumber -------------
-
-        if color[0] == color[1] and color [0] == color[2]:
-            return color[0]
-        else:
-            return np.nan
-
-
-def save_curve(points, old_curve_filepath):
-    directory, name, extension = wt.kit.filename_parse(old_curve_filepath)
-    if g.offline:
-        new_name = 'v_' + name.split(' - ')[0] + ' - ' + wt.kit.get_timestamp() + '.curve'
-    else:
-        new_name = name.split(' - ')[0] + ' - ' + wt.kit.get_timestamp() + '.curve'
-    output_path = os.path.join(directory, new_name)
-    header = 'color (wn)\tGrating\tBBO\tMixer'
-    np.savetxt(output_path, points.T, fmt='%0.2f', delimiter='\t', header=header)
-
-
 ### OPA object ################################################################
 
+counts_per_mm = 58200
 
 max_OPA_index = 3
 
@@ -116,21 +39,16 @@ class OPA:
         self.index = 2
         # list of objects to be exposed to PyCMDS
         self.native_units = 'wn'
-        # motor positions
-        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50)
-        self.grating_position = pc.Number(name='Grating', initial_value=25., limits=self.motor_limits, display=True)
-        self.bbo_position = pc.Number(name='BBO', initial_value=25., limits=self.motor_limits, display=True)
-        self.mixer_position = pc.Number(name='Mixer', initial_value=25., limits=self.motor_limits, display=True)
-        self.motor_positions=[self.grating_position, self.bbo_position, self.mixer_position]
         # may wish to have number limits loaded with tuning curve.
         self.limits = pc.NumberLimits(min_value=6200, max_value=9500, units='wn')
         self.current_position = pc.Number(name='Color', initial_value=2000.,
                                           limits=self.limits,
                                           units='wn', display=True,
                                           set_method='set_position')
+        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
-        self.gui = gui(self)
+        self.gui = GUI(self)
         self.motors=[]
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.initialized = pc.Bool()
@@ -141,19 +59,23 @@ class OPA:
 
     def load_curve(self, filepath, polyorder = 4):
         self.polyorder = polyorder
-        self.curve = Curve(filepath, self.polyorder)
-        self.limits.write(self.curve.min, self.curve.max, 'wn')
+        self.curve = wt.tuning.curve.from_800_curve(filepath)
+        self.limits.write(self.curve.colors.min(), self.curve.colors.max(), 'wn')
 
     def get_points(self):
-        return self.curve.points
+        out = np.zeros([4, len(self.curve.colors)])
+        out[0] = self.curve.colors
+        out[1] = self.curve.Grating.positions
+        out[2] = self.curve.BBO.positions
+        out[3] = self.curve.Mixer.positions
+        return out
 
     def get_position(self):
-        m = self.get_motor_positions()
-        color = self.curve.get_color(m[0], m[1], m[2])
+        color = self.curve.get_color(self.get_motor_positions())
         self.current_position.write(color, self.native_units)
         return color
 
-    def get_motor_positions(self):
+    def get_motor_positions(self, inputs=[]):
         for i in range(len(self.motors)):
             val = self.motors[i].get_position()
             self.motor_positions[i].write(val)
@@ -165,6 +87,12 @@ class OPA:
         '''
         self.address = address
         self.index = inputs[0]
+        # motor positions
+        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50)
+        self.grating_position = pc.Number(name='Grating', initial_value=25., limits=self.motor_limits, display=True)
+        self.bbo_position = pc.Number(name='BBO', initial_value=25., limits=self.motor_limits, display=True)
+        self.mixer_position = pc.Number(name='Mixer', decimals=6, initial_value=25., limits=self.motor_limits, display=True)
+        self.motor_positions=[self.grating_position, self.bbo_position, self.mixer_position]
         # load motors
         self.motors.append(pm_motors.Motor(pm_motors.identity['OPA'+str(self.index)+' grating']))
         self.motors.append(pm_motors.Motor(pm_motors.identity['OPA'+str(self.index)+' BBO']))
@@ -178,10 +106,11 @@ class OPA:
         self.get_position()
         # define values to be recorded by DAQ
         self.recorded['w%d'%self.index] = [self.current_position, 'wn', 1., str(self.index), False]
-        self.recorded['w%d_grating'%self.index] = [self.grating_position, None, 0.1, 'grating', True]
-        self.recorded['w%d_bbo'%self.index] = [self.bbo_position, None, 0.1, 'bbo', True]
-        self.recorded['w%d_mixer'%self.index] = [self.mixer_position, None, 0.1, 'mixer', True]
+        self.recorded['w%d_Grating'%self.index] = [self.grating_position, None, 0.001, 'grating', True]
+        self.recorded['w%d_BBO'%self.index] = [self.bbo_position, None, 0.001, 'bbo', True]
+        self.recorded['w%d_Mixer'%self.index] = [self.mixer_position, None, 0.001, 'mixer', True]
         self.initialized.write(True)
+        self.address.initialized_signal.emit()
 
     def is_busy(self):
         for motor in self.motors:
@@ -191,31 +120,73 @@ class OPA:
 
     def is_valid(self, destination):
         return True
+        
+    def set_offset(self, offset):
+        pass
 
     def set_position(self, destination):
         motor_destinations = self.curve.get_motor_positions(destination)
         self.set_motors(motor_destinations)
         self.get_position()
-
+        
+    def set_position_except(self, inputs):
+        '''
+        set position, except for motors that follow
+        
+        does not wait until still...
+        '''
+        destination = inputs[0]
+        exceptions = inputs[1]
+        motor_destinations = self.curve.get_motor_positions(destination)
+        for index, name in zip(range(3), ['Grating', 'BBO', 'Mixer']):
+            if index not in exceptions:
+                self.set_motor([name, motor_destinations[index]])
+        
+    def set_motor(self, inputs):
+        '''
+        inputs [motor_name (str), destination (mm),backlash (optional)]
+        '''
+        print 'set_motor', inputs, '!!!!!!!!!!!!!!!!!!!!!!!'
+        if len(inputs)==2:        
+            name, destination = inputs
+            backlash = False
+        elif len(inputs)==3:
+            name, destination, backlash = inputs
+        m = self.motors[self.motor_names.index(name)]
+        if backlash and abs(m.current_position - destination) >= m.tolerance:
+            current_pos = m.current_position
+            if current_pos+150/counts_per_mm >= destination:
+                m.move_absolute(destination)
+                self.wait_until_still()
+                m.move_absolute(destination)
+            else:
+                m.move_absolute(min(current_pos,destination) - 150/counts_per_mm)
+                self.wait_until_still()
+                m.move_absolute(destination)
+        else:
+            m.move_absolute(destination)
+        
     def set_motors(self, inputs):
-        for axis in range(3):
+        r = 3
+        for axis in range(r):
             position = inputs[axis]
             if position >= 0 and position <=50:
                 self.motors[axis].move_absolute(position)
             else:
-                print('That is not a valid motor positon. Nice try, bucko.')
+                print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
         self.wait_until_still()
-        self.get_motor_positions()
 
-    def wait_until_still(self):
+    def wait_until_still(self, inputs=[]):
         for motor in self.motors:
-            motor.wait_until_still()
+            motor.wait_until_still(method=self.get_motor_positions)
+        self.get_motor_positions()
+        
 
 
 ### advanced gui ##############################################################
 
 
-class gui(QtCore.QObject):
+class GUI(QtCore.QObject):
 
     def __init__(self, opa):
         QtCore.QObject.__init__(self)
@@ -291,6 +262,7 @@ class gui(QtCore.QObject):
         input_table = pw.InputTable()
         input_table.add('Curve', None)
         input_table.add('Filepath', self.opa.curve_path)
+        g.module_control.disable_when_true(self.opa.curve_path)
         self.lower_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
         input_table.add('Low energy limit', self.lower_limit)
         self.upper_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
@@ -362,8 +334,8 @@ class gui(QtCore.QObject):
     def on_set_motors(self):
         inputs = [destination.read() for destination in self.destinations]
         self.opa.address.hardware.q.push('set_motors', inputs)
-        self.opa.get_position()
-
+        self.opa.address.hardware.q.push('get_position')
+        
     def show_advanced(self):
         pass
 

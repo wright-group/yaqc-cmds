@@ -3,6 +3,7 @@
 
 import os
 import imp
+import collections
 
 from PyQt4 import QtCore
 
@@ -14,10 +15,6 @@ import project.ini_handler as ini
 ini = ini.spectrometers
 import project.classes as pc
 
-if g.offline.read():
-    prefix = 'v_'
-else:
-    prifix = ''
 
 ### address ###################################################################
 
@@ -29,13 +26,18 @@ class Monochromator(pc.Address):
 
 
 # list module path, module name, class name, initialization arguments, friendly name
-hardware_dict = {'MicroHR': [os.path.join(main_dir, 'spectrometers', 'MicroHR', prefix + 'MicroHR.py'), 'MicroHR', 'MicroHR', [], 'wm']}
+hardware_dict = collections.OrderedDict()
+hardware_dict['MicroHR'] = [os.path.join(main_dir, 'spectrometers', 'MicroHR', 'MicroHR.py'), 'MicroHR', 'MicroHR', [], 'wm']
+
 hardwares = []
 for key in hardware_dict.keys():
     if ini.read('hardware', key):
         lis = hardware_dict[key]
         hardware_module = imp.load_source(lis[1], lis[0])
-        hardware_class = getattr(hardware_module, lis[2])
+        if g.offline.read():
+            hardware_class = getattr(hardware_module, lis[2] + '_offline')
+        else:
+            hardware_class = getattr(hardware_module, lis[2])
         hardware_obj = pc.Hardware(hardware_class, lis[3], Monochromator, key, True, lis[4])
         hardwares.append(hardware_obj)
 

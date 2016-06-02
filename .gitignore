@@ -1,3 +1,29 @@
+# PyCMDS folders
+data/
+logs/
+coset/files/
+opas/pico/OPA1 curves/
+opas/pico/OPA2 curves/
+opas/pico/OPA3 curves/
+opas/TOPAS_C/OPA1 (10743) curves/
+opas/TOPAS_C/OPA2 (10742) curves/
+opas/TOPAS_C/configuration
+opas/TOPAS_C/manuals
+opas/TOPAS_800/configuration
+opas/TOPAS_800/manuals
+opas/TOPAS_800/OPA4 (16426) curves/
+
+# Google Drive Credentials
+*.json
+*mycreds.txt
+
+# PDFs
+*.pdf
+!PyCMDS Manual.pdf
+
+# drivers
+*devcon.exe
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -46,4 +72,3 @@ Temporary Items
 .apdisk
 modules/_play.py
 modules/2D_Delay_scan.py
-opas/pico/pico_opa.ini

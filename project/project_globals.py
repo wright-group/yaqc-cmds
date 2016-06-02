@@ -3,7 +3,7 @@ import time
 
 from PyQt4 import QtGui, QtCore
 
-### global classes #############################################################
+### global classes ############################################################
 
 class SimpleGlobal:
     def __init__(self):
@@ -30,7 +30,7 @@ class GlobalWithIni():
         if not value == None: self.value = value
         self.ini.write(self.section, self.option, self.value)
 
-### order sensitive globals  ###################################################
+### order sensitive globals  ##################################################
 
 class main_dir:
     def __init__(self):
@@ -47,7 +47,7 @@ import ini_handler as ini #must come after main_dir has been defined
 
 debug = GlobalWithIni(ini.main, 'misc', 'debug')
 
-class poll_timer:
+class PollTimer:
     def __init__(self):
         self.value = None
     def read(self):
@@ -56,7 +56,8 @@ class poll_timer:
         self.value = value
     def connect_to_timeout(self, slot):
         QtGui.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
-poll_timer = poll_timer()
+poll_timer = PollTimer()
+slack_poll_timer = PollTimer()
 
 class logger: #must come before other globals
     def __init__(self):
@@ -77,16 +78,16 @@ class logger: #must come before other globals
         self.value(level, name, message, origin)
 logger = logger()
 
-### other globals ##############################################################
+### other globals #############################################################
 #alphabetical
 
 app = SimpleGlobal()
 
 colors_dict = SimpleGlobal()
 
-comove_widget = SimpleGlobal()
+coset_control = SimpleGlobal()
 
-current_slice_widget = SimpleGlobal()
+coset_widget = SimpleGlobal()
 
 class daq_widget:
     def __init__(self):
@@ -115,10 +116,14 @@ class daq_plot_widget:
         self.value = value
 daq_plot_widget = daq_plot_widget()
 
-emulate_mono = SimpleGlobal()
-emulate_mono.write(False)
-
 hardware_advanced_box = SimpleGlobal()
+
+hardware_initialized = SimpleGlobal()
+hardware_initialized.write(False)
+
+google_drive_control = SimpleGlobal()
+
+google_drive_enabled = SimpleGlobal()
 
 class hardware_waits:
     def __init__(self):
@@ -128,7 +133,11 @@ class hardware_waits:
         self.value = []
     def add(self, method):
         self.value.append(method)
-    def wait(self):
+    def give_coset_control(self, control):
+        self.coset_control = control
+    def wait(self, coset=True):
+        if coset:
+            self.coset_control.launch()
         for method in self.value:
             method()
 hardware_waits = hardware_waits()
@@ -201,17 +210,19 @@ class module_combobox:
         return self.value.currentText()
 module_combobox = module_combobox()
 
-class module_control:
-    '''
-    holds a boolean
-    '''
+class module_control(QtCore.QObject):
     def __init__(self):
         self.value = None
         self.widgets_to_disable = []
     def read(self):
         return self.value
     def write(self, value):
-        for widget in self.widgets_to_disable: widget.setDisabled(value)
+        for widget in self.widgets_to_disable:
+            try:
+                widget.setDisabled(value)
+            except RuntimeError:
+                # widget has been deleted, probably
+                self.widgets_to_disable.remove(widget)
         self.value = value
         main_window.read().module_control.emit()
     def disable_when_true(self, widget):
@@ -292,3 +303,21 @@ class shutdown:
             method()
         main_window.read().close()
 shutdown = shutdown()
+
+slack_control = SimpleGlobal()
+
+slack_enabled = SimpleGlobal()
+
+system_name = GlobalWithIni(ini.main, 'main', 'system name')
+
+class UseArray:
+    def __init__(self):
+        self.value = False
+    def read(self):
+        return self.value
+    def write(self, value):
+        print 'USE ARRAY UPDATED!!!!!!!!!!!!'
+        self.value = value
+use_array = UseArray()
+
+version = SimpleGlobal()

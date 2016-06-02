@@ -1,235 +1,141 @@
 ### define ####################################################################
 
+
 module_name = 'TUNE TEST'
+
 
 ### import ####################################################################
 
+
+import os
 import sys
 import time
+import numexpr as ne
 
 import numpy as np
 
-import project.project_globals as g
-import project.classes as pc
+import matplotlib
+matplotlib.pyplot.ioff()
 
 from PyQt4 import QtCore, QtGui
+import WrightTools as wt
+
+import project.project_globals as g
+import project.classes as pc
+import project.widgets as pw
+import modules.scan as scan
+import project.ini_handler as ini_handler
+main_dir = g.main_dir.read()
+ini = ini_handler.Ini(os.path.join(main_dir, 'modules', 'tune_test.ini'))
 app = g.app.read()
 
-import project.widgets as custom_widgets
-
-import WrightTools as wt
 
 ### import hardware control ###################################################
 
+
 import spectrometers.spectrometers as specs
-import delays.delays as delays
 import opas.opas as opas
-import daq.daq as daq
-import daq.current as daq_current
 
-### objects ###################################################################
-
-# to do with communication between threads
-fraction_complete = pc.Mutex()
-go = pc.Busy()
-going = pc.Busy()
-pause = pc.Busy()
-paused = pc.Busy()
-
-### scan object ###############################################################
-
-class scan(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    done = QtCore.pyqtSignal()
-    
-    @QtCore.pyqtSlot(list)
-    def run(self, inputs):
-        
-        # unpack inputs -------------------------------------------------------
-        
-        scan_dictionary = inputs[0]
-        daq_widget = inputs[1]
-        gui = inputs[2]
-
-        # startup -------------------------------------------------------------
-
-        g.module_control.write(True)
-        going.write(True)
-        fraction_complete.write(0.)
-        g.logger.log('info', 'Scan begun', 'some info describing this scan')
-
-        # scan ----------------------------------------------------------------
-
-        # initialize scan in daq
-        daq.control.initialize_scan(daq_widget, scan_origin=module_name, scan_axes=['w1', 'wm'], fit=True)
-        #daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())
-        daq.control.index_slice(col='wm')
-        
-        # do loop
-        '''
-        break_scan = False
-        idx = 0
-        for k in range(len(grating_destinations)):
-            for j in range(len(bbo_destinations)):    
-                inputs = [grating_destinations[k], bbo_destinations[j], 16.]
-                OPA2.q.push('set_motors', inputs)    
-                # slice index
-                daq.control.index_slice(col='MicroHR')
-                daq_current.gui.set_xlim(spec_destinations.min(), spec_destinations.max())    
-                for i in range(len(spec_destinations)):
-                    # set mono        
-                    MicroHR.set_position(spec_destinations[i], 'nm')
-                    # wait for all hardware
-                    g.hardware_waits.wait()
-                    # read from daq
-                    daq.control.acquire()
-                    daq.control.wait_until_daq_done()
-                    # update
-                    idx += 1
-                    fraction_complete.write(float(idx)/float(npts))
-                    self.update_ui.emit()
-                    if not self.check_continue():
-                        break_scan = True
-                    if break_scan:
-                        break
-                if break_scan:
-                    break
-                # fit each slice
-                #daq.control.fit('MicroHR', 'vai0 Mean')
-            if break_scan:
-                break
-
-        daq.control.fit('wm', 'vai0_Mean')
-        '''
-        
-        # plot ----------------------------------------------------------------
-        
-        '''
-        data_path = daq.data_path.read()
-        data_obj = wt.data.from_PyCMDS(data_path)
-        artist = wt.artists.mpl_1D(data_obj)
-        fname = data_path.replace('.data', '')
-        artist.plot(fname=fname, autosave=True)
-        '''
-
-        #end-------------------------------------------------------------------
-
-        fraction_complete.write(1.)    
-        going.write(False)
-        g.module_control.write(False)
-        g.logger.log('info', 'Scan done', 'some info describing this scan')
-        self.update_ui.emit()
-        self.done.emit()
-        
-    def check_continue(self):
-        '''
-        you should put this method into your scan loop wherever you want to check 
-        for pause or stop commands from the main program
-        
-        at the very least this method MUST go into your innermost loop
-        
-        for loops, use it as follows: if not self.check_continue(): break
-        '''
-        while pause.read(): 
-            paused.write(True)
-            pause.wait_for_update()
-        paused.write(False)
-        return go.read()
-        
-# scan object exists in the shared scan thread   
-scan_obj = scan()
-scan_thread = g.scan_thread.read()
-scan_obj.moveToThread(scan_thread)
  
 ### gui #######################################################################
 
-class gui(QtCore.QObject):
 
-    def __init__(self):
-        QtCore.QObject.__init__(self)
-        scan_obj.update_ui.connect(self.update)
-        self.create_frame()
-        self.create_advanced_frame()
-        self.show_frame()  # check once at startup
-        g.shutdown.read().connect(self.stop)
-        
+class GUI(scan.GUI):
+
     def create_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
-        
+        # opa combo
+        allowed = [hardware.name for hardware in opas.hardwares]
+        self.opa_combo = pc.Combo(allowed, disable_under_module_control=True)
+        # mono
+        self.mono_width = pc.Number(ini=ini, units='wn', disable_under_module_control=True,
+                                    section='main', option='mono width (wn)',
+                                    import_from_ini=True, save_to_ini_at_shutdown=True)
+        self.mono_width.set_disabled_units(True)
+        self.mono_npts = pc.Number(initial_value=51, decimals=0, disable_under_module_control=True)
         # input table
-        input_table = custom_widgets.InputTable()
-        allowed_opas = [hardware.name for hardware in opas.hardwares]
-        self.opa_combo = pc.Combo(allowed_values=allowed_opas)
+        input_table = pw.InputTable()
         input_table.add('OPA', self.opa_combo)
-        input_table.add('Points', None)  
-        self.tune_points = pc.Bool(initial_value=True)
-        input_table.add('Use Tune Points', self.tune_points)
-        self.initial_color = pc.Number(units='wn')
-        input_table.add('Initial Color', self.initial_color)
-        self.final_color = pc.Number(units='wn')
-        input_table.add('Final Color', self.final_color)
-        self.points_number = pc.Number(initial_value=21, decimals=0)
-        input_table.add('Number', self.points_number)
         input_table.add('Spectrometer', None)
-        self.mono_width = pc.Number(units='wn')
         input_table.add('Width', self.mono_width)
-        self.mono_number = pc.Number(initial_value=21, decimals=0)
-        input_table.add('Number', self.mono_number)
+        input_table.add('Number', self.mono_npts)
+        if False:
+            self.channel_choice_combo = pc.Combo(ini=ini, section='main',
+                                                 option='channel name',
+                                                 import_from_ini=True,
+                                                 save_to_ini_at_shutdown=True,
+                                                 disable_under_module_control=True)
+            input_table.add('Processing', None)
+            input_table.add('Channel', self.channel_choice_combo)
         layout.addWidget(input_table)
-        
-        # daq widget
-        self.daq_widget = daq.Widget()
-        layout.addWidget(self.daq_widget)
-        
-        # go button
-        self.go_button = custom_widgets.module_go_button()
-        self.go_button.give_launch_scan_method(self.launch_scan)
-        self.go_button.give_stop_scan_method(self.stop)  
-        self.go_button.give_scan_complete_signal(scan_obj.done)
-        self.go_button.give_pause_objects(pause, paused)
-        
-        layout.addWidget(self.go_button)
-        
+        # scan widget
+        layout.addWidget(self.scan.widget)
+        # finish
         layout.addStretch(1)
-        
         self.frame = QtGui.QWidget()
         self.frame.setLayout(layout)
-        
         g.module_widget.add_child(self.frame)
         g.module_combobox.add_module(module_name, self.show_frame)
+        #daq.daq.task_changed.connect(self.on_daq_task_changed)
+        #self.on_daq_task_changed()
 
-    def create_advanced_frame(self):
-        layout = QtGui.QVBoxLayout()
-        layout.setMargin(5)
-
-        self.advanced_frame = QtGui.QWidget()   
-        self.advanced_frame.setLayout(layout)
+    def launch_scan(self):
+        axes = []
+        # get OPA properties
+        opa_index = self.opa_combo.read_index()
+        opa_hardware = opas.hardwares[opa_index]
+        opa_friendly_name = opa_hardware.friendly_name
+        curve = opa_hardware.address.ctrl.curve.copy()
+        curve.convert('wn')
+        # tune point axis
+        axis = scan.Axis(curve.colors, 'wn', opa_friendly_name, opa_friendly_name)
+        axes.append(axis)
+        # mono axis
+        name = 'wm'
+        identity = 'Dwm'
+        kwargs = {'centers': curve.colors,
+                  'centers_units': curve.units,
+                  'centers_follow': opa_friendly_name}
+        width = self.mono_width.read()/2.
+        npts = self.mono_npts.read()
+        points = np.linspace(-width, width, npts)
+        hardware = specs.hardwares[0]
+        axis = scan.Axis(points, 'wn', name, identity, **kwargs)
+        axes.append(axis)
+        # launch
+        self.scan.launch(axes)
         
-        g.module_advanced_widget.add_child(self.advanced_frame)
-
-    def show_frame(self):
-        self.frame.hide()
-        self.advanced_frame.hide()
-        if g.module_combobox.get_text() == module_name:
-            self.frame.show()
-            self.advanced_frame.show()
-
-    def launch_scan(self):        
-        go.write(True)
-        print 'running'
-        scan_dictionary = {}
-        inputs = [scan_dictionary, self.daq_widget, self]
-        QtCore.QMetaObject.invokeMethod(scan_obj, 'run', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(list, inputs))    
-        g.progress_bar.begin_new_scan_timer()        
+    def on_daq_task_changed(self):
+        allowed_values = daq.value_channel_combo.allowed_values
+        self.channel_choice_combo.set_allowed_values(allowed_values)
         
-    def update(self):
-        g.progress_bar.set_fraction(fraction_complete.read())
-              
-    def stop(self):
-        print 'stopping'
-        go.write(False)
-        while going.read(): going.wait_for_update()
-        print 'stopped'
-        
-gui = gui()
+    def on_done(self):
+        '''
+        Make pickle and figures.
+        '''
+        scan.GUI.on_done(self)
+        return  # TODO:
+        # get path
+        data_path = daq.data_path.read() 
+        # make data object
+        data = wt.data.from_PyCMDS(data_path, verbose=False)
+        data.save(data_path.replace('.data', '.p'), verbose=False)
+        # make image
+        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        channel_name = self.channel_choice_combo.read()
+        data.transpose()
+        artist = wt.artists.mpl_2D(data)
+        artist.plot(channel_name, autosave=True, output_folder=data_folder, fname=file_name)
+        output_image_path = wt.kit.glob_handler('.png', folder=data_folder)[0]
+        # send message on slack
+        if g.slack_enabled.read():
+            slack = g.slack_control.read()
+            slack.send_message('scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text()))
+            if len(data.shape) < 3:
+                print output_image_path
+                slack.upload_file(output_image_path)
+        # finish
+        self.autocopy(data_folder)
+
+gui = GUI(module_name)
