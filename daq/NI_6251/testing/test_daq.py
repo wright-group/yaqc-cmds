@@ -156,8 +156,8 @@ plt.xlabel('us')
 plt.ylabel('V')
 
 
-plt.axvline(700)
-plt.axvline(800)
+plt.axvline(600)
+plt.axvline(605)
 
 plt.xlim(0, 5000)
 

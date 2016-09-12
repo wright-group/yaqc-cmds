@@ -13,6 +13,10 @@ opas/TOPAS_800/configuration
 opas/TOPAS_800/manuals
 opas/TOPAS_800/OPA4 (16426) curves/
 
+# PyCMDS config files
+*.ini
+!PyCMDS.ini
+
 # Google Drive Credentials
 *.json
 *mycreds.txt

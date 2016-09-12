@@ -981,7 +981,7 @@ class MotorControlGUI(QtGui.QWidget):
         self.driver.address.hardware.q.push('home_motor', [self.motor_name])
     
     def on_set(self):
-        destination = int(self.destination.read())
+        destination = self.destination.read()
         self.driver.address.hardware.q.push('set_motor', [self.motor_name, destination])
 
 
