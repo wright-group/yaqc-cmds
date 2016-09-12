@@ -102,7 +102,7 @@ class CurrentSlice(QtCore.QObject):
             The new slice dictionary, passed all the way from the acquisition
             orderer module.
         '''
-        self.name = d['name']
+        self.name = str(d['name'])  # somehow a qstring is getting here? - Blaise 2016.07.27
         self.units = d['units']
         self.points = d['points']
         self.use_actual = d['use actual']
@@ -239,19 +239,36 @@ class FileAddress(QtCore.QObject):
             
     def create_data(self, inputs):
         # unpack inputs        
-        daq_widget = inputs[0]        
+        daq_widget = inputs[0] 
         # get info
-        timestamp = headers.pycmds_info['file created']
-        origin = headers.data_info['data origin']
+        queue_timestamp = wt.kit.get_timestamp(style='short')
+        acquisition_module_name = headers.data_info['data origin']
         axes = str(headers.axis_info['axis names'])
+        axes.replace('\'', '')
         description = daq_widget.description.read()
-        # generate file name
-        self.filename = ' '.join([origin, axes, timestamp, description]).rstrip()
-        self.filename = self.filename.replace('\'', '')
+        acquisition_index = 0
+        scan_index = 0
+        file_index = 0
+        # fake queue folder
+        queue_folder_name = queue_timestamp
+        queue_folder = os.path.join(main_dir, 'data', queue_folder_name)
+        os.mkdir(queue_folder)
+        # fake acquisition folder
+        acquisition_index_str = str(acquisition_index).zfill(3)
+        acquisition_folder_name = ' '.join([acquisition_index_str, acquisition_module_name, description]).rstrip()
+        acquisition_folder = os.path.join(queue_folder, acquisition_folder_name)
+        os.mkdir(acquisition_folder)                
+        # fake scan folder
+        scan_index_str = str(scan_index).zfill(3)
+        scan_folder_name = ' '.join([scan_index_str, axes])
+        scan_folder = os.path.join(acquisition_folder, scan_folder_name)
+        print(scan_folder, os.path.isdir(acquisition_folder))
+        os.mkdir(scan_folder)
+        # file name
+        file_index_str = str(file_index).zfill(3)
+        self.filename = ' '.join([file_index_str]).rstrip()
         # create folder
-        data_folder = os.path.join(main_dir, 'data', self.filename)
-        os.mkdir(data_folder)
-        data_path.write(os.path.join(data_folder, self.filename + '.data'))
+        data_path.write(os.path.join(scan_folder, self.filename + '.data'))
         # generate file
         dictionary = headers.read(kind='data')
         wt.kit.write_headers(data_path.read(), dictionary)

@@ -58,8 +58,8 @@ void setup(){
   pinMode(motor_2_interrupt, INPUT);
   pinMode(motor_3_interrupt, INPUT);
   //initiate stepper motor
-  step_forward.setSpeed(500);
-  step_backward.setSpeed(500);
+  step_forward.setSpeed(100);
+  step_backward.setSpeed(100);
   //initiate serial
   Serial.begin(57600);
   while (!Serial) ; //wait for port to connect
@@ -90,7 +90,7 @@ void loop(){
 //--------------------------------------------------------------------------------------------
 //move motor function
 
-void moveMotor(int motor, int steps) {
+void moveMotor(int steps, int motor) {
   
   //activate appropriate motor
   if (motor == 1) digitalWrite(motor_1, HIGH);
