@@ -41,7 +41,7 @@ class ExpandingWidget(QtGui.QWidget):
         layout.setStretchFactor(self, 16777215)
 
         
-class line(QtGui.QFrame):
+class Line(QtGui.QFrame):
     '''
     direction: 'V' or 'H'
     '''
@@ -53,6 +53,7 @@ class line(QtGui.QFrame):
             self.setFrameShape(QtGui.QFrame.HLine)
         StyleSheet = 'QFrame{border: 2px solid custom_color; border-radius: 0px; padding: 0px;}'.replace('custom_color', colors['widget_background'])
         self.setStyleSheet(StyleSheet)
+line = Line  # legacy
 
 
 class scroll_area(QtGui.QScrollArea):
@@ -328,7 +329,7 @@ class Label(QtGui.QLabel):
             bold_status = 'bold'
         else:
             bold_status = ''
-        StyleSheet = 'QLabel{color: custom_color; font: bold_status 14px;}'.replace('custom_color', colors[color]).replace('bold_status', bold_status)
+        StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors[color]).replace('bold_status', bold_status)
         self.setStyleSheet(StyleSheet)
 
 class SetButton(QtGui.QPushButton):
@@ -344,6 +345,7 @@ class TableWidget(QtGui.QTableWidget):
         QtGui.QTableWidget.__init__(self)
         StyleSheet = 'QTableWidget::item{padding: 0px}'
         StyleSheet += 'QHeaderView::section{background: background_color; color:white; font: bold 14px}'.replace('background_color', colors['background'])
+        StyleSheet += 'QTableWidget{background-color: custom_color;}'.replace('custom_color', colors['background'])
         self.setStyleSheet(StyleSheet)
         
 class TabWidget(QtGui.QTabWidget):
@@ -353,6 +355,7 @@ class TabWidget(QtGui.QTabWidget):
         self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
+
 
 class BusyDisplay(QtGui.QPushButton):
     '''
@@ -381,6 +384,7 @@ class BusyDisplay(QtGui.QPushButton):
             self.setText('READY')
             StyleSheet = 'QPushButton{background:background_color; border-width:0px;  border-radius: 0px; font: bold 14px; color: text_color}'.replace('background_color', colors['background']).replace('text_color', colors['background'])
             self.setStyleSheet(StyleSheet)        
+
 
 class Hardware_control_table(QtGui.QWidget):
 
@@ -469,7 +473,7 @@ class HardwareLayoutWidget(QtGui.QGroupBox):
         # add
         self.layout().addWidget(button_container)
         # connect to signals
-        g.module_control.disable_when_true(set_button)
+        g.queue_control.disable_when_true(set_button)
         button_container.layout().addWidget(set_button)
         set_button.clicked.connect(set_method)
         for hardware in hardwares:
@@ -479,7 +483,7 @@ class HardwareLayoutWidget(QtGui.QGroupBox):
             
 
 def set_button_decide(set_button, hardwares):
-    if g.module_control.read():
+    if g.queue_control.read():
         set_button.setDisabled(True)
     else:
         set_button.setDisabled(False)
@@ -576,7 +580,7 @@ class HardwareAdvancedPanel(QtCore.QObject):
         self.advanced_button = advanced_button
         self.advanced_button.clicked.connect(self.on_advanced)
         main_window = g.main_window.read()
-        self.advanced_button.clicked.connect(lambda: main_window.tabs.setCurrentIndex(0))
+        self.advanced_button.clicked.connect(lambda: main_window.tabs.setCurrentIndex(1))
         hardware_advanced_panels.append(self)
         self.hide()
 
@@ -588,13 +592,15 @@ class HardwareAdvancedPanel(QtCore.QObject):
         for panel in hardware_advanced_panels:
             panel.hide()
         self.tabs.show()
-        self.advanced_button.setDisabled(True)
+        #self.advanced_button.setDisabled(True)
 
 
-### module ####################################################################
+### queue #####################################################################
         
 
+# TODO: remove
 class module_combobox(QtGui.QComboBox):
+    # TODO: remove this legacy widget
     shutdown_go = QtCore.pyqtSignal()
     def __init__(self):
         QtGui.QComboBox.__init__(self)
@@ -602,65 +608,46 @@ class module_combobox(QtGui.QComboBox):
         self.setStyleSheet(StyleSheet)
 
       
-class module_go_button(QtGui.QPushButton):
+class QueueControl(QtGui.QPushButton):
     launch_scan = QtCore.pyqtSignal()
     stop_scan = QtCore.pyqtSignal()
-    '''
-    access value object to get state
-    
-    True: scan running
-    
-    pause methods are built in to this object
-    '''
+
     def __init__(self):
         QtGui.QPushButton.__init__(self)
         self.clicked.connect(self.update)
         self.setMinimumHeight(25)
-        self.custom_style_maker('GO', 'go')
+        self.set_style('RUN QUEUE', 'go')
         self.value = False
-    def update(self):
-        if self.value:
-            #pause or stop scan
-            self.pause_or_stop()
-        else:
-            #begin scan
-            self.custom_style_maker('STOP', 'stop')
-            self.value = True
-            self.launch_scan_method()
-    def give_launch_scan_method(self, method):
-        self.launch_scan_method = method
-    def give_stop_scan_method(self, method):
-        self.stop_scan_method = method
-    def give_scan_complete_signal(self, signal):
-        signal.connect(self.scan_complete)
-    def give_pause_objects(self, pause, paused):
-        self.pause_object = pause
-        self.paused_object = paused
-    def give_going_objects(self, go, going):
-        self.go_object = go
-        self.going_object = going
-    def custom_style_maker(self, text, color):
+
+    def set_style(self, text, color):
         self.setText(text)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[color])
         self.setStyleSheet(StyleSheet)
-    def pause_or_stop(self):
-        self.pause_object.write(True)
-        self.wait_for_scan_to_pause()
-        my_window = choice_window()
-        answer = my_window.say('PAUSED', 'Do you wish to continue or stop?', ['CONTINUE', 'STOP'], icon = 'Question')  
-        self.pause_object.write(False)        
-        if answer == 1: self.stop_scan_method()
-        else: self.custom_style_maker('STOP', 'stop')
-    def wait_for_scan_to_pause(self):
-        self.clicked.disconnect(self.update)
-        self.setText('WAIT')
-        g.app.read().processEvents()
-        print 'here is wait_for_scan_to_pause', self.paused_object.read()
-        while not self.paused_object.read(): self.paused_object.wait_for_update()
-        self.clicked.connect(self.update)
-    def scan_complete(self):
-        self.value = False
-        self.custom_style_maker('GO', 'go')
+
+
+class ChoiceWindow(QtGui.QMessageBox):
+
+    def __init__(self, title, button_labels):
+        QtGui.QMessageBox.__init__(self)
+        self.setWindowTitle('window title')
+        for label in button_labels:
+            my_button = QtGui.QPushButton(label)
+            self.addButton(my_button, QtGui.QMessageBox.YesRole)
+        self.setIcon(self.NoIcon)
+
+    def set_informative_text(self, text):
+        self.setInformativeText(text)
+
+    def set_text(self, text):
+        self.setText(text)
+
+    def show(self):
+        '''
+        Returns the index of the chosen button
+        '''
+        self.isActiveWindow()
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        return self.exec_()
 
 
 ### plotting ##################################################################
@@ -668,7 +655,7 @@ class module_go_button(QtGui.QPushButton):
 
 class Plot1D(pg.GraphicsView):
     
-    def __init__(self, title=None):
+    def __init__(self, title=None, xAutoRange=True, yAutoRange=True):
         pg.GraphicsView.__init__(self)
         #create layout
         self.graphics_layout = pg.GraphicsLayout(border = 'w')
@@ -684,6 +671,7 @@ class Plot1D(pg.GraphicsView):
         self.y_axis.setLabel(**self.labelStyle)
         self.plot_object.showGrid(x = True, y = True, alpha = 0.5)
         self.plot_object.setMouseEnabled(False, True)
+        self.plot_object.enableAutoRange(x=xAutoRange, y=yAutoRange)
         #title
         if title: 
             self.plot_object.setTitle(title)
@@ -782,35 +770,41 @@ class choice_window(QtGui.QMessageBox):
         return self.exec_()
 
 
-class wait_window(QtGui.QMessageBox):
+class MessageWindow(QtGui.QWidget):
 
-    def __init__(self, wait_for, text='', wait_to_be='True'):
-        '''
-        waits for a boolean to be true or false
-        '''
-        QtGui.QMessageBox.__init__(self)
-        self.setWindowTitle('wait')
-        self.setText('wait wait wait')
+    def __init__(self, text='Please wait.', title='Wait'):
+        QtGui.QWidget.__init__(self, parent=None)
+        self.setWindowTitle(title)
         self.isActiveWindow()
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        print 'here', wait_for.read()
-        if wait_to_be == 'True':
-            while not wait_for.read():
-                self.show()
-                wait_for.wait_for_update()
-            self.close()
-        else:
-            while wait_for.read():
-                self.show()
-                wait_for.wait_for_update()
-            self.close()
-            
+        #disable 'x'
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
+        # set geometry
+        self.window_verti_size = 50
+        self.window_horiz_size = 200
+        self.setGeometry(0,0, self.window_horiz_size, self.window_verti_size)
+        self._center()
+        # add content
+        self.label = QtGui.QLabel(text)
+        self.label.setAlignment(QtCore.Qt.AlignCenter)
+        layout = QtGui.QHBoxLayout()
+        layout.addWidget(self.label)
+        self.setLayout(layout)
+        # finish
+        self.show()
+        self.hide()
+      
+    def _center(self):
+        # a function which ensures that the window appears in the center of the screen at startup
+        screen = QtGui.QDesktopWidget().screenGeometry() 
+        size = self.geometry() 
+        self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
+
+
 ### testing ###################################################################
-            
+    
+        
 if __name__ == '__main__':
     print 'hello world'
     plt = Plot1D()
-    
-    
-    
-    

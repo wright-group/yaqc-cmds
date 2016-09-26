@@ -115,69 +115,31 @@ class Control:
         # connect
         g.shutdown.add_method(self.close)
         # signal startup
-        self.send_message('signing on', ini.read('bots', 'channel'))
+        self.send_message(':wave: signing on', ini.read('bots', 'channel'))
         g.slack_control.write(self)
         
-    def _get_data_folders(self, full=False):
-        data_directory = os.path.join(g.main_dir.read(), 'data')
-        if full:
-            folder_names = [os.path.join(data_directory, name) for name in os.listdir(data_directory) if os.path.isdir(os.path.join(data_directory, name))]
-        else:
-            folder_names = [name for name in os.listdir(data_directory) if os.path.isdir(os.path.join(data_directory, name))]
-        folder_names.reverse()  # most recent should be first
-        return folder_names
-        
-    def _make_attachment(self, text, pretext=None, fields=None, color='#808080'):
-        attachment = {}
-        if pretext is not None:
-            attachment['pretext'] = pretext
-        if fields is not None:
-            attachment['fields'] = fields
-        attachment['color'] = color
-        attachment['text'] = text
-        attachment['mrkdwn_in'] = ['fields']
-        return attachment
-        
-    def _make_field(self, title, value, short=False):
-        field = {}
-        field['title'] = title
-        field['value'] = value
-        field['short'] = short
-        return field
-        
-    def _make_list(self, items):
-        out = ''
-        n = 0
-        for item in items:
-            out += str(n).zfill(2) + ' :arrow_right: ' + item + '\n'
-            n+= 1
-        return out
+    def append(self, text, channel):
+        self.send_message(':confounded: sorry, that feature hasn\'t been implemented')        
         
     def close(self):
-        self.q.push('sign_off', ['signing off'])
+        self.q.push('sign_off', [':spock-hand: signing off'])
         time.sleep(1)
         # quit thread
         self.thread.exit()
         self.thread.quit()
         
-    def delete_files(self):
-        self.q.push('delete_files')
-        self.send_message('old files deleted :wastebasket:')
-        
     def get(self, text, channel):
-        # extract numbers from text
-        numbers = [int(s) for s in text.split() if s.isdigit()]
-        if len(numbers) > 0:
-            number = numbers[0]
-        else:
-            number = 0
-        # get data folder
-        data_folder = self._get_data_folders(full=True)[number]
-        print data_folder
-        # get data filepath
-        data_path = wt.kit.glob_handler('.data', data_folder)[0]
-        self.upload_file(data_path, channel=channel)
-        
+        # interpret text as integer
+        try:
+            i = int(text)
+        except:
+            self.send_message(':interrobang: I couldn\'t find a number in your request')
+            return
+        print(i)
+
+    def interrupt(self, text, channel):
+        self.send_message(':confounded: sorry, that feature hasn\'t been implemented')        
+
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
         print text
@@ -224,18 +186,34 @@ class Control:
         list_string = self._make_list(folder_names)
         attachment = self._make_attachment(list_string)
         self.send_message('here are the {0} most recent aquisitions (out of {1})'.format(number, num_folders), channel, [attachment])
+
+    def make_attachment(self, text, title=None, pretext=None, fields=None, color='#808080'):
+        attachment = {}
+        if pretext is not None:
+            attachment['pretext'] = pretext
+        if fields is not None:
+            attachment['fields'] = fields
+        if title is not None:
+            attachment['title'] = title
+        attachment['color'] = color
+        attachment['text'] = text
+        attachment['mrkdwn_in'] = ['fields']
+        return attachment
         
+    def make_field(self, title, value, short=False):
+        field = {}
+        field['title'] = title
+        field['value'] = value
+        field['short'] = short
+        return field
+
+    def move(self, text, channel):
+        self.send_message(':confounded: sorry, that feature hasn\'t been implemented')
+
     def poll(self):
         if not self.busy.read():
             self.q.push('get_messages', [60])
         self.read_messages()
-        # call delete files if it is within 60 seconds of midnight
-        if time.time() - self.most_recent_delete > 100:
-            now = datetime.datetime.now()
-            midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            if (now - midnight).seconds < 60:
-                self.delete_files()
-                self.most_recent_delete = time.time()
             
     def read_messages(self):
         messages = messages_mutex.read()
@@ -260,42 +238,45 @@ class Control:
             # process
             if 'echo ' in text:
                 out = text.split('echo ', 1)[1]
-                self.send_message(out, channel)   
-            elif 'log' in text:
-                self.log(text, channel)
+                message = ':mega: ' + out
+                self.send_message(message, channel)
             elif 'get' == text[:3]:
                 self.get(text, channel)
-            elif 'ls' in text:
-                self.ls(text, channel)
             elif 'status' in text:
                 self.status(text, channel)
+            elif 'remove' in text:
+                self.remove(text, channel)
+            elif 'move' in text:
+                self.move(text, channel)
+            elif 'append' in text:
+                self.append(text, channel)
+            elif 'interrupt' in text:
+                self.interrupt(text, channel)
             elif 'help' in text:
                 self.send_help(channel)
-            elif text == 'delete':
-                self.delete_files()
             else:
-                attachment = self._make_attachment(text)
-                self.send_message('command not recognized - type help for a list of available commands', channel, [attachment])
+                self.send_message(':thinking_face: command \'{}\' not recognized - type \'help\' for a list of available commands'.format(text), channel)
+
+    def remove(self, text, channel):
+        self.send_message(':confounded: sorry, that feature hasn\'t been implemented')
 
     def send_help(self, channel):
         command_fields = []
-        command_fields.append(self._make_field('get [n=0]', 'Get the *nth* most recent data file.'))
-        command_fields.append(self._make_field('ls [n=10]', 'List the *n* most recent aquisitions.'))
-        command_fields.append(self._make_field('log [get or n=10]', '*get* the log file, or list the *n* most recent logged actions.'))
-        command_fields.append(self._make_field('status', 'Get the current status of PyCMDS.'))
-        attachment = self._make_attachment('', fields=command_fields)
-        self.send_message('here are my commands :robot_face:', channel, [attachment])
+        command_fields.append(self.make_field('status', 'Get the current status of PyCMDS.'))
+        command_fields.append(self.make_field('get i', 'Get more information about the ith item in the queue.'))
+        command_fields.append(self.make_field('remove i', 'Remove the ith item from the queue.'))
+        command_fields.append(self.make_field('move i to j', 'Move item i to position j. All other items retain their order.'))
+        command_fields.append(self.make_field('append [name] [info]', 'Append a file to the queue. Must be made as a comment of an attached file.'))
+        command_fields.append(self.make_field('interrupt', 'Interrupt the queue.'))
+        attachment = self.make_attachment('', fields=command_fields)
+        self.send_message(':robot_face: here are my commands', channel, [attachment])
 
     def send_message(self, text, channel=None, attachments=[]):
         self.q.push('send_message', [text, channel, attachments])
         
     def status(self, text, channel):
-        if g.progress_bar.time_elapsed.text() == '00:00:00':
-            self.send_message('no scan run since startup', channel)
-        elif g.progress_bar.time_remaining.text() == '00:00:00':
-            self.send_message('scan completed', channel)
-        else:
-            self.send_message('scan ongoing - {} remains'.format(g.progress_bar.time_remaining.text()), channel)
+        text, attachments = g.main_window.read().get_status()
+        self.send_message(text, channel, attachments)
         
     def upload_file(self, file_path, title=None, first_comment=None, channel=None):
         self.q.push('upload_file', [file_path, title, first_comment, channel])

@@ -147,7 +147,7 @@ class PyCMDS_Object(QtCore.QObject):
                  ini=None, section='', option='',
                  import_from_ini=True, save_to_ini_at_shutdown=True,
                  display=False, name='', label = '', set_method=None,
-                 disable_under_module_control=False,
+                 disable_under_queue_control=False,
                  *args, **kwargs):
         QtCore.QObject.__init__(self)
         self.has_widget = False
@@ -178,8 +178,8 @@ class PyCMDS_Object(QtCore.QObject):
         else:
             self.label = self.name
         # disable under module control
-        if disable_under_module_control:
-            g.main_window.read().module_control.connect(self.on_module_control)
+        if disable_under_queue_control:
+            g.main_window.read().queue_control.connect(self.on_queue_control)
             
     def associate(self, display=None, pre_name=''):
         # display
@@ -192,8 +192,8 @@ class PyCMDS_Object(QtCore.QObject):
                                  name=name)
         return new_obj
             
-    def on_module_control(self):
-        if g.module_control.read():
+    def on_queue_control(self):
+        if g.queue_control.read():
             if self.has_widget:
                 self.widget.setDisabled(True)
         else:
@@ -350,16 +350,19 @@ class Combo(PyCMDS_Object):
 
 class Filepath(PyCMDS_Object):
 
-    def __init__(self, caption='Open', directory=None, options=[],
+    def __init__(self, caption='Open', directory=None, options=[], kind='file',
                  *args, **kwargs):
         '''
         holds the filepath as a string \n
+        
+        Kind one in {'file', 'directory'}
         '''
         PyCMDS_Object.__init__(self, *args, **kwargs)
         self.type = 'filepath'
         self.caption = caption
         self.directory = directory
         self.options = options
+        self.kind = kind
         
     def give_control(self, control_widget):
         self.widget = control_widget
@@ -386,10 +389,20 @@ class Filepath(PyCMDS_Object):
             else:
                 directory_string = g.main_dir.read()
         # filter
-        filter_string = ';;'.join(self.options + ['All Files (*.*)'])
-        out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
-        if os.path.isfile(out):
-            self.write(out)
+        
+        if self.kind == 'file':
+            filter_string = ';;'.join(self.options + ['All Files (*.*)'])
+            out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
+            if os.path.isfile(out):
+                self.write(out)
+        elif self.kind == 'directory':
+            out = file_dialog_handler.dir_dialog(self.caption, directory_string, '')
+            if os.path.isdir(out):
+                self.write(out)
+
+    def read(self):
+        # want python string, not QString
+        return str(PyCMDS_Object.read(self))
 
 
 class NumberLimits(PyCMDS_Object):
@@ -567,22 +580,31 @@ class Number(PyCMDS_Object):
 
 class String(PyCMDS_Object):
 
-    def __init__(self, initial_value='', *args, **kwargs):
+    def __init__(self, initial_value='', max_length=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, initial_value=initial_value, *args, **kwargs)
         self.type = 'string'
+        self.max_length = max_length
 
     def give_control(self, control_widget):
         self.widget = control_widget
+        if self.max_length is not None:
+            self.widget.setMaxLength(self.max_length)
         # fill out items
         self.widget.setText(str(self.value.read()))
         # connect signals and slots
         self.updated.connect(lambda: self.widget.setText(self.value.read()))
-        self.widget.editingFinished.connect(lambda: self.write(self.widget.text()))
+        self.widget.editingFinished.connect(lambda: self.write(str(self.widget.text())))
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True
             
     def read(self):
         return str(PyCMDS_Object.read(self))
+    
+    def write(self, value):
+        if self.max_length is not None:
+            value = value[:self.max_length]
+        self.value.write(value)
+        self.updated.emit()
 
 
 ### hardware ##################################################################
@@ -822,7 +844,7 @@ class Hardware(QtCore.QObject):
         if force:
             self.q.push('poll')
             self.get_position()
-        elif not g.module_control.read():
+        elif not g.queue_control.read():
             self.q.push('poll')
             self.get_position()
             
