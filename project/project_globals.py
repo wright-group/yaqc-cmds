@@ -45,7 +45,7 @@ main_dir = main_dir()
 
 import ini_handler as ini #must come after main_dir has been defined
 
-debug = GlobalWithIni(ini.main, 'misc', 'debug')
+debug = GlobalWithIni(ini.config, 'misc', 'debug')
 
 class PollTimer:
     def __init__(self):
@@ -193,24 +193,7 @@ class module_advanced_widget:
         self.value.layout().addWidget(self.child)
 module_advanced_widget = module_advanced_widget()
 
-class module_combobox:
-    def __init__(self):
-        self.value = None
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.value = value
-    def add_module(self, name, show_frame_method):
-        '''
-        name: string
-        '''
-        self.value.addItem(name)
-        self.value.currentIndexChanged.connect(show_frame_method)
-    def get_text(self):
-        return self.value.currentText()
-module_combobox = module_combobox()
-
-class module_control(QtCore.QObject):
+class QueueControl(QtCore.QObject):
     def __init__(self):
         self.value = None
         self.widgets_to_disable = []
@@ -224,27 +207,12 @@ class module_control(QtCore.QObject):
                 # widget has been deleted, probably
                 self.widgets_to_disable.remove(widget)
         self.value = value
-        main_window.read().module_control.emit()
+        main_window.read().queue_control.emit()
     def disable_when_true(self, widget):
         self.widgets_to_disable.append(widget)
-module_control = module_control()
+queue_control = QueueControl()
 
-class module_widget:
-    def __init__(self):
-        self.value = None
-        self.child = None
-    def read(self):
-        return self.value
-    def write(self, value):
-        self.value = value
-    def add_child(self, widget):
-        self.value.setLayout(QtGui.QVBoxLayout())
-        self.child = widget
-        self.value.layout().setMargin(0)
-        self.value.layout().addWidget(self.child)
-module_widget = module_widget()
-
-offline = GlobalWithIni(ini.main, 'misc', 'offline')
+offline = GlobalWithIni(ini.config, 'misc', 'offline')
 
 class progress_bar:
     def __init__(self):
@@ -308,7 +276,7 @@ slack_control = SimpleGlobal()
 
 slack_enabled = SimpleGlobal()
 
-system_name = GlobalWithIni(ini.main, 'main', 'system name')
+system_name = GlobalWithIni(ini.config, 'main', 'system name')
 
 class UseArray:
     def __init__(self):

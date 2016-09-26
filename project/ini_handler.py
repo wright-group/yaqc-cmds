@@ -76,9 +76,10 @@ class Ini(QtCore.QMutex):
 ### shared inis initialized here ##############################################
 
 
-main = Ini(os.path.join(main_dir, 'PyCMDS.ini'))
-daq = Ini(os.path.join(main_dir, 'daq', 'daq.ini'))
-delays = Ini(os.path.join(main_dir, 'delays', 'delays.ini'))
-opas = Ini(os.path.join(main_dir, 'opas', 'opas.ini'))
-nds = Ini(os.path.join(main_dir, 'nds', 'nds.ini'))
-spectrometers = Ini(os.path.join(main_dir, 'spectrometers', 'spectrometers.ini'))
+main = Ini(os.path.join(main_dir, 'main.ini'))
+config = Ini(os.path.join(main_dir, 'config.ini'))
+daq = Ini(os.path.join(main_dir, 'devices', 'devices.ini'))
+delays = Ini(os.path.join(main_dir, 'hardware', 'delays', 'delays.ini'))
+opas = Ini(os.path.join(main_dir, 'hardware', 'opas', 'opas.ini'))
+nds = Ini(os.path.join(main_dir, 'hardware', 'nds', 'nds.ini'))
+spectrometers = Ini(os.path.join(main_dir, 'hardware', 'spectrometers', 'spectrometers.ini'))
