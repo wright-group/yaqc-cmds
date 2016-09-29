@@ -236,23 +236,23 @@ class Control:
                 text = text.split(' ', 1)[1]
                 print 'message read from slack:', text
             # process
-            if 'echo ' in text:
+            if 'echo ' in text.lower():
                 out = text.split('echo ', 1)[1]
                 message = ':mega: ' + out
                 self.send_message(message, channel)
-            elif 'get' == text[:3]:
+            elif 'get' == text[:3].lower():
                 self.get(text, channel)
-            elif 'status' in text:
+            elif 'status' in text.lower():
                 self.status(text, channel)
-            elif 'remove' in text:
+            elif 'remove' in text.lower():
                 self.remove(text, channel)
-            elif 'move' in text:
+            elif 'move' in text.lower():
                 self.move(text, channel)
-            elif 'append' in text:
+            elif 'append' in text.lower():
                 self.append(text, channel)
-            elif 'interrupt' in text:
+            elif 'interrupt' in text.lower():
                 self.interrupt(text, channel)
-            elif 'help' in text:
+            elif 'help' in text.lower():
                 self.send_help(channel)
             else:
                 self.send_message(':thinking_face: command \'{}\' not recognized - type \'help\' for a list of available commands'.format(text), channel)

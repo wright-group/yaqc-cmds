@@ -22,7 +22,7 @@ import project.widgets as pw
 import somatic.acquisition as acquisition
 import project.ini_handler as ini_handler
 main_dir = g.main_dir.read()
-ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'tune_test.ini'))
+ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'scan.ini'))
 app = g.app.read()
 
 import hardware.spectrometers.spectrometers as spectrometers
@@ -100,8 +100,7 @@ class Constant():
         self.widget.add('Expression', self.expression)
 
     def get_name(self):
-        # TODO:
-        return 'constant'        
+        return self.hardware_name_combo.read()     
         
     def hide(self):
         self.widget.hide()
@@ -113,8 +112,50 @@ class Constant():
 class Worker(acquisition.Worker):
     
     def process(self, scan_folder):
-        # TODO:
-        acquisition.Worker.process(self, scan_folder)
+        # get path
+        data_path = devices.data_path.read() 
+        # make data object
+        data = wt.data.from_PyCMDS(data_path, verbose=False)
+        # decide which channels to make plots for
+        if self.aqn.read('processing', 'process all channels'):
+            channels = data.channel_names
+        else:
+            channels = [self.aqn.read('processing', 'main channel')]
+        # chop data if over 2D
+        if len(data.shape) > 2:
+            chopped_datas = data.chop(0, 1, verbose=False)
+        # make figures for each channel
+        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        # make all images
+        for channel_index, channel_name in enumerate(channels):
+            image_fname = channel_name
+            if len(data.shape) == 1:
+                artist = wt.artists.mpl_1D(data, verbose=False)
+                artist.plot(channel_index, autosave=True, output_folder=data_folder,
+                            fname=image_fname, verbose=False)
+            elif len(data.shape) == 2:
+                artist = wt.artists.mpl_2D(data, verbose=False)
+                artist.plot(channel_index, autosave=True, output_folder=data_folder,
+                            fname=image_fname, verbose=False)
+            else:
+                channel_folder = os.path.join(data_folder, channel_name)
+                os.mkdir(channel_folder)
+                for index, chopped_data in enumerate(chopped_datas):
+                    this_image_fname = image_fname + ' ' + str(index).zfill(3)
+                    artist = wt.artists.mpl_2D(chopped_data, verbose=False)
+                    artist.plot(channel_index, autosave=True, output_folder=channel_folder,
+                                fname=this_image_fname, verbose=False)
+        # get output image
+        main_channel = self.aqn.read('processing', 'main channel')
+        if len(data.shape) <= 2:
+            output_image_path = main_channel + ' 000.png'
+        else:
+            output_folder = os.path.join(data_folder, main_channel)
+            output_image_path = os.path.join(output_folder, 'animation.gif')
+            images = wt.kit.glob_handler('.png', folder=output_folder)
+            wt.artists.stitch_to_animation(images=images, outpath=output_image_path)
+        # upload
+        self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
     
     def run(self):
         # axes
@@ -128,11 +169,17 @@ class Worker(acquisition.Worker):
             axis = acquisition.Axis(points, units, axis_name, axis_name)
             axes.append(axis)
         # constants
-        # TODO:
+        constants = []
+        for constant_name in self.aqn.read('scan', 'constant names'):
+            units = 'wn'  # TODO: this is a hack, remove it
+            name = constant_name
+            identity = expression = self.aqn.read(constant_name, 'expression')
+            constant = acquisition.Constant(units, name, identity, expression=expression)
+            constants.append(constant)
         # do scan
         self.scan(axes)
         # finish
-        if self.go:
+        if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull
 
  
@@ -210,18 +257,50 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add('Processing', None)
-        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names)
+        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='main channel')
         input_table.add('Main Channel', self.channel_combo)
-        self.process_all_channels = pc.Bool()
+        self.process_all_channels = pc.Bool(ini=ini, section='main', option='process all channels')
         input_table.add('Process All Channels', self.process_all_channels)
         self.layout.addWidget(input_table)
         
     def load(self, aqn_path):
+        # clear old
+        for axis in self.axes:
+            axis.hide()
+        for constant in self.constants:
+            constant.hide()
+        self.axes = []
+        self.channels = []
+        # read new
         aqn = wt.kit.INI(aqn_path)
-        self.opa_combo.write(aqn.read('opa', 'opa'))
-        self.mono_width.write(aqn.read('spectrometer', 'width'))
-        self.mono_npts.wriite(aqn.read('spectrometer', 'number'))
-        self.channel_combo.write(aqn.read('processing', 'channel'))
+        # axes
+        axis_names = aqn.read('scan', 'axis names')
+        for axis_index, axis_name in enumerate(axis_names):
+            units = aqn.read(axis_name, 'units')
+            units_kind = None
+            for d in wt.units.unit_dicts:
+                if units in d.keys():
+                    units_kind = d['kind']
+            axis = Axis(units_kind, axis_index)
+            axis.start.write(aqn.read(axis_name, 'start'))
+            axis.stop.write(aqn.read(axis_name, 'stop'))
+            axis.number.write(aqn.read(axis_name, 'number'))
+            hardwares = aqn.read(axis_name, 'hardware')
+            for hardware in hardwares:
+                axis.hardwares[hardware].write(True)
+            self.axes.append(axis)
+            self.axes_container_widget.layout().addWidget(axis.widget)
+        # constants
+        constant_names = aqn.read('scan', 'constant names')
+        for constant_index, constant_name in constant_names:
+            constant = Constant()
+            constant.hardware_name_combo.write(aqn.read(constant_name, 'hardware'))
+            constant.expression.write(aqn.read(constant_name, 'expression'))
+            self.constants.append(constant)
+            self.constants_container_widget.layout().addWidget(constant.widget)
+        # processing
+        self.channel_combo.write(aqn.read('processing', 'main channel'))
+        self.process_all_channels.write(aqn.read('processing', 'process all channels'))     
         # allow devices to load settings
         self.device_widget.load(aqn_path)
         
@@ -246,11 +325,13 @@ class GUI(acquisition.GUI):
 
     def save(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
+        # general
         axis_names = str([str(a.get_name()) for a in self.axes]).replace('\'', '')
         aqn.write('info', 'description', 'SCAN: {}'.format(axis_names))
         aqn.add_section('scan')
         aqn.write('scan', 'axis names', [a.get_name() for a in self.axes])
         aqn.write('scan', 'constant names', [c.get_name() for c in self.constants])
+        # axes
         for axis in self.axes:
             name = axis.get_name()
             aqn.add_section(name)
@@ -263,7 +344,16 @@ class GUI(acquisition.GUI):
                 if bool_mutex.read():
                     hardwares.append(key)
             aqn.write(name, 'hardware', hardwares)
-        # TODO: save constants
+        # constants
+        for constant in self.constants:
+            name = constant.get_name()
+            aqn.add_section(name)
+            aqn.write(name, 'hardware', constant.hardware_name_combo.read())
+            aqn.write(name, 'expression', constant.expression.read())
+        # processing
+        aqn.add_section('processing')
+        aqn.write('processing', 'main channel', self.channel_combo.read())
+        aqn.write('processing', 'process all channels', self.process_all_channels.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
         

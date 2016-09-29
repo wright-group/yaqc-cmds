@@ -280,6 +280,8 @@ class QueueStatus(QtCore.QObject):
         self.going = pc.Busy()
         self.pause = pc.Busy()
         self.paused = pc.Busy()
+        self.stop = pc.Busy()
+        self.stopped = pc.Busy()
         self.runtime = 0.  # seconds
         self.last_started = None
         self.tz = dateutil.tz.tzlocal()
@@ -342,6 +344,8 @@ class Queue():
             g.slack_control.read().send_message(message)
         
     def _start_next_action(self):
+        self.status.stop.write(False)
+        self.status.stopped.write(False)
         self.gui.progress_bar.begin_new_scan_timer()
         item = self.items[self.index]
         item.status = 'RUNNING'
@@ -424,12 +428,12 @@ class Queue():
         if chosen == 'RESUME':
             self.status.pause.write(False)
         elif chosen == 'SKIP':
+            self.status.stop.write(True)
+            self.status.pause.write(False)
+        elif chosen == 'STOP':
+            self.status.stop.write(True)
             self.status.go.write(False)
             self.status.pause.write(False)
-            while self.status.going.read():
-                self.status.going.wait_for_update()
-            self.run()
-        elif chosen == 'STOP':
             self.stop()
         self.update()
 
@@ -716,6 +720,10 @@ class GUI(QtCore.QObject):
         # type combobox
         input_table = pw.InputTable()
         allowed_values = ['Acquisition', 'Wait', 'Interrupt', 'Hardware', 'Device', 'Script']
+        allowed_values.remove('Interrupt')  # not ready yet
+        allowed_values.remove('Hardware')  # not ready yet
+        allowed_values.remove('Device')  # not ready yet
+        allowed_values.remove('Script')  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
         self.type_combo.updated.connect(self.update_type)
         input_table.add('Insert Into Queue', None)
@@ -944,16 +952,41 @@ class GUI(QtCore.QObject):
         p = file_dialog_handler.open_dialog(caption=caption, directory=directory, options=options)
         # load basic info
         ini = wt.kit.INI(p)
-        self.item_name.write(ini.read('info', 'name'))
-        self.item_info.write(ini.read('info', 'info'))
+        self.acquisition_name.write(ini.read('info', 'name'))
+        self.acquisition_info.write(ini.read('info', 'info'))
         self.module_combobox.write(ini.read('info', 'module'))
         # allow module to load from file
         self.modules[self.module_combobox.read()].gui.load(p)
 
     def on_load_item(self, row):
         index = row.toInt()[0]  # given as QVariant
-        # TODO:
-        print('on_load_item', index)
+        item = self.queue.items[index]
+        if item.type == 'acquisition':
+            self.type_combo.write('Acquisition')
+            # load basic info
+            p = item.aqn_path
+            aqn = wt.kit.INI(p)
+            self.acquisition_name.write(aqn.read('info', 'name'))
+            self.acquisition_info.write(aqn.read('info', 'info'))
+            self.module_combobox.write(aqn.read('info', 'module'))
+            # allow module to load from file
+            self.modules[self.module_combobox.read()].gui.load(p)
+        elif item.type == 'device':
+            raise NotImplementedError()
+        elif item.type == 'hardware':
+            raise NotImplementedError()
+        elif item.type == 'interrupt':
+            raise NotImplementedError()
+        elif item.type == 'script':
+            raise NotImplementedError()
+        elif item.type == 'wait':
+            self.type_combo.write('Wait')
+            self.wait_name.write(item.name)
+            self.wait_info.write(item.info)
+            self.wait_operation.write(item.operation)
+            self.wait_amount.write(item.amount)
+        else:
+            raise Exception('item.type not recognized in queue.GUI.on_load_item')
         
     def on_module_combobox_updated(self):
         for module in self.modules.values():
@@ -1079,5 +1112,3 @@ class GUI(QtCore.QObject):
         for frame in self.type_frames.values():
             frame.hide()
         self.type_frames[self.type_combo.read()].show()
-
-

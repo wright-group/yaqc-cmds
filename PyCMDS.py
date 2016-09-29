@@ -23,7 +23,7 @@ for folder in folders:
 # TODO: create config.ini if none exists
 
 
-#### import ####################################################################
+#### import ###################################################################
 #BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
 

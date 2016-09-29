@@ -42,8 +42,25 @@ module_name = 'TUNE TEST'
 class Worker(acquisition.Worker):
     
     def process(self, scan_folder):
-        # TODO:
-        acquisition.Worker.process(self, scan_folder)
+        data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
+        data = wt.data.from_PyCMDS(data_path)
+        data.transpose()
+        data.bring_to_front(self.aqn.read('processing', 'channel'))
+        # make tuning curve, if user desires
+        if self.aqn.read('processing', 'make new curve'):
+            # TODO:
+            print('make new curve not yet implemented')
+        # plot
+        artist = wt.artists.mpl_2D(data)
+        function = wt.fit.Moments()
+        fitter = wt.fit.Fitter(function, data, 'wm')
+        outs = fitter.run()
+        xi = outs.w1.points
+        yi = outs.one.values
+        artist.onplot(xi, yi)
+        output_image_path = artist.plot(autosave=True, output_folder=scan_folder)[0]
+        # upload
+        self.upload(scan_folder, reference_image=output_image_path)
     
     def run(self):
         axes = []
@@ -97,8 +114,10 @@ class GUI(acquisition.GUI):
         input_table.add('Number', self.mono_npts)
         # processing
         input_table.add('Processing', None)
-        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names)
+        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
         input_table.add('Channel', self.channel_combo)
+        self.make_new_curve = pc.Bool()
+        input_table.add('Make New Curve', self.make_new_curve)
         # finish
         self.layout.addWidget(input_table)
         
@@ -108,6 +127,7 @@ class GUI(acquisition.GUI):
         self.mono_width.write(aqn.read('spectrometer', 'width'))
         self.mono_npts.wriite(aqn.read('spectrometer', 'number'))
         self.channel_combo.write(aqn.read('processing', 'channel'))
+        self.make_new_curve.write(aqn.read('processing', 'make new curve'))
         # allow devices to load settings
         self.device_widget.load(aqn_path)
         
@@ -124,6 +144,7 @@ class GUI(acquisition.GUI):
         aqn.write('spectrometer', 'number', self.mono_npts.read())
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
+        aqn.write('processing', 'make new curve', self.make_new_curve.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
         
