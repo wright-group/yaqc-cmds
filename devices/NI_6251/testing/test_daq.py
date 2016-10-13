@@ -22,7 +22,7 @@ daq_digital_min = -1.0
 daq_digital_max = 10.0
 daq_digital_cutoff = 2.25
 
-shots = 20
+shots = 10
 digitize = False
 
 #initialize DAQ----------------------------------------------------------------
@@ -151,15 +151,20 @@ plt.plot(x, y, c='r', lw=4, alpha=0.5)
 x, y = get_plot_arrays(4)
 plt.plot(x, y, c='g', lw=4, alpha=0.5)
 if digitize: plt.ylim(-0.5, 1.5)
-plt.grid()
 plt.xlabel('us')
 plt.ylabel('V')
 
 
-plt.axvline(800)
-plt.axvline(805)
 
-plt.xlim(0, 5000)
+for i in range(shots):
+    zero = i*1000
+    plt.axvline(zero, c='k')
+    plt.axvline(zero+800, c='r')
+    plt.axvline(zero+605, c='g')
+    
+
+
+#plt.xlim(0, 5000)
 
 
 '''

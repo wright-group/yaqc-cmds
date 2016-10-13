@@ -148,14 +148,14 @@ class Worker(acquisition.Worker):
         # get output image
         main_channel = self.aqn.read('processing', 'main channel')
         if len(data.shape) <= 2:
-            output_image_path = main_channel + ' 000.png'
+            output_image_path = os.path.join(scan_folder, main_channel + ' 000.png')
         else:
             output_folder = os.path.join(data_folder, main_channel)
             output_image_path = os.path.join(output_folder, 'animation.gif')
             images = wt.kit.glob_handler('.png', folder=output_folder)
             wt.artists.stitch_to_animation(images=images, outpath=output_image_path)
         # upload
-        self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
+        self.upload(scan_folder, reference_image=output_image_path)
     
     def run(self):
         # axes
@@ -299,7 +299,10 @@ class GUI(acquisition.GUI):
             self.constants.append(constant)
             self.constants_container_widget.layout().addWidget(constant.widget)
         # processing
-        self.channel_combo.write(aqn.read('processing', 'main channel'))
+        try:
+            self.channel_combo.write(aqn.read('processing', 'main channel'))
+        except ValueError:
+            pass  # TODO: log warning or something
         self.process_all_channels.write(aqn.read('processing', 'process all channels'))     
         # allow devices to load settings
         self.device_widget.load(aqn_path)

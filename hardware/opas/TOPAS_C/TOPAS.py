@@ -822,7 +822,8 @@ class OPA:
             section = 'Optical Device'
             option = 'Curve ' + str(curve_indicies[curve_type])
             initial_value = self.TOPAS_ini.read(section, option)
-            curve_filepath = pc.Filepath(initial_value=initial_value)
+            options = ['CRV (*.crv)']
+            curve_filepath = pc.Filepath(initial_value=initial_value, options=options)
             curve_filepath.updated.connect(self.load_curve)
             self.curve_paths[curve_type] = curve_filepath
         # interaction string

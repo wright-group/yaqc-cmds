@@ -84,7 +84,7 @@ g.version.write(__version__)
 ### define ####################################################################
 
 
-PyCMDS_folder = os.path.dirname(__file__)
+PyCMDS_folder = os.path.dirname(os.path.abspath(__file__))
 
 
 ### main window ###############################################################
@@ -235,7 +235,7 @@ class MainWindow(QtGui.QMainWindow):
         import hardware.opas.opas
         import hardware.spectrometers.spectrometers
         import hardware.delays.delays
-        import hardware.nds.nds
+        import hardware.filters.filters
         import devices.devices
     
     def _initialize_widgets(self):

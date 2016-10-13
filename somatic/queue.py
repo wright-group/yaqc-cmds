@@ -344,6 +344,7 @@ class Queue():
             g.slack_control.read().send_message(message)
         
     def _start_next_action(self):
+        print('this is start next action', self.index)
         self.status.stop.write(False)
         self.status.stopped.write(False)
         self.gui.progress_bar.begin_new_scan_timer()
@@ -1047,7 +1048,7 @@ class GUI(QtCore.QObject):
                     self.queue_control.set_style('INTERRUPT QUEUE', 'stop')
                 else:
                     self.queue_control.set_style('STOP QUEUE', 'stop')
-                    self.message_widget.setText('QUEUE RUNNING')
+                    self.message_widget.setText('QUEUE WAITING')
             else:
                 self.queue_control.set_style('RUN QUEUE', 'go')
                 self.message_widget.setText('QUEUE STOPPED')
@@ -1065,7 +1066,6 @@ class GUI(QtCore.QObject):
         for _ in range(self.table.rowCount()):
             self.table.removeRow(0)
         # add elements from queue
-        buttons = []
         for i, item in enumerate(self.queue.items):
             self.table.insertRow(i)
             # index

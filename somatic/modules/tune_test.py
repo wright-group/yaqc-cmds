@@ -146,6 +146,7 @@ class GUI(acquisition.GUI):
         aqn.write('processing', 'channel', self.channel_combo.read())
         aqn.write('processing', 'make new curve', self.make_new_curve.read())
         # allow devices to write settings
+        print(self.device_widget)
         self.device_widget.save(aqn_path)
         
 gui = GUI(module_name)

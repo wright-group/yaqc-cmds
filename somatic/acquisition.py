@@ -279,9 +279,10 @@ class Worker(QtCore.QObject):
         else:
             self.scan_urls.append(None)
         # add urls to headers
-        devices.headers.scan_info['queue url'] = self.queue_worker.queue_url
-        devices.headers.scan_info['acquisition url'] = self.aqn.read('info', 'url')
-        devices.headers.scan_info['scan url'] = scan_url
+        if g.google_drive_enabled.read():
+            devices.headers.scan_info['queue url'] = self.queue_worker.queue_url
+            devices.headers.scan_info['acquisition url'] = self.aqn.read('info', 'url')
+            devices.headers.scan_info['scan url'] = scan_url
         # initialize devices
         devices.control.initialize_scan(self.aqn, scan_folder, destinations_list)
         # acquire -------------------------------------------------------------

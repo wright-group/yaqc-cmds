@@ -106,6 +106,7 @@ class Worker(acquisition.Worker):
     def process(self, scan_folder):
         if not self.aqn.read('processing', 'do post process'):
             self.upload(self.scan_folders[self.scan_index], reference_image=None)
+            return
         # get path
         data_path = devices.data_path.read() 
         # make data object
@@ -176,13 +177,13 @@ class Worker(acquisition.Worker):
         for motor_index, motor_name in enumerate(motor_names):
             if self.aqn.read(motor_name, 'method') == 'Scan':
                 motor_units = None
-                name = '_'.join([opa_friendly_name, motor.name])
+                name = '_'.join([opa_friendly_name, motor_name])
                 width = self.aqn.read(motor_name, 'width')/2.
                 npts = self.aqn.read(motor_name, 'number')
                 if self.aqn.read('motortune', 'use tune points'):
                     center = 0.
                     identity = 'D'+name#+'F'+opa_friendly_name
-                    curve_motor_index = curve.get_motor_names(full=False).index(motor.name)
+                    curve_motor_index = curve.get_motor_names(full=False).index(motor_name)
                     motor_positions = curve.motors[curve_motor_index].positions
                     kwargs = {'centers': motor_positions, 
                               'centers_units': motor_units,
@@ -224,7 +225,7 @@ class Worker(acquisition.Worker):
             axis = acquisition.Axis(points, units, name, identity, **kwargs)
             axes.append(axis)
         elif self.aqn.read('spectrometer', 'method') == 'Set':
-            if self.use_tune_points.read():
+            if self.aqn.read('motortune', 'use tune points'):
                 # already handled above
                 pass
             else:
@@ -235,10 +236,10 @@ class Worker(acquisition.Worker):
         pre_wait_methods = [lambda: opa_hardware.q.push('wait_until_still'),
                             lambda: opa_hardware.q.push('get_motor_positions'),
                             lambda: opa_hardware.q.push('get_position')]
-        self.scan.launch(axes, constants=[], pre_wait_methods=pre_wait_methods)
         # do scan
-        self.scan(axes)
-        self.finished.write(True)  # only if acquisition successfull
+        self.scan(axes, constants=[], pre_wait_methods=pre_wait_methods)
+        if not self.stopped.read():
+            self.finished.write(True)  # only if acquisition successfull
 
 
 ### GUI #######################################################################

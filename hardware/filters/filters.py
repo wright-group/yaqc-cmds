@@ -12,7 +12,7 @@ main_dir = g.main_dir.read()
 app = g.app.read()
 import project.widgets as pw
 import project.ini_handler as ini
-ini = ini.nds
+ini = ini.filters
 import project.classes as pc
 
 
