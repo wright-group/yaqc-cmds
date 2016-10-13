@@ -25,10 +25,11 @@ ini.return_raw = True
 import hardware.opas.opas as opas
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares
+import hardware.filters.filters as filters
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 # ensure that all elements are in the ini file
-all_hardware_names = [hw.name for hw in opas.hardwares + spectrometers.hardwares + delays.hardwares]
+all_hardware_names = [hw.name for hw in all_hardwares]
 ini.config.read(ini.filepath)
 for section in all_hardware_names:
     if not ini.config.has_section(section):
@@ -392,6 +393,9 @@ class GUI(QtCore.QObject):
         # delays
         if len(delays.hardwares) > 0:
             self.create_hardware_frame('Delays', delays.hardwares)
+        # filters
+        if len(filters.hardwares) > 0:
+            self.create_hardware_frame('Filters', filters.hardwares)
         parent_layout.addWidget(self.tabs)
         
     def create_hardware_frame(self, name, hardwares):

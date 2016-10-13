@@ -11,27 +11,35 @@ import time
 from PyQt4 import QtCore
 
 import pyvisa
-resource_manager = pyvisa.ResourceManager()
 
 import project.project_globals as g
 import project.classes as pc
 
 
-### com class #################################################################
+### define ####################################################################
 
 
 open_coms = {}
 
+
+creating_com = pc.Busy()
+
+
+### com class #################################################################
+
+
+
 class COM(QtCore.QMutex):
     
-    def __init__(self, port, baud_rate, timeout):
+    def __init__(self, port, baud_rate, timeout, write_termination=u'\r\n'):
         QtCore.QMutex.__init__(self)
         self.port_index = port
         self.rm = pyvisa.ResourceManager()
-        self.instrument = resource_manager.open_resource('ASRL%i::INSTR'%self.port_index)
+        self.instrument = self.rm.open_resource('ASRL%i::INSTR'%self.port_index)
         self.instrument.baud_rate = baud_rate
         self.instrument.end_input = pyvisa.constants.SerialTermination.termination_char
         self.instrument.timeout = timeout
+        self.instrument.write_termination = write_termination
         self.external_lock_control = False
         g.shutdown.add_method(self.close)
 
@@ -63,7 +71,6 @@ class COM(QtCore.QMutex):
         if not self.external_lock_control: self.unlock()
         return value
 
-creating_com = pc.Busy()
 
 def get_com(port, baud_rate=57600, timeout=1000):
     '''

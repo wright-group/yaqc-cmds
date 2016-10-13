@@ -878,4 +878,5 @@ control.initialize()
 import hardware.opas.opas as opas
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
-scan_hardware_modules = [opas, spectrometers, delays]
+import hardware.filters.filters as filters
+scan_hardware_modules = [opas, spectrometers, delays, filters]
