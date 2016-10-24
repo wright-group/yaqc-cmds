@@ -692,10 +692,14 @@ class GUI(QtCore.QObject):
         self.main_tab_created = False
 
     def create_frame(self):
+        # scan widget
+        self.main_widget = QtGui.QWidget()
+        # device widgets
         # get parent widget
         parent_widget = g.daq_widget.read()
         parent_widget.setLayout(QtGui.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
+        self.parent_widget = parent_widget
         layout = parent_widget.layout()
         # create tab structure
         self.tabs = QtGui.QTabWidget()
@@ -718,11 +722,10 @@ class GUI(QtCore.QObject):
         self.main_tab_created = True
         print 'create main tab'
         # create main daq tab
-        main_widget = QtGui.QWidget()
+        main_widget = self.main_widget
         layout = QtGui.QHBoxLayout()
         layout.setContentsMargins(0, 10, 0, 0)
         main_widget.setLayout(layout)
-        self.tabs.addTab(main_widget, 'Main')
         # display -------------------------------------------------------------
         # container widget
         display_container_widget = pw.ExpandingWidget()
@@ -805,8 +808,6 @@ class GUI(QtCore.QObject):
         autocopy_enable.updated.connect(self.on_autocopy_updated)
         autocopy_path.updated.connect(self.on_autocopy_updated)
         self.on_autocopy_updated()
-        # set tab structure to display main tab
-        self.tabs.setCurrentIndex(self.tabs.count()-1)  # zero indexed
 
     def on_autocopy_updated(self):
         enable = str(autocopy_enable.read())

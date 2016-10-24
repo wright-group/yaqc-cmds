@@ -162,7 +162,7 @@ class GUI(QtCore.QObject):
     def __init__(self, driver):
         QtCore.QObject.__init__(self)
         self.driver = driver
-        
+
     def create_frame(self, layout):
         layout.setMargin(5)
         self.layout = layout
@@ -228,18 +228,18 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
         self.layout.addStretch(1)
         self.driver.address.update_ui.connect(self.update)
-        
+
     def on_home(self):
         self.driver.address.hardware.q.push('home')
-        
+
     def on_set_fraction(self):
         fraction = self.destination_fraction.read()
         self.driver.address.hardware.q.push('set_fraction', [fraction])     
-        
+
     def on_set_steps(self):
         steps = self.destination_steps.read()
         self.driver.address.hardware.q.push('set_steps', [steps])
-    
+
     def on_set_zero(self):
         zero = self.destination_zero.read()
         self.driver.set_zero(zero)
@@ -249,5 +249,3 @@ class GUI(QtCore.QObject):
 
     def stop(self):
         pass
-
-    

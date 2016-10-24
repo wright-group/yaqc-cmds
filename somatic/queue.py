@@ -32,9 +32,12 @@ import project.file_dialog_handler as file_dialog_handler
 
 app = g.app.read()
 
+main_window = g.main_window.read()
+
 somatic_folder = os.path.dirname(__file__)
 saved_folder = os.path.join(somatic_folder, 'saved')
 temp_folder = os.path.join(somatic_folder, 'temp')
+data_folder = main_window.data_folder
 
 
 ### ensure folders exist ######################################################
@@ -303,7 +306,7 @@ class QueueStatus(QtCore.QObject):
 
 class Queue():
 
-    def __init__(self, name, gui):
+    def __init__(self, name, gui, folder=None):
         self.name = name[:10]  # cannot be more than 10 charachters
         self.gui = gui
         self.status = gui.queue_status
@@ -714,7 +717,6 @@ class GUI(QtCore.QObject):
         self.load_button = pw.SetButton('OPEN QUEUE')
         self.load_button.clicked.connect(self.on_open_queue)
         settings_layout.addWidget(self.load_button)
-        self.load_button.setDisabled(True)
         # horizontal line
         line = pw.Line('H')
         settings_layout.addWidget(line)
@@ -995,8 +997,33 @@ class GUI(QtCore.QObject):
         self.modules[self.module_combobox.read()].gui.show()
 
     def on_open_queue(self):
-        # TODO:
-        print('on_open_queue')
+        # get queue folder
+        caption = 'Choose Queue directory'
+        directory = data_folder
+        f = file_dialog_handler.dir_dialog(caption=caption, directory=directory)
+        p = os.path.join(f, 'queue.ini')
+        ini = wt.kit.INI(p)
+        # choose operation
+        if self.queue is None:
+            operation == 'REPLACE'
+        else:
+            # ask user how to proceed
+            options = ['APPEND', 'REPLACE']
+            choice_window = pw.ChoiceWindow('OPEN QUEUE', button_labels=options)
+            index_chosen = choice_window.show()
+            operation = options[index_chosen]
+        # do operation
+        if operation == 'REPLACE':
+            name = ini.read('info', 'name')
+            if self.queue is None:
+                self.queue = Queue(name, self)
+            self.queue.name = ini.read('info', 'name')
+            self.queue.folder = f
+            self.queue.ini = ini
+            self.queue.update()
+        if operation == 'APPEND':
+            self.queue
+            
 
     def on_remove_item(self, row):
         index = row.toInt()[0]  # given as QVariant
@@ -1057,8 +1084,6 @@ class GUI(QtCore.QObject):
                 self.save_button.setDisabled(False)
             else:
                 self.save_button.setDisabled(True)
-            # load button
-            self.load_button.setDisabled(False)
             # append button
             self.append_button.setDisabled(False)
         # table ---------------------------------------------------------------

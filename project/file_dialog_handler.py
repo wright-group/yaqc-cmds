@@ -99,7 +99,7 @@ q = pc.Q(enqueued, busy, file_dialog)
 # the q method only works between different threads
 # call directly if the calling object is in the main thread
 
-def dir_dialog(caption, directory, options):
+def dir_dialog(caption, directory, options=None):
     inputs = [caption, directory, options]
     if  QtCore.QThread.currentThread() == g.main_thread.read():
         file_dialog.getExistingDirectory(inputs)
