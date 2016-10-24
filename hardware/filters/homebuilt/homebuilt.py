@@ -1,6 +1,8 @@
 ### import ####################################################################
 
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import os
 import collections
 import time
@@ -15,9 +17,7 @@ import project.project_globals as g
 import project.com_handler as com_handler
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'nds',
-                                 'homebuilt wheels',
-                                 'homebuilt_NDs.ini'))
+ini = Ini(os.path.join(main_dir, 'hardware', 'filters', 'homebuilt', 'homebuilt.ini'))
 
 
 ### driver ####################################################################
@@ -49,20 +49,8 @@ class Driver():
         self.port.close()
         
     def home(self, inputs=[]):
-        # first go to steps = 1000
-        self.set_steps([1000])
-        # now home
-        self.port.flush()
-        command = ' '.join(['H', str(self.index)])
-        self.port.write(command)
-        done = False
-        while not done:
-            recieved = self.port.read()  # unicode
-            recieved = str(recieved).rstrip()
-            if 'ready' in recieved:
-                done = True
-        self.port.flush()
-        time.sleep(0.25)
+        self.port.write(' '.join(['H', str(self.index)]))
+        self.wait_until_ready()
         self.current_position_steps.write(0)
         self.get_position()
 
@@ -78,7 +66,7 @@ class Driver():
         self.index = inputs[0]
         # open com port
         port_index = ini.read('main', 'serial port')
-        self.port = com_handler.get_com(port_index, timeout=30000)
+        self.port = com_handler.get_com(port_index, timeout=10000)
         # read from ini
         self.zero_position = pc.Number(initial_value=ini.read('ND'+str(self.index), 'zero position (steps)'),
                                        display=True, limits=self.limits_steps, decimals=0)
@@ -89,6 +77,8 @@ class Driver():
         self.current_position_steps.write(ini.read('ND'+str(self.index), 'current position (steps)'))
         # recorded
         self.recorded['nd' + str(self.index)] = [self.current_position, self.native_units, 1., '0', False]
+        self.recorded['nd%i_position'%self.index] = [self.current_position_steps, None, 1., '0', False]
+        self.recorded['nd%i_zero'%self.index] = [self.zero_position, None, 1., '0', False]
         # finish
         self.get_position()
         self.initialized.write(True)
@@ -127,17 +117,8 @@ class Driver():
         steps = int(inputs[0])
         steps_from_here = steps - self.current_position_steps.read()
         command = ' '.join(['M', str(self.index), str(steps_from_here)])
-        #self.port.flush()
         self.port.write(command)
-        done = False
-        while not done:
-            recieved = self.port.read()  # unicode
-            recieved = str(recieved).rstrip()
-            if 'ready' in recieved:
-                done = True
-        self.port.flush()
-        time.sleep(0.25)
-        # record current position (steps)
+        self.wait_until_ready()
         self.current_position_steps.write(steps)
         section = 'ND{}'.format(self.index)
         option = 'current position (steps)'
@@ -151,6 +132,15 @@ class Driver():
         section = 'ND{}'.format(self.index)
         option = 'zero position (steps)'
         ini.write(section, option, zero)
+        
+    def wait_until_ready(self):
+        while True:
+            command = ' '.join(['Q', str(self.index)])
+            status = self.port.write(command, then_read=True).rstrip()
+            if status == 'R':
+                break
+            time.sleep(0.1)
+        self.port.flush()
 
 
 class Driver_offline(Driver):
@@ -172,13 +162,12 @@ class GUI(QtCore.QObject):
     def __init__(self, driver):
         QtCore.QObject.__init__(self)
         self.driver = driver
-        
+
     def create_frame(self, layout):
         layout.setMargin(5)
         self.layout = layout
         self.frame = QtGui.QWidget()
         self.frame.setLayout(self.layout)
-        g.module_advanced_widget.add_child(self.frame)
         if self.driver.initialized.read():
             self.initialize()
         else:
@@ -205,7 +194,7 @@ class GUI(QtCore.QObject):
         self.set_steps_button = pw.SetButton('SET POSITION')
         settings_layout.addWidget(self.set_steps_button)
         self.set_steps_button.clicked.connect(self.on_set_steps)
-        g.module_control.disable_when_true(self.set_steps_button)
+        g.queue_control.disable_when_true(self.set_steps_button)
         # zero
         input_table = pw.InputTable()
         input_table.add('Zero', None)
@@ -216,7 +205,7 @@ class GUI(QtCore.QObject):
         self.set_zero_button = pw.SetButton('SET ZERO')
         settings_layout.addWidget(self.set_zero_button)
         self.set_zero_button.clicked.connect(self.on_set_zero)
-        g.module_control.disable_when_true(self.set_zero_button)
+        g.queue_control.disable_when_true(self.set_zero_button)
         # fraction per 100
         input_table = pw.InputTable()
         input_table.add('Fraction per 100', None)
@@ -227,30 +216,30 @@ class GUI(QtCore.QObject):
         self.set_fraction_button = pw.SetButton('SET FRACTION')
         settings_layout.addWidget(self.set_fraction_button)
         self.set_fraction_button.clicked.connect(self.on_set_fraction)
-        g.module_control.disable_when_true(self.set_fraction_button)
+        g.queue_control.disable_when_true(self.set_fraction_button)
         # horizontal line
         settings_layout.addWidget(pw.line('H'))
         # home button
         self.home_button = pw.SetButton('HOME', 'advanced')
         settings_layout.addWidget(self.home_button)
         self.home_button.clicked.connect(self.on_home)
-        g.module_control.disable_when_true(self.home_button)
+        g.queue_control.disable_when_true(self.home_button)
         # finish
         settings_layout.addStretch(1)
         self.layout.addStretch(1)
         self.driver.address.update_ui.connect(self.update)
-        
+
     def on_home(self):
         self.driver.address.hardware.q.push('home')
-        
+
     def on_set_fraction(self):
         fraction = self.destination_fraction.read()
         self.driver.address.hardware.q.push('set_fraction', [fraction])     
-        
+
     def on_set_steps(self):
         steps = self.destination_steps.read()
         self.driver.address.hardware.q.push('set_steps', [steps])
-    
+
     def on_set_zero(self):
         zero = self.destination_zero.read()
         self.driver.set_zero(zero)
@@ -260,45 +249,3 @@ class GUI(QtCore.QObject):
 
     def stop(self):
         pass
-
-
-### testing ###################################################################
-
-if __name__ == '__main__':
-    import pyvisa
-    
-    resource_manager = pyvisa.ResourceManager()
-    instrument = resource_manager.open_resource('ASRL%i::INSTR'%11)
-    instrument.baud_rate = 57600
-    instrument.end_input = pyvisa.constants.SerialTermination.termination_char
-    instrument.timeout = 5000
-    
-
-    for _ in range(4):
-        
-        instrument.flush(pyvisa.constants.VI_IO_IN_BUF)
-        instrument.flush(pyvisa.constants.VI_IO_OUT_BUF)
-    
-        instrument.write('M 1 200')
-        done = False
-        print 'written'
-        
-        import WrightTools as wt
-        
-        with wt.kit.Timer():
-        
-            while not done:
-                recieved = instrument.read()  # unicode
-                recieved = str(recieved).rstrip()
-                if recieved == 'ready':
-                    done = True
-            
-        time.sleep(0.25)
-        print 'done'
-        print ''
-
-
-    print 'hello'
-    instrument.close()
-    
-    

@@ -23,7 +23,7 @@ for folder in folders:
 # TODO: create config.ini if none exists
 
 
-#### import ####################################################################
+#### import ###################################################################
 #BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
 
@@ -84,7 +84,7 @@ g.version.write(__version__)
 ### define ####################################################################
 
 
-PyCMDS_folder = os.path.dirname(__file__)
+PyCMDS_folder = os.path.dirname(os.path.abspath(__file__))
 
 
 ### main window ###############################################################
@@ -188,7 +188,18 @@ class MainWindow(QtGui.QMainWindow):
         coset_widget = QtGui.QWidget()
         g.coset_widget.write(coset_widget)
         # sonomic box
+        somatic_widget = QtGui.QWidget()
+        layout = QtGui.QHBoxLayout()
+        layout.setContentsMargins(0, 10, 0, 0)
+        somatic_widget.setLayout(layout)
+        somatic_tabs = pw.TabWidget()
         self.queue_widget = QtGui.QWidget()
+        somatic_tabs.addTab(self.queue_widget, 'Queue')
+        from devices import devices
+        self.scan_widget = devices.control.gui.main_widget
+        somatic_tabs.addTab(self.scan_widget, 'Scan')
+        somatic_tabs.setContentsMargins(0., 0., 0., 0.)
+        layout.addWidget(somatic_tabs)
         # plot box
         plot_widget = QtGui.QWidget()
         g.daq_plot_widget.write(plot_widget)
@@ -198,7 +209,7 @@ class MainWindow(QtGui.QMainWindow):
         self.tabs.addTab(hardware_advanced_widget, 'Hardware')
         self.tabs.addTab(device_widget, 'Devices')
         self.tabs.addTab(coset_widget, 'Autonomic')
-        self.tabs.addTab(self.queue_widget, 'Somatic')
+        self.tabs.addTab(somatic_widget, 'Somatic')
         self.tabs.addTab(plot_widget, 'Plot')
         self.tabs.setCurrentIndex(4)  # start on sonomic tab
         self.tabs.setContentsMargins(0., 0., 0., 0.)
@@ -235,7 +246,7 @@ class MainWindow(QtGui.QMainWindow):
         import hardware.opas.opas
         import hardware.spectrometers.spectrometers
         import hardware.delays.delays
-        import hardware.nds.nds
+        import hardware.filters.filters
         import devices.devices
     
     def _initialize_widgets(self):

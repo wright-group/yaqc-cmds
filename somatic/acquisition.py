@@ -127,10 +127,11 @@ class Worker(QtCore.QObject):
         self.finished = finished
         # unpack
         self.fraction_complete = self.queue_worker.fraction_complete
-        self.go = self.queue_worker.queue_status.go
-        self.going = self.queue_worker.queue_status.going
         self.pause = self.queue_worker.queue_status.pause
         self.paused = self.queue_worker.queue_status.paused
+        self.going = self.queue_worker.queue_status.going
+        self.stop = self.queue_worker.queue_status.stop
+        self.stopped = self.queue_worker.queue_status.stopped
         # create acquisition folder
         self.folder = self.aqn_path[:-4]
         os.mkdir(self.folder)
@@ -278,9 +279,10 @@ class Worker(QtCore.QObject):
         else:
             self.scan_urls.append(None)
         # add urls to headers
-        devices.headers.scan_info['queue url'] = self.queue_worker.queue_url
-        devices.headers.scan_info['acquisition url'] = self.aqn.read('info', 'url')
-        devices.headers.scan_info['scan url'] = scan_url
+        if g.google_drive_enabled.read():
+            devices.headers.scan_info['queue url'] = self.queue_worker.queue_url
+            devices.headers.scan_info['acquisition url'] = self.aqn.read('info', 'url')
+            devices.headers.scan_info['scan url'] = scan_url
         # initialize devices
         devices.control.initialize_scan(self.aqn, scan_folder, destinations_list)
         # acquire -------------------------------------------------------------
@@ -325,7 +327,8 @@ class Worker(QtCore.QObject):
                 self.paused.write(True)
                 self.pause.wait_for_update()
             self.paused.write(False)
-            if not self.go.read():
+            if self.stop.read():
+                self.stopped.write(True)
                 break
         # finish scan ---------------------------------------------------------
         devices.control.wait_until_file_done()

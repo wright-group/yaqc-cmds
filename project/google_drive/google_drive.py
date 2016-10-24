@@ -93,6 +93,7 @@ class Address(QtCore.QObject):
         # sync temp directory to google drive
         for n in os.listdir(temp_directory):
             p = os.path.join(temp_directory, n)
+            print(p, '!!!!!!!!!!!!!!!!!!!!!!')
             self.drive.upload(p, PyCMDS_data_ID, overwrite=True, delete_local=True)
           
 

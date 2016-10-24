@@ -45,7 +45,7 @@ main_dir = main_dir()
 
 import ini_handler as ini #must come after main_dir has been defined
 
-debug = GlobalWithIni(ini.config, 'misc', 'debug')
+debug = GlobalWithIni(ini.config, 'main', 'debug')
 
 class PollTimer:
     def __init__(self):
@@ -212,7 +212,7 @@ class QueueControl(QtCore.QObject):
         self.widgets_to_disable.append(widget)
 queue_control = QueueControl()
 
-offline = GlobalWithIni(ini.config, 'misc', 'offline')
+offline = GlobalWithIni(ini.config, 'main', 'offline')
 
 class progress_bar:
     def __init__(self):

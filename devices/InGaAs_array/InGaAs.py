@@ -21,7 +21,7 @@ import project.kit as kit
 from project.ini_handler import Ini
 app = g.app.read()
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'daq',
+ini = Ini(os.path.join(main_dir, 'devices',
                                  'InGaAs_array',
                                  'InGaAs.ini'))
                                  
@@ -325,6 +325,10 @@ class Device(QtCore.QObject):
         self.initialized = True
         self.settings_updated.emit()
         
+    def load_settings(self, aqn):
+        # TODO:
+        pass        
+        
     def set_freerun(self, state):
         freerun.write(state)
         q.push('loop')
@@ -382,7 +386,14 @@ class Widget(QtGui.QWidget):
         input_table.add('Spectra Averaged', self.spectra_averaged)
         self.save_shots = pc.Bool(disable_under_module_control=True)
         layout.addWidget(input_table)
-
+    
+    def save(self, aqn_path):
+        aqn = wt.kit.INI(aqn_path)
+        aqn.add_section('InGaAs')
+        aqn.write('InGaAs', 'use', self.use.read())
+        aqn.write('InGaAs', 'integration time (ms)', self.integration_time.read())
+        aqn.write('InGaAs', 'spectra averaged', self.spectra_averaged.read())
+        
 
 class GUI(QtCore.QObject):
 

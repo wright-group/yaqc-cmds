@@ -32,9 +32,12 @@ import project.file_dialog_handler as file_dialog_handler
 
 app = g.app.read()
 
+main_window = g.main_window.read()
+
 somatic_folder = os.path.dirname(__file__)
 saved_folder = os.path.join(somatic_folder, 'saved')
 temp_folder = os.path.join(somatic_folder, 'temp')
+data_folder = main_window.data_folder
 
 
 ### ensure folders exist ######################################################
@@ -280,6 +283,8 @@ class QueueStatus(QtCore.QObject):
         self.going = pc.Busy()
         self.pause = pc.Busy()
         self.paused = pc.Busy()
+        self.stop = pc.Busy()
+        self.stopped = pc.Busy()
         self.runtime = 0.  # seconds
         self.last_started = None
         self.tz = dateutil.tz.tzlocal()
@@ -301,7 +306,7 @@ class QueueStatus(QtCore.QObject):
 
 class Queue():
 
-    def __init__(self, name, gui):
+    def __init__(self, name, gui, folder=None):
         self.name = name[:10]  # cannot be more than 10 charachters
         self.gui = gui
         self.status = gui.queue_status
@@ -342,6 +347,9 @@ class Queue():
             g.slack_control.read().send_message(message)
         
     def _start_next_action(self):
+        print('this is start next action', self.index)
+        self.status.stop.write(False)
+        self.status.stopped.write(False)
         self.gui.progress_bar.begin_new_scan_timer()
         item = self.items[self.index]
         item.status = 'RUNNING'
@@ -424,12 +432,12 @@ class Queue():
         if chosen == 'RESUME':
             self.status.pause.write(False)
         elif chosen == 'SKIP':
+            self.status.stop.write(True)
+            self.status.pause.write(False)
+        elif chosen == 'STOP':
+            self.status.stop.write(True)
             self.status.go.write(False)
             self.status.pause.write(False)
-            while self.status.going.read():
-                self.status.going.wait_for_update()
-            self.run()
-        elif chosen == 'STOP':
             self.stop()
         self.update()
 
@@ -709,13 +717,16 @@ class GUI(QtCore.QObject):
         self.load_button = pw.SetButton('OPEN QUEUE')
         self.load_button.clicked.connect(self.on_open_queue)
         settings_layout.addWidget(self.load_button)
-        self.load_button.setDisabled(True)
         # horizontal line
         line = pw.Line('H')
         settings_layout.addWidget(line)
         # type combobox
         input_table = pw.InputTable()
         allowed_values = ['Acquisition', 'Wait', 'Interrupt', 'Hardware', 'Device', 'Script']
+        allowed_values.remove('Interrupt')  # not ready yet
+        allowed_values.remove('Hardware')  # not ready yet
+        allowed_values.remove('Device')  # not ready yet
+        allowed_values.remove('Script')  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
         self.type_combo.updated.connect(self.update_type)
         input_table.add('Insert Into Queue', None)
@@ -944,16 +955,41 @@ class GUI(QtCore.QObject):
         p = file_dialog_handler.open_dialog(caption=caption, directory=directory, options=options)
         # load basic info
         ini = wt.kit.INI(p)
-        self.item_name.write(ini.read('info', 'name'))
-        self.item_info.write(ini.read('info', 'info'))
+        self.acquisition_name.write(ini.read('info', 'name'))
+        self.acquisition_info.write(ini.read('info', 'info'))
         self.module_combobox.write(ini.read('info', 'module'))
         # allow module to load from file
         self.modules[self.module_combobox.read()].gui.load(p)
 
     def on_load_item(self, row):
         index = row.toInt()[0]  # given as QVariant
-        # TODO:
-        print('on_load_item', index)
+        item = self.queue.items[index]
+        if item.type == 'acquisition':
+            self.type_combo.write('Acquisition')
+            # load basic info
+            p = item.aqn_path
+            aqn = wt.kit.INI(p)
+            self.acquisition_name.write(aqn.read('info', 'name'))
+            self.acquisition_info.write(aqn.read('info', 'info'))
+            self.module_combobox.write(aqn.read('info', 'module'))
+            # allow module to load from file
+            self.modules[self.module_combobox.read()].gui.load(p)
+        elif item.type == 'device':
+            raise NotImplementedError()
+        elif item.type == 'hardware':
+            raise NotImplementedError()
+        elif item.type == 'interrupt':
+            raise NotImplementedError()
+        elif item.type == 'script':
+            raise NotImplementedError()
+        elif item.type == 'wait':
+            self.type_combo.write('Wait')
+            self.wait_name.write(item.name)
+            self.wait_info.write(item.info)
+            self.wait_operation.write(item.operation)
+            self.wait_amount.write(item.amount)
+        else:
+            raise Exception('item.type not recognized in queue.GUI.on_load_item')
         
     def on_module_combobox_updated(self):
         for module in self.modules.values():
@@ -961,8 +997,33 @@ class GUI(QtCore.QObject):
         self.modules[self.module_combobox.read()].gui.show()
 
     def on_open_queue(self):
-        # TODO:
-        print('on_open_queue')
+        # get queue folder
+        caption = 'Choose Queue directory'
+        directory = data_folder
+        f = file_dialog_handler.dir_dialog(caption=caption, directory=directory)
+        p = os.path.join(f, 'queue.ini')
+        ini = wt.kit.INI(p)
+        # choose operation
+        if self.queue is None:
+            operation == 'REPLACE'
+        else:
+            # ask user how to proceed
+            options = ['APPEND', 'REPLACE']
+            choice_window = pw.ChoiceWindow('OPEN QUEUE', button_labels=options)
+            index_chosen = choice_window.show()
+            operation = options[index_chosen]
+        # do operation
+        if operation == 'REPLACE':
+            name = ini.read('info', 'name')
+            if self.queue is None:
+                self.queue = Queue(name, self)
+            self.queue.name = ini.read('info', 'name')
+            self.queue.folder = f
+            self.queue.ini = ini
+            self.queue.update()
+        if operation == 'APPEND':
+            self.queue
+            
 
     def on_remove_item(self, row):
         index = row.toInt()[0]  # given as QVariant
@@ -1014,7 +1075,7 @@ class GUI(QtCore.QObject):
                     self.queue_control.set_style('INTERRUPT QUEUE', 'stop')
                 else:
                     self.queue_control.set_style('STOP QUEUE', 'stop')
-                    self.message_widget.setText('QUEUE RUNNING')
+                    self.message_widget.setText('QUEUE WAITING')
             else:
                 self.queue_control.set_style('RUN QUEUE', 'go')
                 self.message_widget.setText('QUEUE STOPPED')
@@ -1023,8 +1084,6 @@ class GUI(QtCore.QObject):
                 self.save_button.setDisabled(False)
             else:
                 self.save_button.setDisabled(True)
-            # load button
-            self.load_button.setDisabled(False)
             # append button
             self.append_button.setDisabled(False)
         # table ---------------------------------------------------------------
@@ -1032,7 +1091,6 @@ class GUI(QtCore.QObject):
         for _ in range(self.table.rowCount()):
             self.table.removeRow(0)
         # add elements from queue
-        buttons = []
         for i, item in enumerate(self.queue.items):
             self.table.insertRow(i)
             # index
@@ -1079,5 +1137,3 @@ class GUI(QtCore.QObject):
         for frame in self.type_frames.values():
             frame.hide()
         self.type_frames[self.type_combo.read()].show()
-
-
