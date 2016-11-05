@@ -24,7 +24,7 @@ hardware/opas/TOPAS_800/OPA1 (16426) curves/
 
 # PDFs
 *.pdf
-!PyCMDS Manual.pdf
+!PyCMDS.pdf
 
 # drivers
 *devcon.exe
