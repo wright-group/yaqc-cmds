@@ -4,7 +4,6 @@ logs/
 autonomic/files/
 somatic/saved/
 somatic/temp/
-hardware/opas/pico/OPA1 curves/
 hardware/opas/pico/OPA2 curves/
 hardware/opas/pico/OPA3 curves/
 hardware/opas/TOPAS_C/OPA1 (10743) curves/
@@ -13,7 +12,7 @@ hardware/opas/TOPAS_C/configuration
 hardware/opas/TOPAS_C/manuals
 hardware/opas/TOPAS_800/configuration
 hardware/opas/TOPAS_800/manuals
-hardware/opas/TOPAS_800/OPA4 (16426) curves/
+hardware/opas/TOPAS_800/OPA1 (16426) curves/
 
 # PyCMDS config files
 *.ini

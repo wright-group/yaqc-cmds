@@ -24,7 +24,7 @@ import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'opas',
+ini = Ini(os.path.join(main_dir, 'hardware', 'opas',
                                  'TOPAS_800',
                                  'TOPAS.ini'))
                                  
@@ -78,7 +78,7 @@ curve_indicies = {'Base': 1,
 
 #IMPORTANT: THE WINDLL CALL MUST HAPPEN WITHIN THE TOPAS DRIVER FOLDER (os.chdir())
 
-driver_folder = os.path.join(main_dir, 'opas', 'TOPAS_800', 'configuration', 'drivers')
+driver_folder = os.path.join(main_dir, 'hardware', 'opas', 'TOPAS_800', 'configuration', 'drivers')
 os.chdir(driver_folder)
 dll_path = os.path.join(driver_folder, 'TopasAPI.dll')
 dll = ctypes.WinDLL(dll_path)
@@ -790,7 +790,7 @@ class OPA:
         self.serial_number = ini.read('OPA' + str(self.index), 'serial number')
         self.recorded['w%d'%self.index] = [self.current_position, 'nm', 1., str(self.index)]
         # load api 
-        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'opas', 'TOPAS_800', 'configuration', str(self.serial_number) + '.ini')
+        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS_800', 'configuration', str(self.serial_number) + '.ini')
         self.api = TOPAS(self.TOPAS_ini_filepath)
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
         self.TOPAS_ini.return_raw = True
@@ -828,7 +828,7 @@ class OPA:
         current_value = ini.read('OPA%i'%self.index, 'current interaction string')
         self.interaction_string_combo.write(current_value)
         self.interaction_string_combo.updated.connect(self.load_curve)
-        g.module_control.disable_when_true(self.interaction_string_combo)
+        g.queue_control.disable_when_true(self.interaction_string_combo)
         self.load_curve()
         # finish
         self.get_position()
@@ -931,8 +931,8 @@ class MotorControlGUI(QtGui.QWidget):
         home_button, set_button = self.add_buttons(self.layout, 'HOME', 'advanced', 'SET', 'set')
         home_button.clicked.connect(self.on_home)
         set_button.clicked.connect(self.on_set)
-        g.module_control.disable_when_true(home_button)
-        g.module_control.disable_when_true(set_button)
+        g.queue_control.disable_when_true(home_button)
+        g.queue_control.disable_when_true(set_button)
         # finish
         self.setLayout(self.layout)
             
@@ -949,7 +949,7 @@ class MotorControlGUI(QtGui.QWidget):
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[button1_color])
         button1.setStyleSheet(StyleSheet)
         button_container.layout().addWidget(button1)
-        g.module_control.disable_when_true(button1)
+        g.queue_control.disable_when_true(button1)
         # button2
         button2 = QtGui.QPushButton()
         button2.setText(button2_text)
@@ -957,7 +957,7 @@ class MotorControlGUI(QtGui.QWidget):
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[button2_color])
         button2.setStyleSheet(StyleSheet)
         button_container.layout().addWidget(button2)
-        g.module_control.disable_when_true(button2)
+        g.queue_control.disable_when_true(button2)
         # finish
         layout.addWidget(button_container)
         return [button1, button2]
@@ -981,7 +981,6 @@ class GUI(QtCore.QObject):
         self.layout = layout
         self.frame = QtGui.QWidget()
         self.frame.setLayout(self.layout)
-        g.module_advanced_widget.add_child(self.frame)
         if self.driver.initialized.read():
             self.initialize()
         else:
@@ -1053,7 +1052,7 @@ class GUI(QtCore.QObject):
         self.home_all_button = pw.SetButton('HOME ALL', 'advanced')
         settings_layout.addWidget(self.home_all_button)
         self.home_all_button.clicked.connect(self.on_home_all)
-        g.module_control.disable_when_true(self.home_all_button)
+        g.queue_control.disable_when_true(self.home_all_button)
         # stretch
         settings_layout.addStretch(1)
         # signals and slots

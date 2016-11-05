@@ -14,7 +14,7 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 main_dir = g.main_dir.read()
-ini = project.ini_handler.Ini(os.path.join(main_dir, 'delays',
+ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'delays',
                                                      'pico',
                                                      'pico_delay.ini'))
 
@@ -51,7 +51,7 @@ class Delay(QtCore.QObject):
         self.motor.close()
 
     def get_position(self):
-        position = self.motor.get_position('mm')
+        position = self.motor.current_position_mm
         self.current_position_mm.write(position, 'mm')
         delay = (position - self.zero_position.read()) * ps_per_mm
         self.current_position.write(delay, 'ps')
@@ -126,12 +126,8 @@ class gui(QtCore.QObject):
     def create_frame(self, layout):
         layout.setMargin(5)
         self.layout = layout
-
         self.advanced_frame = QtGui.QWidget()
         self.advanced_frame.setLayout(self.layout)
-
-        g.module_advanced_widget.add_child(self.advanced_frame)
-
         if self.delay.initialized.read():
             self.initialize()
         else:
@@ -162,7 +158,7 @@ class gui(QtCore.QObject):
         self.set_button = pw.SetButton('SET ZERO')
         settings_layout.addWidget(self.set_button)
         self.set_button.clicked.connect(self.on_set)
-        g.module_control.disable_when_true(self.set_button)
+        g.queue_control.disable_when_true(self.set_button)
 
         settings_layout.addStretch(1)
         self.layout.addStretch(1)

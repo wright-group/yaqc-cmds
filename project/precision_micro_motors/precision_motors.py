@@ -29,16 +29,13 @@ counts_per_mm = 58200
 
 # dictionary to contain motor correspondance
 identity = {'D1': 'motor0', 
-            'D2': 'motor1', 
-            'OPA1 grating': 'motor2',
-            'OPA1 BBO': 'motor3',
-            'OPA1 mixer': 'motor4',
+            'D2': 'motor1',
             'OPA2 grating': 'motor8',
             'OPA2 BBO': 'motor9',
             'OPA2 mixer': 'motor10',
-            'OPA3 grating': 'motor5',
-            'OPA3 BBO': 'motor6',
-            'OPA3 mixer': 'motor7'}
+            'OPA3 grating': 'motor2',
+            'OPA3 BBO': 'motor3',
+            'OPA3 mixer': 'motor4'}
 
 ### control ###################################################################
 
@@ -64,6 +61,49 @@ def close_controllers():
 # a list to contain initialized motors
 initialized_motors = []
 
+
+
+from PyQt4 import QtCore
+
+class Busy(QtCore.QMutex):
+
+    def __init__(self):
+        '''
+        QMutex object to communicate between threads that need to wait \n
+        while busy.read(): busy.wait_for_update()
+        '''
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.value = False
+        self.type = 'busy'
+        self.update_signal = None
+
+    def read(self):
+        return self.value
+
+    def write(self, value):
+        '''
+        bool value
+        '''
+        self.tryLock(10)  # wait at most 10 ms before moving forward
+        self.value = value
+        self.unlock()
+        self.WaitCondition.wakeAll()
+
+    def wait_for_update(self, timeout=5000):
+        '''
+        wait in calling thread for any thread to call 'write' method \n
+        int timeout in milliseconds
+        '''
+        if self.value:
+            return self.WaitCondition.wait(self, msecs=timeout)
+
+busy = Busy()
+
+
+
+
+
 class Motor():
     
     def __init__(self, ini_section):
@@ -73,7 +113,12 @@ class Motor():
         controller_index = ini.read(self.ini_section, 'controller')
         self.axis = ini.read(self.ini_section, 'axis')
         initial_position = ini.read(self.ini_section, 'current_position')
+        self.destination = initial_position
         self.tolerance = ini.read(self.ini_section,'tolerance')
+        self.backlash_enabled = ini.read(self.ini_section, 'enable_backlash_correction')
+        self.backlash = ini.read(self.ini_section, 'backlash')  # steps
+        self.moving = False
+        self.backlashing = False
         # set conditions for motor
         self.ctrl = controllers[controller_index]
         self.ctrl.EnableAxis(self.axis, True)
@@ -99,6 +144,8 @@ class Motor():
         self.ctrl.SetGain(self.axis, gain)
         self.ctrl.SetVelocity(self.axis, velocity)
         self.ctrl.SetPosition(self.axis, initial_position)
+        self.current_position = initial_position
+        self.current_position_mm = 50. - float(self.current_position)/float(counts_per_mm)
         # add to list of initialized motors
         initialized_motors.append(self)
         self.open = True
@@ -123,27 +170,45 @@ class Motor():
         self.open = False
         
     def get_position(self, returned_units='mm'):
-        self.current_position = self.ctrl.GetPositionEx(self.axis)
+        while busy.read():
+            busy.wait_for_update()
+        busy.write(True)
+        time.sleep(0.1)  # limits the maximum rate of requests to control - cannot go lower than 50 ms
+        self.current_position = int(self.ctrl.GetPositionEx(self.axis))
+        self.current_position_mm = 50. - float(self.current_position)/float(counts_per_mm)
+        busy.write(False)
         ini.write(self.ini_section, 'current_position', int(self.current_position))
         if returned_units == 'counts':
             return self.current_position
         elif returned_units == 'mm':
-            return 50. - self.current_position/counts_per_mm
+            return self.current_position_mm
         else:
             print 'returned_units kind', returned_units, 'not recognized in precision_motors.get_position'
-        self._offset_adj(self.last_destination,self.current_position)
+        #self._offset_adj(self.last_destination, self.current_position)
             
-    def is_stopped(self, timeout=0.1):
-        '''
-        Timeout in seconds. It seems that the controller waits at least
-        timeout if it is not stopped.
-        '''
-        if self.open:
-            return bool(self.ctrl.IsStopped(self.axis, timeout))
+    def is_stopped(self):
+        if self.open and self.moving:
+            current_destination = self.destination
+            if self.backlash_enabled and self.backlashing:
+                current_destination += self.backlash
+            difference = abs(self.current_position - current_destination)
+            #print(self.axis, self.current_position, current_destination, self.tolerance, difference)
+            stopped = difference <= self.tolerance
+            self.previously_recorded_counts = self.current_position
+            if stopped and self.backlashing:
+                self.backlashing = False
+                self.move_relative(-self.backlash, input_units='counts', wait=False)
+                out = False
+            else:
+                out = stopped
         else:
-            return True
+            out = True
+        if out == True:
+            self.moving = False
+        return out
         
     def move_absolute(self, destination, input_units='mm', wait=False):
+        self.moving = True
         go = True
         if input_units == 'counts':
             pass
@@ -152,16 +217,32 @@ class Motor():
         else:
             print 'input_units kind', input_units, 'not recognized in precision_motors.move_absolute'
             go = False
-        
-        if go and abs(self.ctrl.GetPositionEx(self.axis)-destination) >= self.tolerance:
-            ini.write(self.ini_section, 'last_destination', int(destination))
-            self.last_destination = int(destination)
-            print self.axis, int(destination+self.offset)
-            self.ctrl.MoveAbsolute(self.axis, int(destination+self.offset))
+        self.destination = int(destination)  # counts
+        if go and abs(self.current_position-destination) >= self.tolerance:
+            # record destination (in case of crash during motion)
+            ini.write(self.ini_section, 'last_destination', int(destination))            
+            if self.backlash_enabled:
+                # move to backlash position, if backlash enabled
+                self.backlashing = True
+                intermediate_destination = destination+self.backlash
+                while busy.read():
+                    busy.wait_for_update()
+                busy.write(True)
+                self.ctrl.MoveAbsolute(self.axis, int(intermediate_destination+self.offset))
+                busy.write(False)
+            else:
+                # otherwise, go directly
+                while busy.read():
+                    busy.wait_for_update()
+                busy.write(True)
+                self.ctrl.MoveAbsolute(self.axis, int(destination+self.offset))
+                busy.write(False)
         if wait:
             self.wait_until_still()
     
     def move_relative(self, distance, input_units='mm', wait=False):
+        self.moving = True
+        # does not apply backlash
         go = True
         if input_units == 'counts':
             pass
@@ -170,15 +251,17 @@ class Motor():
         else:
             print 'input_units kind', input_units, 'not recognized in precision_motors.move_relative'
             go = False
-            
-        if go and abs(self.ctrl.GetPositionEx(self.axis)-destination) >= self.tolerance:
-            ini.write(self.ini_section, 'last_destination', int(self.current_position + distance))
-            self.ctrl.MoveRelative(self.axis, int(distance+self.offset))
+        while busy.read():
+            busy.wait_for_update()
+        busy.write(True)
+        self.ctrl.MoveRelative(self.axis, int(distance+self.offset))
+        busy.write(False)
         if wait:
             self.wait_until_still()
     
     def wait_until_still(self, method=None):
-        while not self.is_stopped():  # sleep is inside of is_stopped call, essentially
+        time.sleep(0.1)  # wait for the motor to start moving
+        while not self.is_stopped():
             self.get_position()
             if method:
                 method()
@@ -204,89 +287,25 @@ class Motor():
         self.ctrl.MoveToPoint(self.axis,index)
         
     def _offset_adj(self,goal,pos):
+        # I'm not sure what this does
+        # perhaps it should be removed
+        # - Blaise 2016-09-07
         if len(offset_list)>49:        
             self.offset_list.pop(0)
         self.offset_list.append(int(goal)-pos)
         self.offset = np.average(self.offset_list)+self.offset
+
         
 ### testing ###################################################################
 
-if __name__ == '__main__':
+
+if False:
     
     import numpy as np
-    
-    if False:
-        # move all motors to a destination
-        motor_sections = ['motor0', 'motor1']
-        
-        # initialize motors
-        motors = []
-        for section in motor_sections:
-            motors.append(Motor(section))
-            
-        # set motors
-        for motor in motors:
-            motor.move_absolute(30, 'mm', wait=False)
-            
-        # wait
-        for motor in motors:
-            motor.wait_until_still()
-            
-        # close
-        for motor in motors:
-            print motor.get_position('mm')
-            motor.close()
-        
-    if False:
-        #mess with a single motor
-        motor = Motor('motor1')
-        motor.move_absolute(25, 'mm')
-        motor.wait_until_still()
-        print motor.is_stopped()
-        print motor.get_position('mm')
-        motor.close()
-        
-    if False:
-        # move a single motor relative
-        motor = Motor('motor9')
-        motor.move_relative(-0.5, 'mm')
-        motor.wait_until_still()
-        print motor.get_position('mm')
-        motor.close()
 
-    if False:
-        motor = Motor('motor7')
-        motor.move_absolute(25.0000)
-        move = 0.0005
-        #pos_in_cn = counts_per_mm * np.arange(25.0,25.05,0.0005)
-        final_pos = []
-        for j in range(15):
-            p = []
-            for x in range(100):
-                ini.write(motor.ini_section, 'last_destination', int(x))
-                motor.move_relative(motor.axis, x)
-                motor.wait_until_still()
-                time.sleep(.01)
-                p.append(motor.get_position('counts'))
-            final_pos.append(p)
-        motor.close()
-        
-    if False:
-        motor = Motor('motor7')
-        pos_in_cn = counts_per_mm * np.arange(25.05,25.0,-0.0005)
-        final_pos = []
-        targets = []
-        for j in range(5):
-            p = []
-            t=[]
-            for x in pos_in_cn:
-                x = int(x)
-                ini.write(motor.ini_section, 'last_destination', int(x))
-                motor.ctrl.MoveAbsolute(motor.axis, x)
-                t.append(x-motor.get_target())
-                motor.wait_until_still()
-                time.sleep(.01)
-                p.append(x-motor.get_position('counts'))
-            final_pos.append(p)
-            targets.append(t)
-        motor.close()
+    #mess with a single motor
+    motor = Motor('motor2')
+    motor.move_absolute(40, 'mm')
+    motor.wait_until_still()
+    print(motor.get_position('mm'))
+    motor.close()
