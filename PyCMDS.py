@@ -7,7 +7,6 @@ folders = []
 folders.append(['data'])
 folders.append(['logs'])
 folders.append(['autonomic', 'files'])
-folders.append(['hardware', 'opas', 'pico', 'OPA1 curves'])
 folders.append(['hardware', 'opas', 'pico', 'OPA2 curves'])
 folders.append(['hardware', 'opas', 'pico', 'OPA3 curves'])
 folders.append(['hardware', 'opas', 'TOPAS_C', 'OPA1 (10743) curves'])

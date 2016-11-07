@@ -22,7 +22,7 @@ else:
     import project.precision_micro_motors.precision_motors as pm_motors
 
 main_dir = g.main_dir.read()
-ini = project.ini_handler.Ini(os.path.join(main_dir, 'opas',
+ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas',
                                                      'pico',
                                                      'pico_opa.ini'))
 
@@ -77,7 +77,7 @@ class OPA:
 
     def get_motor_positions(self, inputs=[]):
         for i in range(len(self.motors)):
-            val = self.motors[i].get_position()
+            val = self.motors[i].current_position_mm
             self.motor_positions[i].write(val)
         return [mp.read() for mp in self.motor_positions]
 
@@ -153,19 +153,22 @@ class OPA:
         elif len(inputs)==3:
             name, destination, backlash = inputs
         m = self.motors[self.motor_names.index(name)]
-        if backlash and abs(m.current_position - destination) >= m.tolerance:
-            current_pos = m.current_position
-            if current_pos+150/counts_per_mm >= destination:
-                m.move_absolute(destination)
-                self.wait_until_still()
-                m.move_absolute(destination)
+        m.move_absolute(destination)
+        # I'm pretty sure this should not be here...
+        if False:
+            if backlash and abs(m.current_position - destination) >= m.tolerance:
+                current_pos = m.current_position
+                if current_pos+150/counts_per_mm >= destination:
+                    m.move_absolute(destination)
+                    self.wait_until_still()
+                    m.move_absolute(destination)
+                else:
+                    m.move_absolute(min(current_pos,destination) - 150/counts_per_mm)
+                    self.wait_until_still()
+                    m.move_absolute(destination)
             else:
-                m.move_absolute(min(current_pos,destination) - 150/counts_per_mm)
-                self.wait_until_still()
                 m.move_absolute(destination)
-        else:
-            m.move_absolute(destination)
-        
+            
     def set_motors(self, inputs):
         r = 3
         for axis in range(r):
@@ -178,9 +181,8 @@ class OPA:
 
     def wait_until_still(self, inputs=[]):
         for motor in self.motors:
-            motor.wait_until_still(method=self.get_motor_positions)
+            motor.wait_until_still(method=self.get_position)
         self.get_motor_positions()
-        
 
 
 ### advanced gui ##############################################################
@@ -199,8 +201,6 @@ class GUI(QtCore.QObject):
 
         self.advanced_frame = QtGui.QWidget()
         self.advanced_frame.setLayout(self.layout)
-
-        g.module_advanced_widget.add_child(self.advanced_frame)
 
         if self.opa.initialized.read():
             self.initialize()
@@ -262,7 +262,7 @@ class GUI(QtCore.QObject):
         input_table = pw.InputTable()
         input_table.add('Curve', None)
         input_table.add('Filepath', self.opa.curve_path)
-        g.module_control.disable_when_true(self.opa.curve_path)
+        g.queue_control.disable_when_true(self.opa.curve_path)
         self.lower_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
         input_table.add('Low energy limit', self.lower_limit)
         self.upper_limit = pc.Number(initial_value=7000, units=self.opa.native_units, display=True)
@@ -290,7 +290,7 @@ class GUI(QtCore.QObject):
         self.set_button = pw.SetButton('SET')
         settings_layout.addWidget(self.set_button)
         self.set_button.clicked.connect(self.on_set_motors)
-        g.module_control.disable_when_true(self.set_button)
+        g.queue_control.disable_when_true(self.set_button)
 
         # streach
         settings_layout.addStretch(1)
