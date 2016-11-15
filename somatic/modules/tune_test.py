@@ -87,7 +87,7 @@ class Worker(acquisition.Worker):
         # do scan
         self.scan(axes)
         # finish
-        if self.go:
+        if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull
 
  
