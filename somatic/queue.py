@@ -870,8 +870,9 @@ class GUI(QtCore.QObject):
             for item_index, item in enumerate(self.queue.items):
                 name = ' - '.join([str(item_index).zfill(3), item.type, item.description])
                 fields = []
-                if not item.status == 'ENQUEUED':
+                if item.started is not None:
                     fields.append(make_field('started', item.started.human, short=True))
+                if item.exited is not None:
                     fields.append(make_field('exited', item.exited.human, short=True))
                 if item.type == 'acquisition' and item.status in ['COMPLETE', 'FAILED']:
                     fields.append(make_field('url', item.url, short=False))
@@ -1074,9 +1075,12 @@ class GUI(QtCore.QObject):
             i += 1
         # manage queue index
         for index, item in enumerate(self.queue.items):
-            self.queue.index = index
             if item.status == 'ENQUEUED':
                 break
+            else:
+                self.queue.index += 1
+        if not self.queue.items[-1].status == 'ENQUEUED':
+            self.queue.index += 1
         # finish
         self.queue.update()
         self.queue_name.write(self.queue.name)

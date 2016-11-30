@@ -195,14 +195,15 @@ class Worker(QtCore.QObject):
         for axis_index, axis in enumerate(axes):
             if axis.identity[0] == 'D':
                 centers = axis.centers
-                # transpose so own index is first
+                # transpose so own index is first (all others slide down)
                 transpose_order = range(len(axes))
-                transpose_order[0] = axis_index
-                transpose_order[axis_index] = 0
+                transpose_order.insert(0, transpose_order.pop(axis_index))
                 arrs[axis_index] = np.transpose(arrs[axis_index], axes=transpose_order)
                 # add centers to transposed array
                 arrs[axis_index] += centers
                 # transpose out
+                transpose_order = range(len(axes))
+                transpose_order.insert(axis_index, transpose_order.pop(0))
                 arrs[axis_index] = np.transpose(arrs[axis_index], axes=transpose_order)
         # create destination objects
         destinations_list = []
@@ -286,6 +287,7 @@ class Worker(QtCore.QObject):
         # initialize devices
         devices.control.initialize_scan(self.aqn, scan_folder, destinations_list)
         # acquire -------------------------------------------------------------
+        self.fraction_complete.write(0.)
         slice_index = 0
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
@@ -340,6 +342,7 @@ class Worker(QtCore.QObject):
         self.scan_complete.emit()
         # process scan --------------------------------------------------------
         getattr(self, processing_method)(scan_folder)
+        return scan_folder
     
     def upload(self, scan_folder, message='scan complete', reference_image=None):
         # create folder on google drive, upload reference image

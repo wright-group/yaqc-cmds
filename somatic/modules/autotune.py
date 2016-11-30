@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import sys
 import time
+import collections
 import numexpr as ne
 
 import numpy as np
@@ -25,7 +26,8 @@ main_dir = g.main_dir.read()
 ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'tune_test.ini'))
 app = g.app.read()
 
-import hardware.delays.delays as delays
+import hardware.opas.opas as opas
+import devices.devices as devices
 
  
 ### define ####################################################################
@@ -39,18 +41,15 @@ module_name = 'AUTOTUNE'
 
 class Worker(acquisition.Worker):
     
+    def process(self, scan_folder):
+        pass
+    
     def run(self):
-        # assemble axes
-        axes = []
-        width = self.aqn.read('delay', 'width') 
-        npts = int(self.aqn.read('delay', 'number'))
-        points = np.linspace(-width/2., width/2., npts)
-        units = 'ps'        
-        axis = acquisition.Axis(points=points, units=units, name='d0', identity='d0')
-        axes.append(axis)
-        # do scan
-        self.scan(axes)
-        self.finished.write(True)  # only if acquisition successfull
+        opa_names = [opa.name for opa in opas.hardwares]
+        opa_name = self.aqn.read('OPA', 'name')
+        opa_index = opa_names.index(opa_name)
+        opa = opas.hardwares[opa_index]
+        opa.address.ctrl.auto_tune.run(self)
 
  
 ### GUI #######################################################################
@@ -60,25 +59,50 @@ class GUI(acquisition.GUI):
 
     def create_frame(self):
         input_table = pw.InputTable()
-        input_table.add('Delay', None)
-        self.width = pc.Number(initial_value=10., units='ps')
-        input_table.add('Width', self.width)
-        self.npts = pc.Number(initial_value=51, decimals=0)
-        input_table.add('Number', self.npts)
+        self.opa_combobox = pc.Combo()
+        self.opa_combobox.updated.connect(self.on_opa_combobox_updated)
+        input_table.add('OPA', self.opa_combobox)
         self.layout.addWidget(input_table)
-        
+        # opa frames
+        self.opa_widgets = collections.OrderedDict()
+        self.opa_autotunes = collections.OrderedDict()
+        for opa in opas.hardwares:
+            if hasattr(opa.address.ctrl, 'auto_tune'):
+                widget = opa.address.ctrl.auto_tune
+                self.layout.addWidget(widget)
+                self.opa_widgets[opa.name] = widget
+                widget.hide()
+                self.opa_autotunes[opa.name] = opa.address.ctrl.auto_tune
+        self.opa_combobox.set_allowed_values(self.opa_widgets.keys())
+        self.on_opa_combobox_updated()
+        for opa in opas.hardwares:
+            opa.initialized_signal.connect(self.on_initialized)
+            
     def load(self, aqn_path):
-        ini = wt.kit.INI(aqn_path)
-        self.width.write(ini.read('delay', 'width'))
-        self.npts.write(ini.read('delay', 'number'))
+        aqn = wt.kit.INI(aqn_path)
+        self.opa_combobox.write(aqn.read('OPA', 'name'))
+        self.opa_autotunes[self.opa_combobox.read()].load(aqn_path)
         self.device_widget.load(aqn_path)
         
+    def on_opa_combobox_updated(self):
+        for w in self.opa_widgets.values():
+            w.hide()
+        self.opa_widgets[self.opa_combobox.read()].show()
+
+    def on_device_settings_updated(self):
+        channel_names = devices.control.channel_names
+        for w in self.opa_widgets.values():
+            if w.initialized.read():
+                w.update_channel_names(channel_names)
+            
+    def on_initialized(self):
+        self.on_device_settings_updated()
+        
     def save(self, aqn_path):
-        ini = wt.kit.INI(aqn_path)
-        ini.add_section('delay')
-        ini.write('delay', 'width', self.width.read())
-        ini.write('delay', 'number', self.npts.read())
-        ini.write('info', 'description', 'module description text')
+        aqn = wt.kit.INI(aqn_path)
+        aqn.add_section('OPA')
+        aqn.write('OPA', 'name', self.opa_combobox.read())
+        self.opa_autotunes[self.opa_combobox.read()].save(aqn_path)
         self.device_widget.save(aqn_path)
         
 gui = GUI(module_name)

@@ -116,14 +116,14 @@ class Worker(acquisition.Worker):
             chopped_datas = data.chop(0, 1, verbose=False)
         data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
         # make all images
-        channel = [self.aqn.read('processing', 'channel')]
+        channel = self.aqn.read('processing', 'channel')
         image_fname = channel
         if len(data.shape) == 1:
             artist = wt.artists.mpl_1D(data, verbose=False)
             artist.plot(channel, autosave=True, output_folder=data_folder,
                         fname=image_fname, verbose=False)
         elif len(data.shape) == 2:
-            artist = wt.channel.mpl_2D(data, verbose=False)
+            artist = wt.artists.mpl_2D(data, verbose=False)
             artist.plot(channel, autosave=True, output_folder=data_folder,
                         fname=image_fname, verbose=False)
         else:
@@ -135,11 +135,10 @@ class Worker(acquisition.Worker):
                 artist.plot(channel, autosave=True, output_folder=channel_folder,
                             fname=this_image_fname, verbose=False)
         # get output image
-        main_channel = self.aqn.read('processing', 'main channel')
         if len(data.shape) <= 2:
-            output_image_path = main_channel + ' 000.png'
+            output_image_path = channel + ' 000.png'
         else:
-            output_folder = os.path.join(data_folder, main_channel)
+            output_folder = os.path.join(data_folder, channel)
             output_image_path = os.path.join(output_folder, 'animation.gif')
             images = wt.kit.glob_handler('.png', folder=output_folder)
             wt.artists.stitch_to_animation(images=images, outpath=output_image_path)
@@ -182,12 +181,10 @@ class Worker(acquisition.Worker):
                 npts = self.aqn.read(motor_name, 'number')
                 if self.aqn.read('motortune', 'use tune points'):
                     center = 0.
-                    identity = 'D'+name#+'F'+opa_friendly_name
+                    identity = 'D'+name
                     curve_motor_index = curve.get_motor_names(full=False).index(motor_name)
                     motor_positions = curve.motors[curve_motor_index].positions
-                    kwargs = {'centers': motor_positions, 
-                              'centers_units': motor_units,
-                              'centers_follow': opa_friendly_name}
+                    kwargs = {'centers': motor_positions}
                 else:
                     center = self.aqn.read(motor_name, 'center')
                     identity = name
@@ -214,9 +211,9 @@ class Worker(acquisition.Worker):
                 identity = 'D'+name
                 curve = curve.copy()
                 curve.convert('wn')
-                kwargs = {'centers': curve.colors,
-                          'centers_units': curve.units,
-                          'centers_follow': opa_friendly_name}
+                #centers_shape = [a.points.size for a in axes]
+                #centers = np.transpose(curve.colors * np.ones(centers_shape).T)
+                kwargs = {'centers': curve.colors}
             else:
                 center = self.aqn.read('spectrometer', 'center')
                 identity = name
@@ -232,6 +229,14 @@ class Worker(acquisition.Worker):
                 spectrometers.hardwares[0].set_position(self.aqn.read('spectrometer', 'center'), 'wn')
         elif self.aqn.read('spectrometer', 'method') == 'Static':
             spectrometers.hardwares[0].set_position(self.aqn.read('spectrometer', 'center'), 'wn')
+        # handle centers
+        for axis_index, axis in enumerate(axes):
+            centers_shape = [a.points.size for i, a in enumerate(axes) if not i == axis_index]
+            ones = np.ones(centers_shape)
+            if hasattr(axis, 'centers'):
+                # arrays always follow
+                axis.centers = np.transpose(axis.centers * ones.T)
+                print(axis.centers.shape, axis.name)
         # launch
         pre_wait_methods = [lambda: opa_hardware.q.push('wait_until_still'),
                             lambda: opa_hardware.q.push('get_motor_positions'),
@@ -309,6 +314,9 @@ class GUI(acquisition.GUI):
         self.main_channel.write(aqn.read('processing', 'channel'))
         # allow devices to read from aqn
         self.device_widget.load(aqn_path)
+    
+    def on_device_settings_updated(self):
+        self.main_channel.set_allowed_values(devices.control.channel_names)
     
     def on_opa_combo_updated(self):
         self.show_opa_gui(self.opa_combo.read_index())
