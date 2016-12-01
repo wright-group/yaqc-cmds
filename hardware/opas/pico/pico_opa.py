@@ -57,6 +57,7 @@ class OPA:
         self.initialized = pc.Bool()
 
     def close(self):
+        ini.write('OPA%d'%self.index, 'current position (wn)', self.current_position.read())
         for motor in self.motors:
             motor.close()
 
@@ -66,7 +67,6 @@ class OPA:
         '''
         self.curve = wt.tuning.curve.from_800_curve(filepath)
         self.limits.write(self.curve.colors.min(), self.curve.colors.max(), 'wn')
-        print('PICO OPA CURVE LOADED', self.curve.name)
 
     def get_points(self):
         out = np.zeros([4, len(self.curve.colors)])
@@ -93,6 +93,8 @@ class OPA:
         '''
         self.address = address
         self.index = inputs[0]
+        self.current_position.write(ini.read('OPA%d'%self.index, 'current position (wn)'), 'wn')
+        self.address.hardware.destination.write(self.current_position.read('wn'), 'wn')
         # motor positions
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50)
         self.grating_position = pc.Number(name='Grating', initial_value=25., limits=self.motor_limits, display=True)
@@ -121,7 +123,6 @@ class OPA:
         self.recorded['w%d_Mixer'%self.index] = [self.mixer_position, None, 0.001, 'mixer', True]
         self.initialized.write(True)
         self.address.initialized_signal.emit()
-        print('PICO OPA INITIALIZED')
 
     def is_busy(self):
         for motor in self.motors:
@@ -446,10 +447,12 @@ class AutoTune(QtGui.QWidget):
             # do scan
             scan_folder = worker.scan(axes)
             # process
+            p = os.path.join(scan_folder, '000.data')
+            data = wt.data.from_PyCMDS(p)
+            curve = self.opa.curve
             channel = worker.aqn.read('BBO', 'channel')
-            filepath = os.path.join(scan_folder, '000.data')
             old_curve_filepath = self.opa.curve_path.read()
-            wt.tuning.workup.intensity(filepath, channel, old_curve_filepath=old_curve_filepath)
+            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.opa.curve_path.write(p)
@@ -479,10 +482,12 @@ class AutoTune(QtGui.QWidget):
             # do scan
             scan_folder = worker.scan(axes)
             # process
+            p = os.path.join(scan_folder, '000.data')
+            data = wt.data.from_PyCMDS(p)
+            curve = self.opa.curve
             channel = worker.aqn.read('Mixer', 'channel')
-            filepath = os.path.join(scan_folder, '000.data')
             old_curve_filepath = self.opa.curve_path.read()
-            wt.tuning.workup.intensity(filepath, channel, old_curve_filepath=old_curve_filepath)
+            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.opa.curve_path.write(p)
@@ -510,10 +515,11 @@ class AutoTune(QtGui.QWidget):
             # do scan
             scan_folder = worker.scan(axes)
             # process
-            channel = worker.aqn.read('Test', 'channel')
-            filepath = os.path.join(scan_folder, '000.data')
-            old_curve_filepath = self.opa.curve_path.read()
-            wt.tuning.workup.tune_test(filepath, channel, old_curve_filepath=old_curve_filepath)
+            p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
+            data = wt.data.from_PyCMDS(p)
+            curve = self.opa.curve
+            channel = worker.aqn.read('processing', 'channel')
+            wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.opa.curve_path.write(p)
