@@ -64,7 +64,7 @@ class Item(QtCore.QObject):
         self.status = 'ENQUEUED'
         self.finished = pc.Bool(initial_value=False)
         # timestamps
-        self.created = wt.kit.get_timestamp()
+        self.created = wt.kit.TimeStamp()
         self.started = None
         self.exited = None
         
@@ -161,7 +161,7 @@ class Worker(QtCore.QObject):
         g.queue_control.write(True)
         self.queue_status.going.write(True)
         self.fraction_complete.write(0.)
-        item.started = time.time()
+        item.started = wt.kit.TimeStamp()
         if item.type == 'acquisition':
             self.execute_acquisition(item)
         elif item.type == 'device':
@@ -170,7 +170,7 @@ class Worker(QtCore.QObject):
             self.execute_hardware(item)
         elif item.type == 'wait':
             self.execute_wait(item)
-        item.exited = time.time()
+        item.exited = wt.kit.TimeStamp()
         self.fraction_complete.write(1.)
         self.queue_status.going.write(False)
         g.queue_control.write(False)
@@ -299,27 +299,34 @@ class QueueStatus(QtCore.QObject):
     def get_runtime(self):
         '''
         returns total seconds run
-        '''
-        now = datetime.datetime.now(self.tz)
-        return self.runtime + (now-self.last_started).total_seconds()
+        '''        
+        out = self.runtime
+        if self.last_started is not None:
+            now = datetime.datetime.now(self.tz)
+            out += (now-self.last_started).total_seconds()
+        return out
 
 
 class Queue():
 
-    def __init__(self, name, gui, folder=None):
+    def __init__(self, name, gui, folder=None, url=None):
         self.name = name[:10]  # cannot be more than 10 charachters
         self.gui = gui
         self.status = gui.queue_status
-        self.timestamp = wt.kit.get_timestamp()
-        self.short_timestamp = wt.kit.get_timestamp(style='short')
+        self.timestamp = wt.kit.TimeStamp()
         # create queue folder
-        folder_name = ' '.join([self.short_timestamp, self.name])
-        self.folder = os.path.join(g.main_window.read().data_folder, folder_name)
-        os.mkdir(self.folder)
+        if folder is None:
+            folder_name = ' '.join([self.timestamp.path, self.name])
+            self.folder = os.path.join(g.main_window.read().data_folder, folder_name)
+            os.mkdir(self.folder)
+        else:
+            self.folder = folder
+            folder_name = os.path.basename(self.folder)
         # create queue file
         self.ini_path = os.path.abspath(os.path.join(self.folder, 'queue.ini'))
-        with open(self.ini_path, 'a'):
-            os.utime(self.ini_path, None)  # quickly create empty file
+        if not os.path.isfile(self.ini_path):
+            with open(self.ini_path, 'a'):
+                os.utime(self.ini_path, None)  # quickly create empty file
         self.ini = wt.kit.INI(self.ini_path)  # I don't use ini_handler here
         # parameters and status indicators
         self.items = []
@@ -327,10 +334,13 @@ class Queue():
         self.going = pc.Busy()
         self.paused = pc.Busy()
         # create storage folder on google drive
-        if g.google_drive_enabled.read():
-            self.url = g.google_drive_control.read().create_folder(self.folder)
+        if url is None:
+            if g.google_drive_enabled.read():
+                self.url = g.google_drive_control.read().create_folder(self.folder)
+            else:
+                self.url = None
         else:
-            self.url = None
+            self.url = url
         # initialize worker
         self.worker_enqueued = pc.Enqueued()
         self.worker_busy = pc.Busy()
@@ -356,7 +366,7 @@ class Queue():
         self.worker_q.push('excecute', [item])
         self.gui.message_widget.setText(item.description.upper())
 
-    def append_acquisition(self, aqn_path):
+    def append_acquisition(self, aqn_path, update=True):
         # get properties
         ini = wt.kit.INI(aqn_path)
         aqn_index_str = str(len(self.items)).zfill(3)
@@ -368,13 +378,15 @@ class Queue():
         # move aqn file into queue folder
         aqn_name = ' '.join([aqn_index_str, module_name, item_name]).rstrip() + '.aqn'
         new_aqn_path = os.path.join(self.folder, aqn_name)
-        shutil.copyfile(aqn_path, os.path.abspath(new_aqn_path))
-        aqn_path = os.path.abspath(new_aqn_path)
+        if not aqn_path == new_aqn_path:
+            shutil.copyfile(aqn_path, os.path.abspath(new_aqn_path))
+            aqn_path = os.path.abspath(new_aqn_path)
         # create item
         acquisition = Acquisition(aqn_path, module, name=item_name, info=info, description=description)
         # append and update
         self.items.append(acquisition)
-        self.update()
+        if update:
+            self.update()
 
     def append_device(self):
         # TODO:
@@ -447,7 +459,7 @@ class Queue():
         self.update()
         if g.slack_enabled.read():
             g.slack_control.read().send_message(':bell: queue emptied - total runtime {}'.format(self.get_runtime()))
-        
+
     def on_action_complete(self):
         # update current item
         item = self.items[self.index]
@@ -499,7 +511,8 @@ class Queue():
         self.ini.clear()
         self.ini.add_section('info')
         self.ini.write('info', 'PyCMDS version', g.version.read())
-        self.ini.write('info', 'created', self.timestamp)
+        self.ini.write('info', 'created', self.timestamp.RFC3339)
+        self.ini.write('info', 'runtime', self.get_runtime())
         self.ini.write('info', 'name', self.name)
         self.ini.write('info', 'url', self.url)
         for index, item in enumerate(self.items):
@@ -510,9 +523,11 @@ class Queue():
             self.ini.write(index_str, 'info', item.info)
             self.ini.write(index_str, 'description', item.description)
             self.ini.write(index_str, 'status', item.status)
-            self.ini.write(index_str, 'created', item.created)
-            self.ini.write(index_str, 'started', wt.kit.get_timestamp(at=item.started))
-            self.ini.write(index_str, 'exited', wt.kit.get_timestamp(at=item.exited))
+            self.ini.write(index_str, 'created', item.created.RFC3339)
+            if item.started is not None:
+                self.ini.write(index_str, 'started', item.started.RFC3339)
+            if item.exited is not None:
+                self.ini.write(index_str, 'exited', item.exited.RFC3339)
             # allow item to write additional information
             item.write_to_ini(self.ini, index_str)
         # update display
@@ -683,6 +698,10 @@ class GUI(QtCore.QObject):
         self.new_queue_button = pw.SetButton('MAKE NEW QUEUE')
         self.new_queue_button.clicked.connect(self.create_new_queue)
         settings_layout.addWidget(self.new_queue_button)
+        # load button
+        self.load_button = pw.SetButton('OPEN QUEUE')
+        self.load_button.clicked.connect(self.on_open_queue)
+        settings_layout.addWidget(self.load_button)
         # current queue name
         input_table = pw.InputTable()
         self.queue_name = pc.String(display=True)
@@ -708,15 +727,6 @@ class GUI(QtCore.QObject):
         self.runtime = pc.String(initial_value='000:00:00', display=True)
         input_table.add('Queue Runtime', self.runtime)
         settings_layout.addWidget(input_table)
-        # save button
-        self.save_button = pw.SetButton('SAVE QUEUE')
-        self.save_button.clicked.connect(self.on_save_queue)
-        settings_layout.addWidget(self.save_button)
-        self.save_button.setDisabled(True)
-        # load button
-        self.load_button = pw.SetButton('OPEN QUEUE')
-        self.load_button.clicked.connect(self.on_open_queue)
-        settings_layout.addWidget(self.load_button)
         # horizontal line
         line = pw.Line('H')
         settings_layout.addWidget(line)
@@ -794,10 +804,9 @@ class GUI(QtCore.QObject):
         # make new queue
         self.queue = Queue(self.new_queue_name.read(), self)
         self.queue_name.write(self.queue.name)
-        print(self.queue.name, self.queue_name.read(), self.queue_name.has_widget)
-        self.queue_timestamp.write(self.queue.short_timestamp[5:])
+        self.queue_timestamp.write(self.queue.timestamp.path[-5:])
         self.message_widget.setText('QUEUE NOT YET RUN')
-        self.queue.update()  # will run self.update_ui
+        self.queue.update()  # will call self.update_ui
 
     def create_script_frame(self):
         frame = QtGui.QWidget()
@@ -852,7 +861,7 @@ class GUI(QtCore.QObject):
             # queue status
             fields = []
             fields.append(make_field('name', self.queue.name, short=True))
-            fields.append(make_field('created', self.queue.timestamp, short=True))
+            fields.append(make_field('created', self.queue.timestamp.human, short=True))
             fields.append(make_field('runtime', self.queue.get_runtime(), short=True))
             fields.append(make_field('done/total', '/'.join([str(self.queue.index), str(len(self.queue.items))]), short=True))
             fields.append(make_field('url', self.queue.url, short=False))
@@ -861,9 +870,10 @@ class GUI(QtCore.QObject):
             for item_index, item in enumerate(self.queue.items):
                 name = ' - '.join([str(item_index).zfill(3), item.type, item.description])
                 fields = []
-                if not item.status == 'ENQUEUED':
-                    fields.append(make_field('started', wt.kit.get_timestamp(at=item.started, style='display'), short=True))
-                    fields.append(make_field('exited', wt.kit.get_timestamp(at=item.exited, style='display'), short=True))
+                if item.started is not None:
+                    fields.append(make_field('started', item.started.human, short=True))
+                if item.exited is not None:
+                    fields.append(make_field('exited', item.exited.human, short=True))
                 if item.type == 'acquisition' and item.status in ['COMPLETE', 'FAILED']:
                     fields.append(make_field('url', item.url, short=False))
                 attachments.append(make_attachment('', title=name, fields=fields, color=colors[item.status]))
@@ -1005,25 +1015,76 @@ class GUI(QtCore.QObject):
         ini = wt.kit.INI(p)
         # choose operation
         if self.queue is None:
-            operation == 'REPLACE'
+            operation = 'REPLACE'
         else:
             # ask user how to proceed
             options = ['APPEND', 'REPLACE']
             choice_window = pw.ChoiceWindow('OPEN QUEUE', button_labels=options)
             index_chosen = choice_window.show()
             operation = options[index_chosen]
-        # do operation
+        # prepare queue
         if operation == 'REPLACE':
+            if self.queue is not None:
+                self.queue.exit()
             name = ini.read('info', 'name')
-            if self.queue is None:
-                self.queue = Queue(name, self)
-            self.queue.name = ini.read('info', 'name')
-            self.queue.folder = f
-            self.queue.ini = ini
-            self.queue.update()
-        if operation == 'APPEND':
-            self.queue
-            
+            url = ini.read('info', 'url')
+            self.queue = Queue(name, self, folder=f, url=url)
+            self.queue.status.run_timer()
+            runtime = ini.read('info', 'runtime')
+            h, m, s = [int(s) for s in runtime.split(':')]
+            self.queue.status.runtime = h*3600 + m*60 + s
+        # append items to queue
+        i = 0
+        while True:
+            section = str(i).zfill(3)
+            print('section', section)
+            try:
+                item_type = ini.read(section, 'type')
+            except:
+                break
+            if item_type == 'acquisition':
+                p = ini.read(section, 'path')
+                self.queue.append_acquisition(p, update=False)
+            elif item_type == 'device':
+                raise NotImplementedError
+            elif item_type == 'hardware':
+                raise NotImplementedError
+            elif item_type == 'interrupt':
+                raise NotImplementedError
+            elif item_type == 'script':
+                raise NotImplementedError
+            elif item_type == 'wait':
+                raise NotImplementedError
+            else:
+                raise KeyError
+            if operation == 'REPLACE':
+                item = self.queue.items[i]
+                status = ini.read(section, 'status')
+                if status == 'RUNNING':
+                    item.status = 'FAILED'
+                    item.started = wt.kit.TimeStamp()
+                    item.exited = wt.kit.TimeStamp()
+                else:
+                    item.status = status
+                item.created = wt.kit.timestamp_from_RFC3339(ini.read(section, 'created'))
+                if ini.has_section('started'):
+                    item.started = wt.kit.timestamp_from_RFC3339(ini.read(section, 'started'))
+                    item.exited = wt.kit.timestamp_from_RFC3339(ini.read(section, 'exited'))
+                    if item.status == 'COMPLETE':
+                        item.finished.write(True)                
+            i += 1
+        # manage queue index
+        for index, item in enumerate(self.queue.items):
+            if item.status == 'ENQUEUED':
+                break
+            else:
+                self.queue.index += 1
+        if not self.queue.items[-1].status == 'ENQUEUED':
+            self.queue.index += 1
+        # finish
+        self.queue.update()
+        self.queue_name.write(self.queue.name)
+        self.queue_timestamp.write(self.queue.timestamp.path[-5:])
 
     def on_remove_item(self, row):
         index = row.toInt()[0]  # given as QVariant
@@ -1031,11 +1092,7 @@ class GUI(QtCore.QObject):
         
     def on_save_aqn(self):
         self.save_aqn(saved_folder)
-    
-    def on_save_queue(self):
-        # TODO:
-        pass
-    
+
     def save_aqn(self, folder):
         # all aqn files are first created using this method
         now = time.time()
@@ -1079,11 +1136,6 @@ class GUI(QtCore.QObject):
             else:
                 self.queue_control.set_style('RUN QUEUE', 'go')
                 self.message_widget.setText('QUEUE STOPPED')
-            # save button
-            if queue_has_items:
-                self.save_button.setDisabled(False)
-            else:
-                self.save_button.setDisabled(True)
             # append button
             self.append_button.setDisabled(False)
         # table ---------------------------------------------------------------
@@ -1109,14 +1161,14 @@ class GUI(QtCore.QObject):
             self.table.setCellWidget(i, 2, label)
             # started
             if item.started is not None:
-                text = wt.kit.get_timestamp(at=item.started, style='display')[5:]
+                text = item.started.hms
                 label = pw.Label(text)
                 label.setAlignment(QtCore.Qt.AlignCenter)
                 label.setMargin(3)
                 self.table.setCellWidget(i, 3, label)
             # exited
             if item.exited is not None:
-                text = wt.kit.get_timestamp(at=item.exited, style='display')[5:]
+                text = item.exited.hms
                 label = pw.Label(text)
                 label.setAlignment(QtCore.Qt.AlignCenter)
                 label.setMargin(3)

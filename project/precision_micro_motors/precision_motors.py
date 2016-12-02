@@ -237,9 +237,10 @@ class Motor():
                 busy.write(True)
                 self.ctrl.MoveAbsolute(self.axis, int(destination+self.offset))
                 busy.write(False)
-        if wait:
-            self.wait_until_still()
-    
+            if wait:
+                time.sleep(0.1)  # wait for the motor to start moving
+                self.wait_until_still()
+        
     def move_relative(self, distance, input_units='mm', wait=False):
         self.moving = True
         # does not apply backlash
@@ -257,10 +258,10 @@ class Motor():
         self.ctrl.MoveRelative(self.axis, int(distance+self.offset))
         busy.write(False)
         if wait:
+            time.sleep(0.1)  # wait for the motor to start moving
             self.wait_until_still()
     
     def wait_until_still(self, method=None):
-        time.sleep(0.1)  # wait for the motor to start moving
         while not self.is_stopped():
             self.get_position()
             if method:

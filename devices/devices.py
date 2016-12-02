@@ -581,7 +581,7 @@ class Control(QtCore.QObject):
             cols['label'] = label
             cols['units'] = units
             cols['name'] = name
-        self.settings_updated.emit()            
+        self.on_device_settings_updated()            
             
     def wait_until_file_done(self):
         while data_busy.read():

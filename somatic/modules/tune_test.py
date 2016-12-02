@@ -44,23 +44,16 @@ class Worker(acquisition.Worker):
     def process(self, scan_folder):
         data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
         data = wt.data.from_PyCMDS(data_path)
-        data.transpose()
-        data.bring_to_front(self.aqn.read('processing', 'channel'))
-        # make tuning curve, if user desires
-        if self.aqn.read('processing', 'make new curve'):
-            # TODO:
-            print('make new curve not yet implemented')
-        # plot
-        artist = wt.artists.mpl_2D(data)
-        function = wt.fit.Moments()
-        fitter = wt.fit.Fitter(function, data, 'wm')
-        outs = fitter.run()
-        xi = outs.w1.points
-        yi = outs.one.values
-        artist.onplot(xi, yi)
-        output_image_path = artist.plot(autosave=True, output_folder=scan_folder)[0]
+        # make tuning curve
+        opa_name = self.aqn.read('opa', 'opa')
+        opa_names = [opa.name for opa in opas.hardwares]
+        opa_index = opa_names.index(opa_name)
+        opa = opas.hardwares[opa_index]
+        curve = opa.address.ctrl.curve.copy()
+        channel_name = self.aqn.read('processing', 'channel')
+        wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
         # upload
-        self.upload(scan_folder, reference_image=output_image_path)
+        self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
     
     def run(self):
         axes = []
@@ -87,7 +80,7 @@ class Worker(acquisition.Worker):
         # do scan
         self.scan(axes)
         # finish
-        if self.go:
+        if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull
 
  
@@ -116,8 +109,6 @@ class GUI(acquisition.GUI):
         input_table.add('Processing', None)
         self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
         input_table.add('Channel', self.channel_combo)
-        self.make_new_curve = pc.Bool()
-        input_table.add('Make New Curve', self.make_new_curve)
         # finish
         self.layout.addWidget(input_table)
         
@@ -125,9 +116,8 @@ class GUI(acquisition.GUI):
         aqn = wt.kit.INI(aqn_path)
         self.opa_combo.write(aqn.read('opa', 'opa'))
         self.mono_width.write(aqn.read('spectrometer', 'width'))
-        self.mono_npts.wriite(aqn.read('spectrometer', 'number'))
+        self.mono_npts.write(aqn.read('spectrometer', 'number'))
         self.channel_combo.write(aqn.read('processing', 'channel'))
-        self.make_new_curve.write(aqn.read('processing', 'make new curve'))
         # allow devices to load settings
         self.device_widget.load(aqn_path)
         
@@ -144,7 +134,6 @@ class GUI(acquisition.GUI):
         aqn.write('spectrometer', 'number', self.mono_npts.read())
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
-        aqn.write('processing', 'make new curve', self.make_new_curve.read())
         # allow devices to write settings
         print(self.device_widget)
         self.device_widget.save(aqn_path)

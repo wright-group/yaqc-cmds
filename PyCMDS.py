@@ -75,7 +75,7 @@ sha.encode('ascii','ignore')
 # b - minor release
 # c - bugfix
 # d - git sha key
-__version__ = config.get('main', 'version') + '.' + sha
+__version__ = config.get('main', 'version') + '.' + sha[:7]
 g.version.write(__version__)
 
 

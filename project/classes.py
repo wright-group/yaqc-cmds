@@ -1,6 +1,8 @@
 ### import ####################################################################
 
 
+from __future__ import division, print_function, unicode_literals
+
 import os
 import time
 
@@ -384,7 +386,7 @@ class Filepath(PyCMDS_Object):
         if self.directory is not None:
             directory_string = self.directory
         else:
-            if self.read() is not None:    
+            if self.read() is not None:
                 directory_string = self.read()
             else:
                 directory_string = g.main_dir.read()
@@ -403,6 +405,19 @@ class Filepath(PyCMDS_Object):
     def read(self):
         # want python string, not QString
         return str(PyCMDS_Object.read(self))
+
+    def get_saved(self):
+        if self.has_ini:
+            read = self.ini.read(self.section, self.option)
+            self.value.write(os.path.normpath(read))
+        self.updated.emit()
+
+    def save(self, value=None):
+        if value is not None:
+            self.value.write(value)
+        if self.has_ini:
+            out = str(self.value.read().replace('\\', '/'))
+            self.ini.write(self.section, self.option, out)
 
 
 class NumberLimits(PyCMDS_Object):
@@ -645,7 +660,7 @@ class Address(QtCore.QObject):
         '''
         self.update_ui.emit()
         if g.debug.read():
-            print self.name, 'dequeue:', method, inputs
+            print(self.name, 'dequeue:', method, inputs)
         # execute method
         getattr(self, str(method))(inputs)  # method passed as qstring
         # remove method from enqueued
@@ -685,7 +700,7 @@ class Address(QtCore.QObject):
         self.ctrl.initialize(inputs, self)
         g.logger.log('info', self.name + ' Initializing', message=str(inputs))
         if g.debug.read():
-            print self.name, 'initialization complete'
+            print(self.name, 'initialization complete')
             
     def set_offset(self, inputs):
         self.ctrl.set_offset(inputs[0])
@@ -839,6 +854,7 @@ class Hardware(QtCore.QObject):
     def on_address_initialized(self):
         self.destination.write(self.get_position(), self.native_units)
         all_initialized()
+        self.initialized_signal.emit()
 
     def poll(self, force=False):
         if force:
