@@ -127,7 +127,8 @@ class Worker(acquisition.Worker):
         # make figures for each channel
         data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
         # make all images
-        for channel_index, channel_name in enumerate(channels):
+        for channel_name in channels:
+            channel_index = data.channel_names.index(channel_name)
             image_fname = channel_name
             if len(data.shape) == 1:
                 artist = wt.artists.mpl_1D(data, verbose=False)

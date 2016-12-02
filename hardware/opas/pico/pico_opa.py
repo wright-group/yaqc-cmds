@@ -518,7 +518,7 @@ class AutoTune(QtGui.QWidget):
             p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(p)
             curve = self.opa.curve
-            channel = worker.aqn.read('processing', 'channel')
+            channel = worker.aqn.read('Test', 'channel')
             wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
