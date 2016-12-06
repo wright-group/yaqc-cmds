@@ -630,6 +630,7 @@ class OPA:
         self.motor_names = ['Crystal_1', 'Delay_1', 'Crystal_2', 'Delay_2', 'Mixer_1', 'Mixer_2', 'Mixer_3']
         # finish
         self.gui = GUI(self)
+        self.auto_tune = AutoTune(self)
         self.initialized = pc.Bool()
         
     def _home_motors(self, motor_indexes):
@@ -1078,6 +1079,8 @@ class GUI(QtCore.QObject):
         self.update()
         self.update_plot()
         self.on_limits_updated()
+        # autotune
+        self.driver.auto_tune.initialize()
 
     def update(self):
         print 'TOPAS update'
@@ -1136,6 +1139,257 @@ class GUI(QtCore.QObject):
     def stop(self):
         pass
 
+
+### autotune ##################################################################
+
+
+class AutoTune(QtGui.QWidget):
+    
+    def __init__(self, opa):
+        QtGui.QWidget.__init__(self)
+        self.opa = opa
+        self.setLayout(QtGui.QVBoxLayout())
+        self.layout = self.layout()
+        self.layout.setMargin(0)
+        self.initialized = pc.Bool()
+        
+    def initialize(self):
+        input_table = pw.InputTable()
+        self.operation_combo = pc.Combo()
+        self.operation_combo.updated.connect(self.on_operation_changed)
+        input_table.add('Operation', self.operation_combo)
+        self.channel_combos = []
+        self.layout.addWidget(input_table)
+        # widgets
+        self.widgets = collections.OrderedDict()
+        # signal preamp -------------------------------------------------------
+        w = pw.InputTable()
+        # D1
+        d1_width = pc.Number(initial_value=0.5)
+        w.add('D1', None)
+        w.add('Width', d1_width, key='D1 Width')
+        d1_number = pc.Number(initial_value=51, decimals=0)
+        w.add('Number', d1_number, key='D1 Number')
+        channel = pc.Combo()
+        self.channel_combos.append(channel)
+        w.add('Channel', channel, key='D1 Channel')
+        # test
+        w.add('Test', None)
+        do = pc.Bool(initial_value=True)
+        w.add('Do', do)
+        channel = pc.Combo()
+        self.channel_combos.append(channel)
+        w.add('Channel', channel, key='Test Channel')
+        self.widgets['signal preamp'] = w
+        self.layout.addWidget(w)
+        # signal poweramp -----------------------------------------------------
+        w = pw.InputTable()
+        # D2
+        w.add('D2', None)
+        d2_width = pc.Number(initial_value=3.)
+        w.add('D2 Width', d2_width)
+        d2_number = pc.Number(initial_value=51, decimals=0)
+        w.add('D2 Number', d2_number)
+        channel = pc.Combo()
+        self.channel_combos.append(channel)
+        w.add('Channel', channel)
+        # C2
+        w.add('C2', None)
+        c2_width = pc.Number(initial_value=2.)
+        w.add('C2 Width', c2_width)
+        c2_number = pc.Number(initial_value=51, decimals=0)
+        w.add('C2 Number', c2_number)
+        channel = pc.Combo()
+        self.channel_combos.append(channel)
+        w.add('Channel', channel)
+        self.widgets['signal poweramp'] = w
+        self.layout.addWidget(w)
+        # SHS -----------------------------------------------------------------
+        w = pw.InputTable()
+        # M2
+        w.add('M2', None)
+        m2_width = pc.Number(initial_value=5.)
+        w.add('M2 Width', m2_width)
+        m2_number = pc.Number(initial_value=21, decimals=0)
+        w.add('M2 Number', m2_number)
+        channel = pc.Combo()
+        self.channel_combos.append(channel)
+        w.add('Channel', channel)
+        # tune test
+        w.add('Test', None)
+        width = pc.Number(initial_value=-5000)
+        w.add('Width', width)
+        number = pc.Number(initial_value=51)
+        w.add('Number', number)
+        channel = pc.Combo()
+        self.channel_combos.append(channel)
+        w.add('Channel', channel)        
+        self.widgets['SHS'] = w
+        self.layout.addWidget(w)
+        # finish --------------------------------------------------------------
+        self.operation_combo.set_allowed_values(self.widgets.keys())
+        # repetitions
+        input_table = pw.InputTable()
+        input_table.add('Repetitions', None)
+        self.repetition_count = pc.Number(initial_value=1, decimals=0)
+        input_table.add('Count', self.repetition_count)
+        # finish
+        self.layout.addWidget(input_table)
+        self.initialized.write(True)
+        self.on_operation_changed()
+        
+    def load(self, aqn_path):
+        # TODO: channels
+        aqn = wt.kit.INI(aqn_path)
+        self.do_BBO.write(aqn.read('BBO', 'do'))
+        self.BBO_width.write(aqn.read('BBO', 'width'))
+        self.BBO_number.write(aqn.read('BBO', 'number'))
+        self.do_Mixer.write(aqn.read('Mixer', 'do'))
+        self.Mixer_width.write(aqn.read('Mixer', 'width'))
+        self.Mixer_number.write(aqn.read('Mixer', 'number'))
+        self.do_test.write(aqn.read('Test', 'do'))
+        self.wm_width.write(aqn.read('Test', 'width'))
+        self.wm_number.write(aqn.read('Test', 'number'))
+        self.repetition_count.write(aqn.read('Repetitions', 'count'))
+        
+    def on_operation_changed(self):
+        for w in self.widgets.values():
+            w.hide()
+        self.widgets[self.operation_combo.read()].show()
+        
+    def run(self, worker):
+        import somatic.acquisition as acquisition
+        # BBO -----------------------------------------------------------------
+        if worker.aqn.read('BBO', 'do'):
+            axes = []
+            # tune points
+            points = self.opa.curve.colors
+            units = self.opa.curve.units
+            name = identity = self.opa.address.hardware.friendly_name
+            axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
+            axes.append(axis)
+            # motor
+            name = '_'.join([self.opa.address.hardware.friendly_name, self.opa.curve.motor_names[1]])
+            identity = 'D' + name
+            width = worker.aqn.read('BBO', 'width') 
+            npts = int(worker.aqn.read('BBO', 'number'))
+            points = np.linspace(-width/2., width/2., npts)
+            motor_positions = self.opa.curve.motors[1].positions
+            kwargs = {'centers': motor_positions}
+            hardware_dict = {name: [self.opa.address.hardware, 'set_motor', ['BBO', 'destination']]}
+            axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
+            axes.append(axis)
+            # do scan
+            scan_folder = worker.scan(axes)
+            # process
+            p = os.path.join(scan_folder, '000.data')
+            data = wt.data.from_PyCMDS(p)
+            curve = self.opa.curve
+            channel = worker.aqn.read('BBO', 'channel')
+            old_curve_filepath = self.opa.curve_path.read()
+            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            # apply new curve
+            p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
+            self.opa.curve_path.write(p)
+            # upload
+            p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
+            worker.upload(scan_folder, reference_image=p)
+        # Mixer ---------------------------------------------------------------
+        if worker.aqn.read('Mixer', 'do'):
+            axes = []
+            # tune points
+            points = self.opa.curve.colors
+            units = self.opa.curve.units
+            name = identity = self.opa.address.hardware.friendly_name
+            axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
+            axes.append(axis)
+            # motor
+            name = '_'.join([self.opa.address.hardware.friendly_name, self.opa.curve.motor_names[2]])
+            identity = 'D' + name
+            width = worker.aqn.read('Mixer', 'width') 
+            npts = int(worker.aqn.read('Mixer', 'number'))
+            points = np.linspace(-width/2., width/2., npts)
+            motor_positions = self.opa.curve.motors[2].positions
+            kwargs = {'centers': motor_positions}
+            hardware_dict = {name: [self.opa.address.hardware, 'set_motor', ['Mixer', 'destination']]}
+            axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
+            axes.append(axis)
+            # do scan
+            scan_folder = worker.scan(axes)
+            # process
+            p = os.path.join(scan_folder, '000.data')
+            data = wt.data.from_PyCMDS(p)
+            curve = self.opa.curve
+            channel = worker.aqn.read('Mixer', 'channel')
+            old_curve_filepath = self.opa.curve_path.read()
+            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            # apply new curve
+            p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
+            self.opa.curve_path.write(p)
+            # upload
+            p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
+            worker.upload(scan_folder, reference_image=p)
+        # Tune Test -----------------------------------------------------------
+        if worker.aqn.read('Test', 'do'):
+            axes = []
+            # tune points
+            points = self.opa.curve.colors
+            units = self.opa.curve.units
+            name = identity = self.opa.address.hardware.friendly_name
+            axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
+            axes.append(axis)
+            # mono
+            name = 'wm'
+            identity = 'Dwm'
+            width = worker.aqn.read('Test', 'width') 
+            npts = int(worker.aqn.read('Test', 'number'))
+            points = np.linspace(-width/2., width/2., npts)
+            kwargs = {'centers': self.opa.curve.colors}
+            axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
+            axes.append(axis)
+            # do scan
+            scan_folder = worker.scan(axes)
+            # process
+            p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
+            data = wt.data.from_PyCMDS(p)
+            curve = self.opa.curve
+            channel = worker.aqn.read('Test', 'channel')
+            wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
+            # apply new curve
+            p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
+            self.opa.curve_path.write(p)
+            # upload
+            p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
+            worker.upload(scan_folder, reference_image=p)
+        # finish --------------------------------------------------------------
+        # return to old curve
+        # TODO:
+        if not worker.stopped.read():
+            worker.finished.write(True)  # only if acquisition successfull
+    
+    def save(self, aqn_path):
+        aqn = wt.kit.INI(aqn_path)
+        operation = self.operation_combo.read()
+        description = ' '.join(['OPA%i'%self.opa.index, operation])
+        aqn.write('info', 'description', description)
+        w = self.widgets[operation]
+        if operation == 'signal preamp':
+            aqn.add_section('D1')
+            aqn.write('D1', 'width', w['D1 Width'].read())
+        elif operation == 'signal poweramp':
+            # TODO:
+            raise NotImplementedError
+        elif operation == 'SHS':
+            # TODO:
+            raise NotImplementedError
+        else:
+            raise Exception('operation {0} not recognized'.format(operation))
+
+
+        
+    def update_channel_names(self, channel_names):
+        for c in self.channel_combos:
+            c.set_allowed_values(channel_names)
 
 
 ### testing ###################################################################

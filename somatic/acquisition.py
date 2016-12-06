@@ -177,7 +177,7 @@ class Worker(QtCore.QObject):
         # upload
         self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
 
-    def scan(self, axes, pre_wait_methods=[], constants=[],
+    def scan(self, axes, constants=[], pre_wait_methods=[],
              processing_method='process', module_reserved=''):
         # do not overload this method
         # scan index ----------------------------------------------------------
@@ -216,8 +216,7 @@ class Worker(QtCore.QObject):
                 passed_args = axis.hardware_dict[key][2]
                 destinations = Destinations(arr, axis.units, hardware, method, passed_args)
                 destinations_list.append(destinations)
-        # add constants
-        for constant in constants:
+        for constant in constants:  # must follow axes
             if constant.static:
                 pass
             else:
@@ -236,7 +235,7 @@ class Worker(QtCore.QObject):
                 units = constant.units
                 hardware = constant.hardware
                 destinations = Destinations(arr, units, hardware, 'set_position', None)
-                destinations_list.append(destinations)
+                destinations_list.insert(0, destinations)
         # check if scan is valid for hardware ---------------------------------               
         # TODO: !!!
         # run through aquisition order handler --------------------------------
@@ -295,7 +294,6 @@ class Worker(QtCore.QObject):
             devices.idx.write(idx)
             # launch hardware
             for d in destinations_list:
-                print(d.method)
                 destination = d.arr[idx]
                 if d.method == 'set_position':
                     d.hardware.set_position(destination, d.units)
