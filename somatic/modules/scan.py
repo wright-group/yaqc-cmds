@@ -175,10 +175,10 @@ class Worker(acquisition.Worker):
             units = 'wn'  # TODO: this is a hack, remove it
             name = constant_name
             identity = expression = self.aqn.read(constant_name, 'expression')
-            constant = acquisition.Constant(units, name, identity, expression=expression)
+            constant = acquisition.Constant(units, name, identity, expression=expression, static=False)
             constants.append(constant)
         # do scan
-        self.scan(axes)
+        self.scan(axes, constants)
         # finish
         if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull

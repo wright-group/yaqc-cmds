@@ -9,8 +9,6 @@ import time
 
 import numpy as np
 
-import pyvisa
-
 from PyQt4 import QtGui, QtCore
 
 import project.classes as pc
@@ -19,8 +17,11 @@ import project.project_globals as g
 import project.com_handler as com_handler
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'hardware', 'filters', 'homebuilt', 'homebuilt.ini'))
+ini = Ini(os.path.join(main_dir, 'hardware', 'delays', 'Dynacron', 'dynacron.ini'))
 
+### define ####################################################################
+
+ps_per_mm = 6.671281903963041  # a mm on the delay stage (factor of 2)
 
 ### driver ####################################################################
 
@@ -28,18 +29,18 @@ ini = Ini(os.path.join(main_dir, 'hardware', 'filters', 'homebuilt', 'homebuilt.
 class Driver():
 
     def __init__(self):
-        self.native_units = 'OD'
+        self.native_units = 'ps'
         # mutex attributes
-        self.limits = pc.NumberLimits(-1, 4, units=self.native_units)
-        self.limits_steps = pc.NumberLimits(-12800, 12800)
-        self.current_position = pc.Number(name='OD', initial_value=0.,
+        self.limits = pc.NumberLimits(units=self.native_units)
+        self.limits_mm = pc.NumberLimits(0, 250, units='mm')
+        self.current_position = pc.Number(name='Delay', initial_value=0.,
                                           limits=self.limits,
                                           units=self.native_units, 
                                           display=True,
-                                          set_method='set_position')
+                                          set_method='set_position')    
         self.offset = pc.Number(initial_value=0, 
                                 units=self.native_units, display=True)
-        self.current_position_steps = pc.Number(display=True, decimals=0, limits=self.limits_steps)
+        self.current_position_mm = pc.Number(display=True, decimals=3, limits=self.limits_mm)
         # objects to be sent to PyCMDS
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
@@ -50,57 +51,42 @@ class Driver():
     def close(self):
         self.port.close()
         
-    def home(self, inputs=[]):
-        self.port.write(' '.join(['H', str(self.index)]))
+    def home(self):
+        self.port.write('H')
         self.wait_until_ready()
-        self.current_position_steps.write(0)
+        self.current_position_mm.write(0)
         self.get_position()
 
     def get_position(self):
-        difference_steps = self.current_position_steps.read() - self.zero_position.read()
-        fraction = self.fraction_per_100.read()
-        od = difference_steps * (-np.sign(fraction)*np.log10(np.abs(fraction))/100.)
-        self.current_position.write(od, 'OD')
-        return od
+        difference_mm = self.current_position_mm.read() - self.zero_position_mm.read()
+        ps = difference_mm * ps_per_mm * self.factor.read()
+        #self.current_position.write(ps, 'ps')
+        return ps
 
     def initialize(self, inputs, address):
         self.address = address
-        self.index = inputs[0]
+        #self.index = inputs[0]
         # open com port
         port_index = ini.read('main', 'serial port')
-        self.port = com_handler.get_com(port_index, timeout=100000)  # timeout in 100 seconds
-        self.port.write('U 32')  # 32 microsteps
+        self.port = com_handler.get_com(port_index, timeout=10000)
         # read from ini
-        self.zero_position = pc.Number(initial_value=ini.read('ND'+str(self.index), 'zero position (steps)'),
-                                       display=True, limits=self.limits_steps, decimals=0)
-        self.set_zero(self.zero_position.read())
-        limits_fraction_per_100 = pc.NumberLimits(-1, 1)
-        self.fraction_per_100 = pc.Number(initial_value=ini.read('ND'+str(self.index), 'fraction per 100'),
-                                          display=True, limits=limits_fraction_per_100)
-        self.current_position_steps.write(ini.read('ND'+str(self.index), 'current position (steps)'))
+        self.zero_position_mm = pc.Number(initial_value=ini.read('Delay', 'zero position (mm)'),
+                                       display=True, limits=self.limits_mm, decimals=3)
+        self.set_zero(self.zero_position_mm.read())
+        self.current_position_mm.write(ini.read('Delay', 'current position (mm)'))
         # recorded
-        self.recorded['nd' + str(self.index)] = [self.current_position, self.native_units, 1., '0', False]
-        self.recorded['nd%i_position'%self.index] = [self.current_position_steps, None, 1., '0', False]
-        self.recorded['nd%i_zero'%self.index] = [self.zero_position, None, 1., '0', False]
+        # TODO Blaise, check the next three lines.
+        self.recorded['dynacron'] = [self.current_position, self.native_units, 1., '0', False]
+        self.recorded['dynacron_position'] = [self.current_position_mm, 'mm', 1., '0', False]
+        self.recorded['dynacron_zero'] = [self.zero_position_mm, 'mm', 1., '0', False]
         # finish
         self.get_position()
         self.initialized.write(True)
         self.address.initialized_signal.emit()
-        self.wait_until_ready()
 
     def is_busy(self):
         return False
-        
-    def set_fraction(self, inputs=[]):
-        fraction = inputs[0]
-        self.fraction_per_100.write(fraction)
-        # write new fraction to ini
-        section = 'ND{}'.format(self.index)
-        option = 'fraction per 100'
-        ini.write(section, option, fraction)
-        # get position (OD)
-        self.get_position()
-
+        # TODO rewrite this method 
     def set_offset(self, offset):
         # update zero
         offset_from_here = offset - self.offset.read('OD')
@@ -112,31 +98,33 @@ class Driver():
         destination = self.address.hardware.destination.read('OD')
         self.set_position(destination)       
         
-    def set_position(self, destination):
-        fraction = self.fraction_per_100.read()
-        steps = self.zero_position.read()-(np.sign(fraction)*100*destination/np.log10(np.abs(fraction)))
-        self.set_steps([steps])
+    def set_position(self, destination):        
+        time = zero_position_mm.read() * ps_per_mm * self.factor.read() - destination
+        distance = time/ps_per_mm/self.factor.read()        
+        self.set_distance(distance)
         
-    def set_steps(self, inputs=[]):
-        steps = int(inputs[0])
-        steps_from_here = steps - self.current_position_steps.read()
-        command = ' '.join(['M', str(self.index), str(steps_from_here)])
+    def set_distance(self, distance):
+        old_mm = current_position_mm.read()
+        new_mm = current_position_mm.read() + distance
+        command = ' '.join(['M', str(distance)])
         self.port.write(command)
         self.wait_until_ready()
-        self.current_position_steps.write(steps)
-        section = 'ND{}'.format(self.index)
-        option = 'current position (steps)'
-        ini.write(section, option, self.current_position_steps.read())
-        # get position (OD)
+        self.current_position_mm.write(new_mm)
+        section = 'Delay'
+        option = 'current position (mm)'
+        ini.write(section, option, self.current_position_mm.read())
+        # get position (ps)
         self.get_position()
-        
+
+     # TODO rewrite this method    
     def set_zero(self, zero):
         self.zero_position.write(zero)
         # write new position to ini
-        section = 'ND{}'.format(self.index)
-        option = 'zero position (steps)'
+        section = 'Delay'
+        option = 'zero position (mm)'
         ini.write(section, option, zero)
-        
+    
+    # TODO rewrite this method   
     def wait_until_ready(self):
         while True:
             command = ' '.join(['Q', str(self.index)])
@@ -145,7 +133,7 @@ class Driver():
                 break
             time.sleep(0.1)
         self.port.flush()
-
+    
 
 class Driver_offline(Driver):
     

@@ -28,7 +28,7 @@ class Delay(pc.Address):
 
 # list module path, module name, class name, initialization arguments, simple name
 hardware_dict = collections.OrderedDict()
-hardware_dict['LTS300'] = [os.path.join(main_dir, 'hardware', 'delays', 'LTS300', 'LTS300.py'), 'LTS300', 'app', [], 'd0']
+hardware_dict['D0 LTS300'] = [os.path.join(main_dir, 'hardware', 'delays', 'LTS300', 'LTS300.py'), 'LTS300', 'app', [], 'd0']
 hardware_dict['D1 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [1], 'd1']
 hardware_dict['D2 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [2], 'd2']
 hardware_dict['D1 SMC100'] = [os.path.join(main_dir, 'hardware', 'delays', 'SMC100', 'SMC100.py'), 'SMC100', 'SMC100', [1], 'd1']

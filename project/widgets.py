@@ -1,6 +1,8 @@
 ### import#####################################################################
 
 
+import collections
+
 import numpy as np
 
 from PyQt4 import QtGui, QtCore
@@ -118,6 +120,9 @@ class Shutdown_button(QtGui.QPushButton):
         
 
 class InputTable(QtGui.QWidget):
+    
+    def __getitem__(self, key):
+        return self._dict[key]
 
     def __init__(self, width=130):
         '''
@@ -131,12 +136,16 @@ class InputTable(QtGui.QWidget):
         self.layout().setMargin(0)
         self.row_number = 0
         self.controls = []
+        self._dict = collections.OrderedDict()
 
-    def add(self, name, global_object):
+    def add(self, name, global_object, key=None):
+        if key is None:
+            key = name
         if global_object is None:
             global_type = 'heading'
         else:
             global_type = global_object.type
+            self._dict[key] = global_object
         getattr(self, global_type)(name, global_object)
 
     def busy(self, name, global_object):
