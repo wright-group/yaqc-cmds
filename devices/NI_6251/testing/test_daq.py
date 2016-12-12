@@ -158,9 +158,9 @@ plt.ylabel('V')
 
 for i in range(shots):
     zero = i*1000
-    plt.axvline(zero, c='k')
-    plt.axvline(zero+800, c='r')
-    plt.axvline(zero+605, c='g')
+    plt.axvline(zero, c='k', lw=3)
+    plt.axvline(zero+850, c='r')
+    plt.axvline(zero+250, c='g')
     
 
 

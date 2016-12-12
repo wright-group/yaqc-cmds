@@ -13,6 +13,8 @@ hardware/opas/TOPAS_C/manuals
 hardware/opas/TOPAS_800/configuration
 hardware/opas/TOPAS_800/manuals
 hardware/opas/TOPAS_800/OPA1 (16426) curves/
+hardware/filters/homebuilt/wheel A calibration
+hardware/filters/homebuilt/wheel B calibration
 
 # PyCMDS config files
 *.ini
