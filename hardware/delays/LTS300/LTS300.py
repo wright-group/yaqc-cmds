@@ -270,6 +270,8 @@ class app(wx.App):
         self.address.initialized_signal.emit()
     
     def is_busy(self):
+        # note that the hardware can return NotMoving = True at the 'peak' of
+        # a backlash correction, I believe - Blaise 2016-12-30
         return not self.motor_control.MotorIsNotMoving()
         
     def on_factor_updated(self):
@@ -302,9 +304,14 @@ class app(wx.App):
         destination = inputs[0]
         # move hardware
         self.motor_control.MoveAbsoluteEx(position_ch1=destination, wait=False)
-        while not self.motor_control.MotorIsNotMoving():
-            time.sleep(0.01)
-            self.get_position()
+        def wait():
+            while self.is_busy():
+                time.sleep(0.01)
+                self.get_position()
+                time.sleep(0.01)
+        wait()
+        time.sleep(0.05)
+        wait()
         # get position
         self.get_position()
         
