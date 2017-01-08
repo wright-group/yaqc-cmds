@@ -1,3 +1,6 @@
+# TODO: record degree of microstepping in data file
+
+
 ### import ####################################################################
 
 
@@ -12,6 +15,8 @@ import numpy as np
 import pyvisa
 
 from PyQt4 import QtGui, QtCore
+
+import WrightTools as wt
 
 import project.classes as pc
 import project.widgets as pw
@@ -30,8 +35,8 @@ class Driver():
     def __init__(self):
         self.native_units = 'OD'
         # mutex attributes
-        self.limits = pc.NumberLimits(-1, 4, units=self.native_units)
-        self.limits_steps = pc.NumberLimits(-12800, 12800)
+        self.limits = pc.NumberLimits(0, 4, units=self.native_units)
+        self.limits_deg = pc.NumberLimits(-360, 360, units='deg')
         self.current_position = pc.Number(name='OD', initial_value=0.,
                                           limits=self.limits,
                                           units=self.native_units, 
@@ -39,13 +44,19 @@ class Driver():
                                           set_method='set_position')
         self.offset = pc.Number(initial_value=0, 
                                 units=self.native_units, display=True)
-        self.current_position_steps = pc.Number(display=True, decimals=0, limits=self.limits_steps)
+        self.current_position_deg = pc.Number(display=True, limits=self.limits_deg, units='deg')
         # objects to be sent to PyCMDS
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
         # finish
         self.gui = GUI(self)
         self.initialized = pc.Bool()
+        
+    def _get_color(self):
+        # TODO: full implementation, actually refering to OPA color
+        wn = float(self.color_string.read())
+        color = wt.units.converter(wn, 'wn', 'nm')
+        return color
 
     def close(self):
         self.port.close()
@@ -53,35 +64,39 @@ class Driver():
     def home(self, inputs=[]):
         self.port.write(' '.join(['H', str(self.index)]))
         self.wait_until_ready()
-        self.current_position_steps.write(0)
+        self.current_position_deg.write(ini.read('ND'+str(self.index), 'home position (deg)'))
         self.get_position()
 
     def get_position(self):
-        difference_steps = self.current_position_steps.read() - self.zero_position.read()
-        fraction = self.fraction_per_100.read()
-        od = difference_steps * (-np.sign(fraction)*np.log10(np.abs(fraction))/100.)
+        positions = [self._get_color(), self.current_position_deg.read()]
+        od = -np.log10(self.calibration.get_value(positions))
         self.current_position.write(od, 'OD')
-        return od
 
     def initialize(self, inputs, address):
         self.address = address
         self.index = inputs[0]
+        # calibration
+        self.calibration_path = pc.Filepath(ini=ini, section='ND'+str(self.index), option='calibration')
+        self.calibration_path.updated.connect(self.on_calibration_path_updated)
+        self.on_calibration_path_updated()
+        self.color_string = pc.String(ini=ini, section='ND'+str(self.index), option='color (wn)')
         # open com port
         port_index = ini.read('main', 'serial port')
         self.port = com_handler.get_com(port_index, timeout=100000)  # timeout in 100 seconds
-        self.port.write('U 32')  # 32 microsteps
+        # stepping
+        self.microsteps = ini.read('main', 'degree of microstepping')
+        steps_per_rotation = ini.read('main', 'full steps per rotation') * self.microsteps
+        self.degrees_per_step = 360./steps_per_rotation
+        self.port.write('U %i'%self.microsteps)
+        self.invert = pc.Bool(ini=ini, section='ND'+str(self.index), option='invert')
         # read from ini
-        self.zero_position = pc.Number(initial_value=ini.read('ND'+str(self.index), 'zero position (steps)'),
-                                       display=True, limits=self.limits_steps, decimals=0)
-        self.set_zero(self.zero_position.read())
-        limits_fraction_per_100 = pc.NumberLimits(-1, 1)
-        self.fraction_per_100 = pc.Number(initial_value=ini.read('ND'+str(self.index), 'fraction per 100'),
-                                          display=True, limits=limits_fraction_per_100)
-        self.current_position_steps.write(ini.read('ND'+str(self.index), 'current position (steps)'))
+        self.home_position = pc.Number(initial_value=ini.read('ND'+str(self.index), 'home position (deg)'),
+                                       display=True, limits=self.limits_deg, units='deg')
+        self.current_position_deg.write(ini.read('ND'+str(self.index), 'current position (deg)'))
         # recorded
         self.recorded['nd' + str(self.index)] = [self.current_position, self.native_units, 1., '0', False]
-        self.recorded['nd%i_position'%self.index] = [self.current_position_steps, None, 1., '0', False]
-        self.recorded['nd%i_zero'%self.index] = [self.zero_position, None, 1., '0', False]
+        self.recorded['nd%i_position'%self.index] = [self.current_position_deg, 'deg', 1., '0', False]
+        self.recorded['nd%i_home'%self.index] = [self.home_position, 'deg', 1., '0', False]
         # finish
         self.get_position()
         self.initialized.write(True)
@@ -90,45 +105,38 @@ class Driver():
 
     def is_busy(self):
         return False
-        
-    def set_fraction(self, inputs=[]):
-        fraction = inputs[0]
-        self.fraction_per_100.write(fraction)
-        # write new fraction to ini
-        section = 'ND{}'.format(self.index)
-        option = 'fraction per 100'
-        ini.write(section, option, fraction)
-        # get position (OD)
-        self.get_position()
 
-    def set_offset(self, offset):
-        # update zero
-        offset_from_here = offset - self.offset.read('OD')
-        offset_steps = offset_from_here*100/np.log10(np.abs(self.fraction_per_100.read()))
-        new_zero = self.zero_position.read() + int(offset_steps)
-        self.set_zero(new_zero)
-        self.offset.write(offset)
-        # return to old position
-        destination = self.address.hardware.destination.read('OD')
-        self.set_position(destination)       
+    def on_calibration_path_updated(self):
+        new_path = self.calibration_path.read()
+        self.calibration = wt.calibration.from_file(new_path)        
         
-    def set_position(self, destination):
-        fraction = self.fraction_per_100.read()
-        steps = self.zero_position.read()-(np.sign(fraction)*100*destination/np.log10(np.abs(fraction)))
-        self.set_steps([steps])
-        
-    def set_steps(self, inputs=[]):
-        steps = int(inputs[0])
-        steps_from_here = steps - self.current_position_steps.read()
-        command = ' '.join(['M', str(self.index), str(steps_from_here)])
+    def set_degrees(self, inputs=[]):
+        degrees = int(inputs[0])
+        change = degrees - self.current_position_deg.read()
+        steps = np.floor(change/self.degrees_per_step)
+        if self.invert.read():
+            signed_steps = steps * -1
+        else:
+            signed_steps = steps
+        command = ' '.join(['M', str(self.index), str(signed_steps)])
         self.port.write(command)
         self.wait_until_ready()
-        self.current_position_steps.write(steps)
-        section = 'ND{}'.format(self.index)
-        option = 'current position (steps)'
-        ini.write(section, option, self.current_position_steps.read())
-        # get position (OD)
-        self.get_position()
+        # update own position
+        current_position = self.current_position_deg.read()
+        current_position += steps * self.degrees_per_step
+        self.current_position_deg.write(current_position)
+        
+    def set_offset(self, offset):
+        self.offset.write(offset, 'OD')
+        destination = self.address.hardware.destination.read('OD')
+        self.set_position(destination)
+        
+    def set_position(self, destination):
+        color = self._get_color()
+        c = 10.**-(destination + self.offset.read())
+        d = self.calibration.get_positions(c, color=color)[0]
+        print(d)
+        self.set_degrees([d['angle']])
         
     def set_zero(self, zero):
         self.zero_position.write(zero)
@@ -182,49 +190,46 @@ class GUI(QtCore.QObject):
         settings_container_widget = QtGui.QWidget()
         settings_scroll_area = pw.scroll_area(show_bar=False)
         settings_scroll_area.setWidget(settings_container_widget)
-        settings_scroll_area.setMinimumWidth(300)
-        settings_scroll_area.setMaximumWidth(300)
         settings_container_widget.setLayout(QtGui.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        # position
+        # offset
+        input_table = pw.InputTable()
+        input_table.add('Offset', None)
+        input_table.add('Value', self.driver.offset)
+        settings_layout.addWidget(input_table)
+        # calibration
+        input_table = pw.InputTable()
+        input_table.add('Calibration', None)
+        input_table.add('Path', self.driver.calibration_path)
+        input_table.add('Color (wn)', self.driver.color_string)
+        settings_layout.addWidget(input_table)
+        # current position
         input_table = pw.InputTable()
         input_table.add('Position', None)
-        input_table.add('Current', self.driver.current_position_steps)
-        self.destination_steps = self.driver.current_position_steps.associate(display=False)
-        input_table.add('Destination', self.destination_steps)
+        input_table.add('Current', self.driver.current_position_deg)
+        self.destination_deg = self.driver.current_position_deg.associate(display=False)
+        input_table.add('Destination', self.destination_deg)
+        input_table.add('Invert', self.driver.invert)
         settings_layout.addWidget(input_table)
         self.set_steps_button = pw.SetButton('SET POSITION')
         settings_layout.addWidget(self.set_steps_button)
-        self.set_steps_button.clicked.connect(self.on_set_steps)
+        self.set_steps_button.clicked.connect(self.on_set_deg)
         g.queue_control.disable_when_true(self.set_steps_button)
-        # zero
+        # home
         input_table = pw.InputTable()
-        input_table.add('Zero', None)
-        input_table.add('Current', self.driver.zero_position)
-        self.destination_zero = self.driver.zero_position.associate(display=False)
-        input_table.add('Destination', self.destination_zero)
+        input_table.add('Home', None)
+        input_table.add('Current', self.driver.home_position)
+        self.destination_home = self.driver.home_position.associate(display=False)
+        input_table.add('Destination', self.destination_home)
         settings_layout.addWidget(input_table)
-        self.set_zero_button = pw.SetButton('SET ZERO')
+        self.set_zero_button = pw.SetButton('SET HOME')
         settings_layout.addWidget(self.set_zero_button)
-        self.set_zero_button.clicked.connect(self.on_set_zero)
+        self.set_zero_button.clicked.connect(self.on_set_home)
         g.queue_control.disable_when_true(self.set_zero_button)
-        # fraction per 100
-        input_table = pw.InputTable()
-        input_table.add('Fraction per 100', None)
-        input_table.add('Current', self.driver.fraction_per_100)
-        self.destination_fraction = self.driver.fraction_per_100.associate(display=False)
-        input_table.add('Destination', self.destination_fraction)
-        settings_layout.addWidget(input_table)
-        self.set_fraction_button = pw.SetButton('SET FRACTION')
-        settings_layout.addWidget(self.set_fraction_button)
-        self.set_fraction_button.clicked.connect(self.on_set_fraction)
-        g.queue_control.disable_when_true(self.set_fraction_button)
-        # horizontal line
-        settings_layout.addWidget(pw.line('H'))
         # home button
-        self.home_button = pw.SetButton('HOME', 'advanced')
+        self.home_button = pw.SetButton('SEND HOME', 'advanced')
         settings_layout.addWidget(self.home_button)
         self.home_button.clicked.connect(self.on_home)
         g.queue_control.disable_when_true(self.home_button)
@@ -236,15 +241,13 @@ class GUI(QtCore.QObject):
     def on_home(self):
         self.driver.address.hardware.q.push('home')
 
-    def on_set_fraction(self):
-        fraction = self.destination_fraction.read()
-        self.driver.address.hardware.q.push('set_fraction', [fraction])     
+    def on_set_deg(self):
+        deg = self.destination_deg.read()
+        self.driver.address.hardware.q.push('set_degrees', [deg])
 
-    def on_set_steps(self):
-        steps = self.destination_steps.read()
-        self.driver.address.hardware.q.push('set_steps', [steps])
-
-    def on_set_zero(self):
+    def on_set_home(self):
+        # TODO:
+        return
         zero = self.destination_zero.read()
         self.driver.set_zero(zero)
 

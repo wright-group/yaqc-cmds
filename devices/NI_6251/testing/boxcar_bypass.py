@@ -13,7 +13,7 @@ import os
 
 #user inputs-------------------------------------------------------------------
 
-daq_analog_physical_channels = [0, 1, 2, 4, 5]
+daq_analog_physical_channels = [0]
 daq_analog_min = -1.0
 daq_analog_max = 6.0
 
@@ -22,7 +22,7 @@ daq_digital_min = -1.0
 daq_digital_max = 10.0
 daq_digital_cutoff = 2.25
 
-shots = 10
+shots = 5
 digitize = False
 
 #initialize DAQ----------------------------------------------------------------
@@ -146,21 +146,21 @@ def get_plot_arrays(channel):
 import matplotlib.pyplot as plt
 plt.close()
 
-x, y = get_plot_arrays(3)
-plt.plot(x, y, c='r', lw=4, alpha=0.5)
-x, y = get_plot_arrays(4)
-plt.plot(x, y, c='g', lw=4, alpha=0.5)
-if digitize: plt.ylim(-0.5, 1.5)
-plt.xlabel('us')
-plt.ylabel('V')
+x, y = get_plot_arrays(0)
+plt.scatter(x, y, c='r', lw=4, alpha=0.5)
+#x, y = get_plot_arrays(4)
+#plt.plot(x, y, c='g', lw=4, alpha=0.5)
+#if digitize: plt.ylim(-0.5, 1.5)
+#plt.xlabel('us')
+#plt.ylabel('V')
 
 
 
 for i in range(shots):
     zero = i*1000
-    plt.axvline(zero, c='k', lw=3)
-    plt.axvline(zero+850, c='r')
-    plt.axvline(zero+250, c='g')
+    plt.axvline(zero, c='k', lw=1)
+    #plt.axvline(zero+850, c='r')
+    #plt.axvline(zero+250, c='g')
     
 
 

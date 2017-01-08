@@ -358,6 +358,8 @@ class Queue():
         
     def _start_next_action(self):
         print('this is start next action', self.index)
+        self.status.pause.write(False)
+        self.status.paused.write(False)
         self.status.stop.write(False)
         self.status.stopped.write(False)
         self.gui.progress_bar.begin_new_scan_timer()
@@ -413,6 +415,8 @@ class Queue():
     
     def change_index(self, current_index, new_index):
         item = self.items.pop(current_index)
+        if new_index < self.index:
+            new_index = self.index + 1
         self.items.insert(new_index, item)
         self.update()
         return item
@@ -429,7 +433,7 @@ class Queue():
         string = ':'.join([str(int(h)).zfill(3), str(int(m)).zfill(2), str(int(s)).zfill(2)])
         return string
 
-    def interrupt(self, message='hello world'):
+    def interrupt(self, message='Please choose how to proceed.'):
         self.gui.queue_control.set_style('WAITING', 'stop')
         # pause
         self.status.pause.write(True)
@@ -450,7 +454,13 @@ class Queue():
             self.status.stop.write(True)
             self.status.go.write(False)
             self.status.pause.write(False)
-            self.stop()
+        # wait for stop
+        if chosen in ['SKIP', 'STOP']:
+            while not self.status.stopped.read():
+                self.status.stopped.wait_for_update()
+        # finish
+        self.status.stop.write(False)
+        self.status.pause.write(False)
         self.update()
 
     def finish(self):
@@ -478,6 +488,7 @@ class Queue():
         if queue_done:
             self.finish()
         # continue (if still going)
+        print('on action complete!!!!!!!!!!!!!!', self.status.go.read(), queue_done)
         if self.status.go.read() and not queue_done:
             self._start_next_action()
         # finish
@@ -497,13 +508,6 @@ class Queue():
         self._start_next_action()
         # finish
         self.update()
-        
-    def stop(self):
-        self.status.stop_timer()
-        self.status.go.write(False)
-        self.status.pause.write(False)
-        while self.status.going.read():
-            self.status.going.wait_for_update()
     
     def update(self):
         print('queue update')
@@ -587,7 +591,7 @@ class GUI(QtCore.QObject):
         index.setAlignment(QtCore.Qt.AlignCenter)
         index.setValue(i)
         index.setProperty('TableRowIndex', i)
-        index.valueChanged.connect(lambda: self.on_index_changed(index.property('TableRowIndex'), int(index.value())))
+        index.editingFinished.connect(lambda: self.on_index_changed(index.property('TableRowIndex'), int(index.value())))
         self.table.setCellWidget(i, 0, index)
         return index    
     
@@ -739,7 +743,7 @@ class GUI(QtCore.QObject):
         allowed_values.remove('Script')  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
         self.type_combo.updated.connect(self.update_type)
-        input_table.add('Insert Into Queue', None)
+        input_table.add('Add to Queue', None)
         input_table.add('Type', self.type_combo)
         settings_layout.addWidget(input_table)
         # frames
@@ -940,7 +944,6 @@ class GUI(QtCore.QObject):
             self.queue.run()
 
     def on_queue_control_clicked(self):
-        self.queue_status.go.write(not self.queue_status.go.read())
         if self.queue_status.going.read():
             self.queue.interrupt()
         else:  # queue not currently running

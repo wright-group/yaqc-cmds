@@ -36,7 +36,22 @@ if g.debug.read():
     DAQ_device_name = ini.read('DAQ', 'simulated device name')
 else:
     DAQ_device_name = ini.read('DAQ', 'device name')
-    
+
+
+### define ####################################################################
+
+
+# TODO: actually read these values from the driver ---Blaise 2017-01-06
+ranges = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]  # V
+resolution = {}  # uV
+resolution[0.1] = 3.2
+resolution[0.2] = 6.4
+resolution[0.5] = 16.0
+resolution[1.0] = 32.0
+resolution[2.0] = 64.0
+resolution[5.0] = 160.0
+resolution[10.0] = 320.0
+
     
 ### data mutex objects ########################################################
     
@@ -64,8 +79,9 @@ class Channel():
         self.active = pc.Bool(ini=ini, section=ini_section, option='active')
         self.name = pc.String(inital_value='Name', ini=ini, section=ini_section, option='name')
         self.physical_correspondance = pc.Number(decimals=0, limits=pc.NumberLimits(0, 7, None), ini=ini, section=ini_section, option='physical correspondance')
-        self.min = pc.Number(decimals=1, limits=pc.NumberLimits(-10, 10, None), ini=ini, section=ini_section, option='min')
-        self.max = pc.Number(decimals=1, limits=pc.NumberLimits(-10, 10, None), ini=ini, section=ini_section, option='max')
+        allowed_ranges = ['%0.1f (%0.1f)'%(r, resolution[r]) for r in ranges]
+        self.range = pc.Combo(allowed_values=allowed_ranges, ini=ini, section=ini_section, option='range')
+        # TODO: resolution display
         self.invert = pc.Bool(ini=ini, section=ini_section, option='invert')
         sample_limits=pc.NumberLimits(0, 899, None)
         self.signal_start_index = pc.Number(decimals=0, limits=sample_limits, ini=ini, section=ini_section, option='signal start')
@@ -80,7 +96,7 @@ class Channel():
         self.baseline_method = pc.Combo(allowed_values=processing_methods, ini=ini, section=ini_section, option='baseline method')
         # a list of all properties
         self.properties = [self.active, self.name,
-                           self.physical_correspondance, self.min, self.max,
+                           self.physical_correspondance, self.range,
                            self.invert, self.signal_start_index,
                            self.signal_stop_index, self.signal_method,
                            self.signal_pre_index, self.use_baseline,
@@ -91,6 +107,16 @@ class Channel():
         # signals
         self.use_baseline.updated.connect(lambda: self.on_use_baseline())
         self.on_use_baseline()
+        
+    def get_range(self):
+        '''
+        Returns
+        -------
+        tuple
+            (minimum_voltage, maximum_voltage)
+        '''
+        r = ranges[self.range.read_index()]
+        return -r, r
  
     def get_saved(self):
         for obj in self.properties:
@@ -100,8 +126,8 @@ class Channel():
         self.input_table = pw.InputTable()
         self.input_table.add('Name', self.name)
         self.input_table.add('Physical Channel', self.physical_correspondance)
-        self.input_table.add('Min. Voltage', self.min)
-        self.input_table.add('Max. Voltage', self.max)
+        self.input_table.add('Range +/-V, (uV/level)', self.range)
+        # TODO: resolution display
         self.input_table.add('Invert', self.invert)
         self.input_table.add('Signal Start', self.signal_start_index)
         self.input_table.add('Signal Stop', self.signal_stop_index)
@@ -323,13 +349,11 @@ class Address(QtCore.QObject):
                 elif correspondance > 0:
                     channel = channels.read()[correspondance-1]
                     physical_channel = channel.physical_correspondance.read()
-                    min_voltage = channel.min.read()
-                    max_voltage = channel.max.read()
+                    min_voltage, max_voltage = channel.get_range()
                 elif correspondance < 0:
                     physical_channel = choppers.read()[-correspondance-1].physical_correspondance.read()
-                    print 'chopper', physical_channel
-                    min_voltage = -1.
-                    max_voltage = 6.
+                    min_voltage = -10.
+                    max_voltage = 10.
                 channel_name = 'sample_' + str(name_index).zfill(3)
                 DAQmxCreateAIVoltageChan(self.task_handle,                            # task handle
                                          DAQ_device_name + '/ai%i'%physical_channel,  # physical chanel
@@ -790,7 +814,7 @@ class GUI(QtCore.QObject):
         layout.addWidget(settings_scroll_area)
         input_table = pw.InputTable()
         input_table.add('Display', None)
-        self.sample_shots_displayed = pc.Number(initial_value=1, limits=pc.NumberLimits(1, 10), decimals=0)
+        self.sample_shots_displayed = pc.Number(initial_value=1, limits=pc.NumberLimits(1, 10), decimals=0, display=True)
         self.sample_shots_displayed.updated.connect(self.on_sample_shots_displayed_updated)
         input_table.add('Shots Displayed', self.sample_shots_displayed)
         input_table.add('Settings', None)
@@ -994,9 +1018,9 @@ class GUI(QtCore.QObject):
             self.signal_indicies = np.hstack((self.signal_indicies, self.signal_indicies+i*nsamples.read()))
         # baseline samples
         baseline_start_index = int(current_channel_object.baseline_start_index.read())
-        baseline_stop_index = int(current_channel_object.baseline_start_index.read())
+        baseline_stop_index = int(current_channel_object.baseline_stop_index.read())
         self.baseline_indicies = np.array([i for i in np.arange(baseline_start_index, baseline_stop_index) if sample_correspondances.read()[i] == self.samples_channel_combo.read_index() + 1], dtype=np.int)
-        self.baseline_xi = list(self.baseline_indicies)*int(self.sample_shots_displayed.read())            
+        self.baseline_xi = list(self.baseline_indicies)*int(self.sample_shots_displayed.read())
         for i in range(1, int(self.sample_shots_displayed.read())):
             self.baseline_indicies = np.hstack((self.baseline_indicies, self.baseline_indicies+i*nsamples.read()))
 
@@ -1011,9 +1035,8 @@ class GUI(QtCore.QObject):
         else:
             # is a channel
             channel = active_channels[channel_index]
-            ymin = channel.min.read()
-            ymax = channel.max.read()
-        self.shots_plot_widget.set_ylim(ymin, ymax)
+            ymin, ymax = channel.get_range()
+        self.shots_plot_widget.set_ylim(ymin*1.05, ymax*1.05)
     
     def set_slice_xlim(self, xmin, xmax):
         self.values_plot_widget.set_xlim(xmin, xmax)
@@ -1087,10 +1110,11 @@ class GUI(QtCore.QObject):
         self.samples_plot_chopper_line.hide()
         current_channel_object = channels.read()[channel_index]
         if current_channel_object.active.read():
+            channel_min, channel_max = current_channel_object.get_range()
             self.samples_plot_max_voltage_line.show()
-            self.samples_plot_max_voltage_line.setValue(current_channel_object.max.read())
+            self.samples_plot_max_voltage_line.setValue(channel_max*1.05)
             self.samples_plot_min_voltage_line.show()
-            self.samples_plot_min_voltage_line.setValue(current_channel_object.min.read())
+            self.samples_plot_min_voltage_line.setValue(channel_min*1.05)
             self.samples_plot_signal_start_line.show()       
             self.samples_plot_signal_start_line.setValue(current_channel_object.signal_start_index.read())
             self.samples_plot_signal_stop_line.show()
@@ -1105,9 +1129,9 @@ class GUI(QtCore.QObject):
             self.samples_plot_chopper_line.show()
             self.samples_plot_chopper_line.setValue(current_chopper_object.index.read())
         # finish
-        ymin = current_channel_object.min.read()
-        ymax = current_channel_object.max.read()
+        ymin, ymax = current_channel_object.get_range()
         self.samples_plot_widget.set_ylim(ymin, ymax)
+        self.on_sample_shots_displayed_updated()
         if not freerun.read():
             self.update()
 

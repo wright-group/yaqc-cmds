@@ -638,7 +638,7 @@ class ChoiceWindow(QtGui.QMessageBox):
 
     def __init__(self, title, button_labels):
         QtGui.QMessageBox.__init__(self)
-        self.setWindowTitle('window title')
+        self.setWindowTitle(title)
         for label in button_labels:
             my_button = QtGui.QPushButton(label)
             self.addButton(my_button, QtGui.QMessageBox.YesRole)
