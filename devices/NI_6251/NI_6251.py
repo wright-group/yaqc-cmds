@@ -479,7 +479,10 @@ class Address(QtCore.QObject):
             shots_array[index] = out
             index += 1
         # export shots
-        shots.write(shots_array)
+        channel_names = [channel.name.read() for channel in active_channels]
+        chopper_names = [chopper.name.read() for chopper in active_choppers]
+        shots.write(shots_array)  # TODO: can I remove this?
+        shots.write_properties((1,), channel_names+chopper_names, shots_array)
         # do math -------------------------------------------------------------
         # pass through shots processing module
         with self.processing_timer:
@@ -488,8 +491,6 @@ class Address(QtCore.QObject):
             directory = os.path.dirname(path)
             f, p, d = imp.find_module(name, [directory])
             processing_module = imp.load_module(name, f, p, d)
-            channel_names = [channel.name.read() for channel in active_channels]
-            chopper_names = [chopper.name.read() for chopper in active_choppers]
             kinds = ['channel' for _ in channel_names] + ['chopper' for _ in chopper_names]
             names = channel_names + chopper_names
             out, out_names = processing_module.process(shots_array, names, kinds)
@@ -537,6 +538,7 @@ class Device(QtCore.QObject):
         self.busy = busy
         self.busy.update_signal = self.update_ui
         self.shots = shots
+        self.nshots = nshots
         self.acquisition_time = seconds_for_acquisition
         self.shots_compatible = True
         self.Widget = Widget
@@ -706,11 +708,12 @@ class Widget(QtGui.QWidget):
         layout.setMargin(0)
         input_table = pw.InputTable()
         input_table.add('NI 6251', None)
-        self.use = pc.Bool(initial_value=True, disable_under_module_control=True)
+        self.use = pc.Bool(initial_value=True)
         input_table.add('Use', self.use)
-        self.shots = pc.Number(initial_value=100, decimals=0, disable_under_module_control=True)
+        self.shots = pc.Number(initial_value=100, decimals=0)
         input_table.add('Shots', self.shots)
-        self.save_shots = pc.Bool(disable_under_module_control=True)
+        self.save_shots = pc.Bool(initial_value=False)
+        input_table.add('Save Shots', self.save_shots)
         layout.addWidget(input_table)
         
     def load(self, aqn_path):
@@ -722,6 +725,7 @@ class Widget(QtGui.QWidget):
         ini.add_section('NI 6251')
         ini.write('NI 6251', 'use', self.use.read())
         ini.write('NI 6251', 'shots', self.shots.read())
+        ini.write('NI 6251', 'save shots', self.save_shots.read())
         
 
         

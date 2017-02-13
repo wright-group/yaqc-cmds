@@ -14,6 +14,8 @@ import numpy as np
 
 import scipy
 
+import h5py
+
 from PyQt4 import QtCore, QtGui
 import pyqtgraph as pg
 
@@ -241,6 +243,7 @@ class FileAddress(QtCore.QObject):
         # unpack inputs        
         aqn, scan_folder = inputs
         file_index = 0
+        # pixels --------------------------------------------------------------
         # file name
         file_index_str = str(file_index).zfill(3)
         self.filename = ' '.join([file_index_str]).rstrip()
@@ -249,30 +252,47 @@ class FileAddress(QtCore.QObject):
         # generate file
         dictionary = headers.read(kind='data')
         wt.kit.write_headers(data_path.read(), dictionary)
-    
-    def create_shots(self, inputs):
-        # create shots must always be called after create data
-        shot_path.write(data_path.read().replace('.data', '.shots'))
-        dictionary = headers.read(kind='shots')
-        wt.kit.write_headers(shot_path.read(), dictionary)
-            
+        # shots ---------------------------------------------------------------
+        if aqn.read('NI 6251', 'save shots'):
+            p = os.path.join(os.path.dirname(data_path.read()), 'NI 6251 shots.hdf5')  # TODO: this is hack
+            f = h5py.File(p)
+            dictionary = headers.read(kind='shots')
+            for key, value in dictionary.items():
+                # remove None
+                if type(value) is list:
+                    for i, val in enumerate(value):
+                        if val is None:
+                            value[i] = 'None'
+                        if isinstance(val, basestring):
+                            value[i] = str(val)  # cannot handle unicode in lists...
+                # write to hdf5
+                f.attrs[key] = value
+            col_count = len(dictionary['name'])
+            f.create_dataset('array', (col_count, 0), maxshape=(col_count, None), compression='gzip')
+            f['array'].set_fill_value = np.nan        
+            f.close()
+
     def write_data(self, inputs):
+        data_arr, shots_arr = inputs        
+        # pixels --------------------------------------------------------------
         data_file = open(data_path.read(), 'a')
-        if len(inputs[0].shape) == 2:
-            for row in inputs[0].T:
+        if len(data_arr[0].shape) == 2:  # case of multidimensional devices
+            for row in data_arr[0].T:
                 np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline = '\t')
                 data_file.write('\n')
         else:
-            np.savetxt(data_file, inputs, fmt='%8.6f', delimiter='\t', newline = '\t')
+            np.savetxt(data_file, data_arr, fmt='%8.6f', delimiter='\t', newline = '\t')
             data_file.write('\n')
         data_file.close()
-        
-    def write_shots(self, inputs):
-        data_file = open(shot_path.read(), 'a')
-        for row in inputs[0].T:
-            np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline = '\t')
-            data_file.write('\n')
-        data_file.close()
+        # shots ---------------------------------------------------------------
+        p = os.path.join(os.path.dirname(data_path.read()), 'NI 6251 shots.hdf5')  # TODO: this is hack
+        if os.path.isfile(p):
+            f = h5py.File(p)
+            current_row_count = f['array'].shape[1]
+            new_row_count = shots_arr.shape[1]
+            f['array'].resize(current_row_count+new_row_count, axis=1)
+            f['array'][:, current_row_count:current_row_count+new_row_count] = shots_arr
+            f.close()
 
     def initialize(self, inputs):
         pass
@@ -328,7 +348,7 @@ class Control(QtCore.QObject):
         for device in self.devices:
             device.settings_updated.connect(self.on_device_settings_updated)
     
-    def acquire(self, save=False):
+    def acquire(self, save=False, index=None):
         # loop time
         now = time.time()
         loop_time.write(now - self.t_last)
@@ -342,25 +362,37 @@ class Control(QtCore.QObject):
         self.wait_until_done()
         # save
         if save:
-            # TODO: everyting related to shots
             # 1D things -------------------------------------------------------
             data_rows = np.prod([d.data.size for d in self.devices if d.active])
             data_shape = (len(headers.data_cols['name']), data_rows)
             data_arr = np.full(data_shape, np.nan)
+            shots_rows = int(np.prod([d.nshots.read() for d in self.devices if d.active]))
+            shots_shape = (len(headers.shots_cols['name']), shots_rows)
+            shots_arr = np.full(shots_shape, np.nan)
             data_i = 0
+            shots_i = 0
             # scan indicies
             for i in idx.read():  # scan device
                 data_arr[data_i] = i
+                shots_arr[shots_i] = i
                 data_i += 1
+                shots_i += 1
             for device in self.devices:  # daq
                 if device.active and device.has_map:
                     map_indicies = [i for i in np.ndindex(device.data.shape)]
                     for i in range(len(device.data.shape)):
                         data_arr[data_i] = [mi[i] for mi in map_indicies]
                         data_i += 1
+                        shots_arr[shots_i] = [mi[i] for mi in map_indicies]
+                        shots_i += 1
+            shots_arr[shots_i] = range(shots_rows)
+            shots_i += 1
             # time
-            data_arr[data_i] = time.time()  # seconds since epoch
+            now = time.time()  # seconds since epoch
+            data_arr[data_i] = now
             data_i += 1
+            shots_arr[shots_i] = now
+            shots_i += 1
             # hardware positions
             for scan_hardware_module in scan_hardware_modules:
                 for scan_hardware in scan_hardware_module.hardwares:
@@ -368,25 +400,37 @@ class Control(QtCore.QObject):
                         out_units = scan_hardware.recorded[key][1]
                         if out_units is None:
                             data_arr[data_i] = scan_hardware.recorded[key][0].read()
+                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read()
                         else:
                             data_arr[data_i] = scan_hardware.recorded[key][0].read(out_units)
+                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read(out_units)
                         data_i += 1
+                        shots_i += 1
             # potentially multidimensional things -----------------------------
+            # TODO: shots_arr should be a DICTIONARY of arrays for each device
             # acquisition maps
             for device in self.devices:
                 if device.active and device.has_map:
                     data_arr[data_i] = device.get_map()
                     data_i += 1
+                    shots_arr[shots_i] = device.get_map()
+                    shots_i += 1
             # acquisitions
             for device in self.devices:
                 if device.active:
+                    # data
                     channels = device.data.read()  # list of arrays
                     for arr in channels:
                         data_arr[data_i] = arr
                         data_i += 1
-            # send to file_address
-            q('write_data', [data_arr])
-            # fill slice
+                    # shots
+                    channels = device.shots.read()  # list of arrays
+                    for arr in channels:
+                        shots_arr[shots_i] = arr
+                        shots_i += 1
+            # send to file_address --------------------------------------------
+            q('write_data', [data_arr, shots_arr])
+            # fill slice ------------------------------------------------------
             slice_axis_index = headers.data_cols['name'].index(current_slice.name)
             slice_position = np.mean(data_arr[slice_axis_index])
             native_units = headers.data_cols['units'][slice_axis_index]
@@ -419,15 +463,15 @@ class Control(QtCore.QObject):
         self.settings_updated.emit()
         
     def initialize_scan(self, aqn, scan_folder, destinations_list):
+        timestamp = wt.kit.TimeStamp()
         # stop freerunning
         self.set_freerun(False)
         # fill out pycmds_information in headers
         headers.pycmds_info['PyCMDS version'] = g.version.read()
         headers.pycmds_info['system name'] = g.system_name.read()
-        headers.pycmds_info['file created'] = wt.kit.get_timestamp()
+        headers.pycmds_info['file created'] = timestamp.RFC3339
         # apply device settings from aqn
         ms_wait.write(aqn.read('device settings', 'ms wait'))
-        save_shots.write(aqn.read('device settings', 'save shots'))
         for device in self.devices:
             if not aqn.has_section(device.name):
                 device.active = False
@@ -467,7 +511,6 @@ class Control(QtCore.QObject):
             if device.active:
                 for key, value in device.get_headers().items():
                     headers.daq_info[' '.join([device.name, key])] = value
-        # create files
         q('create_data', [aqn, scan_folder])
         # refresh current slice properties
         current_slice.begin([len(device.data.cols) for device in self.devices])
@@ -564,7 +607,7 @@ class Control(QtCore.QObject):
                 for col in mutex.cols:
                     kind.append('channel')
                     tolerance.append(None)
-                    units.append('V')  # TODO: better units support?
+                    units.append('')  # TODO: better units support?
                     label.append('')  # TODO: ?
                     name.append(col)
                     self.channel_names.append(col)
@@ -615,9 +658,6 @@ class Widget(QtGui.QWidget):
         self.ms_wait = pc.Number(initial_value=0, limits=ms_wait_limits, 
                                  decimals=0, disable_under_queue_control=True)
         input_table.add('ms Wait', self.ms_wait)
-        self.save_shots = pc.Bool(disable_under_queue_control=True)
-        self.save_shots.set_disabled(True)
-        input_table.add('Save Shots', self.save_shots)
         layout.addWidget(input_table)
         # device settings
         self.device_widgets = []
@@ -634,7 +674,6 @@ class Widget(QtGui.QWidget):
         ini = wt.kit.INI(aqn_path)
         ini.add_section('device settings')
         ini.write('device settings', 'ms wait', self.ms_wait.read())
-        ini.write('device settings', 'save shots', self.save_shots.read())
         for device_widget in self.device_widgets:
             device_widget.save(aqn_path)
         
@@ -788,7 +827,6 @@ class GUI(QtCore.QObject):
         input_table.add('File', None)
         data_busy.update_signal = data_obj.update_ui        
         input_table.add('Status', data_busy)
-        input_table.add('Save Shots', save_shots)
         input_table.add('Autocopy', autocopy_enable)
         input_table.add('Autocopy Path', autocopy_path)
         input_table.add('Scan', None)
