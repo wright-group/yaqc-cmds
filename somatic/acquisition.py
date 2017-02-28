@@ -316,7 +316,7 @@ class Worker(QtCore.QObject):
             # wait for hardware
             g.hardware_waits.wait()
             # launch devices
-            devices.control.acquire(save=True)
+            devices.control.acquire(save=True, index=idx)
             # wait for devices
             devices.control.wait_until_done()
             # update

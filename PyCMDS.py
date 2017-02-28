@@ -57,33 +57,15 @@ import WrightTools as wt
 ### version information #######################################################
 
 
-# get config
-main_ini_path = os.path.join(g.main_dir.read(), 'main.ini')
-config = ConfigParser.SafeConfigParser()
-config.read(main_ini_path) 
-
-# get sha
-HEAD_file = os.path.join(g.main_dir.read(), '.git', 'logs', 'HEAD')
-with open(HEAD_file) as f:
-    for line in f.readlines():
-        sha = line.split(' ')[1]  # most recent commit is last
-sha.encode('ascii','ignore')
-
-
-# PyCMDS version format: a.b.c.d
-# a - major release
-# b - minor release
-# c - bugfix
-# d - git sha key
-__version__ = config.get('main', 'version') + '.' + sha[:7]
-g.version.write(__version__)
-
+# MAJOR.MINOR.PATCH (semantic versioning)
+# major version changes may break backwards compatibility
+g.version.write('0.7.0')
 
 
 ### define ####################################################################
 
 
-PyCMDS_folder = os.path.dirname(os.path.abspath(__file__))
+PyCMDS_folder = os.path.dirname(__file__)
 
 
 ### main window ###############################################################
