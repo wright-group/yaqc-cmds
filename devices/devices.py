@@ -273,11 +273,11 @@ class FileAddress(QtCore.QObject):
             f.close()
 
     def write_data(self, inputs):
-        data_arr, shots_arr = inputs        
+        data_arr, shots_arr = inputs
         # pixels --------------------------------------------------------------
         data_file = open(data_path.read(), 'a')
-        if len(data_arr[0].shape) == 2:  # case of multidimensional devices
-            for row in data_arr[0].T:
+        if len(data_arr.shape) == 2:  # case of multidimensional devices
+            for row in data_arr.T:
                 np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline = '\t')
                 data_file.write('\n')
         else:
@@ -366,7 +366,7 @@ class Control(QtCore.QObject):
             data_rows = np.prod([d.data.size for d in self.devices if d.active])
             data_shape = (len(headers.data_cols['name']), data_rows)
             data_arr = np.full(data_shape, np.nan)
-            shots_rows = int(np.prod([d.nshots.read() for d in self.devices if d.active]))
+            shots_rows = int(np.prod([d.nshots.read() if d.active and d.shots_compatible else 1 for d in self.devices ]))
             shots_shape = (len(headers.shots_cols['name']), shots_rows)
             shots_arr = np.full(shots_shape, np.nan)
             data_i = 0
@@ -383,8 +383,9 @@ class Control(QtCore.QObject):
                     for i in range(len(device.data.shape)):
                         data_arr[data_i] = [mi[i] for mi in map_indicies]
                         data_i += 1
-                        shots_arr[shots_i] = [mi[i] for mi in map_indicies]
-                        shots_i += 1
+                        if device.shots_compatible:
+                            shots_arr[shots_i] = [mi[i] for mi in map_indicies]
+                            shots_i += 1
             shots_arr[shots_i] = range(shots_rows)
             shots_i += 1
             # time
@@ -413,8 +414,9 @@ class Control(QtCore.QObject):
                 if device.active and device.has_map:
                     data_arr[data_i] = device.get_map()
                     data_i += 1
-                    shots_arr[shots_i] = device.get_map()
-                    shots_i += 1
+                    if device.shots_compatible:
+                        shots_arr[shots_i] = device.get_map()
+                        shots_i += 1
             # acquisitions
             for device in self.devices:
                 if device.active:
@@ -424,10 +426,11 @@ class Control(QtCore.QObject):
                         data_arr[data_i] = arr
                         data_i += 1
                     # shots
-                    channels = device.shots.read()  # list of arrays
-                    for arr in channels:
-                        shots_arr[shots_i] = arr
-                        shots_i += 1
+                    if device.shots_compatible:
+                        channels = device.shots.read()  # list of arrays
+                        for arr in channels:
+                            shots_arr[shots_i] = arr
+                            shots_i += 1
             # send to file_address --------------------------------------------
             q('write_data', [data_arr, shots_arr])
             # fill slice ------------------------------------------------------

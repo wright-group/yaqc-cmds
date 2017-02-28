@@ -546,6 +546,7 @@ class Device(QtCore.QObject):
         self.freerun = freerun
         self.freerun.updated.connect(lambda: q.push('loop'))
         nshots.updated.connect(self.update_task)
+        shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
         self.settings_updated.emit()
         
