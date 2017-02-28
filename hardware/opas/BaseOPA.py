@@ -53,57 +53,64 @@ class BaseOPA:
         # finish
         self.gui = GUI(self)
         self.initialized = pc.Bool()
+        self.homeable = [False]
         
     ## TODO: implement _set_motors in pico opa
     def _set_motors(self, motor_indexes, motor_destinations, wait=True):
-        raies NotImplementedError
-        
+        raise NotImplementedError
+
+    def _home_motors(self, motor_indexes):
+        raise NotImplementedError
+
+    def home_motor(self, inputs):
+        motor_name = inputs[0]
+        motor_index = self.motor_names.index(motor_name)
+        if self.homeable[motor_index % len(self.homeable)]:
+            self._home_motors([motor_index])
+
+    def home_all(self, inputs=[]):
+        indexes = range(len(self.motor_names))
+        indexes = [i for i in indexes if self.homeable[i%len(self.homeable)] ]
+        self._home_motors(indexes)
+                    
     def close(self):
         raise NotImplementedError
         
-    ##TODO: abstract curve loading?
+    def _update_api(self, interaction):
+        pass
+
+    def _load_curve(self, inputs, interaction):
+        raise NotImplementedError
+
     def load_curve(self, inputs=[]):
         '''
         inputs can be none (so it loads current curves) 
         or ['curve type', filepath]
         '''
-        raise NotImplementedError
-        if False:
-            # TODO: actually support external curve loading
-            # write to TOPAS ini
-            self.api.close()
-            for curve_type, curve_path_mutex in self.curve_paths.items():
-                curve_path = curve_path_mutex.read()            
-                section = 'Optical Device'
-                option = 'Curve ' + str(curve_indicies[curve_type])
-                self.TOPAS_ini.write(section, option, curve_path)
-                print section, option, curve_path
-            self.api = TOPAS(self.TOPAS_ini_filepath)
-            # update own curve object
-            interaction = self.interaction_string_combo.read()
-            crv_paths = [m.read() for m in self.curve_paths.values()]
-            crv_paths.insert(1, None)
-            crv_paths.insert(1, None)
-            self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, 'TOPAS-800', interaction)
-            # update limits
-            min_nm = self.curve.colors.min()
-            max_nm = self.curve.colors.max()
-            self.limits.write(min_nm, max_nm, 'nm')
-            # update position
-            self.get_position()
-            # save current interaction string
-            ini.write('OPA%i'%self.index, 'current interaction string', interaction)
+        # update own curve object
+        interaction = self.interaction_string_combo.read()
+        self._load_curve(inputs, interaction)
+        # update limits
+        min_color = self.curve.colors.min()
+        max_color = self.curve.colors.max()
+        self.limits.write(min_color, max_color, self.native_units)
+        # update position
+        self.get_position()
+        self._update_api(interaction)
         
-    ## TODO: Determine if get_crv_paths needs to be in BaseOPA
     def get_crv_paths(self):
         return [o.read() for o in self.curve_paths.values()]
 
     def get_points(self):
-        raise NotImplementedError
+        return self.curve.colors
 
     def get_position(self):
-        raise NotImplementedError
+        position = self.address.hardware.destination.read(self.native_units)
+        self.current_position.write(position)
+        return position
+        
 
+    # TODO Figure out what this should do/what calls this
     def get_motor_positions(self, inputs=[]):
         raise NotImplementedError
     
@@ -171,7 +178,7 @@ class BaseOPA:
     
 ### gui #######################################################################
     
-    
+## TODO: Should MotorControlGUI be in the abstracted class
 class MotorControlGUI(QtGui.QWidget):
     
     def __init__(self, motor_name, motor_mutex, driver):
@@ -229,11 +236,12 @@ class MotorControlGUI(QtGui.QWidget):
         self.driver.address.hardware.q.push('set_motor', [self.motor_name, destination])
 
 
-class GUI(QtCore.QObject):
+class BaseOPAGUI(QtCore.QObject):
 
     def __init__(self, driver):
         QtCore.QObject.__init__(self)
         self.driver = driver
+        self.layout = None
 
     def create_frame(self, layout):
         layout.setMargin(5)
@@ -274,8 +282,9 @@ class GUI(QtCore.QObject):
         self.layout.addWidget(settings_scroll_area)
         # opa properties
         input_table = pw.InputTable()
-        serial_number_display = pc.Number(initial_value=self.driver.serial_number, decimals=0, display=True)
-        input_table.add('Serial Number', serial_number_display)
+        if self.driver.serial_number != -1:
+            serial_number_display = pc.Number(initial_value=self.driver.serial_number, decimals=0, display=True)
+            input_table.add('Serial Number', serial_number_display)
         settings_layout.addWidget(input_table)
         # plot control
         input_table = pw.InputTable()
@@ -285,7 +294,7 @@ class GUI(QtCore.QObject):
         input_table.add('Motor', self.plot_motor)
         allowed_values = wt.units.energy.keys()
         allowed_values.remove('kind')
-        self.plot_units = pc.Combo(initial_value='nm', allowed_values=allowed_values)
+        self.plot_units = pc.Combo(initial_value=self.driver.native_units, allowed_values=allowed_values)
         self.plot_units.updated.connect(self.update_plot)
         input_table.add('Units', self.plot_units)
         settings_layout.addWidget(input_table)
@@ -323,7 +332,7 @@ class GUI(QtCore.QObject):
         self.on_limits_updated()
 
     def update(self):
-        print 'TOPAS update'
+        print 'OPA update'
         # set button disable
         if self.driver.address.busy.read():
             self.home_all_button.setDisabled(True)
@@ -359,12 +368,6 @@ class GUI(QtCore.QObject):
         self.plot_widget.graphics_layout.update()
         self.update()
 
-    def update_limits(self):
-        if False:
-            limits = self.opa.limits.read(self.opa.native_units)
-            self.lower_limit.write(limits[0], self.opa.native_units)
-            self.upper_limit.write(limits[1], self.opa.native_units)
-
     def on_home_all(self):
         self.driver.address.hardware.q.push('home_all')
         
@@ -385,8 +388,7 @@ class GUI(QtCore.QObject):
 
 
 if __name__ == '__main__':
-    
     if True:
-        api = TOPAS(r'C:\Users\John\Desktop\PyCMDS\opas\TOPAS_800\configuration\16426.ini')
+        pass
         
         
