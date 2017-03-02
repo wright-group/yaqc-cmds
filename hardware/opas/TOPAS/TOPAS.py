@@ -32,6 +32,8 @@ main_dir = g.main_dir.read()
                                  
 ### define ####################################################################
               
+## TODO change curve_indices
+## TODO figure out plural of index
 curve_indicies = {'Base': 1,
                   'Mixer 1': 2,
                   'Mixer 2': 3,
@@ -42,25 +44,17 @@ curve_indicies = {'Base': 1,
 
 class TOPAS(BaseOPA):
 
-    def __init__(self):
-        self.native_units = 'nm'
-        # mutex attributes
-        self.limits = pc.NumberLimits(units=self.native_units)
-        self.current_position = pc.Number(name='Color', initial_value=1300.,
-                                          limits=self.limits,
-                                          units=self.native_units, display=True,
-                                          set_method='set_position')
-        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
-        self.shutter_position = pc.Bool(name='Shutter',
-                                        display=True, set_method='set_shutter')
-        # objects to be sent to PyCMDS
-        self.exposed = [self.current_position, self.shutter_position]
-        self.recorded = collections.OrderedDict()
-        self.motor_names = ['Crystal_1', 'Delay_1', 'Crystal_2', 'Delay_2', 'Mixer_1', 'Mixer_2', 'Mixer_3']
+    def __init__(self, motor_names=[], has_shutter=False):
+        super(TOPAS,self).__init__('nm')
+        if has_shutter:
+            self.shutter_position = pc.Bool(name='Shutter',
+                                            display=True, set_method='set_shutter')
+            # objects to be sent to PyCMDS
+            self.exposed += [self.shutter_position]
+        self.motor_names = motor_names
         # finish
-        self.gui = GUI(self)
         self.auto_tune = AutoTune(self)
-        self.initialized = pc.Bool()
+        self.homeable = [True]
         
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
