@@ -94,8 +94,6 @@ class BaseOPA:
         min_color = self.curve.colors.min()
         max_color = self.curve.colors.max()
         self.limits.write(min_color, max_color, self.native_units)
-        # update position
-        self.get_position()
         self._update_api(interaction)
         
     def get_crv_paths(self):
@@ -382,6 +380,36 @@ class BaseOPAGUI(QtCore.QObject):
     def stop(self):
         pass
 
+
+
+
+### autotune ##################################################################
+
+
+class BaseOPAAutoTune(QtGui.QWidget):
+
+    def __init__(self, opa):
+        QtGui.QWidget.__init__(self)
+        self.opa = opa
+        self.setLayout(QtGui.QVBoxLayout())
+        self.layout = self.layout()
+        self.layout.setMargin(0)
+        self.initialized = pc.Bool()
+
+    def initialize(self):
+        raise NotImplementedError
+
+    def load(self, aqn_path):
+        raise NotImplementedError
+
+    def run(self, worker):
+        raise NotImplementedError
+
+    def save(self, aqn_path):
+        raise NotImplementedError
+
+    def update_channel_names(self, channel_names):
+        raise NotImplementedError
 
 
 ### testing ###################################################################
