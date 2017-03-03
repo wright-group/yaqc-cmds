@@ -45,6 +45,8 @@ class TOPAS(BaseOPA):
         self.has_shutter = has_shutter
         self.curve_indices = curve_indices
         self.kind = kind
+        self.ini = Ini(os.path.join(main_dir,'hardware','opas',
+                                    'TOPAS',kind+'.ini'))
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter',
                                             display=True, set_method='set_shutter')
@@ -109,9 +111,9 @@ class TOPAS(BaseOPA):
         # send motors left reference switch slowly ----------------------------
         # set motor speed
         for motor_index in motor_indexes:
-            min_velocity = ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
-            max_velocity = ini.read(section, 'motor {} max velocity (us/s)'.format(motor_index))
-            acceleration = ini.read(section, 'motor {} acceleration (us/s^2)'.format(motor_index))
+            min_velocity = self.ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
+            max_velocity = self.ini.read(section, 'motor {} max velocity (us/s)'.format(motor_index))
+            acceleration = self.ini.read(section, 'motor {} acceleration (us/s^2)'.format(motor_index))
             error = self.api.set_speed_parameters(motor_index, min_velocity, int(max_velocity/2), acceleration)
         # set all max, current positions to spoof values
         for motor_index in motor_indexes:
@@ -139,14 +141,14 @@ class TOPAS(BaseOPA):
         # finish --------------------------------------------------------------
         # set speed back to real values
         for motor_index in motor_indexes:
-            min_velocity = ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
-            max_velocity = ini.read(section, 'motor {} max velocity (us/s)'.format(motor_index))
-            acceleration = ini.read(section, 'motor {} acceleration (us/s^2)'.format(motor_index))
+            min_velocity = self.ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
+            max_velocity = self.ini.read(section, 'motor {} max velocity (us/s)'.format(motor_index))
+            acceleration = self.ini.read(section, 'motor {} acceleration (us/s^2)'.format(motor_index))
             error = self.api.set_speed_parameters(motor_index, min_velocity, max_velocity, acceleration)
         # set range back to real values
         for motor_index in motor_indexes:
-            min_position = ini.read(section, 'motor {} min position (us)'.format(motor_index))
-            max_position = ini.read(section, 'motor {} max position (us)'.format(motor_index))
+            min_position = self.ini.read(section, 'motor {} min position (us)'.format(motor_index))
+            max_position = self.ini.read(section, 'motor {} max position (us)'.format(motor_index))
             error = self.api.set_motor_positions_range(motor_index, min_position, max_position)
         # launch return motion
         for motor_index, position in zip(motor_indexes, original_positions):
@@ -179,11 +181,17 @@ class TOPAS(BaseOPA):
             print section, option, curve_path
         self.api = TOPAS(self.TOPAS_ini_filepath)
         # save current interaction string
-        ini.write('OPA%i'%self.index, 'current interaction string', interaction)
+        self.ini.write('OPA%i'%self.index, 'current interaction string', interaction)
     
     def _load_curve(self, inputs, interaction):
-        ## TODO generalize crv_path curve loading
         crv_paths = [m.read() for m in self.curve_paths.values()]
+
+        used = self.curve_indices.values()
+        need = [x for x in range(4) if x+1 not in used]
+        
+        for i in need:
+            crv_paths.insert(i,None)
+
         self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, self.kind, interaction)
         
     def get_motor_positions(self, inputs=[]):
@@ -203,7 +211,7 @@ class TOPAS(BaseOPA):
         '''
         self.address = address
         self.index = inputs[0]
-        self.serial_number = ini.read('OPA' + str(self.index), 'serial number')
+        self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         self.recorded['w%d'%self.index] = [self.current_position, 'nm', 1., str(self.index)]
         # load api 
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')

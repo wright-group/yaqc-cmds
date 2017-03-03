@@ -24,12 +24,6 @@ import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
-ini = None
-#TODO: Add Ini init to subclasses
-#ini = Ini(os.path.join(main_dir, 'hardware', 'opas',
-#                                 'TOPAS_800',
-#                                 'TOPAS.ini'))
-                                 
                                  
 ### OPA object ################################################################
 
