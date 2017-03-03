@@ -33,20 +33,18 @@ main_dir = g.main_dir.read()
 ### define ####################################################################
               
 ## TODO change curve_indices
-## TODO figure out plural of index
-curve_indicies = {'Base': 1,
-                  'Mixer 1': 2,
-                  'Mixer 2': 3,
-                  'Mixer 3': 4}
+## TODO make everything indices
 
 ### OPA object ################################################################
 
 
 class TOPAS(BaseOPA):
 
-    def __init__(self, motor_names=[], has_shutter=False):
+    def __init__(self, motor_names=[], curve_indices={}, kind="TOPAS", has_shutter=False):
         super(TOPAS,self).__init__('nm')
         self.has_shutter = has_shutter
+        self.curve_indices = curve_indices
+        self.kind = kind
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter',
                                             display=True, set_method='set_shutter')
@@ -56,6 +54,22 @@ class TOPAS(BaseOPA):
         # finish
         self.auto_tune = AutoTune(self)
         self.homeable = [True]
+
+    def TOPAS_800():
+        motor_names = []
+        curve_indices = {'Base': 1,
+                          'Mixer 3': 4}
+        kind = "TOPAS-800"
+        return TOPAS(motor_names, curve_indices, kind, False)
+
+    def TOPAS_C():
+        motor_names = []
+        curve_indices = {'Base': 1,
+                          'Mixer 1': 2,
+                          'Mixer 2': 3,
+                          'Mixer 3': 4}
+        kind = "TOPAS-C"
+        return TOPAS(motor_names, curve_indices, kind, True)
         
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
@@ -160,7 +174,7 @@ class TOPAS(BaseOPA):
         for curve_type, curve_path_mutex in self.curve_paths.items():
             curve_path = curve_path_mutex.read()            
             section = 'Optical Device'
-            option = 'Curve ' + str(curve_indicies[curve_type])
+            option = 'Curve ' + str(self.curve_indices[curve_type])
             self.TOPAS_ini.write(section, option, curve_path)
             print section, option, curve_path
         self.api = TOPAS(self.TOPAS_ini_filepath)
@@ -170,7 +184,7 @@ class TOPAS(BaseOPA):
     def _load_curve(self, inputs, interaction):
         ## TODO generalize crv_path curve loading
         crv_paths = [m.read() for m in self.curve_paths.values()]
-        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, 'TOPAS-C', interaction)
+        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, self.kind, interaction)
         
     def get_motor_positions(self, inputs=[]):
         for motor_index, motor_mutex in enumerate(self.motor_positions.values()):
@@ -213,9 +227,9 @@ class TOPAS(BaseOPA):
         self.get_motor_positions()
         # tuning curves
         self.curve_paths = collections.OrderedDict()
-        for curve_type in curve_indicies.keys():
+        for curve_type in self.curve_indices.keys():
             section = 'Optical Device'
-            option = 'Curve ' + str(curve_indicies[curve_type])
+            option = 'Curve ' + str(self.curve_indices[curve_type])
             initial_value = self.TOPAS_ini.read(section, option)
             options = ['CRV (*.crv)']
             curve_filepath = pc.Filepath(initial_value=initial_value, options=options)
