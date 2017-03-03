@@ -328,6 +328,8 @@ class BaseOPAGUI(QtCore.QObject):
         self.update()
         self.update_plot()
         self.on_limits_updated()
+        # autotune
+        self.driver.auto_tune.initialize()
 
     def update(self):
         print 'OPA update'
