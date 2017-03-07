@@ -215,7 +215,7 @@ class TOPAS(BaseOPA):
         self.recorded['w%d'%self.index] = [self.current_position, 'nm', 1., str(self.index)]
         # load api 
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
-        self.api = TOPAS(self.TOPAS_ini_filepath)
+        self.api = TOPAS_API(self.TOPAS_ini_filepath)
         if self.has_shutter:
             self.api.set_shutter(False)
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)

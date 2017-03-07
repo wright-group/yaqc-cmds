@@ -30,12 +30,12 @@ counts_per_mm = 58200
 # dictionary to contain motor correspondance
 identity = {'D1': 'motor0', 
             'D2': 'motor1',
-            'OPA2 grating': 'motor8',
+            'OPA2 Grating': 'motor8',
             'OPA2 BBO': 'motor9',
-            'OPA2 mixer': 'motor10',
-            'OPA3 grating': 'motor2',
+            'OPA2 Mixer': 'motor10',
+            'OPA3 Grating': 'motor2',
             'OPA3 BBO': 'motor3',
-            'OPA3 mixer': 'motor4'}
+            'OPA3 Mixer': 'motor4'}
 
 ### control ###################################################################
 
