@@ -187,20 +187,20 @@ class OPA800AutoTune(BaseOPAAutoTune):
         if worker.aqn.read('BBO', 'do'):
             axes = []
             # tune points
-            points = self.opa.curve.colors
-            units = self.opa.curve.units
-            name = identity = self.opa.address.hardware.friendly_name
+            points = self.driver.curve.colors
+            units = self.driver.curve.units
+            name = identity = self.driver.address.hardware.friendly_name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.opa.address.hardware.friendly_name, self.opa.curve.motor_names[1]])
+            name = '_'.join([self.driver.address.hardware.friendly_name, self.driver.curve.motor_names[1]])
             identity = 'D' + name
             width = worker.aqn.read('BBO', 'width') 
             npts = int(worker.aqn.read('BBO', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = self.opa.curve.motors[1].positions
+            motor_positions = self.driver.curve.motors[1].positions
             kwargs = {'centers': motor_positions}
-            hardware_dict = {name: [self.opa.address.hardware, 'set_motor', ['BBO', 'destination']]}
+            hardware_dict = {name: [self.driver.address.hardware, 'set_motor', ['BBO', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
             axes.append(axis)
             # do scan
@@ -208,13 +208,13 @@ class OPA800AutoTune(BaseOPAAutoTune):
             # process
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
-            curve = self.opa.curve
+            curve = self.driver.curve
             channel = worker.aqn.read('BBO', 'channel')
-            old_curve_filepath = self.opa.curve_path.read()
+            old_curve_filepath = self.driver.curve_path.read()
             wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
-            self.opa.curve_path.write(p)
+            self.driver.curve_path.write(p)
             # upload
             p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
             worker.upload(scan_folder, reference_image=p)
@@ -222,20 +222,20 @@ class OPA800AutoTune(BaseOPAAutoTune):
         if worker.aqn.read('Mixer', 'do'):
             axes = []
             # tune points
-            points = self.opa.curve.colors
-            units = self.opa.curve.units
-            name = identity = self.opa.address.hardware.friendly_name
+            points = self.driver.curve.colors
+            units = self.driver.curve.units
+            name = identity = self.driver.address.hardware.friendly_name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.opa.address.hardware.friendly_name, self.opa.curve.motor_names[2]])
+            name = '_'.join([self.driver.address.hardware.friendly_name, self.driver.curve.motor_names[2]])
             identity = 'D' + name
             width = worker.aqn.read('Mixer', 'width') 
             npts = int(worker.aqn.read('Mixer', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = self.opa.curve.motors[2].positions
+            motor_positions = self.driver.curve.motors[2].positions
             kwargs = {'centers': motor_positions}
-            hardware_dict = {name: [self.opa.address.hardware, 'set_motor', ['Mixer', 'destination']]}
+            hardware_dict = {name: [self.driver.address.hardware, 'set_motor', ['Mixer', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
             axes.append(axis)
             # do scan
@@ -243,13 +243,13 @@ class OPA800AutoTune(BaseOPAAutoTune):
             # process
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
-            curve = self.opa.curve
+            curve = self.driver.curve
             channel = worker.aqn.read('Mixer', 'channel')
-            old_curve_filepath = self.opa.curve_path.read()
+            old_curve_filepath = self.driver.curve_path.read()
             wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
-            self.opa.curve_path.write(p)
+            self.driver.curve_path.write(p)
             # upload
             p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
             worker.upload(scan_folder, reference_image=p)
@@ -257,9 +257,9 @@ class OPA800AutoTune(BaseOPAAutoTune):
         if worker.aqn.read('Test', 'do'):
             axes = []
             # tune points
-            points = self.opa.curve.colors
-            units = self.opa.curve.units
-            name = identity = self.opa.address.hardware.friendly_name
+            points = self.driver.curve.colors
+            units = self.driver.curve.units
+            name = identity = self.driver.address.hardware.friendly_name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # mono
@@ -268,7 +268,7 @@ class OPA800AutoTune(BaseOPAAutoTune):
             width = worker.aqn.read('Test', 'width') 
             npts = int(worker.aqn.read('Test', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            kwargs = {'centers': self.opa.curve.colors}
+            kwargs = {'centers': self.driver.curve.colors}
             axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
             axes.append(axis)
             # do scan
@@ -276,12 +276,12 @@ class OPA800AutoTune(BaseOPAAutoTune):
             # process
             p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(p)
-            curve = self.opa.curve
+            curve = self.driver.curve
             channel = worker.aqn.read('Test', 'channel')
             wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
-            self.opa.curve_path.write(p)
+            self.driver.curve_path.write(p)
             # upload
             p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
             worker.upload(scan_folder, reference_image=p)
