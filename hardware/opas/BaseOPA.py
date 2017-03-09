@@ -45,7 +45,7 @@ class BaseOPA:
         ##
         self.motor_names = []
         # finish
-        self.gui = GUI(self)
+        self.gui = BaseOPAGUI(self)
         self.initialized = pc.Bool()
         self.homeable = [False]
         
@@ -101,7 +101,6 @@ class BaseOPA:
         self.current_position.write(position)
         return position
         
-
     # TODO Figure out what this should do/what calls this
     def get_motor_positions(self, inputs=[]):
         raise NotImplementedError
@@ -123,7 +122,7 @@ class BaseOPA:
         destination = np.clip(destination, self.curve.colors.min(), self.curve.colors.max())
         # get destinations from curve
         motor_names = self.curve.get_motor_names()
-        motor_destinations = self.curve.get_motor_positions(destination, 'nm')
+        motor_destinations = self.curve.get_motor_positions(destination, self.native_units)
         # send command
         motor_indexes = [self.motor_names.index(n) for n in motor_names]
         self._set_motors(motor_indexes, motor_destinations)
@@ -297,9 +296,9 @@ class BaseOPAGUI(QtCore.QObject):
             input_table.add(name, obj)
             obj.updated.connect(self.update_plot)
         input_table.add('Interaction String', self.driver.interaction_string_combo)
-        self.low_energy_limit_display = pc.Number(units='nm', display=True)
+        self.low_energy_limit_display = pc.Number(units=self.driver.native_units, display=True)
         input_table.add('Low Energy Limit', self.low_energy_limit_display)
-        self.high_energy_limit_display = pc.Number(units='nm', display=True)
+        self.high_energy_limit_display = pc.Number(units=self.driver.native_units, display=True)
         input_table.add('High Energy LImit', self.high_energy_limit_display)
         settings_layout.addWidget(input_table)
         self.driver.limits.updated.connect(self.on_limits_updated)
@@ -350,7 +349,7 @@ class BaseOPAGUI(QtCore.QObject):
         units = self.plot_units.read()
         # xi
         colors = self.driver.curve.colors
-        xi = wt_units.converter(colors, 'nm', units)
+        xi = wt_units.converter(colors, self.driver.native_units, units)
         # yi
         self.plot_motor.set_allowed_values(self.driver.curve.get_motor_names())
         motor_name = self.plot_motor.read()

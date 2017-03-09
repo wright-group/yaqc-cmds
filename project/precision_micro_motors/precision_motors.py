@@ -300,13 +300,14 @@ class Motor():
 ### testing ###################################################################
 
 
-if False:
+if __name__ == '__main__':
+    if True:
+        
+        import numpy as np
     
-    import numpy as np
-
-    #mess with a single motor
-    motor = Motor('motor2')
-    motor.move_absolute(40, 'mm')
-    motor.wait_until_still()
-    print(motor.get_position('mm'))
-    motor.close()
+        #mess with a single motor
+        motor = Motor('motor4')
+        motor.move_absolute(25, 'mm')
+        motor.wait_until_still()
+        print(motor.get_position('mm'))
+        motor.close()
