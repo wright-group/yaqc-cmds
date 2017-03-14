@@ -170,7 +170,6 @@ class BaseOPA:
     
 ### gui #######################################################################
     
-## TODO: Should MotorControlGUI be in the abstracted class
 class MotorControlGUI(QtGui.QWidget):
     
     def __init__(self, motor_name, motor_mutex, driver):
@@ -187,6 +186,8 @@ class MotorControlGUI(QtGui.QWidget):
         self.layout.addWidget(input_table)
         # buttons
         home_button, set_button = self.add_buttons(self.layout, 'HOME', 'advanced', 'SET', 'set')
+        homeable = driver.homeable[driver.motor_names.index(motor_name)%len(driver.homeable]
+        home_button.set_disabled(homeable)
         home_button.clicked.connect(self.on_home)
         set_button.clicked.connect(self.on_set)
         g.queue_control.disable_when_true(home_button)
@@ -311,6 +312,7 @@ class BaseOPAGUI(QtCore.QObject):
             settings_layout.addWidget(MotorControlGUI(motor_name, motor_mutex, self.driver))
         self.home_all_button = pw.SetButton('HOME ALL', 'advanced')
         settings_layout.addWidget(self.home_all_button)
+        homeable = any(driver.homeable)
         self.home_all_button.clicked.connect(self.on_home_all)
         g.queue_control.disable_when_true(self.home_all_button)
         # stretch
