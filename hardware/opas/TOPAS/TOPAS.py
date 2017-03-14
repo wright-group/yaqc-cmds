@@ -18,17 +18,14 @@ from ctypes import *
 
 import WrightTools as wt
 import WrightTools.units as wt_units
-from PyCMDS.hardware.opas import BaseOPA
+from hardware.opas.BaseOPA import BaseOPA, BaseOPAAutoTune
+from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
 
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
-#ini = Ini(os.path.join(main_dir, 'hardware', 'opas',
-#                                 'TOPAS_C',
-#                                 'TOPAS.ini'))
-                                 
                                  
 ### define ####################################################################
               
@@ -41,12 +38,12 @@ main_dir = g.main_dir.read()
 class TOPAS(BaseOPA):
 
     def __init__(self, motor_names=[], curve_indices={}, kind="TOPAS", has_shutter=False):
-        super(TOPAS,self).__init__('nm')
+        BaseOPA.__init__(self,'nm')
         self.has_shutter = has_shutter
         self.curve_indices = curve_indices
         self.kind = kind
         self.ini = Ini(os.path.join(main_dir,'hardware','opas',
-                                    'TOPAS',kind+'.ini'))
+                                    'TOPAS', 'TOPAS.ini'))
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter',
                                             display=True, set_method='set_shutter')
@@ -54,24 +51,10 @@ class TOPAS(BaseOPA):
             self.exposed += [self.shutter_position]
         self.motor_names = motor_names
         # finish
-        self.auto_tune = AutoTune(self)
+        self.auto_tune = TopasAutoTune(self)
         self.homeable = [True]
 
-    def TOPAS_800():
-        motor_names = []
-        curve_indices = {'Base': 1,
-                          'Mixer 3': 4}
-        kind = "TOPAS-800"
-        return TOPAS(motor_names, curve_indices, kind, False)
 
-    def TOPAS_C():
-        motor_names = []
-        curve_indices = {'Base': 1,
-                          'Mixer 1': 2,
-                          'Mixer 2': 3,
-                          'Mixer 3': 4}
-        kind = "TOPAS-C"
-        return TOPAS(motor_names, curve_indices, kind, True)
         
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
@@ -179,7 +162,7 @@ class TOPAS(BaseOPA):
             option = 'Curve ' + str(self.curve_indices[curve_type])
             self.TOPAS_ini.write(section, option, curve_path)
             print section, option, curve_path
-        self.api = TOPAS(self.TOPAS_ini_filepath)
+        self.api = TOPAS_API(self.TOPAS_ini_filepath)
         # save current interaction string
         self.ini.write('OPA%i'%self.index, 'current interaction string', interaction)
     
@@ -211,6 +194,7 @@ class TOPAS(BaseOPA):
         '''
         self.address = address
         self.index = inputs[0]
+        self.kind = inputs[1]
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         self.recorded['w%d'%self.index] = [self.current_position, 'nm', 1., str(self.index)]
         # load api 
@@ -252,7 +236,7 @@ class TOPAS(BaseOPA):
                 if 'NON' in line:
                     allowed_values.append(line.rstrip())
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
-        current_value = ini.read('OPA%i'%self.index, 'current interaction string')
+        current_value = self.ini.read('OPA%i'%self.index, 'current interaction string')
         self.interaction_string_combo.write(current_value)
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
@@ -279,6 +263,24 @@ class TOPAS(BaseOPA):
         motor_index, min_speed, max_speed, accelleration = inputs
         error = self.api._set_speed_parameters(motor_index, min_speed, max_speed, acceleration)
         return error
+        
+class TOPAS_800(TOPAS):
+    def __init__(self):
+        motor_names = ['Crystal', 'Amplifier', 'Grating', 'NDFG_Crystal', 'NDFG_Mirror', 'NDFG_Delay']
+        curve_indices = {'Base': 1,
+                          'Mixer 3': 4}
+        kind = "TOPAS-800"
+        TOPAS.__init__(self,motor_names, curve_indices, kind, False)
+
+class TOPAS_C(TOPAS):
+    def __init__(self):
+        motor_names = []
+        curve_indices = {'Base': 1,
+                          'Mixer 1': 2,
+                          'Mixer 2': 3,
+                          'Mixer 3': 4}
+        kind = "TOPAS-C"
+        TOPAS.__init__(self,motor_names, curve_indices, kind, True)
     
 ### autotune ##################################################################
 

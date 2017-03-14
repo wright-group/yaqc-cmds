@@ -8,6 +8,8 @@ hardware/opas/pico/OPA2 curves/
 hardware/opas/pico/OPA3 curves/
 hardware/opas/TOPAS_C/OPA1 (10743) curves/
 hardware/opas/TOPAS_C/OPA2 (10742) curves/
+hardware/opas/TOPAS/OPA2 (*) curves/
+hardware/opas/TOPAS/configuration
 hardware/opas/TOPAS_C/configuration
 hardware/opas/TOPAS_C/manuals
 hardware/opas/TOPAS_800/configuration

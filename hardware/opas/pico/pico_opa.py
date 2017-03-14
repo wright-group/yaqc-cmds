@@ -15,6 +15,7 @@ import project
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
+from hardware.opas.BaseOPA import BaseOPA, BaseOPAAutoTune
 
 if g.offline.read():
     import project.precision_micro_motors.v_precision_motors as pm_motors
@@ -28,7 +29,7 @@ main_dir = g.main_dir.read()
 class OPA_800(BaseOPA):
 
     def __init__(self):
-        super(OPA_800, self).__init__('wn')
+        BaseOPA.__init__(self, 'wn')
         self.index = 2
         self.auto_tune = OPA800AutoTune(self)
         self.motors=[]
@@ -56,8 +57,8 @@ class OPA_800(BaseOPA):
     def get_motor_positions(self, inputs=[]):
         for i in range(len(self.motors)):
             val = self.motors[i].current_position_mm
-            self.motor_positions[i].write(val)
-        return [mp.read() for mp in self.motor_positions]
+            self.motor_positions.values()[i].write(val)
+        return [mp.read() for mp in self.motor_positions.values()]
 
     def initialize(self, inputs, address):
         '''
@@ -80,6 +81,11 @@ class OPA_800(BaseOPA):
             self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower(), True] 
         self.get_motor_positions()
 
+        ## TODO: Determine if pico_opa needs to have interaction string combo
+        allowed_values = ['SHS']
+        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
+
+
         # load curve
         self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
         self.curve_path.updated.connect(self.curve_path.save)
@@ -89,7 +95,8 @@ class OPA_800(BaseOPA):
         self.curve_paths['Curve'] = self.curve_path
 
         # tuning
-        ## TODO: Determine if pico_opa needs to have interaction string combo
+
+
         self.best_points = {}
         self.best_points['SHS'] = np.linspace(13500, 18200, 21)
         self.best_points['DFG'] = np.linspace(1250, 2500, 11)
@@ -100,17 +107,24 @@ class OPA_800(BaseOPA):
         self.address.initialized_signal.emit()
 
     def is_busy(self):
+        
         for motor in self.motors:
             if not motor.is_stopped():
+                self.get_position()                
                 return True
+        self.get_position()
         return False
+        
+    def wait_until_still(self, inputs=[]):
+        for motor in self.motors:
+            motor.wait_until_still(method=self.get_position)
+        self.get_motor_positions()
 
     def _set_motors(self, motor_indexes, motor_destinations, wait=True):
-        for axis,dest in motor_indexs, motor_destinations:
-            position = inputs[axis]
+        for axis,dest in zip(motor_indexes, motor_destinations):
             if axis < 3:
-                if position >= 0 and position <=50:
-                    self.motors[axis].move_absolute(position)
+                if dest >= 0 and dest <=50:
+                    self.motors[axis].move_absolute(dest)
                 else:
                     print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
             else:
