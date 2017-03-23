@@ -137,9 +137,9 @@ class BaseOPA:
         '''
         destination = inputs[0]
         self.address.hardware.destination.write(destination)
-        self.current_position.write(destination, 'nm')
+        self.current_position.write(destination, self.native_units)
         exceptions = inputs[1]  # list of integers
-        motor_destinations = self.curve.get_motor_positions(destination, 'nm')
+        motor_destinations = self.curve.get_motor_positions(destination, self.native_units)
         motor_indexes = []
         motor_positions = []
         for i in [self.motor_names.index(n) for n in self.curve.get_motor_names()]:
@@ -296,9 +296,11 @@ class BaseOPAGUI(QtCore.QObject):
             input_table.add(name, obj)
             obj.updated.connect(self.update_plot)
         input_table.add('Interaction String', self.driver.interaction_string_combo)
-        self.low_energy_limit_display = pc.Number(units=self.driver.native_units, display=True)
+        # limits
+        limits = pc.NumberLimits()  # units None
+        self.low_energy_limit_display = pc.Number(units=self.driver.native_units, display=True, limits=limits)
         input_table.add('Low Energy Limit', self.low_energy_limit_display)
-        self.high_energy_limit_display = pc.Number(units=self.driver.native_units, display=True)
+        self.high_energy_limit_display = pc.Number(units=self.driver.native_units, display=True, limits=limits)
         input_table.add('High Energy LImit', self.high_energy_limit_display)
         settings_layout.addWidget(input_table)
         self.driver.limits.updated.connect(self.on_limits_updated)
@@ -349,12 +351,12 @@ class BaseOPAGUI(QtCore.QObject):
         units = self.plot_units.read()
         # xi
         colors = self.driver.curve.colors
-        xi = wt_units.converter(colors, self.driver.native_units, units)
+        xi = wt_units.converter(colors, self.driver.curve.units, units)
         # yi
-        self.plot_motor.set_allowed_values(self.driver.curve.get_motor_names())
+        self.plot_motor.set_allowed_values(self.driver.curve.get_motor_names())  # can be done on initialization?
         motor_name = self.plot_motor.read()
         motor_index = self.driver.curve.get_motor_names().index(motor_name)
-        yi = self.driver.curve.get_motor_positions(colors, units)[motor_index]
+        yi = self.driver.curve.get_motor_positions(xi, units)[motor_index]
         self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
         self.plot_curve.clear()
         self.plot_curve.setData(xi, yi)

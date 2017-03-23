@@ -301,7 +301,7 @@ class Motor():
 
 
 if __name__ == '__main__':
-    if True:
+    if False:
         
         import numpy as np
     

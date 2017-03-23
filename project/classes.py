@@ -422,7 +422,7 @@ class Filepath(PyCMDS_Object):
 
 class NumberLimits(PyCMDS_Object):
 
-    def __init__(self, min_value=-1000000., max_value=1000000., units=None):
+    def __init__(self, min_value=-1e6, max_value=1e6, units=None):
         '''
         not appropriate for use as a gui element - only for backend use
         units must never change for this kind of object
@@ -585,10 +585,9 @@ class Number(PyCMDS_Object):
         # ensure order
         min_value, max_value = [min([min_value, max_value]),
                                 max([min_value, max_value])]
-        if self.has_widget:
+        if not self.display and self.has_widget:
             self.widget.setMinimum(min_value)
             self.widget.setMaximum(max_value)
-        if not self.display:
             self.set_tool_tip('min: ' + str(min_value) + '\n' +
                               'max: ' + str(max_value))
 
