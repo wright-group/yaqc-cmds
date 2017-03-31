@@ -97,8 +97,8 @@ class BaseOPA:
         return self.curve.colors
 
     def get_position(self):
-        position = self.address.hardware.destination.read(self.native_units)
-        self.current_position.write(position)
+        position = self.address.hardware.destination.read()
+        self.current_position.write(position,self.native_units)
         return position
         
     # TODO Figure out what this should do/what calls this
@@ -122,6 +122,8 @@ class BaseOPA:
         destination = np.clip(destination, self.curve.colors.min(), self.curve.colors.max())
         # get destinations from curve
         motor_names = self.curve.get_motor_names()
+        
+        print(self.__class__, destination, type(destination))
         motor_destinations = self.curve.get_motor_positions(destination, self.native_units)
         # send command
         motor_indexes = [self.motor_names.index(n) for n in motor_names]
@@ -185,8 +187,8 @@ class MotorControlGUI(QtGui.QWidget):
         self.layout.addWidget(input_table)
         # buttons
         home_button, set_button = self.add_buttons(self.layout, 'HOME', 'advanced', 'SET', 'set')
-        homeable = driver.homeable[driver.motor_names.index(motor_name)%len(driver.homeable]
-        home_button.set_disabled(homeable)
+        homeable = driver.homeable[driver.motor_names.index(motor_name)%len(driver.homeable)]
+        #home_button.set_disabled(homeable)
         home_button.clicked.connect(self.on_home)
         set_button.clicked.connect(self.on_set)
         g.queue_control.disable_when_true(home_button)
@@ -313,7 +315,7 @@ class BaseOPAGUI(QtCore.QObject):
             settings_layout.addWidget(MotorControlGUI(motor_name, motor_mutex, self.driver))
         self.home_all_button = pw.SetButton('HOME ALL', 'advanced')
         settings_layout.addWidget(self.home_all_button)
-        homeable = any(driver.homeable)
+        homeable = any(self.driver.homeable)
         self.home_all_button.clicked.connect(self.on_home_all)
         g.queue_control.disable_when_true(self.home_all_button)
         # stretch
