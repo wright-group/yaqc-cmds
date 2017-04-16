@@ -9,9 +9,9 @@ folders.append(['logs'])
 folders.append(['autonomic', 'files'])
 folders.append(['hardware', 'opas', 'pico', 'OPA2 curves'])
 folders.append(['hardware', 'opas', 'pico', 'OPA3 curves'])
-folders.append(['hardware', 'opas', 'TOPAS_C', 'OPA1 (10743) curves'])
-folders.append(['hardware', 'opas', 'TOPAS_C', 'OPA2 (10742) curves'])
-folders.append(['hardware', 'opas', 'TOPAS_C', 'configuration'])
+folders.append(['hardware', 'opas', 'TOPAS', 'OPA1 (10743) curves'])
+folders.append(['hardware', 'opas', 'TOPAS', 'OPA2 (10742) curves'])
+folders.append(['hardware', 'opas', 'TOPAS', 'configuration'])
 
 for folder in folders:
     folder_path = os.path.join(os.getcwd(), *folder)
