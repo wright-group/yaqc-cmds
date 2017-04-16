@@ -389,9 +389,9 @@ class BaseOPAGUI(QtCore.QObject):
 
 class BaseOPAAutoTune(QtGui.QWidget):
 
-    def __init__(self, opa):
+    def __init__(self, driver):
         QtGui.QWidget.__init__(self)
-        self.opa = opa
+        self.driver = driver
         self.setLayout(QtGui.QVBoxLayout())
         self.layout = self.layout()
         self.layout.setMargin(0)

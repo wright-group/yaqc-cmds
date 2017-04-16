@@ -139,7 +139,7 @@ class OPA_800(BaseOPA):
 class OPA800AutoTune(BaseOPAAutoTune):
     
     def __init__(self, driver):
-        super(OPA800AutoTune,self).__init__(driver)
+        super(OPA800AutoTune, self).__init__(driver)
         
     def initialize(self):
         input_table = pw.InputTable()
