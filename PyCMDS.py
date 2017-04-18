@@ -54,18 +54,30 @@ import project.file_dialog_handler
 import WrightTools as wt
 
 
+### define ####################################################################
+
+
+directory = os.path.abspath(os.path.dirname(__file__))
+
+
 ### version information #######################################################
 
 
 # MAJOR.MINOR.PATCH (semantic versioning)
 # major version changes may break backwards compatibility
-g.version.write('0.7.0')
+__version__ = '0.7.0'
 
+# add git branch, if appropriate
+p = os.path.join(directory, '.git', 'HEAD')
+if os.path.isfile(p):
+    with open(p) as _f:
+        __branch__ = _f.readline().rstrip().split(r'/')[-1]
+    if __branch__ != 'master':
+        __version__ += '-' + __branch__
+else:
+    __branch__ = None
 
-### define ####################################################################
-
-
-PyCMDS_folder = os.path.dirname(__file__)
+g.version.write(__version__)
 
 
 ### main window ###############################################################
@@ -99,7 +111,7 @@ class MainWindow(QtGui.QMainWindow):
         self._load_google_drive()
         self._load_witch()
         # populate self
-        self.data_folder = os.path.join(PyCMDS_folder, 'data')
+        self.data_folder = os.path.join(directory, 'data')
         # somatic system
         from somatic import queue
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
