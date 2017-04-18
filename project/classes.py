@@ -585,11 +585,12 @@ class Number(PyCMDS_Object):
         # ensure order
         min_value, max_value = [min([min_value, max_value]),
                                 max([min_value, max_value])]
-        if not self.display and self.has_widget:
+        if self.has_widget:
             self.widget.setMinimum(min_value)
             self.widget.setMaximum(max_value)
-            self.set_tool_tip('min: ' + str(min_value) + '\n' +
-                              'max: ' + str(max_value))
+            if not self.display:
+                self.set_tool_tip('min: ' + str(min_value) + '\n' +
+                                  'max: ' + str(max_value))
 
 
 class String(PyCMDS_Object):
