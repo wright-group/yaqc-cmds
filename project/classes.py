@@ -890,6 +890,10 @@ class Hardware(QtCore.QObject):
         self.destination.write(destination, self.native_units)
         self.q.push('set_position', [destination])
 
+    @property
+    def units(self):
+        return self.current_position.units
+
     def update(self):
         self.update_ui.emit()
 
