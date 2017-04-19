@@ -192,7 +192,11 @@ class Worker(QtCore.QObject):
         module = item.module
         worker = module.Worker(item.aqn_path, self, item.finished)
         # run it
-        worker.run()
+        try:
+            worker.run()
+        except Exception as error:
+            # TODO: log error
+            print('ACQUISITION ERROR:', error)
         # upload aqn file
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload_file(item.aqn_path)
@@ -488,7 +492,6 @@ class Queue():
         if queue_done:
             self.finish()
         # continue (if still going)
-        print('on action complete!!!!!!!!!!!!!!', self.status.go.read(), queue_done)
         if self.status.go.read() and not queue_done:
             self._start_next_action()
         # finish
