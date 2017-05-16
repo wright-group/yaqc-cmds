@@ -41,9 +41,11 @@ class COM(QtCore.QMutex):
         self.size = size
         g.shutdown.add_method(self.close)
 
-    def _read(self):
+    def _read(self,size=None):
         if self.data == 'pass':
-            return self.instrument.read()
+            if size == None:
+                size=1
+            return self.instrument.read(size)
         elif self.data == 'ASCII':
             buf = b''
             char = self.instrument.read()
@@ -52,8 +54,8 @@ class COM(QtCore.QMutex):
                 char = self.instrument.read()
             return buf.decode('utf-8')
         else:
-            if size > 0:
-                return [int(i) for i in self.instrument.read(size)]
+            if self.size > 0:
+                return [int(i) for i in self.instrument.read(self.size)]
             else:
                 buf = b''
                 char = self.instrument.read()
@@ -73,9 +75,9 @@ class COM(QtCore.QMutex):
         self.instrument.reset_output_buffer()
         if not self.external_lock_control: self.unlock()
     
-    def read(self):
+    def read(self, size=None):
         if not self.external_lock_control: self.lock()
-        value = self._read()
+        value = self._read(size)
         if not self.external_lock_control: self.unlock()
         return value
         
