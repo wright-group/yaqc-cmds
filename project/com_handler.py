@@ -12,8 +12,8 @@ from PyQt4 import QtCore
 
 import serial
 
-#import project.project_globals as g
-#import project.classes as pc
+import project.project_globals as g
+import project.classes as pc
 
 
 ### define ####################################################################
@@ -22,7 +22,7 @@ import serial
 open_coms = {}
 
 
-#creating_com = pc.Busy()
+creating_com = pc.Busy()
 
 
 ### com class #################################################################
@@ -39,7 +39,7 @@ class COM(QtCore.QMutex):
         self.data = data
         self.write_termination = write_termination
         self.size = size
-#        g.shutdown.add_method(self.close)
+        g.shutdown.add_method(self.close)
 
     def _read(self):
         if self.data == 'pass':
@@ -105,9 +105,9 @@ def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
     timeout in ms
     '''
     # one at a time
-#    while creating_com.read():
-#        creating_com.wait_for_update()
-#    creating_com.write(True)
+    while creating_com.read():
+        creating_com.wait_for_update()
+    creating_com.write(True)
     # return open com if already open
     out = None
     for key in open_coms.keys():
@@ -118,5 +118,5 @@ def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
         out = COM(port, baud_rate, timeout/1000., **kwargs)
         open_coms[port] = out 
     # finish
-#    creating_com.write(False)
+    creating_com.write(False)
     return out
