@@ -103,7 +103,7 @@ class COM(QtCore.QMutex):
 
 # convience method for pass_through serial communication
 def Serial(port,baud_rate=9600, timeout=1, **kwargs):
-    return get_com(port,baud_rate,timeout*1000,**kwargs)
+    return get_com(port,baud_rate,timeout*1000,data='pass',**kwargs)
 
 def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
     '''
