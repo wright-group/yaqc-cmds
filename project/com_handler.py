@@ -67,6 +67,9 @@ class COM(QtCore.QMutex):
 
     def close(self):
         self.instrument.close()
+
+    def open(self):
+        self.instrument.open()
         
     def flush(self, then_delay=0.):
         if not self.external_lock_control: self.lock()
@@ -98,6 +101,10 @@ class COM(QtCore.QMutex):
         return value
 
 
+# convience method for pass_through serial communication
+def Serial(port,baud_rate=9600, timeout=1, **kwargs):
+    return get_com(port,baud_rate,timeout*1000,**kwargs)
+
 def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
     '''
     int port
@@ -111,6 +118,8 @@ def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
         creating_com.wait_for_update()
     creating_com.write(True)
     # return open com if already open
+    if isinstance(port,int):
+        port = "COM%d"%port
     out = None
     for key in open_coms.keys():
         if key == port:
