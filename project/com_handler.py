@@ -10,7 +10,7 @@ import time
 
 from PyQt4 import QtCore
 
-import pyvisa
+import serial
 
 import project.project_globals as g
 import project.classes as pc
@@ -31,48 +31,72 @@ creating_com = pc.Busy()
 
 class COM(QtCore.QMutex):
     
-    def __init__(self, port, baud_rate, timeout, write_termination=u'\r\n'):
+    def __init__(self, port, baud_rate, timeout, write_termination='\n', data='ASCII', size=-1):
         QtCore.QMutex.__init__(self)
         self.port_index = port
-        self.rm = pyvisa.ResourceManager()
-        self.instrument = self.rm.open_resource('ASRL%i::INSTR'%self.port_index)
-        self.instrument.baud_rate = baud_rate
-        self.instrument.end_input = pyvisa.constants.SerialTermination.termination_char
-        self.instrument.timeout = timeout
-        self.instrument.write_termination = write_termination
+        self.instrument = serial.Serial(port,baud_rate,timeout=timeout)
         self.external_lock_control = False
+        self.data = data
+        self.write_termination = write_termination
+        self.size = size
         g.shutdown.add_method(self.close)
 
     def _read(self):
-        return str(self.instrument.read())
+        if self.data == 'pass':
+            return self.instrument.read()
+        elif self.data == 'ASCII':
+            buf = b''
+            char = self.instrument.read()
+            while char != b'' and char != self.write_termination:
+                buf = buf + char
+                char = self.instrument.read()
+            return buf.decode('utf-8')
+        else:
+            if size > 0:
+                return [int(i) for i in self.instrument.read(size)]
+            else:
+                buf = b''
+                char = self.instrument.read()
+                while char != b'':
+                    buf = buf + char
+                    char = self.instrument.read()
+                return [int (i) for i in buf]
+                
 
     def close(self):
         self.instrument.close()
         
     def flush(self, then_delay=0.):
         if not self.external_lock_control: self.lock()
-        self.instrument.flush(pyvisa.constants.VI_IO_IN_BUF)
-        self.instrument.flush(pyvisa.constants.VI_IO_OUT_BUF)
+        self.instrument.flush()
+        self.instrument.reset_input_buffer()
+        self.instrument.reset_output_buffer()
         if not self.external_lock_control: self.unlock()
     
     def read(self):
         if not self.external_lock_control: self.lock()
         value = self._read()
         if not self.external_lock_control: self.unlock()
-        return str(value)
+        return value
         
-    def write(self, string, then_read=False):
+    def write(self, data, then_read=False):
         if not self.external_lock_control: self.lock()
-        self.instrument.write(unicode(string))
+        if self.data == 'pass':
+            value = self.write(data)
+        elif self.data == 'ASCII':
+            value = self.instrument.write(bytes(data,'utf-8'))
+            if data[-1] != self.write_termination:
+                self.instrument.write(bytes(write_termination,'utf-8'))
+                value+=1
+        else:
+            value = self.instrument.write(bytes(data))
         if then_read:
             value = self._read()
-        else:
-            value = None
         if not self.external_lock_control: self.unlock()
         return value
 
 
-def get_com(port, baud_rate=57600, timeout=1000):
+def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
     '''
     int port
     
@@ -91,7 +115,7 @@ def get_com(port, baud_rate=57600, timeout=1000):
             out = open_coms[key]
     # otherwise open new com
     if not out:
-        out = COM(port, baud_rate, timeout)
+        out = COM(port, baud_rate, timeout/1000., **kwargs)
         open_coms[port] = out 
     # finish
     creating_com.write(False)
