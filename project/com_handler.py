@@ -31,7 +31,7 @@ creating_com = pc.Busy()
 
 class COM(QtCore.QMutex):
     
-    def __init__(self, port, baud_rate, timeout, write_termination='\n', data='ASCII', size=-1):
+    def __init__(self, port, baud_rate, timeout, write_termination='\r\n', data='ASCII', size=-1):
         QtCore.QMutex.__init__(self)
         self.port_index = port
         self.instrument = serial.Serial(port,baud_rate,timeout=timeout)
@@ -49,20 +49,23 @@ class COM(QtCore.QMutex):
         elif self.data == 'ASCII':
             buf = b''
             char = self.instrument.read()
-            while char != b'' and char != self.write_termination:
+            while char != b'':
                 buf = buf + char
+                if buf.endswith(self.write_termination):
+                    buf = buf.rstrip(self.write_termination)
+                    break;
                 char = self.instrument.read()
             return buf.decode('utf-8')
         else:
             if self.size > 0:
-                return [int(i) for i in self.instrument.read(self.size)]
+                return [ord(i) for i in self.instrument.read(self.size)]
             else:
                 buf = b''
                 char = self.instrument.read()
                 while char != b'':
                     buf = buf + char
                     char = self.instrument.read()
-                return [int (i) for i in buf]
+                return [ord(i) for i in buf]
                 
 
     def close(self):
@@ -90,9 +93,9 @@ class COM(QtCore.QMutex):
             value = self.instrument.write(data)
         elif self.data == 'ASCII':
             value = self.instrument.write(data)#Python3: bytes(data,'utf-8'))
-            if data[-1] != self.write_termination:
-                self.instrument.write(self.write_termination)#Python 3: bytes(self.write_termination,'utf-8'))
-                value+=1
+            if not data.endswith(self.write_termination):
+                value+=self.instrument.write(self.write_termination)#Python 3: bytes(self.write_termination,'utf-8'))
+                
         else:
             value = self.instrument.write(''.join([chr(i) for i in data]))# Python3: bytes(data))
         if then_read:
@@ -103,7 +106,7 @@ class COM(QtCore.QMutex):
 
 # convience method for pass_through serial communication
 def Serial(port,baud_rate=9600, timeout=1, **kwargs):
-    return get_com(port,baud_rate,timeout*1000,**kwargs)
+    return get_com(port,baud_rate,timeout*1000,data='pass',**kwargs)
 
 def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
     '''
