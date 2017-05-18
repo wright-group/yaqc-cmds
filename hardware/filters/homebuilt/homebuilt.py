@@ -12,8 +12,6 @@ import time
 
 import numpy as np
 
-import pyvisa
-
 from PyQt4 import QtGui, QtCore
 
 import WrightTools as wt
@@ -153,17 +151,6 @@ class Driver():
                 break
             time.sleep(0.1)
         self.port.flush()
-
-
-class Driver_offline(Driver):
-    
-    def initialize(self, inputs, address):
-        self.address = address
-        # recorded
-        self.recorded['w0'] = [self.current_position, self.native_units, 1., '0', False]
-        # finish
-        self.initialized.write(True)
-        self.address.initialized_signal.emit()
 
 
 ### gui #######################################################################

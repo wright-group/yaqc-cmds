@@ -223,16 +223,20 @@ class Worker(QtCore.QObject):
                 # initialize
                 expression = constant.expression
                 arr = np.full(arrs[0].shape, np.nan)
-                # set vals
+                units = constant.units
+                units_kind = wt.units.kind(units)
                 vals = {}
+                # populate all hardwares not scanned here
                 for hardware in all_hardwares:
-                    vals[hardware.friendly_name] = hardware.get_position()
+                    if wt.units.kind(hardware.units) == units_kind:
+                        vals[hardware.friendly_name] = hardware.get_position(units)
                 for idx in np.ndindex(arrs[0].shape):
                     for destination in destinations_list:
-                        vals[destination.hardware.friendly_name] = destination.arr[idx]
+                        if wt.units.kind(destination.units) == units_kind:
+                            val = wt.units.converter(destination.arr[idx], destination.units, units)
+                            vals[destination.hardware.friendly_name] = val
                     arr[idx] = numexpr.evaluate(expression, vals)
-                # finish
-                units = constant.units
+                # finish     
                 hardware = constant.hardware
                 destinations = Destinations(arr, units, hardware, 'set_position', None)
                 destinations_list.insert(0, destinations)

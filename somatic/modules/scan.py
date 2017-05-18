@@ -92,11 +92,11 @@ class Constant():
         # hardware name
         allowed_values = [h.friendly_name for h in all_hardwares]
         self.hardware_name_combo = pc.Combo(allowed_values=allowed_values)
-        self.hardware_name_combo.write('wm')
+        self.hardware_name_combo.write('w3')
         #self.hardware_name_combo.set_disabled(True)
         self.widget.add('Hardware', self.hardware_name_combo)
         # expression
-        self.expression = pc.String(initial_value='w1+w2+12500')
+        self.expression = pc.String(initial_value='wm-w1-w2')
         self.widget.add('Expression', self.expression)
 
     def get_name(self):
@@ -272,6 +272,7 @@ class GUI(acquisition.GUI):
             constant.hide()
         self.axes = []
         self.channels = []
+        self.constants = []
         # read new
         aqn = wt.kit.INI(aqn_path)
         # axes
@@ -293,7 +294,7 @@ class GUI(acquisition.GUI):
             self.axes_container_widget.layout().addWidget(axis.widget)
         # constants
         constant_names = aqn.read('scan', 'constant names')
-        for constant_index, constant_name in constant_names:
+        for constant_index, constant_name in enumerate(constant_names):
             constant = Constant()
             constant.hardware_name_combo.write(aqn.read(constant_name, 'hardware'))
             constant.expression.write(aqn.read(constant_name, 'expression'))

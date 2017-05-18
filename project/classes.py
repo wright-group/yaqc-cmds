@@ -422,7 +422,7 @@ class Filepath(PyCMDS_Object):
 
 class NumberLimits(PyCMDS_Object):
 
-    def __init__(self, min_value=-1000000., max_value=1000000., units=None):
+    def __init__(self, min_value=-1e6, max_value=1e6, units=None):
         '''
         not appropriate for use as a gui element - only for backend use
         units must never change for this kind of object
@@ -588,9 +588,9 @@ class Number(PyCMDS_Object):
         if self.has_widget:
             self.widget.setMinimum(min_value)
             self.widget.setMaximum(max_value)
-        if not self.display:
-            self.set_tool_tip('min: ' + str(min_value) + '\n' +
-                              'max: ' + str(max_value))
+            if not self.display:
+                self.set_tool_tip('min: ' + str(min_value) + '\n' +
+                                  'max: ' + str(max_value))
 
 
 class String(PyCMDS_Object):
@@ -889,6 +889,10 @@ class Hardware(QtCore.QObject):
                 return
         self.destination.write(destination, self.native_units)
         self.q.push('set_position', [destination])
+
+    @property
+    def units(self):
+        return self.current_position.units
 
     def update(self):
         self.update_ui.emit()
