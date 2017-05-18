@@ -1,6 +1,6 @@
-'''
-PyCMDS thread safe wrapper for pyvisa com port communication
-'''
+"""
+PyCMDS thread safe wrapper for serial communication.
+"""
 
 
 ### import ####################################################################
@@ -21,12 +21,10 @@ import project.classes as pc
 
 open_coms = {}
 
-
 creating_com = pc.Busy()
 
 
 ### com class #################################################################
-
 
 
 class COM(QtCore.QMutex):
@@ -66,7 +64,6 @@ class COM(QtCore.QMutex):
                     buf = buf + char
                     char = self.instrument.read()
                 return [ord(i) for i in buf]
-                
 
     def close(self):
         self.instrument.close()
@@ -77,8 +74,6 @@ class COM(QtCore.QMutex):
     def flush(self, then_delay=0.):
         if not self.external_lock_control: self.lock()
         self.instrument.flush()
-        self.instrument.reset_input_buffer()
-        self.instrument.reset_output_buffer()
         if not self.external_lock_control: self.unlock()
     
     def read(self, size=None):
@@ -92,6 +87,7 @@ class COM(QtCore.QMutex):
         if self.data == 'pass':
             value = self.instrument.write(data)
         elif self.data == 'ASCII':
+            data = str(data)  # just making sure
             value = self.instrument.write(data)#Python3: bytes(data,'utf-8'))
             if not data.endswith(self.write_termination):
                 value+=self.instrument.write(self.write_termination)#Python 3: bytes(self.write_termination,'utf-8'))
@@ -104,18 +100,24 @@ class COM(QtCore.QMutex):
         return value
 
 
-# convience method for pass_through serial communication
+### helper methods ############################################################
+
+ 
 def Serial(port,baud_rate=9600, timeout=1, **kwargs):
+    """
+    Convience method for pass_through serial communication.
+    """
     return get_com(port,baud_rate,timeout*1000,data='pass',**kwargs)
 
+
 def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
-    '''
+    """
     int port
     
     returns com object
     
     timeout in ms
-    '''
+    """
     # one at a time
     while creating_com.read():
         creating_com.wait_for_update()
