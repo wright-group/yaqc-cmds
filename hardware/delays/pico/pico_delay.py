@@ -53,7 +53,7 @@ class Delay(QtCore.QObject):
     def get_position(self):
         position = self.motor.current_position_mm
         self.current_position_mm.write(position, 'mm')
-        delay = (position - self.zero_position.read()) * ps_per_mm
+        delay = (position - self.zero_position.read()) * ps_per_mm * self.factor.read()
         self.current_position.write(delay, 'ps')
         return delay
 
@@ -63,6 +63,8 @@ class Delay(QtCore.QObject):
         motor_identity = motors.identity['D{}'.format(self.index)]
         self.motor = motors.Motor(motor_identity)
         self.current_position_mm = pc.Number(units='mm', display=True, decimals=5)
+        # factor
+        self.factor = pc.Number(name='Factor', ini=ini, section='D%s'%self.index, option='factor', decimals=0)
         # zero position
         self.zero_position = pc.Number(name='Zero', initial_value=25.,
                                        ini=ini, section='D{}'.format(self.index),
@@ -85,7 +87,7 @@ class Delay(QtCore.QObject):
     def set_offset(self, offset):
         # update zero
         offset_from_here = offset - self.offset.read('ps')
-        offset_mm = offset_from_here/ps_per_mm
+        offset_mm = offset_from_here/(ps_per_mm*self.factor.read())
         new_zero = self.zero_position.read('mm') + offset_mm
         self.set_zero(new_zero)
         self.offset.write(offset)
@@ -94,7 +96,7 @@ class Delay(QtCore.QObject):
         self.set_position(destination)
 
     def set_position(self, destination):
-        destination_mm = self.zero_position.read() + destination/ps_per_mm
+        destination_mm = self.zero_position.read() + destination/(ps_per_mm * self.factor.read())
         self.motor.move_absolute(destination_mm, 'mm')
         self.motor.wait_until_still(method=self.get_position)
         self.get_position()
@@ -104,8 +106,8 @@ class Delay(QtCore.QObject):
         float zero mm
         '''
         self.zero_position.write(zero)
-        min_value = -self.zero_position.read() * ps_per_mm
-        max_value = (50. - self.zero_position.read()) * ps_per_mm
+        min_value = -self.zero_position.read() * ps_per_mm * self.factor.read()
+        max_value = (50. - self.zero_position.read()) * ps_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, 'ps')
         self.get_position()
         # write new position to ini

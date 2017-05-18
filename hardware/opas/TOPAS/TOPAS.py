@@ -1,3 +1,7 @@
+## TODO: change curve_indices
+## TODO: make everything indices
+
+
 ### import ####################################################################
 
 
@@ -26,11 +30,10 @@ import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
+
                                  
 ### define ####################################################################
-              
-## TODO change curve_indices
-## TODO make everything indices
+
 
 ### OPA object ################################################################
 
@@ -54,8 +57,6 @@ class TOPAS(BaseOPA):
         self.auto_tune = TopasAutoTune(self)
         self.homeable = [True]
 
-
-        
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
         section = 'OPA' + str(self.index)
@@ -263,6 +264,7 @@ class TOPAS(BaseOPA):
         motor_index, min_speed, max_speed, accelleration = inputs
         error = self.api._set_speed_parameters(motor_index, min_speed, max_speed, acceleration)
         return error
+
         
 class TOPAS_800(TOPAS):
     def __init__(self):
@@ -272,16 +274,18 @@ class TOPAS_800(TOPAS):
         kind = "TOPAS-800"
         TOPAS.__init__(self,motor_names, curve_indices, kind, False)
 
+
 class TOPAS_C(TOPAS):
     def __init__(self):
-        motor_names = []
+        motor_names = ['Crystal_1', 'Delay_1', 'Crystal_2', 'Delay_2', 'Mixer_1', 'Mixer_2', 'Mixer_3']
         curve_indices = {'Base': 1,
                           'Mixer 1': 2,
                           'Mixer 2': 3,
                           'Mixer 3': 4}
         kind = "TOPAS-C"
         TOPAS.__init__(self,motor_names, curve_indices, kind, True)
-    
+
+
 ### autotune ##################################################################
 
 
@@ -588,4 +592,3 @@ if __name__ == '__main__':
         print topas.are_all_motors_still()
         
         print topas.close()
-        

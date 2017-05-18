@@ -226,8 +226,7 @@ class GUI(QtCore.QObject):
             input_table.add('gr/mm', grooves_per_mm)
             blaze_wavelength = pc.Number(initial_value=float(details[2][grating_index]), display=True)
             input_table.add('Blaze Wavelength (nm)', blaze_wavelength)
-            sn = float(details[-1][grating_index][4:])
-            serial_number = pc.Number(initial_value=sn, display=True, decimals=0)
+            serial_number = pc.String(initial_value=details[-1][grating_index][4:], display=True)
             input_table.add('S/N', serial_number)
         settings_layout.addWidget(input_table)
         # finish

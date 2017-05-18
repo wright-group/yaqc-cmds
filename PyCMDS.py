@@ -54,36 +54,30 @@ import project.file_dialog_handler
 import WrightTools as wt
 
 
-### version information #######################################################
-
-
-# get config
-main_ini_path = os.path.join(g.main_dir.read(), 'main.ini')
-config = ConfigParser.SafeConfigParser()
-config.read(main_ini_path) 
-
-# get sha
-HEAD_file = os.path.join(g.main_dir.read(), '.git', 'logs', 'HEAD')
-with open(HEAD_file) as f:
-    for line in f.readlines():
-        sha = line.split(' ')[1]  # most recent commit is last
-sha.encode('ascii','ignore')
-
-
-# PyCMDS version format: a.b.c.d
-# a - major release
-# b - minor release
-# c - bugfix
-# d - git sha key
-__version__ = config.get('main', 'version') + '.' + sha[:7]
-g.version.write(__version__)
-
-
-
 ### define ####################################################################
 
 
-PyCMDS_folder = os.path.dirname(os.path.abspath(__file__))
+directory = os.path.abspath(os.path.dirname(__file__))
+
+
+### version information #######################################################
+
+
+# MAJOR.MINOR.PATCH (semantic versioning)
+# major version changes may break backwards compatibility
+__version__ = '0.7.1'
+
+# add git branch, if appropriate
+p = os.path.join(directory, '.git', 'HEAD')
+if os.path.isfile(p):
+    with open(p) as _f:
+        __branch__ = _f.readline().rstrip().split(r'/')[-1]
+    if __branch__ != 'master':
+        __version__ += '-' + __branch__
+else:
+    __branch__ = None
+
+g.version.write(__version__)
 
 
 ### main window ###############################################################
@@ -117,7 +111,7 @@ class MainWindow(QtGui.QMainWindow):
         self._load_google_drive()
         self._load_witch()
         # populate self
-        self.data_folder = os.path.join(PyCMDS_folder, 'data')
+        self.data_folder = os.path.join(directory, 'data')
         # somatic system
         from somatic import queue
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
