@@ -5,8 +5,6 @@ import os
 import imp
 import collections
 
-from PyQt4 import QtCore
-
 import project.project_globals as g
 main_dir = g.main_dir.read()
 app = g.app.read()
@@ -14,15 +12,31 @@ import project.widgets as pw
 import project.ini_handler as ini
 ini = ini.spectrometers
 import project.classes as pc
+import hardware.hardware as hw
 
 
-### address ###################################################################
+### driver ####################################################################
 
 
-class Monochromator(pc.Address):
+class Driver(hw.Driver):
+    pass
 
-    def dummy(self):
-        print 'hello world im a dummy method'
+
+### gui #######################################################################
+
+
+class GUI(hw.GUI):
+    pass
+
+
+### hardware ##################################################################
+
+
+class Hardware(hw.Hardware):
+    pass
+
+
+### initialize ################################################################
 
 
 # list module path, module name, class name, initialization arguments, friendly name
@@ -38,13 +52,9 @@ for key in hardware_dict.keys():
             hardware_class = getattr(hardware_module, lis[2] + '_offline')
         else:
             hardware_class = getattr(hardware_module, lis[2])
-        hardware_obj = pc.Hardware(hardware_class, lis[3], Monochromator, key, True, lis[4])
+        hardware_obj = Hardware(hardware_class, lis[3], Driver, key, True, lis[4])
         hardwares.append(hardware_obj)
 
-
-### gui #######################################################################
-
 gui = pw.HardwareFrontPanel(hardwares, name='Spectrometers')
-
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
 
