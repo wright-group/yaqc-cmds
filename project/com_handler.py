@@ -29,10 +29,10 @@ creating_com = pc.Busy()
 
 class COM(QtCore.QMutex):
     
-    def __init__(self, port, baud_rate, timeout, write_termination='\r\n', data='ASCII', size=-1):
+    def __init__(self, port, baud_rate, timeout, write_termination='\r\n', data='ASCII', size=-1, **kwargs):
         QtCore.QMutex.__init__(self)
         self.port_index = port
-        self.instrument = serial.Serial(port,baud_rate,timeout=timeout)
+        self.instrument = serial.Serial(port,baud_rate,timeout=timeout, **kwargs)
         self.external_lock_control = False
         self.data = data
         self.write_termination = write_termination
