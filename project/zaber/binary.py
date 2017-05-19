@@ -2,6 +2,7 @@
 protocol.
 """
 
+#Changed from 'import serial' for PyCMDS
 import project.com_handler as serial
 import struct
 import logging
