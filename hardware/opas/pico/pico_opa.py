@@ -52,7 +52,6 @@ class OPA_800(BaseOPA):
         else:
             filepath = inputs[0]
         self.curve = wt.tuning.curve.from_800_curve(filepath)
-        self.limits.write(self.curve.colors.min(), self.curve.colors.max(), self.native_units)
 
     def get_motor_positions(self, inputs=[]):
         for i in range(len(self.motors)):
@@ -60,16 +59,14 @@ class OPA_800(BaseOPA):
             self.motor_positions.values()[i].write(val)
         return [mp.read() for mp in self.motor_positions.values()]
 
-    def initialize(self, inputs, address):
+    def _initialize(self, inputs, address):
         '''
         OPA initialization method. Inputs = [index]
         '''
-        self.address = address
-        self.index = inputs[0]
         self.current_position.write(self.ini.read('OPA%d'%self.index, 'current position ('+self.native_units+')'), self.native_units)
         self.address.hardware.destination.write(self.current_position.read(self.native_units), self.native_units)
         self.serial_number = -1
-        self.recorded['w%d'%self.index] = [self.current_position, self.native_units, 1., str(self.index), False]
+        self.recorded['w%d'%self.index] = [self.current_position, self.native_units, 1., str(self.index)]
 
         # motor positions
         self.motor_positions = collections.OrderedDict()
@@ -78,7 +75,7 @@ class OPA_800(BaseOPA):
             number = pc.Number(name=motor_name, initial_value=25., decimals=6, limits = motor_limits, display=True)
             self.motor_positions[motor_name] = number
             self.motors.append(pm_motors.Motor(pm_motors.identity['OPA%d %s'%(self.index, motor_name)]))
-            self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower(), True] 
+            self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower()] 
         self.get_motor_positions()
 
         ## TODO: Determine if pico_opa needs to have interaction string combo
@@ -101,13 +98,7 @@ class OPA_800(BaseOPA):
         self.best_points['SHS'] = np.linspace(13500, 18200, 21)
         self.best_points['DFG'] = np.linspace(1250, 2500, 11)
 
-
-        self.get_position()
-        self.initialized.write(True)
-        self.address.initialized_signal.emit()
-
-    def is_busy(self):
-        
+    def _is_busy(self):
         for motor in self.motors:
             if not motor.is_stopped():
                 self.get_position()                
@@ -115,7 +106,7 @@ class OPA_800(BaseOPA):
         self.get_position()
         return False
         
-    def wait_until_still(self, inputs=[]):
+    def _wait_until_still(self, inputs=[]):
         for motor in self.motors:
             motor.wait_until_still(method=self.get_position)
         self.get_motor_positions()

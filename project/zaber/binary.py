@@ -482,4 +482,19 @@ class BinarySerial(object):
             raise ValueError("Invalid baud rate: {:d}. Valid baud rates are "
                     "115200, 57600, 38400, 19200, and 9600.".format(b))
         self._ser.baudrate = b
+        
+
+    ### Additional Methods not in Zaber library
+
+    def setMode(self, mode, device=0):
+        if isinstance(mode,str):
+            if mode=='computer':
+                mode=0x482e
+            elif mode=='manual':
+                mode=0x0827
+            else:
+                raise ValueError("Unkown mode string: {:s}. Valid strings are "
+                        "'computer', 'manual'. Or input an integer".format(mode))
+        self.write(device,40,mode)
+
 
