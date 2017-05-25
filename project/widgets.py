@@ -14,9 +14,8 @@ from PyQt4.QtSvg import QSvgRenderer
 import pyqtgraph as pg
 from pyqtgraph import exporters
 
-import project_globals as g
-import project
-import classes as pc
+from project import project_globals as g
+from project import classes as pc
 #import coset.coset as coset
 
 colors = g.colors_dict.read()
@@ -724,7 +723,7 @@ class Plot1D(pg.GraphicsView):
         elif style == 'dotted':
             linestyle = QtCore.Qt.DotLine
         else:
-            print 'style not recognized in add_infinite_line'
+            print('style not recognized in add_infinite_line')
             linestyle = QtCore.Qt.SolidLine
         pen = pg.mkPen(color, style=linestyle)
         line = pg.InfiniteLine(pen=pen)
@@ -815,5 +814,5 @@ class MessageWindow(QtGui.QWidget):
     
         
 if __name__ == '__main__':
-    print 'hello world'
+    print('hello world')
     plt = Plot1D()

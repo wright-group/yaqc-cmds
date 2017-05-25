@@ -10,7 +10,7 @@ import numpy as np
 
 from PyQt4 import QtCore
 
-import project_globals as g
+from project import project_globals as g
 
 import WrightTools as wt
 import WrightTools.units as wt_units
@@ -560,7 +560,7 @@ class Number(PyCMDS_Object):
     def give_units_combo(self, units_combo_widget):
         self.units_widget = units_combo_widget
         # add items
-        unit_types = self.units_dic.keys()
+        unit_types = list(self.units_dic.keys())
         unit_types.remove('kind')
         self.units_widget.addItems(unit_types)
         # set current item

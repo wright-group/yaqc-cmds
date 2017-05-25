@@ -15,7 +15,11 @@ import time
 import copy
 import shutil
 import collections
-import ConfigParser
+
+try:
+    import configparser as ConfigParser  # python 3
+except ImportError:
+    import ConfigParser as ConfigParser  # python 2
 
 import numpy as np
 
@@ -104,6 +108,7 @@ orderers = []
 config = ConfigParser.SafeConfigParser()
 p = os.path.join(somatic_folder, 'order', 'order.ini')
 config.read(p)
+print(config, p)
 for name in config.options('load'):
     if config.get('load', name) == 'True':
         path = os.path.join(somatic_folder, 'order', name + '.py')

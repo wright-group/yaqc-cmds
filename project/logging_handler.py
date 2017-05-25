@@ -10,7 +10,7 @@ from PyQt4 import QtCore
 
 #import packages.psutil as psutil #why doesn't this work!?!?!
 import psutil
-import project_globals as g
+from project import project_globals as g
 app = g.app.read()
     
 #cpu watcher####################################################################

@@ -673,7 +673,7 @@ class GUI(QtCore.QObject):
         self.table_cols['Load'] = 75
         for i in range(len(self.table_cols.keys())):
             self.table.insertColumn(i)
-        labels = self.table_cols.keys()
+        labels = list(self.table_cols.keys())
         labels[-1] = ''
         labels[-2] = ''
         self.table.setHorizontalHeaderLabels(labels)

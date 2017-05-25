@@ -32,7 +32,6 @@ import copy
 import glob
 import inspect
 import subprocess
-import ConfigParser
 
 import matplotlib
 matplotlib.use('ps')  # important - images will be generated in worker threads
@@ -234,7 +233,7 @@ class MainWindow(QtGui.QMainWindow):
     def _initialize_hardware(self):
         g.offline.get_saved()
         if g.debug.read():
-            print 'initialize hardware'
+            print('initialize hardware')
         # import
         import hardware.opas.opas
         import hardware.spectrometers.spectrometers
@@ -244,7 +243,7 @@ class MainWindow(QtGui.QMainWindow):
     
     def _initialize_widgets(self):
         if g.debug.read():
-            print 'initialize widgets'
+            print('initialize widgets')
         # import widgets
         import autonomic.coset
                 
@@ -273,7 +272,8 @@ class MainWindow(QtGui.QMainWindow):
         '''
         attempt a clean shutdown
         '''
-        if g.debug.read(): print 'shutdown'
+        if g.debug.read():
+            print('shutdown')
         g.logger.log('info', 'Shutdown', 'PyCMDS is attempting shutdown')
         self.shutdown.emit()
         g.shutdown.fire()

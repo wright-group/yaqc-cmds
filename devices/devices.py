@@ -220,7 +220,7 @@ class FileAddress(QtCore.QObject):
         method must be string, inputs must be list
         '''
         if g.debug.read(): 
-            print 'data dequeue:', method
+            print('data dequeue:', method)
         getattr(self, str(method))(inputs)  # method passed as qstring
         enqueued_data.pop()
         if not enqueued_data.read(): 
@@ -759,10 +759,10 @@ class GUI(QtCore.QObject):
             return
         for device in control.devices:
             if len(device.data.read_properties()[1]) == 0:
-                print 'next time'
+                print('next time')
                 return
         self.main_tab_created = True
-        print 'create main tab'
+        print('create main tab')
         # create main daq tab
         main_widget = self.main_widget
         layout = QtGui.QHBoxLayout()

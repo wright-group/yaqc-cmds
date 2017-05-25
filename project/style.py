@@ -1,5 +1,5 @@
 from PyQt4 import QtGui, QtCore
-import project_globals as g
+from project import project_globals as g
 
 #see http://www.google.com/design/spec/style/color.html#color-color-palette
 

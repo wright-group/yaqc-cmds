@@ -5,13 +5,18 @@ import os
 import ast
 import time
 
-import ConfigParser
+try:
+    import configparser as ConfigParser  # python 3
+except ImportError:
+    import ConfigParser as ConfigParser  # python 2
 
 from PyQt4 import QtCore
 
-import project_globals as g
+import project
+print(project)
+
+from project import project_globals as g
 main_dir = g.main_dir.read()
-import classes as pc
 
 
 ### ini class #################################################################

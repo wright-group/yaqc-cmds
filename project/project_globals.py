@@ -43,7 +43,7 @@ class main_dir:
         self.value = str(value)
 main_dir = main_dir()
 
-import ini_handler as ini #must come after main_dir has been defined
+import project.ini_handler as ini #must come after main_dir has been defined
 
 debug = GlobalWithIni(ini.config, 'main', 'debug')
 
@@ -63,7 +63,7 @@ class logger: #must come before other globals
     def __init__(self):
         pass
     def load(self):
-        import logging_handler
+        import project.logging_handler as logging_handler
         self.value = logging_handler.log
         if debug.read(): self.log('info', 'Debug', 'PyCMDS is in debug mode')
         if offline.read(): self.log('info', 'Offline', 'PyCMDS is offline')
@@ -284,7 +284,7 @@ class UseArray:
     def read(self):
         return self.value
     def write(self, value):
-        print 'USE ARRAY UPDATED!!!!!!!!!!!!'
+        print('USE ARRAY UPDATED!!!!!!!!!!!!')
         self.value = value
 use_array = UseArray()
 
