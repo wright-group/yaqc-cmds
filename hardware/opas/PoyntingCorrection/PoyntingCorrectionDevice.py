@@ -26,7 +26,7 @@ class PoyntingCorrectionDevice(object):
 
         self.motor_names = ['phi','theta']
         self.motors = []
-        self.ini = project.ini_handler.Ini(os.path.join(main_dir,'hardware','opas','PoyntingCorrection','PoyntingCorrection.ini'))
+        self.ini = Ini(os.path.join(main_dir,'hardware','opas','PoyntingCorrection','PoyntingCorrection.ini'))
         self.initialized = pc.Bool()
 
     def initialize(self, inputs, address):
@@ -65,7 +65,7 @@ class PoyntingCorrectionDevice(object):
         return self.curve.colors
 
     def get_motor_positions(self, inputs=[]):
-        return [self.get_phi(), self.get_theta()]
+        return [self.get_position(s) for s in self.motor_names]
 
     def set_position(self,color):
         color = np.clip(color, self.curve.colors.min(), self.curve.colors.max())
@@ -76,10 +76,10 @@ class PoyntingCorrectionDevice(object):
 
         for n in self.motor_names:
             index = motor_names.index(n)
-            self.move_abs(n,motor_destinations[index])
+            self.set_motor(n,motor_destinations[index])
 
-    def set_motor(self, name, position):
-        elif isinstance(motor, str):
+    def set_motor(self, motor, position):
+        if isinstance(motor, str):
             self._set_motor(self.motor_names.index(motor), position)
         elif isinstance(motor,int):
             self._set_motor(motor, position)
@@ -115,14 +115,14 @@ class PoyntingCorrectionDevice(object):
         else:
             self._zero(self.motors.index(motor))
     def get_motor_position(self, motor):
-        elif isinstance(motor, str):
+        if isinstance(motor, str):
             return self._get_motor_position(self.motor_names.index(motor))
         elif isinstance(motor,int):
             return self._get_motor_position(motor)
         else:
             return self._get_motor_position(self.motors.index(motor))
     def move_rel(self, motor, position):
-        elif isinstance(motor, str):
+        if isinstance(motor, str):
             self._move_rel(self.motor_names.index(motor), position)
         elif isinstance(motor,int):
             self._move_rel(motor, position)

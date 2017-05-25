@@ -19,6 +19,7 @@ from ctypes import *
 import WrightTools as wt
 import WrightTools.units as wt_units
 
+from hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import *
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
@@ -122,26 +123,29 @@ class BaseOPA:
 
         self._initialize(inputs,address)
 
-        try:
+        #try:
+        if True:
             poynting_type = self.ini.read('OPA%i'%self.index, 'poynting_correction')
-            if poynting_type = 'zaber':
-                self.poynting_correction = hardware.opa.PoyntingCorrection.ZaberCorrectionDevice()
-            if poynting_correction:
-                self.poynting_correction.initialize()
+            print("TESTING POYNTING OPA%i"%self.index, poynting_type)
+            if poynting_type == 'zaber':
+                self.poynting_correction = ZaberCorrectionDevice()
+            if self.poynting_correction:
+                print("TESTING POYNTING OPA%i"%self.index, poynting_type)
+                self.poynting_correction.initialize(inputs, address)
 
-                num_motors = len(motor_names)
+                num_motors = len(self.motor_names)
 
-                if len(homeable) < num_motors:
-                    n = len(homeable)
-                    homeable = [homeable[i%n] for i in range(len(homeable))]
+                if len(self.homeable) < num_motors:
+                    n = len(self.homeable)
+                    homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
 
 
                 self.motor_names += self.poynting_correction.motor_names
                 self.homeable += [True]*len(self.poynting_correction.motor_names)
                 
                 
-        except:
-            print('No poynting_correction in ini section for OPA%i'%self.index)
+        #except:
+        #    print('No poynting_correction in ini section for OPA%i'%self.index)
 
         self.get_position()
         self.initialized.write(True)
@@ -198,7 +202,7 @@ class BaseOPA:
             destinations = self.poynting_correction.curve.get_motor_positions(destination,self.poynting_correction.native_units)
             for name in self.poynting_correction.motor_names:
                 if self.motor_names.index(name) not in exceptins:
-                    self.poynting_correction.set_motor(name, destinations[poynting_curve_names.index(name)]
+                    self.poynting_correction.set_motor(name, destinations[poynting_curve_names.index(name)])
         
     def set_motor(self, inputs):
         '''

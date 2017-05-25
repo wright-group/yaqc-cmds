@@ -1,18 +1,23 @@
 import project.zaber.binary as zb
+import project.classes as pc
+from hardware.opas.PoyntingCorrection.PoyntingCorrectionDevice import PoyntingCorrectionDevice
+
+import time
 
 class ZaberCorrectionDevice(PoyntingCorrectionDevice):
     def motor_limits(self):
         return pc.NumberLimits(min_value = -62000, max_value = 62000)
     def _initialize(self,inputs):
         portStg = self.ini.read('OPA%d'%self.index, 'port')
-        self.port = zb.BinarySerial(port)
+        self.port = zb.BinarySerial(portStg)
 
         indexes = self.ini.read('OPA%d'%self.index, 'zaber_device_numbers')
 
         for i in indexes:
-            self.motors.append(zb.BinaryDevice(port, i))
+            self.motors.append(zb.BinaryDevice(self.port, i))
 
     def is_busy(self):
+        return False
         busy = False
         for motor in self.motors:
             busy = busy or motor.get_status() != 0
