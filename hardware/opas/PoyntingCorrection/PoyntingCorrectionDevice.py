@@ -80,11 +80,11 @@ class PoyntingCorrectionDevice(object):
 
     def set_motor(self, name, position):
         elif isinstance(motor, str):
-            self._set_motor(self.motor_names.index(motor))
+            self._set_motor(self.motor_names.index(motor), position)
         elif isinstance(motor,int):
-            self._set_motor(motor)
+            self._set_motor(motor, position)
         else:
-            self._set_motor(self.motors.index(motor))
+            self._set_motor(self.motors.index(motor), position)
 
     def wait_until_still(self):
         while self.is_busy():
@@ -141,7 +141,7 @@ class PoyntingCorrectionDevice(object):
         raise NotImplementedError
     def _get_motor_position(self, index):
         raise NotImplementedError
-    def _set_motor(self, index):
+    def _set_motor(self, index, position):
         raise NotImplementedError
     def close(self):
         raise NotImplementedError

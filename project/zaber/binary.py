@@ -221,6 +221,20 @@ class BinaryDevice(object):
             ol_Manual#Return_Status_-_Cmd_54
         """
         return self.send(54).data
+    
+    ### Methods not included in Zaber provided Code
+    def get_position(self):
+        """Sends the "Return Current Position" command (60), and returns the 
+        result.
+
+        Returns:
+            An integer representing the current absolute postion in microsteps
+
+        ..  see: http://www.zaber.com/wiki/Manuals/Binary_Protoc
+            ol_Manual#Return_Current_Position_-_Cmd_60
+        """
+        return self.send(60).data
+
 
 
 
