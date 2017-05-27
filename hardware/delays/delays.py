@@ -12,7 +12,6 @@ app = g.app.read()
 import project.widgets as pw
 import project.ini_handler as ini
 ini = ini.delays
-import project.classes as pc
 import hardware.hardware as hw
 
 
@@ -20,7 +19,11 @@ import hardware.hardware as hw
 
 
 class Driver(hw.Driver):
-    pass
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['native_units'] = 'fs'
+        hw.Driver.__init__(self, *args, **kwargs)
+        self.position.write(0.)
 
 
 ### gui #######################################################################
@@ -39,24 +42,28 @@ class Hardware(hw.Hardware):
 
 ### initialize ################################################################
 
-
-# list module path, module name, class name, initialization arguments, simple name
-hardware_dict = collections.OrderedDict()
-hardware_dict['D0 LTS300'] = [os.path.join(main_dir, 'hardware', 'delays', 'LTS300', 'LTS300.py'), 'LTS300', 'app', [], 'd0']
-hardware_dict['D1 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [1], 'd1']
-hardware_dict['D2 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [2], 'd2']
-hardware_dict['D1 SMC100'] = [os.path.join(main_dir, 'hardware', 'delays', 'SMC100', 'SMC100.py'), 'SMC100', 'SMC100', [1], 'd1']
-hardware_dict['D2 SMC100'] = [os.path.join(main_dir, 'hardware', 'delays', 'SMC100', 'SMC100.py'), 'SMC100', 'SMC100', [2], 'd2']
-
-hardwares = []
-for key in hardware_dict.keys():
-    if ini.read('hardware', key):
-        lis = hardware_dict[key]
-        hardware_module = imp.load_source(lis[1], lis[0])
-        hardware_class = getattr(hardware_module, lis[2])
-        hardware_obj = Hardware(hardware_class, lis[3], Driver, key, True, lis[4])
-        hardwares.append(hardware_obj)
-        time.sleep(1)
+if False:
+    # list module path, module name, class name, initialization arguments, simple name
+    hardware_dict = collections.OrderedDict()
+    hardware_dict['D0 LTS300'] = [os.path.join(main_dir, 'hardware', 'delays', 'LTS300', 'LTS300.py'), 'LTS300', 'app', [], 'd0']
+    hardware_dict['D1 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [1], 'd1']
+    hardware_dict['D2 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [2], 'd2']
+    hardware_dict['D1 SMC100'] = [os.path.join(main_dir, 'hardware', 'delays', 'SMC100', 'SMC100.py'), 'SMC100', 'SMC100', [1], 'd1']
+    hardware_dict['D2 SMC100'] = [os.path.join(main_dir, 'hardware', 'delays', 'SMC100', 'SMC100.py'), 'SMC100', 'SMC100', [2], 'd2']
+    
+    hardwares = []
+    for key in hardware_dict.keys():
+        if ini.read('hardware', key):
+            lis = hardware_dict[key]
+            hardware_module = imp.load_source(lis[1], lis[0])
+            hardware_class = getattr(hardware_module, lis[2])
+            hardware_obj = Hardware(hardware_class, lis[3], Driver, key, True, lis[4])
+            hardwares.append(hardware_obj)
+            time.sleep(1)
+else:
+    hardwares = [Hardware(Driver, [None], name='d0', friendly_name='d0')]
+    hardwares += [Hardware(Driver, [None], name='d1', friendly_name='d1')]
+    hardwares += [Hardware(Driver, [None], name='d2', friendly_name='d2')]
 
 gui = pw.HardwareFrontPanel(hardwares, name='Delays')
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

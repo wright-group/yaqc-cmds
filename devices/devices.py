@@ -253,24 +253,26 @@ class FileAddress(QtCore.QObject):
         dictionary = headers.read(kind='data')
         wt.kit.write_headers(data_path.read(), dictionary)
         # shots ---------------------------------------------------------------
-        if aqn.read('NI 6251', 'save shots'):
-            p = os.path.join(os.path.dirname(data_path.read()), 'NI 6251 shots.hdf5')  # TODO: this is hack
-            f = h5py.File(p)
-            dictionary = headers.read(kind='shots')
-            for key, value in dictionary.items():
-                # remove None
-                if type(value) is list:
-                    for i, val in enumerate(value):
-                        if val is None:
-                            value[i] = 'None'
-                        if isinstance(val, basestring):
-                            value[i] = str(val)  # cannot handle unicode in lists...
-                # write to hdf5
-                f.attrs[key] = value
-            col_count = len(dictionary['name'])
-            f.create_dataset('array', (col_count, 0), maxshape=(col_count, None), compression='gzip')
-            f['array'].set_fill_value = np.nan        
-            f.close()
+        # TODO: this is hack
+        if aqn.has_section('NI 6251'):
+            if aqn.read('NI 6251', 'save shots'):
+                p = os.path.join(os.path.dirname(data_path.read()), 'NI 6251 shots.hdf5') 
+                f = h5py.File(p)
+                dictionary = headers.read(kind='shots')
+                for key, value in dictionary.items():
+                    # remove None
+                    if type(value) is list:
+                        for i, val in enumerate(value):
+                            if val is None:
+                                value[i] = 'None'
+                            if isinstance(val, basestring):
+                                value[i] = str(val)  # cannot handle unicode in lists...
+                    # write to hdf5
+                    f.attrs[key] = value
+                col_count = len(dictionary['name'])
+                f.create_dataset('array', (col_count, 0), maxshape=(col_count, None), compression='gzip')
+                f['array'].set_fill_value = np.nan        
+                f.close()
 
     def write_data(self, inputs):
         data_arr, shots_arr = inputs
@@ -278,10 +280,11 @@ class FileAddress(QtCore.QObject):
         data_file = open(data_path.read(), 'a')
         if len(data_arr.shape) == 2:  # case of multidimensional devices
             for row in data_arr.T:
-                np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline = '\t')
+                print(row)
+                np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline='\t')
                 data_file.write('\n')
         else:
-            np.savetxt(data_file, data_arr, fmt='%8.6f', delimiter='\t', newline = '\t')
+            np.savetxt(data_file, data_arr, fmt='%8.6f', delimiter='\t', newline='\t')
             data_file.write('\n')
         data_file.close()
         # shots ---------------------------------------------------------------
@@ -318,10 +321,192 @@ def q(method, inputs = []):
     data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
 
+### device ####################################################################
+
+
+class Device(QtCore.QObject):
+    update_ui = QtCore.pyqtSignal()
+    settings_updated = QtCore.pyqtSignal()
+    
+    def __init__(self, inputs=[]):
+        QtCore.QObject.__init__(self)
+        # attributes
+        self.active = False
+        self.shape = (1,)
+        self.has_map = False
+        self.name = 'virtual'
+        self.model = 'virtual'
+        self.serial = None
+        self.shots_compatible = False
+        # mutex attributes
+        self.busy = pc.Busy()
+        self.busy.update_signal = self.update_ui
+        self.data = pc.Data()
+        self.nshots = pc.Number(initial_value=100)
+        self.acquisition_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
+        self.Widget = Widget
+        self.initialized = False
+        self.freerun = pc.Bool(initial_value=False)
+        self.settings_updated.emit()
+
+    def close(self):
+        self.thread.quit()
+
+    def get_headers(self):
+        out = collections.OrderedDict()
+        out['shots'] = self.nshots.read()
+        return out
+        
+    def initialize(self, parent_widget):
+        self.enqueued = pc.Enqueued()
+        self.driver = Driver(self.enqueued, self.busy, self.name, self.freerun, self.data, self.shape)
+        self.q = pc.Q(self.enqueued, self.busy, self.driver)
+        self.thread = QtCore.QThread()
+        self.driver.moveToThread(self.thread)
+        self.thread.start()
+        self.thread.setPriority(QtCore.QThread.HighestPriority)
+        self.q.push('initialize')
+        self.wait_until_done()
+        self.freerun.updated.connect(lambda: self.q.push('loop'))
+        self.update_ui.emit()
+        self.driver.update_ui.connect(self.on_driver_update_ui)
+        
+    def load_settings(self, aqn):
+        pass
+
+    def measure(self):
+        self.q.push('measure')
+        
+    def on_driver_update_ui(self):
+        self.update_ui.emit()
+
+    def set_freerun(self, state):
+        self.freerun.write(state)
+    
+    def wait_until_done(self, timeout=10):
+        pass
+
+
+### driver ####################################################################
+
+
+class Driver(QtCore.QObject):
+    update_ui = QtCore.pyqtSignal()
+    task_changed = QtCore.pyqtSignal()
+    queue_emptied = QtCore.pyqtSignal()
+    running = False
+    processing_timer = wt.kit.Timer(verbose=False)
+    
+    def __init__(self, enqueued_obj, busy_obj, name, freerun, data, shape):
+        QtCore.QObject.__init__(self)
+        # attributes
+        self.name = 'virtual'
+        self.enqueued = enqueued_obj
+        self.busy = busy_obj
+        self.freerun = freerun
+        self.data = data
+        self.shape = shape
+    
+    def check_busy(self, inputs):
+        """
+        decides if the hardware is done and handles writing of 'busy' to False
+        must always write busy whether answer is True or False
+        should include a sleep if answer is True to prevent very fast loops: time.sleep(0.1)
+        """
+        # simply check if additional actions are enqueued, and if running
+        if self.enqueued.read():
+            time.sleep(0.01)
+            self.busy.write(True)
+        elif self.running:
+            time.sleep(0.01)
+            self.busy.write(True)
+        else:
+            self.busy.write(False)
+    
+    def close(self):
+        pass
+    
+    @QtCore.pyqtSlot(str, list)
+    def dequeue(self, method, inputs):
+        '''
+        accepts queued signals from 'queue' (address using q method)
+        method must be string, inputs must be list
+        '''
+        if g.debug.read():
+            print(self.name, ' dequeue:', method, inputs)
+        self.enqueued.pop()
+        getattr(self, str(method))(inputs) #method passed as qstring
+        if not self.enqueued.read(): 
+            self.queue_emptied.emit()
+            self.check_busy([])
+
+    def initialize(self, inputs):
+        time.sleep(1)
+
+    def loop(self, inputs):
+        while self.freerun.read() and not self.enqueued.read():
+            self.measure([])
+            self.busy.write(False)
+        else:
+            print(' '.join([self.name, 'exiting loop!']))
+
+    def measure(self, inputs):
+        time.sleep(0.1)
+        out_names = ['channel %i'%i for i in range(5)]
+        out = np.random.rand(len(out_names))
+        self.data.write_properties(self.shape, out_names, out)
+        self.update_ui.emit()
+
+
+### gui #######################################################################
+
+
+class Widget(QtGui.QWidget):
+
+    def __init__(self):
+        QtGui.QWidget.__init__(self)
+        layout = QtGui.QVBoxLayout()
+        self.setLayout(layout)
+        layout.setMargin(0)
+        input_table = pw.InputTable()
+        input_table.add('Virtual', None)
+        self.use = pc.Bool(initial_value=True)
+        input_table.add('Use', self.use)
+        layout.addWidget(input_table)
+        
+    def load(self, aqn_path):
+        pass
+   
+    def save(self, aqn_path):
+        ini = wt.kit.INI(aqn_path)
+        ini.add_section('virtual')
+        ini.write('virtual', 'use', self.use.read())
+
+        
+class GUI(QtCore.QObject):
+
+    def __init__(self, control):
+        QtCore.QObject.__init__(self)
+        self.control = control
+        self.samples_tab_initialized = False
+
+    def close(self):
+        pass
+
+    def create_frame(self, parent_widget):
+        # get layout
+        parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.layout().setContentsMargins(0, 10, 0, 0)
+        self.layout = parent_widget.layout()
+
+
 ### control ###################################################################
 
 
 class Control(QtCore.QObject):
+    """
+    Only one instance in the entire program.
+    """
     settings_updated = QtCore.pyqtSignal()    
     
     def __init__(self):
@@ -330,20 +515,23 @@ class Control(QtCore.QObject):
         g.main_window.read().queue_control.connect(self.queue_control_update)
         self.channel_names = []
         # import devices
-        for key in device_dict.keys():
-            if ini.read('device', key):
-                lis = device_dict[key]
-                module_path = lis[0]
-                name = os.path.basename(module_path).split('.')[0]
-                if False:
-                    directory = os.path.dirname(module_path)
-                    f, p, d = imp.find_module(name, [directory])
-                    device_module = imp.load_module(name, f, p, d)
-                else:
-                    device_module = imp.load_source(name, module_path)
-                device_class = getattr(device_module, lis[1])
-                device_obj = device_class(inputs=lis[2])
-                self.devices.append(device_obj)
+        if False:
+            for key in device_dict.keys():
+                if ini.read('device', key):
+                    lis = device_dict[key]
+                    module_path = lis[0]
+                    name = os.path.basename(module_path).split('.')[0]
+                    if False:
+                        directory = os.path.dirname(module_path)
+                        f, p, d = imp.find_module(name, [directory])
+                        device_module = imp.load_module(name, f, p, d)
+                    else:
+                        device_module = imp.load_source(name, module_path)
+                    device_class = getattr(device_module, lis[1])
+                    device_obj = device_class(inputs=lis[2])
+                    self.devices.append(device_obj)
+        else:
+            self.devices.append(Device())
         # signals and slots
         for device in self.devices:
             device.settings_updated.connect(self.on_device_settings_updated)
@@ -358,7 +546,7 @@ class Control(QtCore.QObject):
         # acquire
         for device in self.devices:
             if device.active:
-                device.acquire()
+                device.measure()
         self.wait_until_done()
         # save
         if save:
@@ -366,9 +554,10 @@ class Control(QtCore.QObject):
             data_rows = np.prod([d.data.size for d in self.devices if d.active])
             data_shape = (len(headers.data_cols['name']), data_rows)
             data_arr = np.full(data_shape, np.nan)
-            shots_rows = int(np.prod([d.nshots.read() if d.active and d.shots_compatible else 1 for d in self.devices ]))
+            shots_rows = int(np.prod([d.nshots.read() if d.active and d.shots_compatible else 1 for d in self.devices]))
             shots_shape = (len(headers.shots_cols['name']), shots_rows)
             shots_arr = np.full(shots_shape, np.nan)
+            print(shots_shape, '$$$$$$$$$$$$$$$$$$$$$$$$$$$$', headers.shots_cols['name'], headers.data_cols['name'])  # TODO: remove
             data_i = 0
             shots_i = 0
             # scan indicies
@@ -598,7 +787,9 @@ class Control(QtCore.QObject):
                         name.append(device.map_axes.keys()[i])
             # channels
             self.channel_names = []
+            print('HELLO WORLD')
             for device in self.devices:
+                print(device.name, aqn.has_section(device.name))
                 if not aqn.has_section(device.name):
                     continue
                 if not aqn.read(device.name, 'use'):
@@ -607,6 +798,7 @@ class Control(QtCore.QObject):
                     mutex = device.shots
                 else:
                     mutex = device.data
+                print(mutex, '^^^^^^^^^^^^^^^')  # TODO: remove
                 for col in mutex.cols:
                     kind.append('channel')
                     tolerance.append(None)
@@ -762,7 +954,6 @@ class GUI(QtCore.QObject):
                 print('next time')
                 return
         self.main_tab_created = True
-        print('create main tab')
         # create main daq tab
         main_widget = self.main_widget
         layout = QtGui.QHBoxLayout()
@@ -858,7 +1049,7 @@ class GUI(QtCore.QObject):
 
     def on_slice_append(self):
         device_index = self.device_combo.read_index()
-        device_display_settings = self.display_settings_widgets.values()[device_index]
+        device_display_settings = list(self.display_settings_widgets.values())[device_index]
         channel_index = device_display_settings.channel_combo.read_index()
         # limits
         ymin = current_slice.ymins[device_index][channel_index]
@@ -887,7 +1078,7 @@ class GUI(QtCore.QObject):
         current_device_index = self.device_combo.read_index()
         for display_settings in self.display_settings_widgets.values():
             display_settings.hide()
-        self.display_settings_widgets.values()[current_device_index].show()
+        list(self.display_settings_widgets.values())[current_device_index].show()
         self.update()
         
     def update(self):
@@ -899,7 +1090,7 @@ class GUI(QtCore.QObject):
         # big number
         current_device_index = self.device_combo.read_index()
         device = control.devices[current_device_index]        
-        widget = self.display_settings_widgets.values()[current_device_index]
+        widget = list(self.display_settings_widgets.values())[current_device_index]
         channel_index = widget.get_channel_index()
         map_index = widget.get_map_index()
         if map_index is None:

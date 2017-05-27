@@ -372,8 +372,7 @@ class Worker(QtCore.QObject):
             name = src.split(os.sep)[-1]
             dst = os.path.join(devices.autocopy_path.read(), name)
             shutil.copytree(src, dst)
-        
-        
+
 
 ### GUI base ##################################################################
 
@@ -419,7 +418,6 @@ class GUI(QtCore.QObject):
         self.frame.setLayout(layout)
         g.module_widget.add_child(self.frame)
         g.module_combobox.add_module(module_name, self.show_frame)
-
 
     def hide(self):
         self.frame.hide()

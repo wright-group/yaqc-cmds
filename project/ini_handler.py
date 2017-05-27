@@ -12,9 +12,6 @@ except ImportError:
 
 from PyQt4 import QtCore
 
-import project
-print(project)
-
 from project import project_globals as g
 main_dir = g.main_dir.read()
 

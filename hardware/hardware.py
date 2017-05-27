@@ -7,8 +7,10 @@ Parent hardware class and associated.
 
 
 import time
+import collections
 
 from PyQt4 import QtCore
+from PyQt4 import QtGui
 
 import WrightTools as wt
 
@@ -24,34 +26,47 @@ class Driver(QtCore.QObject):
     queue_emptied = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()
 
-    def __init__(self, hardware_obj, enqueued_obj, busy_obj, name, ctrl_class):
+    def __init__(self, enqueued_obj, busy_obj, name, native_units=None):
         QtCore.QObject.__init__(self)
-        self.hardware = hardware_obj
+        # basic attributes
         self.enqueued = enqueued_obj
         self.busy = busy_obj
         self.name = name
-        self.ctrl = ctrl_class()
-        self.exposed = self.ctrl.exposed
-        self.recorded = self.ctrl.recorded
-        self.initialized = self.ctrl.initialized
-        self.offset = self.ctrl.offset
-        ctrl_methods =  wt.kit.get_methods(self.ctrl)      
-        for method in ctrl_methods:
-            if hasattr(self, method):
-                pass  # do not overwrite methods of address
-            else:
-                additional_method = getattr(self.ctrl, method)
-                setattr(self, method, additional_method)
-        self.gui = self.ctrl.gui
-        self.native_units = self.ctrl.native_units
-        self.limits = self.ctrl.limits
+        self.native_units = native_units
+        # mutex attributes
+        self.limits = pc.NumberLimits(units=self.native_units)
+        self.position = pc.Number(units=self.native_units, name='Position',
+                                  display=True, set_method='set_position')
+        self.offset = pc.Number(units=self.native_units, name='Offset')
+        self.initialized = pc.Bool()
+        # attributes for 'exposure'
+        self.exposed = [self.position]
+        self.recorded = collections.OrderedDict()
+
+    def check_busy(self, inputs):
+        """
+        decides if the hardware is done and handles writing of 'busy' to False
+        """
+        # must always write busy whether answer is True or False
+        if self.is_busy():
+            time.sleep(0.01)  # don't loop like crazy
+            self.busy.write(True)
+        elif self.enqueued.read():
+            time.sleep(0.1)  # don't loop like crazy
+            self.busy.write(True)
+        else:
+            self.busy.write(False)
+            self.update_ui.emit()
+
+    def close(self, inputs):
+        pass
 
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
-        '''
+        """
         accepts queued signals from 'queue' (address using q method) \n
         string method, list inputs
-        '''
+        """
         self.update_ui.emit()
         if g.debug.read():
             print(self.name, 'dequeue:', method, inputs)
@@ -64,56 +79,54 @@ class Driver(QtCore.QObject):
             self.check_busy([])
             self.update_ui.emit()
 
-    def check_busy(self, inputs):
-        '''
-        decides if the hardware is done and handles writing of 'busy' to False
-        '''
-        # must always write busy whether answer is True or False
-        if self.ctrl.is_busy():
-            time.sleep(0.01)  # don't loop like crazy
-            self.busy.write(True)
-        elif self.enqueued.read():
-            time.sleep(0.1)  # don't loop like crazy
-            self.busy.write(True)
-        else:
-            self.busy.write(False)
-            self.update_ui.emit()
-
     def get_position(self, inputs):
-        self.ctrl.get_position()
         self.update_ui.emit()
 
-    def poll(self, inputs):
-        '''
-        polling only gets enqueued by Hardware when not in module control
-        '''
-        self.get_position([])
-        self.is_busy([])
-
     def initialize(self, inputs):
-        self.ctrl.initialize(inputs, self)
+        # TODO: rewrite
+        self.recorded[self.name] = [self.position, self.native_units, 1., self.name, False] 
         g.logger.log('info', self.name + ' Initializing', message=str(inputs))
         if g.debug.read():
             print(self.name, 'initialization complete')
-            
+
+    def is_busy(self):
+        return False
+
+    def poll(self, inputs):
+        """
+        polling only gets enqueued by Hardware when not in module control
+        """
+        self.get_position([])
+        self.is_busy([])
+
     def set_offset(self, inputs):
         self.ctrl.set_offset(inputs[0])
         self.get_position([])
 
     def set_position(self, inputs):
-        self.ctrl.set_position(inputs[0])
+        time.sleep(1)
+        self.position.write(inputs[0])
         self.get_position([])
-
-    def close(self, inputs):
-        self.ctrl.close()
 
 
 ### gui #######################################################################
 
 
-class GUI:
+class GUI(QtCore.QObject):
     
     def __init__(self):
+        pass
+    
+    def close(self):
+        pass
+    
+    def create_frame(self, layout):
+        layout.setMargin(5)
+        self.layout = layout
+        self.frame = QtGui.QWidget()
+        self.frame.setLayout(self.layout)
+    
+    def initialize(self):
         pass
 
 
@@ -134,12 +147,12 @@ class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()
 
-    def __init__(self, control_class, control_arguments, address_class=pc.Address,
-                 name='', initialize_hardware=True, friendly_name=''):
-        '''
+    def __init__(self, driver_class, driver_arguments, name='',
+                 initialize_hardware=True, friendly_name=''):
+        """
         container for all objects relating to a single piece
         of addressable hardware
-        '''
+        """
         QtCore.QObject.__init__(self)
         self.name = name
         self.friendly_name = friendly_name
@@ -147,30 +160,29 @@ class Hardware(QtCore.QObject):
         self.thread = QtCore.QThread()
         self.enqueued = pc.Enqueued()
         self.busy = pc.Busy()
-        self.address = address_class(self, self.enqueued, self.busy,
-                                     name, control_class)
-        self.exposed = self.address.exposed
-        self.recorded = self.address.recorded
-        self.initialized = self.address.initialized
-        self.offset = self.address.offset
+        self.driver = driver_class(self.enqueued, self.busy, self.name)
+        self.exposed = self.driver.exposed
+        self.recorded = self.driver.recorded
+        self.initialized = self.driver.initialized
+        self.offset = self.driver.offset
         self.current_position = self.exposed[0]
-        self.gui = self.address.gui
-        self.native_units = self.address.native_units
+        self.gui = GUI()  # TODO: more
+        self.native_units = self.driver.native_units
         self.destination = pc.Number(units=self.native_units, display=True)
         self.destination.write(self.current_position.read(self.native_units), self.native_units)
-        self.limits = self.address.limits
-        self.q = pc.Q(self.enqueued, self.busy, self.address)
+        self.limits = self.driver.limits
+        self.q = pc.Q(self.enqueued, self.busy, self.driver)
         # start thread
-        self.address.moveToThread(self.thread)
+        self.driver.moveToThread(self.thread)
         self.thread.start()
         # connect to address object signals
-        self.address.update_ui.connect(self.update)
-        self.address.initialized_signal.connect(self.on_address_initialized)
+        self.driver.update_ui.connect(self.update)
+        self.driver.initialized_signal.connect(self.on_address_initialized)
         for obj in self.exposed:
             obj.updated.connect(self.update)
-        self.busy.update_signal = self.address.update_ui
+        self.busy.update_signal = self.driver.update_ui
         # initialize hardware
-        self.q.push('initialize', control_arguments)
+        self.q.push('initialize', driver_arguments)
         # integrate close into PyCMDS shutdown
         self.shutdown_timeout = 30  # seconds
         g.shutdown.add_method(self.close)
@@ -240,6 +252,7 @@ class Hardware(QtCore.QObject):
         self.q.push('set_offset', [offset])
 
     def set_position(self, destination, input_units=None, force_send=False):
+        print('hello this is hardware set position', destination)
         if input_units is None:
             pass
         else:

@@ -191,17 +191,10 @@ class SMC100():
         ini.write(section, option, zero)
         
     def update_recorded(self):
-        print 'SMC100 update recorded'
         self.recorded.clear()
         self.recorded['d' + str(self.index)] = [self.current_position, self.native_units, 1., self.label.read(), False]
         self.recorded['d' + str(self.index) + '_position'] = [self.current_position_mm, 'mm', 1., self.label.read(), False]
         self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
-
-
-class SMC100_offline(SMC100):
-    
-    def initialize(self, inputs, address):
-        pass
 
 
 ### gui #######################################################################
@@ -301,32 +294,4 @@ class GUI(QtCore.QObject):
 
 
 if __name__ == '__main__':
-    
-    com = com_handler.get_com(4)
-    
-    
-    axis = 2
-
-    if False:
-        def get_position():
-            com.write(unicode(str(axis)+'TP'))
-            position = com.read()
-            print float(str(position).split('TP')[1])
-        get_position()
-            
-        com.write(unicode(str(axis)+'PA'+str(12)))
-        
-        com.write(unicode(str(axis)+'TS'))
-        print com.read()
-        
-        get_position()
-        
-        
-        
-        # home
-        com.write(unicode(str(axis)+'OR'))
-
-    print com.write(unicode(str(axis)+'TS'), then_read=True)
-
-    
-    
+    pass
