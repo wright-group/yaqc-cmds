@@ -104,7 +104,7 @@ class Driver(QtCore.QObject):
         self.get_position([])
 
     def set_position(self, inputs):
-        time.sleep(1)
+        time.sleep(0.1)
         self.position.write(inputs[0])
         self.get_position([])
 
@@ -147,15 +147,25 @@ class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()
 
-    def __init__(self, driver_class, driver_arguments, name='',
-                 initialize_hardware=True, friendly_name=''):
+    def __init__(self, driver_class, driver_arguments, name, model, serial=None):
         """
-        container for all objects relating to a single piece
-        of addressable hardware
+        Hardware representation object living in the main thread.
+        
+        Parameters
+        driver_class : Driver class
+            Class of driver.
+        driver_arguments : list
+            Arguments passed to driver upon initialization.
+        name : string
+            Name. Must be unique.
+        model : string
+            Model. Need not be unique.
+        serial : string or None (optional)
+            Serial, if desired. Default is None.
         """
         QtCore.QObject.__init__(self)
         self.name = name
-        self.friendly_name = friendly_name
+        self.model = 'Virtual'
         # create objects
         self.thread = QtCore.QThread()
         self.enqueued = pc.Enqueued()

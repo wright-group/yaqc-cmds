@@ -21,7 +21,7 @@ import hardware.hardware as hw
 class Driver(hw.Driver):
     
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'fs'
+        kwargs['native_units'] = 'ps'
         hw.Driver.__init__(self, *args, **kwargs)
         self.position.write(0.)
 
@@ -37,10 +37,14 @@ class GUI(hw.GUI):
 
 
 class Hardware(hw.Hardware):
-    pass
+    
+    def __init__(self, *arks, **kwargs):
+        self.kind = 'delay'
+        hw.Hardware.__init__(self, *arks, **kwargs)
 
 
 ### initialize ################################################################
+
 
 if False:
     # list module path, module name, class name, initialization arguments, simple name
@@ -61,9 +65,9 @@ if False:
             hardwares.append(hardware_obj)
             time.sleep(1)
 else:
-    hardwares = [Hardware(Driver, [None], name='d0', friendly_name='d0')]
-    hardwares += [Hardware(Driver, [None], name='d1', friendly_name='d1')]
-    hardwares += [Hardware(Driver, [None], name='d2', friendly_name='d2')]
+    hardwares = [Hardware(Driver, [None], name='d0', model='Virtual')]
+    hardwares += [Hardware(Driver, [None], name='d1', model='Virtual')]
+    hardwares += [Hardware(Driver, [None], name='d2', model='Virtual')]
 
 gui = pw.HardwareFrontPanel(hardwares, name='Delays')
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

@@ -277,15 +277,14 @@ class FileAddress(QtCore.QObject):
     def write_data(self, inputs):
         data_arr, shots_arr = inputs
         # pixels --------------------------------------------------------------
-        data_file = open(data_path.read(), 'a')
+        data_file = open(data_path.read(), 'ab')
         if len(data_arr.shape) == 2:  # case of multidimensional devices
             for row in data_arr.T:
-                print(row)
-                np.savetxt(data_file, row, fmt='%8.6f', delimiter='\t', newline='\t')
-                data_file.write('\n')
+                np.savetxt(data_file, row, fmt=str('%8.6f'), delimiter='\t', newline='\t')
+                data_file.write(b'\n')
         else:
-            np.savetxt(data_file, data_arr, fmt='%8.6f', delimiter='\t', newline='\t')
-            data_file.write('\n')
+            np.savetxt(data_file, data_arr, fmt=str('%8.6f'), delimiter='\t', newline='\t')
+            data_file.write(b'\n')
         data_file.close()
         # shots ---------------------------------------------------------------
         p = os.path.join(os.path.dirname(data_path.read()), 'NI 6251 shots.hdf5')  # TODO: this is hack
@@ -343,7 +342,7 @@ class Device(QtCore.QObject):
         self.busy.update_signal = self.update_ui
         self.data = pc.Data()
         self.nshots = pc.Number(initial_value=100)
-        self.acquisition_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
+        self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
         self.Widget = Widget
         self.initialized = False
         self.freerun = pc.Bool(initial_value=False)
@@ -359,7 +358,7 @@ class Device(QtCore.QObject):
         
     def initialize(self, parent_widget):
         self.enqueued = pc.Enqueued()
-        self.driver = Driver(self.enqueued, self.busy, self.name, self.freerun, self.data, self.shape)
+        self.driver = Driver(self)
         self.q = pc.Q(self.enqueued, self.busy, self.driver)
         self.thread = QtCore.QThread()
         self.driver.moveToThread(self.thread)
@@ -384,7 +383,18 @@ class Device(QtCore.QObject):
         self.freerun.write(state)
     
     def wait_until_done(self, timeout=10):
-        pass
+        """
+        timeout in seconds (will only refer to timeout when
+        busy.wait_for_update fires)
+        """
+        start_time = time.time()
+        while self.busy.read():
+            QtCore.QThread.yieldCurrentThread()
+            if time.time()-start_time < timeout:
+                self.busy.wait_for_update()
+            else:
+                g.logger.log('warning', '%s wait until done timed out'%self.name, 'timeout set to {} seconds'.format(timeout))
+                break
 
 
 ### driver ####################################################################
@@ -397,15 +407,16 @@ class Driver(QtCore.QObject):
     running = False
     processing_timer = wt.kit.Timer(verbose=False)
     
-    def __init__(self, enqueued_obj, busy_obj, name, freerun, data, shape):
+    def __init__(self, device):
         QtCore.QObject.__init__(self)
         # attributes
-        self.name = 'virtual'
-        self.enqueued = enqueued_obj
-        self.busy = busy_obj
-        self.freerun = freerun
-        self.data = data
-        self.shape = shape
+        self.name = 'Virtual'
+        self.enqueued = device.enqueued
+        self.busy = device.busy
+        self.freerun = device.freerun
+        self.data = device.data
+        self.shape = device.shape
+        self.measure_time = device.measure_time
     
     def check_busy(self, inputs):
         """
@@ -451,10 +462,13 @@ class Driver(QtCore.QObject):
             print(' '.join([self.name, 'exiting loop!']))
 
     def measure(self, inputs):
-        time.sleep(0.1)
-        out_names = ['channel %i'%i for i in range(5)]
-        out = np.random.rand(len(out_names))
-        self.data.write_properties(self.shape, out_names, out)
+        timer = wt.kit.Timer(verbose=False)
+        with timer:
+            time.sleep(0.1)
+            out_names = ['channel %i'%i for i in range(5)]
+            out = np.random.standard_normal(len(out_names))
+            self.data.write_properties(self.shape, out_names, out)
+        self.measure_time.write(timer.interval)
         self.update_ui.emit()
 
 
@@ -645,6 +659,7 @@ class Control(QtCore.QObject):
         # Ideally I would wait for the devices here
         # however the NI 6251 hangs forever for reasons I don't understand
         # finish
+        self.wait_until_done()  # TODO:...
         for i, device in enumerate(self.devices):
             device.update_ui.connect(self.gui.create_main_tab)
         self.t_last = time.time()
@@ -787,7 +802,6 @@ class Control(QtCore.QObject):
                         name.append(device.map_axes.keys()[i])
             # channels
             self.channel_names = []
-            print('HELLO WORLD')
             for device in self.devices:
                 print(device.name, aqn.has_section(device.name))
                 if not aqn.has_section(device.name):
@@ -798,7 +812,6 @@ class Control(QtCore.QObject):
                     mutex = device.shots
                 else:
                     mutex = device.data
-                print(mutex, '^^^^^^^^^^^^^^^')  # TODO: remove
                 for col in mutex.cols:
                     kind.append('channel')
                     tolerance.append(None)
@@ -1017,7 +1030,7 @@ class GUI(QtCore.QObject):
             input_table.add(device.name, None)
             input_table.add('Status', device.busy)
             input_table.add('Freerun', device.freerun)
-            input_table.add('Time', device.acquisition_time)
+            input_table.add('Time', device.measure_time)
         input_table.add('File', None)
         data_busy.update_signal = data_obj.update_ui        
         input_table.add('Status', data_busy)

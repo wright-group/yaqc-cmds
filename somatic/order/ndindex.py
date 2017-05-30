@@ -10,7 +10,7 @@ def process(destinations_list):
         for i, idx in enumerate(np.ndindex(destinations_list[-1].arr.shape[:-1])):
             s = {}
             s['index'] = destinations_list[-1].arr.shape[-1]*i
-            s['name'] = destinations_list[-1].hardware.friendly_name
+            s['name'] = destinations_list[-1].hardware.name
             s['units'] = destinations_list[-1].units
             s['points'] = destinations_list[-1].arr[idx]
             if destinations_list[-1].method == 'set_position':
@@ -22,7 +22,7 @@ def process(destinations_list):
         # 1D scan
         s = {}
         s['index'] = 0
-        s['name'] = destinations_list[0].hardware.friendly_name
+        s['name'] = destinations_list[0].hardware.name
         s['units'] = destinations_list[0].units
         s['points'] = destinations_list[0].arr
         if destinations_list[0].method == 'set_position':

@@ -72,7 +72,7 @@ class Axis:
             else:
                 clean_name = name
             if clean_name not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.friendly_name == clean_name][0]
+                hardware_object = [h for h in all_hardwares if h.name == clean_name][0]
                 self.hardware_dict[name] = [hardware_object, 'set_position', None]
 
         
@@ -84,7 +84,7 @@ class Constant:
         self.identity = identity
         self.static = static
         self.expression = expression
-        self.hardware = [h for h in all_hardwares if h.friendly_name == self.name][0]
+        self.hardware = [h for h in all_hardwares if h.name == self.name][0]
 
 
 class Destinations:
@@ -234,12 +234,12 @@ class Worker(QtCore.QObject):
                 # populate all hardwares not scanned here
                 for hardware in all_hardwares:
                     if wt.units.kind(hardware.units) == units_kind:
-                        vals[hardware.friendly_name] = hardware.get_position(units)
+                        vals[hardware.name] = hardware.get_position(units)
                 for idx in np.ndindex(arrs[0].shape):
                     for destination in destinations_list:
                         if wt.units.kind(destination.units) == units_kind:
                             val = wt.units.converter(destination.arr[idx], destination.units, units)
-                            vals[destination.hardware.friendly_name] = val
+                            vals[destination.hardware.name] = val
                     arr[idx] = numexpr.evaluate(expression, vals)
                 # finish     
                 hardware = constant.hardware
