@@ -14,6 +14,12 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
+from hardware.delays.delays import Driver, GUI
+
+
+### define ####################################################################
+
+
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'hardware', 'delays',
                                  'SMC100',
@@ -60,10 +66,11 @@ fs_per_mm = 6000.671281903963041  # a mm on the delay stage (factor of 2)
 ### driver ####################################################################
 
 
-class SMC100():
+class Driver(Driver):
 
-    def __init__(self):
-        self.native_units = 'fs'
+    def __init__(self, *args, **kwargs):
+        super(self.__class__, self).__init__(*args, **kwargs)
+        self.native_units = 'fs'        
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=25, units='mm')
@@ -78,8 +85,6 @@ class SMC100():
         # objects to be sent to PyCMDS
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
-        # finish
-        self.gui = GUI(self)
         self.initialized = pc.Bool()
         
     def _tell_status(self):
@@ -113,8 +118,7 @@ class SMC100():
             time.sleep(0.01)
             self.get_position()
 
-    def initialize(self, inputs, address):
-        self.address = address
+    def initialize(self, inputs):
         self.index = inputs[0]
         self.axis = ini.read('D' + str(self.index), 'axis')
         # load communications channel
@@ -136,7 +140,6 @@ class SMC100():
         # finish
         self.get_position()
         self.initialized.write(True)
-        self.address.initialized_signal.emit()        
 
     def is_busy(self):
         return False
@@ -200,11 +203,7 @@ class SMC100():
 ### gui #######################################################################
 
 
-class GUI(QtCore.QObject):
-
-    def __init__(self, driver):
-        QtCore.QObject.__init__(self)
-        self.driver = driver
+class GUI(GUI):
 
     def create_frame(self, layout):
         layout.setMargin(5)

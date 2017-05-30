@@ -6,13 +6,20 @@ import imp
 import time
 import collections
 
+import WrightTools as wt
+
 import project.project_globals as g
 main_dir = g.main_dir.read()
 app = g.app.read()
 import project.widgets as pw
-import project.ini_handler as ini
-ini = ini.delays
 import hardware.hardware as hw
+
+
+### define ####################################################################
+
+
+directory = os.path.dirname(os.path.abspath(__file__))
+ini = wt.kit.INI(os.path.join(directory, 'delays.ini'))
 
 
 ### driver ####################################################################
@@ -46,28 +53,20 @@ class Hardware(hw.Hardware):
 ### initialize ################################################################
 
 
-if False:
-    # list module path, module name, class name, initialization arguments, simple name
-    hardware_dict = collections.OrderedDict()
-    hardware_dict['D0 LTS300'] = [os.path.join(main_dir, 'hardware', 'delays', 'LTS300', 'LTS300.py'), 'LTS300', 'app', [], 'd0']
-    hardware_dict['D1 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [1], 'd1']
-    hardware_dict['D2 micro'] = [os.path.join(main_dir, 'hardware', 'delays', 'pico', 'pico_delay.py'), 'pico_delay', 'Delay', [2], 'd2']
-    hardware_dict['D1 SMC100'] = [os.path.join(main_dir, 'hardware', 'delays', 'SMC100', 'SMC100.py'), 'SMC100', 'SMC100', [1], 'd1']
-    hardware_dict['D2 SMC100'] = [os.path.join(main_dir, 'hardware', 'delays', 'SMC100', 'SMC100.py'), 'SMC100', 'SMC100', [2], 'd2']
-    
-    hardwares = []
-    for key in hardware_dict.keys():
-        if ini.read('hardware', key):
-            lis = hardware_dict[key]
-            hardware_module = imp.load_source(lis[1], lis[0])
-            hardware_class = getattr(hardware_module, lis[2])
-            hardware_obj = Hardware(hardware_class, lis[3], Driver, key, True, lis[4])
-            hardwares.append(hardware_obj)
-            time.sleep(1)
-else:
-    hardwares = [Hardware(Driver, [None], name='d0', model='Virtual')]
-    hardwares += [Hardware(Driver, [None], name='d1', model='Virtual')]
-    hardwares += [Hardware(Driver, [None], name='d2', model='Virtual')]
-
+hardwares = []    
+for name in ini.sections:
+    if ini.read(name, 'enable'):
+        model = ini.read(name, 'model')
+        if model == 'Virtual':
+            hardware = Hardware(Driver, [None], GUI, name=name, model='Virtual')
+        else:
+            path = os.path.abspath(ini.read(name, 'path'))
+            fname = os.path.basename(path).split('.')[0]
+            mod = imp.load_source(fname, path)
+            cls = getattr(mod, 'Driver')
+            args = ini.read(name, 'initialization arguments')
+            gui = getattr(mod, 'GUI')
+            hardware = Hardware(cls, args, gui, name=name, model=model)
+        hardwares.append(hardware)
 gui = pw.HardwareFrontPanel(hardwares, name='Delays')
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

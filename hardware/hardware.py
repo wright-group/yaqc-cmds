@@ -58,7 +58,7 @@ class Driver(QtCore.QObject):
             self.busy.write(False)
             self.update_ui.emit()
 
-    def close(self, inputs):
+    def close(self):
         pass
 
     @QtCore.pyqtSlot(str, list)
@@ -71,7 +71,13 @@ class Driver(QtCore.QObject):
         if g.debug.read():
             print(self.name, 'dequeue:', method, inputs)
         # execute method
-        getattr(self, str(method))(inputs)  # method passed as qstring
+        method = str(method)  # method passed as qstring
+        if method == 'close':
+            self.close()
+        elif method == 'set_position':
+            self.set_position(inputs[0])
+        else:
+            getattr(self, method)(inputs)
         # remove method from enqueued
         self.enqueued.pop()
         if not self.enqueued.read():
@@ -79,7 +85,7 @@ class Driver(QtCore.QObject):
             self.check_busy([])
             self.update_ui.emit()
 
-    def get_position(self, inputs):
+    def get_position(self):
         self.update_ui.emit()
 
     def initialize(self, inputs):
@@ -88,6 +94,7 @@ class Driver(QtCore.QObject):
         g.logger.log('info', self.name + ' Initializing', message=str(inputs))
         if g.debug.read():
             print(self.name, 'initialization complete')
+        self.initialized_signal.emit()
 
     def is_busy(self):
         return False
@@ -96,17 +103,17 @@ class Driver(QtCore.QObject):
         """
         polling only gets enqueued by Hardware when not in module control
         """
-        self.get_position([])
-        self.is_busy([])
+        self.get_position()
+        self.is_busy()
 
     def set_offset(self, inputs):
         self.ctrl.set_offset(inputs[0])
-        self.get_position([])
+        self.get_position()
 
-    def set_position(self, inputs):
+    def set_position(self, destination):
         time.sleep(0.1)
-        self.position.write(inputs[0])
-        self.get_position([])
+        self.position.write(destination)
+        self.get_position()
 
 
 ### gui #######################################################################
@@ -114,8 +121,10 @@ class Driver(QtCore.QObject):
 
 class GUI(QtCore.QObject):
     
-    def __init__(self):
-        pass
+    def __init__(self, hardware):
+        QtCore.QObject.__init__(self)
+        self.hardware = hardware
+        self.driver = hardware.driver
     
     def close(self):
         pass
@@ -142,12 +151,14 @@ def all_initialized():
             return
     # past here only runs when ALL hardwares are initialized
     g.hardware_initialized.write(True)
-    
+
+
 class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()
 
-    def __init__(self, driver_class, driver_arguments, name, model, serial=None):
+    def __init__(self, driver_class, driver_arguments, gui_class,
+                 name, model, serial=None):
         """
         Hardware representation object living in the main thread.
         
@@ -165,7 +176,8 @@ class Hardware(QtCore.QObject):
         """
         QtCore.QObject.__init__(self)
         self.name = name
-        self.model = 'Virtual'
+        self.model = model
+        self.serial = serial
         # create objects
         self.thread = QtCore.QThread()
         self.enqueued = pc.Enqueued()
@@ -176,7 +188,7 @@ class Hardware(QtCore.QObject):
         self.initialized = self.driver.initialized
         self.offset = self.driver.offset
         self.current_position = self.exposed[0]
-        self.gui = GUI()  # TODO: more
+        self.gui = gui_class(self)  # TODO: more
         self.native_units = self.driver.native_units
         self.destination = pc.Number(units=self.native_units, display=True)
         self.destination.write(self.current_position.read(self.native_units), self.native_units)
@@ -262,7 +274,6 @@ class Hardware(QtCore.QObject):
         self.q.push('set_offset', [offset])
 
     def set_position(self, destination, input_units=None, force_send=False):
-        print('hello this is hardware set position', destination)
         if input_units is None:
             pass
         else:

@@ -64,9 +64,9 @@ if False:
             hardware_obj = Hardware(hardware_class, lis[3], Driver, key, True, lis[4])
             hardwares.append(hardware_obj)
 else:
-    hardwares = [Hardware(Driver, [None], name='w0', model='Virtual')]
-    hardwares += [Hardware(Driver, [None], name='w1', model='Virtual')]
-    hardwares += [Hardware(Driver, [None], name='w2', model='Virtual')]
+    hardwares = [Hardware(Driver, [None], GUI, name='w0', model='Virtual')]
+    hardwares += [Hardware(Driver, [None], GUI, name='w1', model='Virtual')]
+    hardwares += [Hardware(Driver, [None], GUI, name='w2', model='Virtual')]
 
 gui = pw.HardwareFrontPanel(hardwares, name='OPAs')
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

@@ -12,7 +12,7 @@ except ImportError:
 
 from PyQt4 import QtCore
 
-from project import project_globals as g
+import project_globals as g
 main_dir = g.main_dir.read()
 
 
@@ -81,7 +81,6 @@ class Ini(QtCore.QMutex):
 main = Ini(os.path.join(main_dir, 'main.ini'))
 config = Ini(os.path.join(main_dir, 'config.ini'))
 daq = Ini(os.path.join(main_dir, 'devices', 'devices.ini'))
-delays = Ini(os.path.join(main_dir, 'hardware', 'delays', 'delays.ini'))
 opas = Ini(os.path.join(main_dir, 'hardware', 'opas', 'opas.ini'))
 filters = Ini(os.path.join(main_dir, 'hardware', 'filters', 'filters.ini'))
 spectrometers = Ini(os.path.join(main_dir, 'hardware', 'spectrometers', 'spectrometers.ini'))

@@ -62,7 +62,7 @@ if False:
             hardware_obj = Hardware(hardware_class, lis[3], Driver, key, True, lis[4])
             hardwares.append(hardware_obj)
 else:
-    hardwares = [Hardware(Driver, [None], name='wm', model='Virtual')]
+    hardwares = [Hardware(Driver, [None], GUI, name='wm', model='Virtual')]
 
 gui = pw.HardwareFrontPanel(hardwares, name='Spectrometers')
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
