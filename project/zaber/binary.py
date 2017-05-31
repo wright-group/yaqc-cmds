@@ -145,9 +145,13 @@ class BinaryDevice(object):
             command = BinaryCommand(self.number, *args)
 
         command.device_number = self.number
+
+        self.port.external_lock_control = True
+        self.port._ser.lock()
         self.port.write(command)
         reply = self.port.read(command.message_id is not None)
-
+        self.port._ser.unlock()
+        self.port.external_lock_control = False
         if reply.device_number != self.number:
             raise UnexpectedReplyError("Received an unexpected reply from "
                     "device number {0:d}".format(reply.device_number),
