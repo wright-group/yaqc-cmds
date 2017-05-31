@@ -6,6 +6,8 @@ import imp
 import time
 import collections
 
+import numpy as np
+
 from PyQt4 import QtGui
 
 import WrightTools as wt
@@ -34,6 +36,10 @@ class Driver(hw.Driver):
         kwargs['native_units'] = 'ps'
         hw.Driver.__init__(self, *args, **kwargs)
         self.position.write(0.)
+        self.motor_position = self.hardware.motor_position
+        
+    def set_motor_position(self, inputs):
+        self.motor_position.write(inputs[0])
 
 
 ### gui #######################################################################
@@ -42,24 +48,23 @@ class Driver(hw.Driver):
 class GUI(hw.GUI):
 
     def initialize(self):
-        print('DELAY GUI INITIALIZE')  # TODO: remove
-        # settings container
-        # settings
-        input_table = pw.InputTable()
-        input_table.add('Settings', None)
-        input_table.add('Label', self.hardware.label)
-        input_table.add('Factor', self.hardware.factor)
+        self.layout.addWidget(self.scroll_area)
+        # attributes
+        self.attributes_table.add('Label', self.hardware.label)
+        self.attributes_table.add('Factor', self.hardware.factor)
+        self.scroll_layout.addWidget(self.attributes_table)
         # mm input table
+        input_table = pw.InputTable()
         input_table.add('Position', None)
-        input_table.add('Current', self.hardware.position_mm)
-        self.mm_destination = self.hardware.position_mm.associate(display=False)
-        input_table.add('Destination', self.mm_destination)
+        input_table.add('Current', self.hardware.motor_position)
+        self.motor_destination = self.hardware.motor_position.associate(display=False)
+        input_table.add('Destination', self.motor_destination)
         self.scroll_layout.addWidget(input_table)
         # set mm button
-        self.set_mm_button = pw.SetButton('SET POSITION')
-        self.scroll_layout.addWidget(self.set_mm_button)
-        self.set_mm_button.clicked.connect(self.on_set_mm)
-        g.queue_control.disable_when_true(self.set_mm_button)
+        self.set_motor_button = pw.SetButton('SET POSITION')
+        self.scroll_layout.addWidget(self.set_motor_button)
+        self.set_motor_button.clicked.connect(self.on_set_motor)
+        g.queue_control.disable_when_true(self.set_motor_button)
         # zero input table
         input_table = pw.InputTable()
         input_table.add('Zero', None)
@@ -88,10 +93,9 @@ class GUI(hw.GUI):
     def on_home(self):
         self.driver.address.hardware.q.push('home')
         
-    def on_set_mm(self):
-        new_mm = self.mm_destination.read('mm')
-        new_mm = np.clip(new_mm, 1e-3, 300-1e-3)
-        self.driver.address.hardware.q.push('set_position_mm', [new_mm])
+    def on_set_motor(self):
+        new_mm = self.motor_destination.read('mm')
+        self.driver.address.hardware.q.push('set_motor_position', [new_mm])
         
     def on_set_zero(self):
         new_zero = self.zero_destination.read('mm')
@@ -110,12 +114,12 @@ class GUI(hw.GUI):
 class Hardware(hw.Hardware):
     
     def __init__(self, *arks, **kwargs):
-        self.kind = 'delay'
+        self.kind = 'delay'        
+        self.factor = pc.Number(1)
+        self.motor_position = pc.Number(units='mm', display=True)
+        self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
-        self.factor = pc.Number(1)
-        self.position_mm = pc.Number(units='mm', display=True)
-        self.zero_position = pc.Number(display=True)
 
 
 ### initialize ################################################################

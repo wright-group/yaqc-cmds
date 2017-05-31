@@ -14,7 +14,8 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
-from hardware.delays.delays import Driver, GUI
+from hardware.delays.delays import Driver as BaseDriver
+from hardware.delays.delays import GUI as BaseGUI
 
 
 ### define ####################################################################
@@ -22,8 +23,8 @@ from hardware.delays.delays import Driver, GUI
 
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'hardware', 'delays',
-                                 'SMC100',
-                                 'SMC100.ini'))
+                                 'MFA',
+                                 'MFA.ini'))
 
 
 ### define ####################################################################
@@ -66,26 +67,12 @@ fs_per_mm = 6000.671281903963041  # a mm on the delay stage (factor of 2)
 ### driver ####################################################################
 
 
-class Driver(Driver):
+class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
+        kwargs['native_units'] = 'fs'
         super(self.__class__, self).__init__(*args, **kwargs)
-        self.native_units = 'fs'        
-        # mutex attributes
-        self.limits = pc.NumberLimits(units=self.native_units)
-        self.motor_limits = pc.NumberLimits(min_value=0, max_value=25, units='mm')
-        self.current_position = pc.Number(name='Delay', initial_value=0.,
-                                          limits=self.limits,
-                                          units=self.native_units, 
-                                          display=True,
-                                          set_method='set_position')
-        self.offset = pc.Number(initial_value=0, 
-                                units=self.native_units, display=True)
-        self.current_position_mm = pc.Number(units='mm', display=True, decimals=5)
-        # objects to be sent to PyCMDS
-        self.exposed = [self.current_position]
-        self.recorded = collections.OrderedDict()
-        self.initialized = pc.Bool()
+        self.motor_limits = pc.NumberLimits(0, 25, 'mm')
         
     def _tell_status(self):
         # read
@@ -105,10 +92,10 @@ class Driver(Driver):
         position = self.port.write(str(self.axis)+'TP', then_read=True)
         # proccess (mm)
         position = float(str(position).split('TP')[1])
-        self.current_position_mm.write(position, 'mm')
+        self.motor_position.write(position, 'mm')
         # calculate delay (fs)
         delay = (position - self.zero_position.read()) * fs_per_mm * self.factor.read()
-        self.current_position.write(delay, 'fs')
+        self.position.write(delay, 'fs')
         # return
         return delay
         
@@ -140,6 +127,7 @@ class Driver(Driver):
         # finish
         self.get_position()
         self.initialized.write(True)
+        self.initialized_signal.emit()
 
     def is_busy(self):
         return False
@@ -195,88 +183,16 @@ class Driver(Driver):
         
     def update_recorded(self):
         self.recorded.clear()
-        self.recorded['d' + str(self.index)] = [self.current_position, self.native_units, 1., self.label.read(), False]
-        self.recorded['d' + str(self.index) + '_position'] = [self.current_position_mm, 'mm', 1., self.label.read(), False]
+        self.recorded['d' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
+        self.recorded['d' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
         self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
 
 
 ### gui #######################################################################
 
 
-class GUI(GUI):
-
-    def create_frame(self, layout):
-        layout.setMargin(5)
-        self.layout = layout
-        self.frame = QtGui.QWidget()
-        self.frame.setLayout(self.layout)
-        if self.driver.initialized.read():
-            self.initialize()
-        else:
-            self.driver.initialized.updated.connect(self.initialize)
-
-    def initialize(self):
-        # settings
-        input_table = pw.InputTable()
-        input_table.add('Settings', None)
-        input_table.add('Label', self.driver.label)
-        input_table.add('Factor', self.driver.factor)
-        # mm input table
-        input_table.add('Position', None)
-        input_table.add('Current', self.driver.current_position_mm)
-        self.mm_destination = self.driver.current_position_mm.associate(display=False)
-        input_table.add('Destination', self.mm_destination)
-        self.scroll_layout.addWidget(input_table)
-        # set mm button
-        self.set_mm_button = pw.SetButton('SET POSITION')
-        self.scroll_layout.addWidget(self.set_mm_button)
-        self.set_mm_button.clicked.connect(self.on_set_mm)
-        g.queue_control.disable_when_true(self.set_mm_button)
-        # zero input table
-        input_table = pw.InputTable()
-        input_table.add('Zero', None)
-        input_table.add('Current', self.driver.zero_position)
-        self.zero_destination = self.driver.zero_position.associate(display=False)
-        input_table.add('Destination', self.zero_destination)
-        self.scroll_layout.addWidget(input_table)
-        # set zero button
-        self.set_zero_button = pw.SetButton('SET ZERO')
-        self.scroll_layout.addWidget(self.set_zero_button)
-        self.set_zero_button.clicked.connect(self.on_set_zero)
-        g.queue_control.disable_when_true(self.set_zero_button)
-        # horizontal line
-        self.scroll_layout.addWidget(pw.line('H'))
-        # home button
-        input_table = pw.InputTable()
-        self.home_button = pw.SetButton('HOME', 'advanced')
-        self.scroll_layout.addWidget(self.home_button)
-        self.home_button.clicked.connect(self.on_home)
-        g.queue_control.disable_when_true(self.home_button)
-        # finish
-        self.scroll_layout.addStretch(1)
-        self.layout.addStretch(1)
-        self.driver.address.update_ui.connect(self.update)
-        
-    def on_home(self):
-        self.driver.address.hardware.q.push('home')
-        
-    def on_set_mm(self):
-        new_mm = self.mm_destination.read('mm')
-        new_mm = np.clip(new_mm, 1e-3, 300-1e-3)
-        self.driver.address.hardware.q.push('set_position_mm', [new_mm])
-        
-    def on_set_zero(self):
-        new_zero = self.zero_destination.read('mm')
-        self.driver.set_zero(new_zero)
-        self.driver.offset.write(0)
-        name = self.driver.address.hardware.name
-        g.coset_control.read().zero(name)
-
-    def update(self):
-        pass
-
-    def stop(self):
-        pass
+class GUI(BaseGUI):
+    pass
 
 
 ### testing ###################################################################

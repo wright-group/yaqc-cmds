@@ -27,18 +27,20 @@ class Driver(QtCore.QObject):
     queue_emptied = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()
 
-    def __init__(self, enqueued_obj, busy_obj, name, native_units=None):
+    def __init__(self, hardware, native_units=None):
         QtCore.QObject.__init__(self)
         # basic attributes
-        self.enqueued = enqueued_obj
-        self.busy = busy_obj
-        self.name = name
+        self.hardware = hardware
+        self.enqueued = self.hardware.enqueued
+        self.busy = self.hardware.busy
+        self.name = self.hardware.name
         self.native_units = native_units
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
         self.position = pc.Number(units=self.native_units, name='Position',
                                   display=True, set_method='set_position')
-        self.offset = pc.Number(units=self.native_units, name='Offset')
+        self.offset = pc.Number(units=self.native_units, name='Offset',
+                                display=True)
         self.initialized = pc.Bool()
         # attributes for 'exposure'
         self.exposed = [self.position]
@@ -135,6 +137,9 @@ class GUI(QtCore.QObject):
         pass
     
     def create_frame(self, layout):
+        """
+        Runs before initialize.
+        """
         # layout
         layout.setMargin(5)
         self.layout = layout
@@ -156,6 +161,10 @@ class GUI(QtCore.QObject):
         self.attributes_table.add('Model', model)
         serial = pc.String(self.hardware.serial, display=True)
         self.attributes_table.add('Serial', serial)
+        self.position = self.hardware.position.associate()
+        self.hardware.position.updated.connect(self.on_position_updated)
+        self.attributes_table.add('Position', self.position)
+        self.attributes_table.add('Offset', self.hardware.offset)
         # initialization
         if self.hardware.initialized.read():
             self.initialize()
@@ -166,12 +175,16 @@ class GUI(QtCore.QObject):
         """
         Runs only once the hardware is done initializing.
         """
-        print('HARDWARE GUI INITIALIZE')  # TODO: remove
         self.layout.addWidget(self.scroll_area)
-        
+        # attributes
         self.scroll_layout.addWidget(self.attributes_table)
+        # stretch
         self.scroll_layout.addStretch(1)
         self.layout.addStretch(1)
+        
+    def on_position_updated(self):
+        new = self.hardware.position.read(self.hardware.native_units)
+        self.position.write(new, self.hardware.native_units)
 
 
 ### hardware ##################################################################
@@ -217,16 +230,16 @@ class Hardware(QtCore.QObject):
         self.thread = QtCore.QThread()
         self.enqueued = pc.Enqueued()
         self.busy = pc.Busy()
-        self.driver = driver_class(self.enqueued, self.busy, self.name)
+        self.driver = driver_class(self)
         self.exposed = self.driver.exposed
         self.recorded = self.driver.recorded
         self.initialized = self.driver.initialized
         self.offset = self.driver.offset
-        self.current_position = self.exposed[0]
+        self.position = self.exposed[0]
         self.gui = gui_class(self)  # TODO: more
         self.native_units = self.driver.native_units
         self.destination = pc.Number(units=self.native_units, display=True)
-        self.destination.write(self.current_position.read(self.native_units), self.native_units)
+        self.destination.write(self.position.read(self.native_units), self.native_units)
         self.limits = self.driver.limits
         self.q = pc.Q(self.enqueued, self.busy, self.driver)
         # start thread
@@ -268,7 +281,7 @@ class Hardware(QtCore.QObject):
         return self.destination.read(output_units=output_units)
 
     def get_position(self, output_units='same'):
-        return self.current_position.read(output_units=output_units)
+        return self.position.read(output_units=output_units)
 
     def is_valid(self, destination, input_units=None):
         if input_units is None:
@@ -324,7 +337,7 @@ class Hardware(QtCore.QObject):
 
     @property
     def units(self):
-        return self.current_position.units
+        return self.position.units
 
     def update(self):
         self.update_ui.emit()
