@@ -216,16 +216,6 @@ class GUI(GUI):
             self.driver.initialized.updated.connect(self.initialize)
 
     def initialize(self):
-        # settings container
-        settings_container_widget = QtGui.QWidget()
-        settings_scroll_area = pw.scroll_area(show_bar=False)
-        settings_scroll_area.setWidget(settings_container_widget)
-        settings_scroll_area.setMinimumWidth(300)
-        settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
-        settings_layout = settings_container_widget.layout()
-        settings_layout.setMargin(5)
-        self.layout.addWidget(settings_scroll_area)
         # settings
         input_table = pw.InputTable()
         input_table.add('Settings', None)
@@ -236,10 +226,10 @@ class GUI(GUI):
         input_table.add('Current', self.driver.current_position_mm)
         self.mm_destination = self.driver.current_position_mm.associate(display=False)
         input_table.add('Destination', self.mm_destination)
-        settings_layout.addWidget(input_table)
+        self.scroll_layout.addWidget(input_table)
         # set mm button
         self.set_mm_button = pw.SetButton('SET POSITION')
-        settings_layout.addWidget(self.set_mm_button)
+        self.scroll_layout.addWidget(self.set_mm_button)
         self.set_mm_button.clicked.connect(self.on_set_mm)
         g.queue_control.disable_when_true(self.set_mm_button)
         # zero input table
@@ -248,22 +238,22 @@ class GUI(GUI):
         input_table.add('Current', self.driver.zero_position)
         self.zero_destination = self.driver.zero_position.associate(display=False)
         input_table.add('Destination', self.zero_destination)
-        settings_layout.addWidget(input_table)
+        self.scroll_layout.addWidget(input_table)
         # set zero button
         self.set_zero_button = pw.SetButton('SET ZERO')
-        settings_layout.addWidget(self.set_zero_button)
+        self.scroll_layout.addWidget(self.set_zero_button)
         self.set_zero_button.clicked.connect(self.on_set_zero)
         g.queue_control.disable_when_true(self.set_zero_button)
         # horizontal line
-        settings_layout.addWidget(pw.line('H'))
+        self.scroll_layout.addWidget(pw.line('H'))
         # home button
         input_table = pw.InputTable()
         self.home_button = pw.SetButton('HOME', 'advanced')
-        settings_layout.addWidget(self.home_button)
+        self.scroll_layout.addWidget(self.home_button)
         self.home_button.clicked.connect(self.on_home)
         g.queue_control.disable_when_true(self.home_button)
         # finish
-        settings_layout.addStretch(1)
+        self.scroll_layout.addStretch(1)
         self.layout.addStretch(1)
         self.driver.address.update_ui.connect(self.update)
         

@@ -12,7 +12,10 @@ except ImportError:
 
 from PyQt4 import QtCore
 
-import project_globals as g
+try:
+    import project_globals as g
+except:
+    from project import project_globals as g
 main_dir = g.main_dir.read()
 
 

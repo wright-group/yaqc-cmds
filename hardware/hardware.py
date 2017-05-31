@@ -14,7 +14,8 @@ from PyQt4 import QtGui
 
 import WrightTools as wt
 
-import project.classes as pc 
+import project.classes as pc
+import project.widgets as pw
 import project.project_globals as g
 
 
@@ -94,6 +95,7 @@ class Driver(QtCore.QObject):
         g.logger.log('info', self.name + ' Initializing', message=str(inputs))
         if g.debug.read():
             print(self.name, 'initialization complete')
+        self.initialized.write(True)
         self.initialized_signal.emit()
 
     def is_busy(self):
@@ -122,6 +124,9 @@ class Driver(QtCore.QObject):
 class GUI(QtCore.QObject):
     
     def __init__(self, hardware):
+        """
+        Runs after driver.__init__, but before driver.initialize.
+        """
         QtCore.QObject.__init__(self)
         self.hardware = hardware
         self.driver = hardware.driver
@@ -130,13 +135,43 @@ class GUI(QtCore.QObject):
         pass
     
     def create_frame(self, layout):
+        # layout
         layout.setMargin(5)
         self.layout = layout
-        self.frame = QtGui.QWidget()
-        self.frame.setLayout(self.layout)
+        # scroll area
+        scroll_container_widget = QtGui.QWidget()
+        self.scroll_area = pw.scroll_area(show_bar=False)
+        self.scroll_area.setWidget(scroll_container_widget)
+        self.scroll_area.setMinimumWidth(300)
+        self.scroll_area.setMaximumWidth(300)
+        scroll_container_widget.setLayout(QtGui.QVBoxLayout())
+        self.scroll_layout = scroll_container_widget.layout()
+        self.scroll_layout.setMargin(5)
+        # attributes table
+        self.attributes_table = pw.InputTable()
+        self.attributes_table.add('Attributes', None)
+        name = pc.String(self.hardware.name, display=True)
+        self.attributes_table.add('Name', name)
+        model = pc.String(self.hardware.model, display=True)
+        self.attributes_table.add('Model', model)
+        serial = pc.String(self.hardware.serial, display=True)
+        self.attributes_table.add('Serial', serial)
+        # initialization
+        if self.hardware.initialized.read():
+            self.initialize()
+        else:
+            self.hardware.initialized_signal.connect(self.initialize)
     
     def initialize(self):
-        pass
+        """
+        Runs only once the hardware is done initializing.
+        """
+        print('HARDWARE GUI INITIALIZE')  # TODO: remove
+        self.layout.addWidget(self.scroll_area)
+        
+        self.scroll_layout.addWidget(self.attributes_table)
+        self.scroll_layout.addStretch(1)
+        self.layout.addStretch(1)
 
 
 ### hardware ##################################################################

@@ -570,21 +570,17 @@ class HardwareAdvancedPanel(QtCore.QObject):
 
     def __init__(self, hardwares, advanced_button):
         QtCore.QObject.__init__(self)
-
         self.tabs = QtGui.QTabWidget()
-
         for hardware in hardwares:
             widget = QtGui.QWidget()
             box = QtGui.QHBoxLayout()
             hardware.gui.create_frame(box)
             widget.setLayout(box)
             self.tabs.addTab(widget, hardware.name)
-
         # box
         self.box = QtGui.QVBoxLayout()
         hardware_advanced_box = g.hardware_advanced_box.read()
         hardware_advanced_box.addWidget(self.tabs)
-
         # link into advanced button press
         self.advanced_button = advanced_button
         self.advanced_button.clicked.connect(self.on_advanced)
