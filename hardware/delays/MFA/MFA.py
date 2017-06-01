@@ -156,19 +156,19 @@ class Driver(BaseDriver):
     def set_position(self, destination):
         # get destination_mm
         destination_mm = self.zero_position.read() + destination/(fs_per_mm * self.factor.read())
-        self.set_position_mm([destination_mm])
+        self.set_motor_position(destination_mm)
         
-    def set_position_mm(self, inputs):
-        destination = inputs[0]
+    def set_motor_position(self, motor_position):
+        """
+        motor_position in mm
+        """
         # move hardware
         # TODO: consider backlash correction? 
-        self.port.write(unicode(str(self.axis)+'PA'+str(destination)))
+        self.port.write(unicode(str(self.axis)+'PA'+str(motor_position)))
         while not self._tell_status()['state'] == status_dict['READY from MOVING']:
             time.sleep(0.01)
             self.get_position()
-        # get position
-        self.get_position()
-        # get position
+        # get final position
         self.get_position()
         
     def set_zero(self, zero):

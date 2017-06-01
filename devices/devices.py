@@ -357,6 +357,7 @@ class Device(QtCore.QObject):
         return out
         
     def initialize(self, parent_widget):
+        print('DEVICE INITIALIZE BEGIN')
         self.enqueued = pc.Enqueued()
         self.driver = Driver(self)
         self.q = pc.Q(self.enqueued, self.busy, self.driver)
@@ -364,7 +365,8 @@ class Device(QtCore.QObject):
         self.driver.moveToThread(self.thread)
         self.thread.start()
         self.thread.setPriority(QtCore.QThread.HighestPriority)
-        self.q.push('initialize')
+        #self.q.push('initialize')
+        self.q.push('measure')
         self.wait_until_done()
         self.freerun.updated.connect(lambda: self.q.push('loop'))
         self.update_ui.emit()
@@ -387,14 +389,20 @@ class Device(QtCore.QObject):
         timeout in seconds (will only refer to timeout when
         busy.wait_for_update fires)
         """
-        start_time = time.time()
-        while self.busy.read():
-            QtCore.QThread.yieldCurrentThread()
-            if time.time()-start_time < timeout:
+        if True:
+            start_time = time.time()
+            while self.busy.read():
+                print('DEVICE WAIT UNTIL DONE')
+                QtCore.QThread.yieldCurrentThread()
+                if time.time()-start_time < timeout:
+                    self.busy.wait_for_update()
+                else:
+                    print('DEVICE WAIT UNTIL DONE TIMEOUT')
+                    g.logger.log('warning', '%s wait until done timed out'%self.name, 'timeout set to {} seconds'.format(timeout))
+                    break
+        else:
+            while self.busy.read():
                 self.busy.wait_for_update()
-            else:
-                g.logger.log('warning', '%s wait until done timed out'%self.name, 'timeout set to {} seconds'.format(timeout))
-                break
 
 
 ### driver ####################################################################
@@ -415,14 +423,15 @@ class Driver(pc.Driver):
         self.data = device.data
         self.shape = device.shape
         self.measure_time = device.measure_time
+        self.measure()  # TODO: REMOVE THIS!!!
     
-    def close(self, *args, **kwargs):
+    def close(self):
         pass
 
     def initialize(self, *args, **kwargs):
-        time.sleep(1)
+        self.measure()
 
-    def loop(self, *args, **kwargs):
+    def loop(self):
         while self.freerun.read() and not self.enqueued.read():
             self.measure([])
             self.busy.write(False)
@@ -539,7 +548,6 @@ class Control(QtCore.QObject):
             shots_rows = int(np.prod([d.nshots.read() if d.active and d.shots_compatible else 1 for d in self.devices]))
             shots_shape = (len(headers.shots_cols['name']), shots_rows)
             shots_arr = np.full(shots_shape, np.nan)
-            print(shots_shape, '$$$$$$$$$$$$$$$$$$$$$$$$$$$$', headers.shots_cols['name'], headers.data_cols['name'])  # TODO: remove
             data_i = 0
             shots_i = 0
             # scan indicies
@@ -615,6 +623,7 @@ class Control(QtCore.QObject):
             current_slice.append(slice_position, data_arrs)
         
     def initialize(self):
+        print('DEVICE CONTROL INITIALIZE BEGIN')
         # initialize own gui
         self.gui = GUI(self)
         device_widgets = self.gui.device_widgets
@@ -628,6 +637,7 @@ class Control(QtCore.QObject):
         # however the NI 6251 hangs forever for reasons I don't understand
         # finish
         self.wait_until_done()  # TODO:...
+        time.sleep(3)
         for i, device in enumerate(self.devices):
             device.update_ui.connect(self.gui.create_main_tab)
         self.t_last = time.time()
@@ -636,6 +646,7 @@ class Control(QtCore.QObject):
             for channel_name in device.data.cols:
                 self.channel_names.append(channel_name)
         self.settings_updated.emit()
+        print('DEVICE CONTROL INITIALIZE COMPLETE', self.channel_names)
         
     def initialize_scan(self, aqn, scan_folder, destinations_list):
         timestamp = wt.kit.TimeStamp()

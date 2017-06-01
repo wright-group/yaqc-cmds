@@ -33,13 +33,14 @@ ini = wt.kit.INI(os.path.join(directory, 'delays.ini'))
 class Driver(hw.Driver):
     
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'ps'
+        if 'native_units' not in kwargs.keys():
+            kwargs['native_units'] = 'ps'
         hw.Driver.__init__(self, *args, **kwargs)
         self.position.write(0.)
         self.motor_position = self.hardware.motor_position
         
-    def set_motor_position(self, inputs):
-        self.motor_position.write(inputs[0])
+    def set_motor_position(self, motor_position):
+        self.motor_position.write(motor_position)
 
 
 ### gui #######################################################################
@@ -95,7 +96,8 @@ class GUI(hw.GUI):
         
     def on_set_motor(self):
         new_mm = self.motor_destination.read('mm')
-        self.driver.address.hardware.q.push('set_motor_position', [new_mm])
+        self.hardware.set_motor_position(new_mm, units='mm')
+        
         
     def on_set_zero(self):
         new_zero = self.zero_destination.read('mm')
@@ -120,6 +122,10 @@ class Hardware(hw.Hardware):
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
+        
+    def set_motor_position(self, motor_position, units='mm'):
+        # TODO: should probably support 'motor native units'
+        self.q.push('set_motor_position', motor_position)
 
 
 ### initialize ################################################################
@@ -138,7 +144,8 @@ for name in ini.sections:
             cls = getattr(mod, 'Driver')
             args = ini.read(name, 'initialization arguments')
             gui = getattr(mod, 'GUI')
-            hardware = Hardware(cls, args, gui, name=name, model=model)
+            serial = ini.read(name, 'serial')
+            hardware = Hardware(cls, args, gui, name=name, model=model, serial=serial)
         hardwares.append(hardware)
 gui = pw.HardwareFrontPanel(hardwares, name='Delays')
 advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
