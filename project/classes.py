@@ -626,15 +626,55 @@ class String(PyCMDS_Object):
 
 
 class Driver(QtCore.QObject):
-    pass
+    update_ui = QtCore.pyqtSignal()
+    queue_emptied = QtCore.pyqtSignal()
+    
+    def check_busy(self, *args, **kwargs):
+        """
+        Handles writing of busy to False.
+        
+        Must always write to busy.
+        """
+        if self.is_busy():
+            time.sleep(0.01)  # don't loop like crazy
+            self.busy.write(True)
+        elif self.enqueued.read():
+            time.sleep(0.1)  # don't loop like crazy
+            self.busy.write(True)
+        else:
+            self.busy.write(False)
+            self.update_ui.emit()
+    
+    @QtCore.pyqtSlot(str, list)
+    def dequeue(self, method, inputs):
+        """
+        Slot to accept enqueued commands from main thread.
+        
+        Method passed as qstring, inputs as list of [args, kwargs].
+        
+        Calls own method with arguments from inputs.
+        """
+        self.update_ui.emit()
+        method = str(method)  # method passed as qstring
+        args, kwargs = inputs
+        if g.debug.read():
+            print(self.name, ' dequeue:', method, inputs, self.busy.read())
+        self.enqueued.pop()
+        getattr(self, method)(*args, **kwargs) 
+        if not self.enqueued.read(): 
+            self.queue_emptied.emit()
+            self.check_busy()
+            
+    def is_busy(self, *args, **kwargs):
+        return False
 
 
 class Enqueued(QtCore.QMutex):
 
     def __init__(self):
-        '''
-        holds list of enqueued options
-        '''
+        """
+        Holds list of enqueued options.
+        """
         QtCore.QMutex.__init__(self)
         self.value = []
 
@@ -654,18 +694,18 @@ class Enqueued(QtCore.QMutex):
 
 class Q:
 
-    def __init__(self, enqueued, busy, address):
+    def __init__(self, enqueued, busy, driver):
         self.enqueued = enqueued
         self.busy = busy
-        self.address = address
+        self.driver = driver
         self.queue = QtCore.QMetaObject()
 
-    def push(self, method, inputs=[]):
+    def push(self, method, *args, **kwargs):
         self.enqueued.push([method, time.time()])
         self.busy.write(True)
         # send Qt SIGNAL to address thread
-        self.queue.invokeMethod(self.address,
+        self.queue.invokeMethod(self.driver,
                                 'dequeue',
                                 QtCore.Qt.QueuedConnection,
                                 QtCore.Q_ARG(str, method),
-                                QtCore.Q_ARG(list, inputs))
+                                QtCore.Q_ARG(list, [args, kwargs]))

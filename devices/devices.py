@@ -401,9 +401,7 @@ class Device(QtCore.QObject):
 
 
 class Driver(pc.Driver):
-    update_ui = QtCore.pyqtSignal()
     task_changed = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
     running = False
     processing_timer = wt.kit.Timer(verbose=False)
     
@@ -418,50 +416,20 @@ class Driver(pc.Driver):
         self.shape = device.shape
         self.measure_time = device.measure_time
     
-    def check_busy(self, inputs):
-        """
-        decides if the hardware is done and handles writing of 'busy' to False
-        must always write busy whether answer is True or False
-        should include a sleep if answer is True to prevent very fast loops: time.sleep(0.1)
-        """
-        # simply check if additional actions are enqueued, and if running
-        if self.enqueued.read():
-            time.sleep(0.01)
-            self.busy.write(True)
-        elif self.running:
-            time.sleep(0.01)
-            self.busy.write(True)
-        else:
-            self.busy.write(False)
-    
-    def close(self):
+    def close(self, *args, **kwargs):
         pass
-    
-    @QtCore.pyqtSlot(str, list)
-    def dequeue(self, method, inputs):
-        '''
-        accepts queued signals from 'queue' (address using q method)
-        method must be string, inputs must be list
-        '''
-        if g.debug.read():
-            print(self.name, ' dequeue:', method, inputs)
-        self.enqueued.pop()
-        getattr(self, str(method))(inputs) #method passed as qstring
-        if not self.enqueued.read(): 
-            self.queue_emptied.emit()
-            self.check_busy([])
 
-    def initialize(self, inputs):
+    def initialize(self, *args, **kwargs):
         time.sleep(1)
 
-    def loop(self, inputs):
+    def loop(self, *args, **kwargs):
         while self.freerun.read() and not self.enqueued.read():
             self.measure([])
             self.busy.write(False)
         else:
             print(' '.join([self.name, 'exiting loop!']))
 
-    def measure(self, inputs):
+    def measure(self, *args, **kwargs):
         timer = wt.kit.Timer(verbose=False)
         with timer:
             time.sleep(0.1)

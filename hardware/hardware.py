@@ -23,8 +23,6 @@ import project.project_globals as g
 
 
 class Driver(pc.Driver):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()
 
     def __init__(self, hardware, native_units=None):
@@ -46,76 +44,34 @@ class Driver(pc.Driver):
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
 
-    def check_busy(self, inputs):
-        """
-        decides if the hardware is done and handles writing of 'busy' to False
-        """
-        # must always write busy whether answer is True or False
-        if self.is_busy():
-            time.sleep(0.01)  # don't loop like crazy
-            self.busy.write(True)
-        elif self.enqueued.read():
-            time.sleep(0.1)  # don't loop like crazy
-            self.busy.write(True)
-        else:
-            self.busy.write(False)
-            self.update_ui.emit()
-
     def close(self):
         pass
-
-    @QtCore.pyqtSlot(str, list)
-    def dequeue(self, method, inputs):
-        """
-        accepts queued signals from 'queue' (address using q method) \n
-        string method, list inputs
-        """
-        self.update_ui.emit()
-        if g.debug.read():
-            print(self.name, 'dequeue:', method, inputs)
-        # execute method
-        method = str(method)  # method passed as qstring
-        if method == 'close':
-            self.close()
-        elif method == 'set_position':
-            self.set_position(inputs[0])
-        else:
-            getattr(self, method)(inputs)
-        # remove method from enqueued
-        self.enqueued.pop()
-        if not self.enqueued.read():
-            self.queue_emptied.emit()
-            self.check_busy([])
-            self.update_ui.emit()
 
     def get_position(self):
         self.update_ui.emit()
 
-    def initialize(self, inputs):
+    def initialize(self, *args, **kwargs):
         # TODO: rewrite
         self.recorded[self.name] = [self.position, self.native_units, 1., self.name, False] 
-        g.logger.log('info', self.name + ' Initializing', message=str(inputs))
+        g.logger.log('info', self.name + ' Initializing', message=str(args))
         if g.debug.read():
             print(self.name, 'initialization complete')
         self.initialized.write(True)
         self.initialized_signal.emit()
 
-    def is_busy(self):
-        return False
-
-    def poll(self, inputs):
+    def poll(self):
         """
         polling only gets enqueued by Hardware when not in module control
         """
         self.get_position()
         self.is_busy()
 
-    def set_offset(self, inputs):
-        self.ctrl.set_offset(inputs[0])
+    def set_offset(self, offset):
+        self.ctrl.set_offset(offset)
         self.get_position()
 
     def set_position(self, destination):
-        time.sleep(0.1)
+        time.sleep(0.1)  # rate limiter for virtual hardware behavior
         self.position.write(destination)
         self.get_position()
 
@@ -333,7 +289,7 @@ class Hardware(QtCore.QObject):
             if not force_send:
                 return
         self.destination.write(destination, self.native_units)
-        self.q.push('set_position', [destination])
+        self.q.push('set_position', destination)
 
     @property
     def units(self):
