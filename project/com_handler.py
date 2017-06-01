@@ -7,6 +7,7 @@ PyCMDS thread safe wrapper for serial communication.
 
 
 import time
+import sys
 
 from PyQt4 import QtCore
 

@@ -65,9 +65,9 @@ class PoyntingCorrectionDevice(object):
         return self.curve.colors
 
     def get_motor_positions(self, inputs=[]):
-        return [self.get_position(s) for s in self.motor_names]
+        return [self.get_motor_position(s) for s in self.motor_names]
 
-    def set_position(self,color):
+    def set_position(self, color):
         color = np.clip(color, self.curve.colors.min(), self.curve.colors.max())
         motor_destinations = self.curve.get_motor_positions(color, self.native_units)
         motor_names = self.curve.get_motor_names()

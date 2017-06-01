@@ -126,11 +126,9 @@ class BaseOPA:
         #try:
         if True:
             poynting_type = self.ini.read('OPA%i'%self.index, 'poynting_correction')
-            print("TESTING POYNTING OPA%i"%self.index, poynting_type)
             if poynting_type == 'zaber':
                 self.poynting_correction = ZaberCorrectionDevice()
             if self.poynting_correction:
-                print("TESTING POYNTING OPA%i"%self.index, poynting_type)
                 self.poynting_correction.initialize(inputs, address)
 
                 num_motors = len(self.motor_names)
@@ -167,11 +165,11 @@ class BaseOPA:
         # coerce destination to be within current tune range
         destination = np.clip(destination, self.curve.colors.min(), self.curve.colors.max())
         if self.poynting_correction:
-            self.poynting_correction.set_position(destination)
+            poyntingDestination = wt.units.converter(destination, self.native_units, self.poynting_correction.native_units)
+            self.poynting_correction.set_position(poyntingDestination)
         # get destinations from curve
         motor_names = self.curve.get_motor_names()
         
-        print(self.__class__, destination, type(destination))
         motor_destinations = self.curve.get_motor_positions(destination, self.native_units)
         # send command
         motor_indexes = [self.motor_names.index(n) for n in motor_names]
@@ -198,10 +196,10 @@ class BaseOPA:
                 motor_positions.append(motor_destinations[i])
         self._set_motors(motor_indexes, motor_positions, wait=False)
         if self.poynting_correction:
-            poynting_curve_names = self.poynting_correction.curve.motor_names()
+            poynting_curve_names = self.poynting_correction.curve.get_motor_names()
             destinations = self.poynting_correction.curve.get_motor_positions(destination,self.poynting_correction.native_units)
             for name in self.poynting_correction.motor_names:
-                if self.motor_names.index(name) not in exceptins:
+                if self.motor_names.index(name) not in exceptions:
                     self.poynting_correction.set_motor(name, destinations[poynting_curve_names.index(name)])
         
     def set_motor(self, inputs):

@@ -242,8 +242,10 @@ class TOPAS(BaseOPA):
         self.load_curve()
 
     def _is_busy(self):
+        return False  # TODO: remove
         if self.api.open:
             error, still = self.api.are_all_motors_still()
+            print('TOPAS IS BUSY', error, still, time.time())
             return not still
         else:
             return False

@@ -146,12 +146,12 @@ class BinaryDevice(object):
 
         command.device_number = self.number
 
-        self.port.external_lock_control = True
+        #self.port._ser.external_lock_control = True
         self.port._ser.lock()
         self.port.write(command)
         reply = self.port.read(command.message_id is not None)
         self.port._ser.unlock()
-        self.port.external_lock_control = False
+        #self.port._ser.external_lock_control = False
         if reply.device_number != self.number:
             raise UnexpectedReplyError("Received an unexpected reply from "
                     "device number {0:d}".format(reply.device_number),
@@ -323,7 +323,7 @@ class BinarySerial(object):
     from a device connected over the serial port.
     """
 
-    def __init__(self, port, baud = 9600, timeout = 5, inter_char_timeout = 0.01):
+    def __init__(self, port, baud = 9600, timeout = 5, inter_char_timeout = 0.1):
         """Creates a new instance of the BinarySerial class.
 
         Args:
@@ -358,7 +358,8 @@ class BinarySerial(object):
             self._ser.open()
         except AttributeError:
             # serial_for_url not supported; use fallback
-            self._ser = serial.Serial(port, baud, timeout = timeout, interCharTimeout = inter_char_timeout)
+            self._ser = serial.Serial(port, baud, timeout = timeout*1000, interCharTimeout = inter_char_timeout)
+            self._ser.external_lock_control = True
 
     def write(self, *args):
         r"""Writes a command to the port.

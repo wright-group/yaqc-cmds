@@ -24,18 +24,18 @@ class ZaberCorrectionDevice(PoyntingCorrectionDevice):
         return busy
 
     def _home(self, index):
-        position = self.motors[i].get_position()
-        self.motors[i].home()
+        position = self.motors[index].get_position()
+        self.motors[index].home()
         time.sleep(2)
-        self.motors[i].move_abs(position)
+        self.motors[index].move_abs(position)
 
     def _zero(self, index):
-        self.motors[i].home()
+        self.motors[index].home()
         time.sleep(2)
-        self.motors[i].move_abs(0)
+        self.motors[index].move_abs(0)
 
     def _get_motor_position(self, index):
-        return self.motors[i].get_position()
+        return self.motors[index].get_position()
     def _set_motor(self, index, position):
         return self.motors[index].move_abs(position)
     def close(self):
