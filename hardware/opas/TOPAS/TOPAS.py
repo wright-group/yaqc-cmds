@@ -189,12 +189,10 @@ class TOPAS(BaseOPA):
         error, min_speed, max_speed, acceleration = self.api._get_speed_parameters(motor_index)
         return [error, min_speed, max_speed, acceleration]
 
-    def initialize(self, inputs, address):
+    def _initialize(self, inputs, address):
         '''
         OPA initialization method. Inputs = [index]
         '''
-        self.address = address
-        self.index = inputs[0]
         self.kind = inputs[1]
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         self.recorded['w%d'%self.index] = [self.current_position, 'nm', 1., str(self.index)]
@@ -242,14 +240,12 @@ class TOPAS(BaseOPA):
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
         self.load_curve()
-        # finish
-        self.get_position()
-        self.initialized.write(True)
-        self.address.initialized_signal.emit()       
 
-    def is_busy(self):
+    def _is_busy(self):
+        return False  # TODO: remove
         if self.api.open:
             error, still = self.api.are_all_motors_still()
+            print('TOPAS IS BUSY', error, still, time.time())
             return not still
         else:
             return False

@@ -19,6 +19,7 @@ from ctypes import *
 import WrightTools as wt
 import WrightTools.units as wt_units
 
+from hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import *
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
@@ -48,6 +49,7 @@ class BaseOPA:
         self.gui = BaseOPAGUI(self)
         self.initialized = pc.Bool()
         self.homeable = [False]
+        self.poynting_correction = None
         
     ## TODO: implement _set_motors in pico opa
     def _set_motors(self, motor_indexes, motor_destinations, wait=True):
@@ -58,13 +60,20 @@ class BaseOPA:
 
     def home_motor(self, inputs):
         motor_name = inputs[0]
+        if self.poynting_correction:
+            if motor_name in self.poynting_correction.motor_names:
+                self.poynting_correction.home(motor_name)
+                return
         motor_index = self.motor_names.index(motor_name)
         if self.homeable[motor_index % len(self.homeable)]:
             self._home_motors([motor_index])
-
+            
     def home_all(self, inputs=[]):
         indexes = range(len(self.motor_names))
         indexes = [i for i in indexes if self.homeable[i%len(self.homeable)] ]
+        if self.poynting_correction:
+            self.poynting_correction.home()
+            indexes = [i for i in indexes if self.motor_names[i] not in self.poynting_correction.motor_names]
         self._home_motors(indexes)
                     
     def close(self):
@@ -109,10 +118,45 @@ class BaseOPA:
         '''
         OPA initialization method. Inputs = [index]
         '''
+        self.address = address
+        self.index = inputs[0]
+
+        self._initialize(inputs,address)
+
+        #try:
+        if True:
+            poynting_type = self.ini.read('OPA%i'%self.index, 'poynting_correction')
+            if poynting_type == 'zaber':
+                self.poynting_correction = ZaberCorrectionDevice()
+            if self.poynting_correction:
+                self.poynting_correction.initialize(inputs, address)
+
+                num_motors = len(self.motor_names)
+
+                if len(self.homeable) < num_motors:
+                    n = len(self.homeable)
+                    homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
+
+
+                self.motor_names += self.poynting_correction.motor_names
+                self.homeable += [True]*len(self.poynting_correction.motor_names)
+                
+                
+        #except:
+        #    print('No poynting_correction in ini section for OPA%i'%self.index)
+
+        self.get_position()
+        self.initialized.write(True)
+        self.address.initialized_signal.emit()
+
+    def _is_busy(self):
         raise NotImplementedError
 
     def is_busy(self):
-        raise NotImplementedError
+        ret = self._is_busy()
+        if self.poynting_correction:
+            ret = ret or self.poynting_correction.is_busy()
+        return ret
 
     def set_offset(self, offset):
         pass
@@ -120,10 +164,12 @@ class BaseOPA:
     def set_position(self, destination):
         # coerce destination to be within current tune range
         destination = np.clip(destination, self.curve.colors.min(), self.curve.colors.max())
+        if self.poynting_correction:
+            poyntingDestination = wt.units.converter(destination, self.native_units, self.poynting_correction.native_units)
+            self.poynting_correction.set_position(poyntingDestination)
         # get destinations from curve
         motor_names = self.curve.get_motor_names()
         
-        print(self.__class__, destination, type(destination))
         motor_destinations = self.curve.get_motor_positions(destination, self.native_units)
         # send command
         motor_indexes = [self.motor_names.index(n) for n in motor_names]
@@ -149,6 +195,12 @@ class BaseOPA:
                 motor_indexes.append(i)
                 motor_positions.append(motor_destinations[i])
         self._set_motors(motor_indexes, motor_positions, wait=False)
+        if self.poynting_correction:
+            poynting_curve_names = self.poynting_correction.curve.get_motor_names()
+            destinations = self.poynting_correction.curve.get_motor_positions(destination,self.poynting_correction.native_units)
+            for name in self.poynting_correction.motor_names:
+                if self.motor_names.index(name) not in exceptions:
+                    self.poynting_correction.set_motor(name, destinations[poynting_curve_names.index(name)])
         
     def set_motor(self, inputs):
         '''
@@ -156,18 +208,36 @@ class BaseOPA:
         '''
         motor_name, destination = inputs
         motor_index = self.motor_names.index(motor_name)
+        if self.poynting_correction:
+            if motor_name in self.poynting_correction.motor_names:
+                self.poynting_correction.set_motor(motor_name,destination)
+                return
+
         self._set_motors([motor_index], [destination])
 
     def set_motors(self, inputs):
         motor_indexes = range(len(inputs))
         motor_positions = inputs
+        if self.poynting_correction:
+            for i,pos in zip(motor_indexes, motor_positions):
+                if self.motor_names[i] in self.poynting_correction.motor_names:
+                    self.poynting_correction.set_motor(self.motor_names[i], motor_position)
+                    index = motor_indexes.index(i)
+                    motor_indexes = motor_indexes[:index]+motor_indexes[index+1:]
+                    motor_positions = motor_positions[:index]+motor_positions[index+1:]
+
         self._set_motors(motor_indexes, motor_positions)
 
-    def wait_until_still(self, inputs=[]):
+    def _wait_until_still(self, inputs=[]):
         while self.is_busy():
             time.sleep(0.1)  # I've experienced hard crashes when wait set to 0.01 - Blaise 2015.12.30
             self.get_motor_positions()
         self.get_motor_positions()
+
+    def wait_until_still(self,inputs=[]):
+        self._wait_until_still(inputs)
+        if self.poynting_correction:
+            self.poynting_correction.wait_until_still()
     
 ### gui #######################################################################
     
