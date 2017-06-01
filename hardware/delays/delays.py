@@ -55,7 +55,7 @@ class GUI(hw.GUI):
         self.scroll_layout.addWidget(self.attributes_table)
         # mm input table
         input_table = pw.InputTable()
-        input_table.add('Position', None)
+        input_table.add('Motor Position', None)
         input_table.add('Current', self.hardware.motor_position)
         self.motor_destination = self.hardware.motor_position.associate(display=False)
         input_table.add('Destination', self.motor_destination)
@@ -67,7 +67,7 @@ class GUI(hw.GUI):
         g.queue_control.disable_when_true(self.set_motor_button)
         # zero input table
         input_table = pw.InputTable()
-        input_table.add('Zero', None)
+        input_table.add('Zero Position', None)
         input_table.add('Current', self.hardware.zero_position)
         self.zero_destination = self.hardware.zero_position.associate(display=False)
         input_table.add('Destination', self.zero_destination)

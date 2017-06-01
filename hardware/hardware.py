@@ -22,7 +22,7 @@ import project.project_globals as g
 ### driver ####################################################################
 
 
-class Driver(QtCore.QObject):
+class Driver(pc.Driver):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()

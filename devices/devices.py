@@ -400,7 +400,7 @@ class Device(QtCore.QObject):
 ### driver ####################################################################
 
 
-class Driver(QtCore.QObject):
+class Driver(pc.Driver):
     update_ui = QtCore.pyqtSignal()
     task_changed = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
