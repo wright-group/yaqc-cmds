@@ -24,7 +24,6 @@ import hardware.hardware as hw
 
 
 directory = os.path.dirname(os.path.abspath(__file__))
-ini = wt.kit.INI(os.path.join(directory, 'delays.ini'))
 
 
 ### driver ####################################################################
@@ -38,6 +37,7 @@ class Driver(hw.Driver):
         hw.Driver.__init__(self, *args, **kwargs)
         self.position.write(0.)
         self.motor_position = self.hardware.motor_position
+        self.zero_position = self.hardware.zero_position
         
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)
@@ -118,7 +118,9 @@ class Hardware(hw.Hardware):
     def __init__(self, *arks, **kwargs):
         self.kind = 'delay'        
         self.factor = pc.Number(1)
-        self.motor_position = pc.Number(units='mm', display=True)
+        motor_limits = pc.NumberLimits()
+        self.motor_position = pc.Number(units='mm', display=True, limits=motor_limits)
+        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
@@ -128,24 +130,8 @@ class Hardware(hw.Hardware):
         self.q.push('set_motor_position', motor_position)
 
 
-### initialize ################################################################
+### import ####################################################################
 
 
-hardwares = []    
-for name in ini.sections:
-    if ini.read(name, 'enable'):
-        model = ini.read(name, 'model')
-        if model == 'Virtual':
-            hardware = Hardware(Driver, [None], GUI, name=name, model='Virtual')
-        else:
-            path = os.path.abspath(ini.read(name, 'path'))
-            fname = os.path.basename(path).split('.')[0]
-            mod = imp.load_source(fname, path)
-            cls = getattr(mod, 'Driver')
-            args = ini.read(name, 'initialization arguments')
-            gui = getattr(mod, 'GUI')
-            serial = ini.read(name, 'serial')
-            hardware = Hardware(cls, args, gui, name=name, model=model, serial=serial)
-        hardwares.append(hardware)
-gui = pw.HardwareFrontPanel(hardwares, name='Delays')
-advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
+ini_path = os.path.join(directory, 'delays.ini')
+hardwares, gui, advanced_gui = hw.import_hardwares(ini_path, name='Delays', Driver=Driver, GUI=GUI, Hardware=Hardware)

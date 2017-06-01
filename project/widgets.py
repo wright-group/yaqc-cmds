@@ -533,7 +533,7 @@ class HardwareFrontPanel(QtCore.QObject):
             self.front_panel_elements.append([current_objects, destination_objects])
             hardware.initialized.updated.connect(self.initialize)
         layout.addWidget(input_table)
-        self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)        
+        self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)     
         g.hardware_widget.add_to(layout_widget)
         
     def initialize(self):

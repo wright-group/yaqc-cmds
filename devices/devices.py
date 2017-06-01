@@ -782,7 +782,6 @@ class Control(QtCore.QObject):
             # channels
             self.channel_names = []
             for device in self.devices:
-                print(device.name, aqn.has_section(device.name))
                 if not aqn.has_section(device.name):
                     continue
                 if not aqn.read(device.name, 'use'):

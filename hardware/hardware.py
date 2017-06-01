@@ -6,6 +6,8 @@ Parent hardware class and associated.
 ### import ####################################################################
 
 
+import os
+import imp
 import time
 import collections
 
@@ -43,6 +45,7 @@ class Driver(pc.Driver):
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
+        self.recorded[self.name] = [self.position, self.native_units, 1., self.name, False] 
 
     def close(self):
         pass
@@ -52,7 +55,6 @@ class Driver(pc.Driver):
 
     def initialize(self, *args, **kwargs):
         # TODO: rewrite
-        self.recorded[self.name] = [self.position, self.native_units, 1., self.name, False] 
         g.logger.log('info', self.name + ' Initializing', message=str(args))
         if g.debug.read():
             print(self.name, 'initialization complete')
@@ -67,8 +69,8 @@ class Driver(pc.Driver):
         self.is_busy()
 
     def set_offset(self, offset):
-        self.ctrl.set_offset(offset)
-        self.get_position()
+        # TODO:
+        pass
 
     def set_position(self, destination):
         time.sleep(0.1)  # rate limiter for virtual hardware behavior
@@ -208,7 +210,7 @@ class Hardware(QtCore.QObject):
             obj.updated.connect(self.update)
         self.busy.update_signal = self.driver.update_ui
         # initialize hardware
-        self.q.push('initialize', driver_arguments)
+        self.q.push('initialize', *driver_arguments)
         # integrate close into PyCMDS shutdown
         self.shutdown_timeout = 30  # seconds
         g.shutdown.add_method(self.close)
@@ -301,3 +303,29 @@ class Hardware(QtCore.QObject):
     def wait_until_still(self):
         while self.busy.read():
             self.busy.wait_for_update()
+
+
+### import method #############################################################
+
+
+def import_hardwares(ini_path, name, Driver, GUI, Hardware):
+    ini = wt.kit.INI(ini_path)
+    hardwares = []
+    for key in ini.sections:
+        if ini.read(key, 'enable'):
+            model = ini.read(key, 'model')
+            if model == 'Virtual':
+                hardware = Hardware(Driver, [None], GUI, name=key, model='Virtual')
+            else:
+                path = os.path.abspath(ini.read(key, 'path'))
+                fname = os.path.basename(path).split('.')[0]
+                mod = imp.load_source(fname, path)
+                cls = getattr(mod, 'Driver')
+                args = ini.read(key, 'initialization arguments')
+                gui = getattr(mod, 'GUI')
+                serial = ini.read(key, 'serial')
+                hardware = Hardware(cls, args, gui, name=key, model=model, serial=serial)
+            hardwares.append(hardware)
+    gui = pw.HardwareFrontPanel(hardwares, name=name)
+    advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
+    return hardwares, gui, advanced_gui

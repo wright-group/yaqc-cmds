@@ -208,6 +208,7 @@ class Motor():
         return out
         
     def move_absolute(self, destination, input_units='mm', wait=False):
+        print('move absolute', destination)
         self.moving = True
         go = True
         if input_units == 'counts':
@@ -301,12 +302,12 @@ class Motor():
 
 
 if __name__ == '__main__':
-    if False:
+    if 0:
         
         import numpy as np
     
         #mess with a single motor
-        motor = Motor('motor4')
+        motor = Motor('motor0')
         motor.move_absolute(25, 'mm')
         motor.wait_until_still()
         print(motor.get_position('mm'))

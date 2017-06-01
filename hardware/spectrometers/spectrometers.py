@@ -55,28 +55,8 @@ class Hardware(hw.Hardware):
         hw.Hardware.__init__(self, *args, **kwargs)
 
 
-### initialize ################################################################
+### import ####################################################################
 
 
-
-### initialize ################################################################
-
-
-hardwares = []    
-for name in ini.sections:
-    if ini.read(name, 'enable'):
-        model = ini.read(name, 'model')
-        if model == 'Virtual':
-            hardware = Hardware(Driver, [None], GUI, name=name, model='Virtual')
-        else:
-            path = os.path.abspath(ini.read(name, 'path'))
-            fname = os.path.basename(path).split('.')[0]
-            mod = imp.load_source(fname, path)
-            cls = getattr(mod, 'Driver')
-            args = ini.read(name, 'initialization arguments')
-            gui = getattr(mod, 'GUI')
-            serial = ini.read(name, 'serial')
-            hardware = Hardware(cls, args, gui, name=name, model=model, serial=serial)
-        hardwares.append(hardware)
-gui = pw.HardwareFrontPanel(hardwares, name='Spectrometers')
-advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
+ini_path = os.path.join(directory, 'spectrometers.ini')
+hardwares, gui, advanced_gui = hw.import_hardwares(ini_path, name='Spectrometers', Driver=Driver, GUI=GUI, Hardware=Hardware)
