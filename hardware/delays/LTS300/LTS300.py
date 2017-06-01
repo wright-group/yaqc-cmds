@@ -23,6 +23,12 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
+from hardware.delays.delays import Driver, GUI
+
+
+### define ####################################################################
+
+
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'hardware', 'delays',
                                  'LTS300',
@@ -188,10 +194,10 @@ class APTMotor(wx.lib.activex.ActiveXCtrl):
 ### driver ####################################################################
 
 
-class app(wx.App):
+class Driver(Driver, wx.App):
     
-    def __init__(self):
-        wx.App.__init__(self, redirect=False)
+    def __init__(self, *args, **kwargs):
+        super(self.__class__, self).__init__(*args, **kwargs)
         self.native_units = 'ps'
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
@@ -209,7 +215,6 @@ class app(wx.App):
         self.exposed = [self.current_position]
         self.recorded = collections.OrderedDict()
         # finish
-        self.gui = GUI(self)
         self.initialized = pc.Bool()
         
     def close(self):
@@ -333,20 +338,12 @@ class app(wx.App):
         # get new position
         self.get_position()
 
-class app_offline(app):
-    
-    def initialize(self, inputs, address):
-        pass
 
 
 ### gui #######################################################################
 
 
-class GUI(QtCore.QObject):
-
-    def __init__(self, driver):
-        QtCore.QObject.__init__(self)
-        self.driver = driver
+class GUI(GUI):
 
     def create_frame(self, layout):
         layout.setMargin(5)

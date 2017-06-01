@@ -15,7 +15,11 @@ import time
 import copy
 import shutil
 import collections
-import ConfigParser
+
+try:
+    import configparser as ConfigParser  # python 3
+except ImportError:
+    import ConfigParser as ConfigParser  # python 2
 
 import numpy as np
 
@@ -68,7 +72,7 @@ class Axis:
             else:
                 clean_name = name
             if clean_name not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.friendly_name == clean_name][0]
+                hardware_object = [h for h in all_hardwares if h.name == clean_name][0]
                 self.hardware_dict[name] = [hardware_object, 'set_position', None]
 
         
@@ -80,7 +84,7 @@ class Constant:
         self.identity = identity
         self.static = static
         self.expression = expression
-        self.hardware = [h for h in all_hardwares if h.friendly_name == self.name][0]
+        self.hardware = [h for h in all_hardwares if h.name == self.name][0]
 
 
 class Destinations:
@@ -104,6 +108,7 @@ orderers = []
 config = ConfigParser.SafeConfigParser()
 p = os.path.join(somatic_folder, 'order', 'order.ini')
 config.read(p)
+print(config, p)
 for name in config.options('load'):
     if config.get('load', name) == 'True':
         path = os.path.join(somatic_folder, 'order', name + '.py')
@@ -229,12 +234,12 @@ class Worker(QtCore.QObject):
                 # populate all hardwares not scanned here
                 for hardware in all_hardwares:
                     if wt.units.kind(hardware.units) == units_kind:
-                        vals[hardware.friendly_name] = hardware.get_position(units)
+                        vals[hardware.name] = hardware.get_position(units)
                 for idx in np.ndindex(arrs[0].shape):
                     for destination in destinations_list:
                         if wt.units.kind(destination.units) == units_kind:
                             val = wt.units.converter(destination.arr[idx], destination.units, units)
-                            vals[destination.hardware.friendly_name] = val
+                            vals[destination.hardware.name] = val
                     arr[idx] = numexpr.evaluate(expression, vals)
                 # finish     
                 hardware = constant.hardware
@@ -367,8 +372,7 @@ class Worker(QtCore.QObject):
             name = src.split(os.sep)[-1]
             dst = os.path.join(devices.autocopy_path.read(), name)
             shutil.copytree(src, dst)
-        
-        
+
 
 ### GUI base ##################################################################
 
@@ -414,7 +418,6 @@ class GUI(QtCore.QObject):
         self.frame.setLayout(layout)
         g.module_widget.add_child(self.frame)
         g.module_combobox.add_module(module_name, self.show_frame)
-
 
     def hide(self):
         self.frame.hide()

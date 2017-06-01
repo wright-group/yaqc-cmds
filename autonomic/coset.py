@@ -252,7 +252,7 @@ class CoSetHW:
             return
         corr = Corr(path)  # this object is throwaway
         if not corr.offset_name == self.hardware.name:
-            print 'incorrect hardware'
+            print('incorrect hardware')
             return
         for i, loaded_corr in enumerate(self.corrs):
             if loaded_corr.control_name == corr.control_name:  # will not allow two of same control

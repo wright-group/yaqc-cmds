@@ -14,10 +14,17 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
+from hardware.delays.delays import Driver as BaseDriver
+from hardware.delays.delays import GUI as BaseGUI
+
+
+### define ####################################################################
+
+
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'hardware', 'delays',
-                                 'SMC100',
-                                 'SMC100.ini'))
+                                 'MFA',
+                                 'MFA.ini'))
 
 
 ### define ####################################################################
@@ -60,27 +67,12 @@ fs_per_mm = 6000.671281903963041  # a mm on the delay stage (factor of 2)
 ### driver ####################################################################
 
 
-class SMC100():
+class Driver(BaseDriver):
 
-    def __init__(self):
-        self.native_units = 'fs'
-        # mutex attributes
-        self.limits = pc.NumberLimits(units=self.native_units)
-        self.motor_limits = pc.NumberLimits(min_value=0, max_value=25, units='mm')
-        self.current_position = pc.Number(name='Delay', initial_value=0.,
-                                          limits=self.limits,
-                                          units=self.native_units, 
-                                          display=True,
-                                          set_method='set_position')
-        self.offset = pc.Number(initial_value=0, 
-                                units=self.native_units, display=True)
-        self.current_position_mm = pc.Number(units='mm', display=True, decimals=5)
-        # objects to be sent to PyCMDS
-        self.exposed = [self.current_position]
-        self.recorded = collections.OrderedDict()
-        # finish
-        self.gui = GUI(self)
-        self.initialized = pc.Bool()
+    def __init__(self, *args, **kwargs):
+        kwargs['native_units'] = 'fs'
+        super(self.__class__, self).__init__(*args, **kwargs)
+        self.motor_limits = pc.NumberLimits(0, 25, 'mm')
         
     def _tell_status(self):
         # read
@@ -100,10 +92,10 @@ class SMC100():
         position = self.port.write(str(self.axis)+'TP', then_read=True)
         # proccess (mm)
         position = float(str(position).split('TP')[1])
-        self.current_position_mm.write(position, 'mm')
+        self.motor_position.write(position, 'mm')
         # calculate delay (fs)
         delay = (position - self.zero_position.read()) * fs_per_mm * self.factor.read()
-        self.current_position.write(delay, 'fs')
+        self.position.write(delay, 'fs')
         # return
         return delay
         
@@ -113,8 +105,7 @@ class SMC100():
             time.sleep(0.01)
             self.get_position()
 
-    def initialize(self, inputs, address):
-        self.address = address
+    def initialize(self, inputs):
         self.index = inputs[0]
         self.axis = ini.read('D' + str(self.index), 'axis')
         # load communications channel
@@ -136,7 +127,7 @@ class SMC100():
         # finish
         self.get_position()
         self.initialized.write(True)
-        self.address.initialized_signal.emit()        
+        self.initialized_signal.emit()
 
     def is_busy(self):
         return False
@@ -165,19 +156,19 @@ class SMC100():
     def set_position(self, destination):
         # get destination_mm
         destination_mm = self.zero_position.read() + destination/(fs_per_mm * self.factor.read())
-        self.set_position_mm([destination_mm])
+        self.set_motor_position(destination_mm)
         
-    def set_position_mm(self, inputs):
-        destination = inputs[0]
+    def set_motor_position(self, motor_position):
+        """
+        motor_position in mm
+        """
         # move hardware
         # TODO: consider backlash correction? 
-        self.port.write(unicode(str(self.axis)+'PA'+str(destination)))
+        self.port.write(unicode(str(self.axis)+'PA'+str(motor_position)))
         while not self._tell_status()['state'] == status_dict['READY from MOVING']:
             time.sleep(0.01)
             self.get_position()
-        # get position
-        self.get_position()
-        # get position
+        # get final position
         self.get_position()
         
     def set_zero(self, zero):
@@ -191,142 +182,21 @@ class SMC100():
         ini.write(section, option, zero)
         
     def update_recorded(self):
-        print 'SMC100 update recorded'
         self.recorded.clear()
-        self.recorded['d' + str(self.index)] = [self.current_position, self.native_units, 1., self.label.read(), False]
-        self.recorded['d' + str(self.index) + '_position'] = [self.current_position_mm, 'mm', 1., self.label.read(), False]
+        self.recorded['d' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
+        self.recorded['d' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
         self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
-
-
-class SMC100_offline(SMC100):
-    
-    def initialize(self, inputs, address):
-        pass
 
 
 ### gui #######################################################################
 
 
-class GUI(QtCore.QObject):
-
-    def __init__(self, driver):
-        QtCore.QObject.__init__(self)
-        self.driver = driver
-
-    def create_frame(self, layout):
-        layout.setMargin(5)
-        self.layout = layout
-        self.frame = QtGui.QWidget()
-        self.frame.setLayout(self.layout)
-        if self.driver.initialized.read():
-            self.initialize()
-        else:
-            self.driver.initialized.updated.connect(self.initialize)
-
-    def initialize(self):
-        # settings container
-        settings_container_widget = QtGui.QWidget()
-        settings_scroll_area = pw.scroll_area(show_bar=False)
-        settings_scroll_area.setWidget(settings_container_widget)
-        settings_scroll_area.setMinimumWidth(300)
-        settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
-        settings_layout = settings_container_widget.layout()
-        settings_layout.setMargin(5)
-        self.layout.addWidget(settings_scroll_area)
-        # settings
-        input_table = pw.InputTable()
-        input_table.add('Settings', None)
-        input_table.add('Label', self.driver.label)
-        input_table.add('Factor', self.driver.factor)
-        # mm input table
-        input_table.add('Position', None)
-        input_table.add('Current', self.driver.current_position_mm)
-        self.mm_destination = self.driver.current_position_mm.associate(display=False)
-        input_table.add('Destination', self.mm_destination)
-        settings_layout.addWidget(input_table)
-        # set mm button
-        self.set_mm_button = pw.SetButton('SET POSITION')
-        settings_layout.addWidget(self.set_mm_button)
-        self.set_mm_button.clicked.connect(self.on_set_mm)
-        g.queue_control.disable_when_true(self.set_mm_button)
-        # zero input table
-        input_table = pw.InputTable()
-        input_table.add('Zero', None)
-        input_table.add('Current', self.driver.zero_position)
-        self.zero_destination = self.driver.zero_position.associate(display=False)
-        input_table.add('Destination', self.zero_destination)
-        settings_layout.addWidget(input_table)
-        # set zero button
-        self.set_zero_button = pw.SetButton('SET ZERO')
-        settings_layout.addWidget(self.set_zero_button)
-        self.set_zero_button.clicked.connect(self.on_set_zero)
-        g.queue_control.disable_when_true(self.set_zero_button)
-        # horizontal line
-        settings_layout.addWidget(pw.line('H'))
-        # home button
-        input_table = pw.InputTable()
-        self.home_button = pw.SetButton('HOME', 'advanced')
-        settings_layout.addWidget(self.home_button)
-        self.home_button.clicked.connect(self.on_home)
-        g.queue_control.disable_when_true(self.home_button)
-        # finish
-        settings_layout.addStretch(1)
-        self.layout.addStretch(1)
-        self.driver.address.update_ui.connect(self.update)
-        
-    def on_home(self):
-        self.driver.address.hardware.q.push('home')
-        
-    def on_set_mm(self):
-        new_mm = self.mm_destination.read('mm')
-        new_mm = np.clip(new_mm, 1e-3, 300-1e-3)
-        self.driver.address.hardware.q.push('set_position_mm', [new_mm])
-        
-    def on_set_zero(self):
-        new_zero = self.zero_destination.read('mm')
-        self.driver.set_zero(new_zero)
-        self.driver.offset.write(0)
-        name = self.driver.address.hardware.name
-        g.coset_control.read().zero(name)
-
-    def update(self):
-        pass
-
-    def stop(self):
-        pass
+class GUI(BaseGUI):
+    pass
 
 
 ### testing ###################################################################
 
 
 if __name__ == '__main__':
-    
-    com = com_handler.get_com(4)
-    
-    
-    axis = 2
-
-    if False:
-        def get_position():
-            com.write(unicode(str(axis)+'TP'))
-            position = com.read()
-            print float(str(position).split('TP')[1])
-        get_position()
-            
-        com.write(unicode(str(axis)+'PA'+str(12)))
-        
-        com.write(unicode(str(axis)+'TS'))
-        print com.read()
-        
-        get_position()
-        
-        
-        
-        # home
-        com.write(unicode(str(axis)+'OR'))
-
-    print com.write(unicode(str(axis)+'TS'), then_read=True)
-
-    
-    
+    pass

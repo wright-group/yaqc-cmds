@@ -7,8 +7,6 @@ import os
 import imp
 import collections
 
-from PyQt4 import QtCore
-
 import project.project_globals as g
 main_dir = g.main_dir.read()
 app = g.app.read()
@@ -16,35 +14,41 @@ import project.widgets as pw
 import project.ini_handler as ini
 ini = ini.filters
 import project.classes as pc
+import hardware.hardware as hw
 
 
-### address ###################################################################
+### define ####################################################################
 
 
-class ND(pc.Address):
-
-    def dummy(self):
-        print('hello world im a dummy method')
+directory = os.path.dirname(os.path.abspath(__file__))
 
 
-# list module path, module name, class name, initialization arguments, friendly name
-hardware_dict = collections.OrderedDict()
-hardware_dict['ND0 homebuilt'] = [os.path.join(main_dir, 'hardware', 'filters', 'homebuilt', 'homebuilt.py'), 'homebuilt_NDs', 'Driver', [0], 'nd0']
-hardware_dict['ND1 homebuilt'] = [os.path.join(main_dir, 'hardware', 'filters', 'homebuilt', 'homebuilt.py'), 'homebuilt_NDs', 'Driver', [1], 'nd1']
-hardware_dict['ND2 homebuilt'] = [os.path.join(main_dir, 'hardware', 'filters', 'homebuilt', 'homebuilt.py'), 'homebuilt_NDs', 'Driver', [2], 'nd2']
+### driver ####################################################################
 
-hardwares = []
-for key in hardware_dict.keys():
-    if ini.read('hardware', key):
-        lis = hardware_dict[key]
-        hardware_module = imp.load_source(lis[1], lis[0])
-        hardware_class = getattr(hardware_module, lis[2])
-        hardware_obj = pc.Hardware(hardware_class, lis[3], ND, key, True, lis[4])
-        hardwares.append(hardware_obj)
+
+class Driver(hw.Driver):
+    pass
 
 
 ### gui #######################################################################
 
 
-gui = pw.HardwareFrontPanel(hardwares, name='NDs')
-advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
+class GUI(hw.GUI):
+    pass
+
+
+### hardware ##################################################################
+
+
+class Hardware(hw.Hardware):
+    
+    def __init__(self, *arks, **kwargs):
+        self.kind = 'filter'
+        hw.Hardware.__init__(self, *arks, **kwargs)
+
+
+### import ####################################################################
+
+
+ini_path = os.path.join(directory, 'filters.ini')
+hardwares, gui, advanced_gui = hw.import_hardwares(ini_path, name='Filters', Driver=Driver, GUI=GUI, Hardware=Hardware)

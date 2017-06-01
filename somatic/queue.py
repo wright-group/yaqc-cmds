@@ -154,10 +154,16 @@ class Worker(QtCore.QObject):
         
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
+        """
+        Slot to accept enqueued commands from main thread.
+        
+        Method passed as qstring, inputs as list of [args, kwargs].
+        """
+        args, kwargs = inputs
         if g.debug.read():
             print('worker dequeue:', method, inputs)
         # the queue should only be adding items to execute
-        item = inputs[0]
+        item = args[0]
         g.queue_control.write(True)
         self.queue_status.going.write(True)
         self.fraction_complete.write(0.)
@@ -192,11 +198,14 @@ class Worker(QtCore.QObject):
         module = item.module
         worker = module.Worker(item.aqn_path, self, item.finished)
         # run it
-        try:
+        if False:
+            try:
+                worker.run()
+            except Exception as error:
+                # TODO: log error
+                print('ACQUISITION ERROR:', error)
+        else:
             worker.run()
-        except Exception as error:
-            # TODO: log error
-            print('ACQUISITION ERROR:', error)
         # upload aqn file
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload_file(item.aqn_path)
@@ -369,7 +378,7 @@ class Queue():
         self.gui.progress_bar.begin_new_scan_timer()
         item = self.items[self.index]
         item.status = 'RUNNING'
-        self.worker_q.push('excecute', [item])
+        self.worker_q.push('excecute', item)
         self.gui.message_widget.setText(item.description.upper())
 
     def append_acquisition(self, aqn_path, update=True):
@@ -673,7 +682,7 @@ class GUI(QtCore.QObject):
         self.table_cols['Load'] = 75
         for i in range(len(self.table_cols.keys())):
             self.table.insertColumn(i)
-        labels = self.table_cols.keys()
+        labels = list(self.table_cols.keys())
         labels[-1] = ''
         labels[-2] = ''
         self.table.setHorizontalHeaderLabels(labels)

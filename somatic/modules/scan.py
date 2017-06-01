@@ -74,8 +74,8 @@ class Axis():
         self.hardwares = {}
         for hw in hardware_objs:
             checkbox = pc.Bool()
-            self.widget.add(hw.friendly_name, checkbox)
-            self.hardwares[hw.friendly_name] = checkbox
+            self.widget.add(hw.name, checkbox)
+            self.hardwares[hw.name] = checkbox
     
     def get_name(self):
         return '='.join([key for key in self.hardwares if self.hardwares[key].read()])  

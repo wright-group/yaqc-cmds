@@ -5,13 +5,18 @@ import os
 import ast
 import time
 
-import ConfigParser
+try:
+    import configparser as ConfigParser  # python 3
+except ImportError:
+    import ConfigParser as ConfigParser  # python 2
 
 from PyQt4 import QtCore
 
-import project_globals as g
+try:
+    import project_globals as g
+except:
+    from project import project_globals as g
 main_dir = g.main_dir.read()
-import classes as pc
 
 
 ### ini class #################################################################
@@ -79,7 +84,6 @@ class Ini(QtCore.QMutex):
 main = Ini(os.path.join(main_dir, 'main.ini'))
 config = Ini(os.path.join(main_dir, 'config.ini'))
 daq = Ini(os.path.join(main_dir, 'devices', 'devices.ini'))
-delays = Ini(os.path.join(main_dir, 'hardware', 'delays', 'delays.ini'))
 opas = Ini(os.path.join(main_dir, 'hardware', 'opas', 'opas.ini'))
 filters = Ini(os.path.join(main_dir, 'hardware', 'filters', 'filters.ini'))
 spectrometers = Ini(os.path.join(main_dir, 'hardware', 'spectrometers', 'spectrometers.ini'))

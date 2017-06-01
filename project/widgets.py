@@ -14,9 +14,8 @@ from PyQt4.QtSvg import QSvgRenderer
 import pyqtgraph as pg
 from pyqtgraph import exporters
 
-import project_globals as g
-import project
-import classes as pc
+from project import project_globals as g
+from project import classes as pc
 #import coset.coset as coset
 
 colors = g.colors_dict.read()
@@ -521,7 +520,8 @@ class HardwareFrontPanel(QtCore.QObject):
         input_table = InputTable(130)
         self.front_panel_elements = []
         for hardware in self.hardwares:
-            input_table.add(hardware.name, hardware.busy)
+            name = ' '.join([hardware.name, '('+hardware.model+')'])
+            input_table.add(name, hardware.busy)
             current_objects = hardware.exposed
             destination_objects = []
             for obj in hardware.exposed:
@@ -533,7 +533,7 @@ class HardwareFrontPanel(QtCore.QObject):
             self.front_panel_elements.append([current_objects, destination_objects])
             hardware.initialized.updated.connect(self.initialize)
         layout.addWidget(input_table)
-        self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)        
+        self.advanced_button, self.set_button = layout_widget.add_buttons(self.on_set, self.show_advanced, self.hardwares)     
         g.hardware_widget.add_to(layout_widget)
         
     def initialize(self):
@@ -570,21 +570,17 @@ class HardwareAdvancedPanel(QtCore.QObject):
 
     def __init__(self, hardwares, advanced_button):
         QtCore.QObject.__init__(self)
-
         self.tabs = QtGui.QTabWidget()
-
         for hardware in hardwares:
             widget = QtGui.QWidget()
             box = QtGui.QHBoxLayout()
             hardware.gui.create_frame(box)
             widget.setLayout(box)
             self.tabs.addTab(widget, hardware.name)
-
         # box
         self.box = QtGui.QVBoxLayout()
         hardware_advanced_box = g.hardware_advanced_box.read()
         hardware_advanced_box.addWidget(self.tabs)
-
         # link into advanced button press
         self.advanced_button = advanced_button
         self.advanced_button.clicked.connect(self.on_advanced)
@@ -724,7 +720,7 @@ class Plot1D(pg.GraphicsView):
         elif style == 'dotted':
             linestyle = QtCore.Qt.DotLine
         else:
-            print 'style not recognized in add_infinite_line'
+            print('style not recognized in add_infinite_line')
             linestyle = QtCore.Qt.SolidLine
         pen = pg.mkPen(color, style=linestyle)
         line = pg.InfiniteLine(pen=pen)
@@ -815,5 +811,5 @@ class MessageWindow(QtGui.QWidget):
     
         
 if __name__ == '__main__':
-    print 'hello world'
+    print('hello world')
     plt = Plot1D()

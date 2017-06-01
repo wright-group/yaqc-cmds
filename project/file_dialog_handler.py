@@ -12,8 +12,8 @@ import time
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 
-import project_globals as g
-import classes as pc
+from project import project_globals as g
+from project import classes as pc
 
 
 ### FileDialog object #########################################################
