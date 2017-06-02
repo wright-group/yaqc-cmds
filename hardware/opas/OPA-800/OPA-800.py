@@ -15,122 +15,22 @@ import project
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
-from hardware.opas.BaseOPA import BaseOPA, BaseOPAAutoTune
+from hardware.opas.opas import Driver as BaseDriver
+from hardware.opas.opas import GUI as BaseGUI
+from hardware.opas.opas import AutoTune as BaseAutoTune
+import project.precision_micro_motors.precision_motors as pm_motors
 
-if g.offline.read():
-    import project.precision_micro_motors.v_precision_motors as pm_motors
-else:
-    import project.precision_micro_motors.precision_motors as pm_motors
+
+### define ####################################################################
+
 
 main_dir = g.main_dir.read()
-
-### OPA object ################################################################
-
-class OPA_800(BaseOPA):
-
-    def __init__(self):
-        BaseOPA.__init__(self, 'wn')
-        self.index = 2
-        self.auto_tune = OPA800AutoTune(self)
-        self.motors=[]
-        self.motor_names = ['Grating', 'BBO', 'Mixer']
-        self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas',
-                                                             'pico',
-                                                             'pico_opa.ini'))
-
-    def close(self):
-        self.ini.write('OPA%d'%self.index, 'current position (wn)', self.current_position.read())
-        for motor in self.motors:
-            motor.close()
-
-    def _load_curve(self, inputs, interaction):
-        '''
-        when loading externally, write to curve_path object directly
-        '''
-        if isinstance(inputs,str):
-            filepath = inputs
-        else:
-            filepath = inputs[0]
-        self.curve = wt.tuning.curve.from_800_curve(filepath)
-
-    def get_motor_positions(self, inputs=[]):
-        for i in range(len(self.motors)):
-            val = self.motors[i].current_position_mm
-            self.motor_positions.values()[i].write(val)
-        return [mp.read() for mp in self.motor_positions.values()]
-
-    def _initialize(self, inputs, address):
-        '''
-        OPA initialization method. Inputs = [index]
-        '''
-        self.current_position.write(self.ini.read('OPA%d'%self.index, 'current position ('+self.native_units+')'), self.native_units)
-        self.address.hardware.destination.write(self.current_position.read(self.native_units), self.native_units)
-        self.serial_number = -1
-        self.recorded['w%d'%self.index] = [self.current_position, self.native_units, 1., str(self.index)]
-
-        # motor positions
-        self.motor_positions = collections.OrderedDict()
-        motor_limits = pc.NumberLimits(min_value=0, max_value=50)
-        for motor_index, motor_name in enumerate(self.motor_names):
-            number = pc.Number(name=motor_name, initial_value=25., decimals=6, limits = motor_limits, display=True)
-            self.motor_positions[motor_name] = number
-            self.motors.append(pm_motors.Motor(pm_motors.identity['OPA%d %s'%(self.index, motor_name)]))
-            self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower()] 
-        self.get_motor_positions()
-
-        ## TODO: Determine if pico_opa needs to have interaction string combo
-        allowed_values = ['SHS']
-        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
-
-
-        # load curve
-        self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
-        self.curve_path.updated.connect(self.curve_path.save)
-        self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
-        self.load_curve(self.curve_path.read())
-        self.curve_paths = collections.OrderedDict()
-        self.curve_paths['Curve'] = self.curve_path
-
-        # tuning
-
-
-        self.best_points = {}
-        self.best_points['SHS'] = np.linspace(13500, 18200, 21)
-        self.best_points['DFG'] = np.linspace(1250, 2500, 11)
-
-    def _is_busy(self):
-        for motor in self.motors:
-            if not motor.is_stopped():
-                self.get_position()                
-                return True
-        self.get_position()
-        return False
-        
-    def _wait_until_still(self, inputs=[]):
-        for motor in self.motors:
-            motor.wait_until_still(method=self.get_position)
-        self.get_motor_positions()
-
-    def _set_motors(self, motor_indexes, motor_destinations, wait=True):
-        for axis,dest in zip(motor_indexes, motor_destinations):
-            if axis < 3:
-                if dest >= 0 and dest <=50:
-                    self.motors[axis].move_absolute(dest)
-                else:
-                    print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
-            else:
-                print('Unrecognized axis '+str(axis))
-        if wait:
-            self.wait_until_still()
 
 
 ### autotune ##################################################################
 
 
-class OPA800AutoTune(BaseOPAAutoTune):
-    
-    def __init__(self, driver):
-        super(OPA800AutoTune, self).__init__(driver)
+class AutoTune(BaseAutoTune):
         
     def initialize(self):
         input_table = pw.InputTable()
@@ -323,8 +223,112 @@ class OPA800AutoTune(BaseOPAAutoTune):
         self.test_channel.set_allowed_values(channel_names)
 
 
-### testing ###################################################################
+### driver ####################################################################
 
 
-if __name__ == '__main__':
+
+class Driver(BaseDriver):
+
+    def __init__(self, *args, **kwargs):
+        kwargs['native_units'] = 'wn'
+        BaseDriver.__init__(self, *args, **kwargs)
+        self.index = 2
+        self.auto_tune = AutoTune(self)
+        self.motors=[]
+        self.motor_names = ['Grating', 'BBO', 'Mixer']
+        self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'OPA-800', 'OPA-800.ini'))
+
+    def close(self):
+        self.ini.write('OPA%d'%self.index, 'current position (wn)', self.position.read())
+        for motor in self.motors:
+            motor.close()
+
+    def _load_curve(self, inputs, interaction):
+        '''
+        when loading externally, write to curve_path object directly
+        '''
+        if isinstance(inputs,str):
+            filepath = inputs
+        else:
+            filepath = inputs[0]
+        self.curve = wt.tuning.curve.from_800_curve(filepath)
+
+    def get_motor_positions(self, inputs=[]):
+        for i in range(len(self.motors)):
+            val = self.motors[i].current_position_mm
+            self.motor_positions.values()[i].write(val)
+        return [mp.read() for mp in self.motor_positions.values()]
+
+    def _initialize(self):
+        '''
+        OPA initialization method. Inputs = [index]
+        '''
+        self.position.write(self.ini.read('OPA%d'%self.index, 'current position ('+self.native_units+')'), self.native_units)
+        self.hardware.destination.write(self.position.read(self.native_units), self.native_units)
+        self.serial_number = -1
+        self.recorded['w%d'%self.index] = [self.position, self.native_units, 1., str(self.index)]
+
+        # motor positions
+        self.motor_positions = collections.OrderedDict()
+        motor_limits = pc.NumberLimits(min_value=0, max_value=50)
+        for motor_index, motor_name in enumerate(self.motor_names):
+            number = pc.Number(name=motor_name, initial_value=25., decimals=6, limits = motor_limits, display=True)
+            self.motor_positions[motor_name] = number
+            self.motors.append(pm_motors.Motor(pm_motors.identity['OPA%d %s'%(self.index, motor_name)]))
+            self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower()] 
+        self.get_motor_positions()
+
+        ## TODO: Determine if pico_opa needs to have interaction string combo
+        allowed_values = ['SHS']
+        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
+
+
+        # load curve
+        self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
+        self.curve_path.updated.connect(self.curve_path.save)
+        self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
+        self.load_curve(self.curve_path.read())
+        self.curve_paths = collections.OrderedDict()
+        self.curve_paths['Curve'] = self.curve_path
+
+        # tuning
+
+
+        self.best_points = {}
+        self.best_points['SHS'] = np.linspace(13500, 18200, 21)
+        self.best_points['DFG'] = np.linspace(1250, 2500, 11)
+
+    def _is_busy(self):
+        for motor in self.motors:
+            if not motor.is_stopped():
+                self.get_position()                
+                return True
+        self.get_position()
+        return False
+        
+    def _wait_until_still(self, inputs=[]):
+        for motor in self.motors:
+            motor.wait_until_still(method=self.get_position)
+        self.get_motor_positions()
+
+    def _set_motors(self, motor_indexes, motor_destinations, wait=True):
+        for axis,dest in zip(motor_indexes, motor_destinations):
+            if axis < 3:
+                if dest >= 0 and dest <=50:
+                    self.motors[axis].move_absolute(dest)
+                else:
+                    print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
+            else:
+                print('Unrecognized axis '+str(axis))
+        if wait:
+            self.wait_until_still()
+
+
+### gui #######################################################################
+
+
+class GUI(BaseGUI):
     pass
+
+
+
