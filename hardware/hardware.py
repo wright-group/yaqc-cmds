@@ -171,7 +171,7 @@ class Hardware(QtCore.QObject):
         Parameters
         driver_class : Driver class
             Class of driver.
-        driver_arguments : list
+        driver_arguments : dictionary
             Arguments passed to driver upon initialization.
         name : string
             Name. Must be unique.
@@ -210,7 +210,8 @@ class Hardware(QtCore.QObject):
             obj.updated.connect(self.update)
         self.busy.update_signal = self.driver.update_ui
         # initialize hardware
-        self.q.push('initialize', *driver_arguments)
+        print('HELLO WORLD', driver_arguments)
+        self.q.push('initialize', **driver_arguments)
         # integrate close into PyCMDS shutdown
         self.shutdown_timeout = 30  # seconds
         g.shutdown.add_method(self.close)
@@ -311,20 +312,26 @@ class Hardware(QtCore.QObject):
 def import_hardwares(ini_path, name, Driver, GUI, Hardware):
     ini = wt.kit.INI(ini_path)
     hardwares = []
-    for key in ini.sections:
-        if ini.read(key, 'enable'):
-            model = ini.read(key, 'model')
+    for section in ini.sections:
+        if ini.read(section, 'enable'):
+            # initialization arguments
+            kwargs = collections.OrderedDict()
+            for option in ini.get_options(section):
+                if option in ['enable', 'model', 'serial', 'path']:
+                    continue
+                else:
+                    kwargs[option] = ini.read(section, option)            
+            model = ini.read(section, 'model')
             if model == 'Virtual':
-                hardware = Hardware(Driver, [None], GUI, name=key, model='Virtual')
+                hardware = Hardware(Driver, kwargs, GUI, name=section, model='Virtual')
             else:
-                path = os.path.abspath(ini.read(key, 'path'))
+                path = os.path.abspath(ini.read(section, 'path'))
                 fname = os.path.basename(path).split('.')[0]
                 mod = imp.load_source(fname, path)
                 cls = getattr(mod, 'Driver')
-                args = ini.read(key, 'initialization arguments')
                 gui = getattr(mod, 'GUI')
-                serial = ini.read(key, 'serial')
-                hardware = Hardware(cls, args, gui, name=key, model=model, serial=serial)
+                serial = ini.read(section, 'serial')
+                hardware = Hardware(cls, kwargs, gui, name=section, model=model, serial=serial)
             hardwares.append(hardware)
     gui = pw.HardwareFrontPanel(hardwares, name=name)
     advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
