@@ -27,7 +27,7 @@ import project.project_globals as g
 class Driver(pc.Driver):
     initialized_signal = QtCore.pyqtSignal()
 
-    def __init__(self, hardware, native_units=None):
+    def __init__(self, hardware, native_units=None, **kwargs):
         QtCore.QObject.__init__(self)
         # basic attributes
         self.hardware = hardware
@@ -53,11 +53,10 @@ class Driver(pc.Driver):
     def get_position(self):
         self.update_ui.emit()
 
-    def initialize(self, *args, **kwargs):
-        # TODO: rewrite
-        g.logger.log('info', self.name + ' Initializing', message=str(args))
-        if g.debug.read():
-            print(self.name, 'initialization complete')
+    def initialize(self):
+        """
+        May not accept arguments.
+        """
         self.initialized.write(True)
         self.initialized_signal.emit()
 
@@ -188,7 +187,7 @@ class Hardware(QtCore.QObject):
         self.thread = QtCore.QThread()
         self.enqueued = pc.Enqueued()
         self.busy = pc.Busy()
-        self.driver = driver_class(self)
+        self.driver = driver_class(self, **driver_arguments)
         self.exposed = self.driver.exposed
         self.recorded = self.driver.recorded
         self.initialized = self.driver.initialized
@@ -211,7 +210,7 @@ class Hardware(QtCore.QObject):
         self.busy.update_signal = self.driver.update_ui
         # initialize hardware
         print('HELLO WORLD', driver_arguments)
-        self.q.push('initialize', **driver_arguments)
+        self.q.push('initialize')
         # integrate close into PyCMDS shutdown
         self.shutdown_timeout = 30  # seconds
         g.shutdown.add_method(self.close)

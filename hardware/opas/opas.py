@@ -60,6 +60,7 @@ class AutoTune(QtGui.QWidget):
 class Driver(hw.Driver):
 
     def __init__(self, *args, **kwargs):
+        self.index = kwargs['index']
         self.homeable = [False]
         self.poynting_correction = None
         if 'native_units' not in kwargs.keys():
@@ -122,8 +123,7 @@ class Driver(hw.Driver):
         if self.homeable[motor_index % len(self.homeable)]:
             self._home_motors([motor_index])
 
-    def initialize(self, index):
-        self.index = index
+    def initialize(self):
         self._initialize()
         #try:
         if False:

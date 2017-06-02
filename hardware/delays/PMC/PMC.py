@@ -33,6 +33,10 @@ ps_per_mm = 6.671281903963041  # a mm on the delay stage (factor of 2)
 
 class Driver(BaseDriver):
 
+    def __init__(self, *args, **kwargs):
+        self.index = kwargs['index']
+        BaseDriver.__init__(self, *args, **kwargs)
+
     def close(self):
         self.motor.close()
 
@@ -43,8 +47,7 @@ class Driver(BaseDriver):
         self.position.write(delay, 'ps')
         return delay
 
-    def initialize(self, index):
-        self.index = index
+    def initialize(self):
         motor_identity = motors.identity['D{}'.format(self.index)]
         self.motor = motors.Motor(motor_identity)
         self.current_position_mm = pc.Number(units='mm', display=True, decimals=5)
@@ -80,44 +83,6 @@ class Driver(BaseDriver):
         section = 'D{}'.format(self.index)
         option = 'zero position (mm)'
         ini.write(section, option, zero)
-
-
-class PLACEHOLDER(QtCore.QObject):
-
-    def __init__(self):
-        QtCore.QObject.__init__(self)
-        # list of objects to be exposed to PyCMDS
-        self.native_units = 'ps'
-        self.limits = pc.NumberLimits(min_value=-100, max_value=100, units='ps')
-        self.current_position = pc.Number(name='Delay', initial_value=0.,
-                                          limits=self.limits,
-                                          units='ps', display=True,
-                                          set_method='set_position')
-        self.offset = pc.Number(initial_value=0, units=self.native_units, display=True)
-        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')
-        self.exposed = [self.current_position]
-        self.recorded = collections.OrderedDict()
-        self.gui = gui(self)
-        self.initialized = pc.Bool()
-
-
-
-
-        
-    def set_offset(self, offset):
-        # update zero
-        offset_from_here = offset - self.offset.read('ps')
-        offset_mm = offset_from_here/(ps_per_mm*self.factor.read())
-        new_zero = self.zero_position.read('mm') + offset_mm
-        self.set_zero(new_zero)
-        self.offset.write(offset)
-        # return to old position
-        destination = self.address.hardware.destination.read('ps')
-        self.set_position(destination)
-
-
-
-
 
 
 ### gui #######################################################################

@@ -434,10 +434,7 @@ class Driver(BaseDriver):
         error, min_speed, max_speed, acceleration = self.api._get_speed_parameters(motor_index)
         return [error, min_speed, max_speed, acceleration]
 
-    def initialize(self, index):
-        '''
-        OPA initialization method. Inputs = [index]
-        '''
+    def initialize(self):
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         # load api 
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
