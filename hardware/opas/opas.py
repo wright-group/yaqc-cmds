@@ -10,19 +10,21 @@ from PyQt4 import QtGui
 import WrightTools as wt
 
 import project.project_globals as g
-main_dir = g.main_dir.read()
-app = g.app.read()
 import project.widgets as pw
 import project.ini_handler as ini
-ini = ini.opas
 import project.classes as pc
 import hardware.hardware as hw
+from hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
 
 
 ### define ####################################################################
 
 
 directory = os.path.dirname(os.path.abspath(__file__))
+
+main_dir = g.main_dir.read()
+app = g.app.read()
+ini = ini.opas
 
 
 ### autotune ##################################################################
@@ -61,8 +63,9 @@ class Driver(hw.Driver):
 
     def __init__(self, *args, **kwargs):
         self.index = kwargs['index']
-        self.homeable = [False]
-        self.poynting_correction = None
+        self.homeable = [False]  # TODO:
+        self.homeables = []  # TODO:
+        self.poynting_type = kwargs['poynting_type']
         if 'native_units' not in kwargs.keys():
             kwargs['native_units'] = 'nm'
         hw.Driver.__init__(self, args[0], native_units=kwargs['native_units'])
@@ -124,30 +127,23 @@ class Driver(hw.Driver):
             self._home_motors([motor_index])
 
     def initialize(self):
-        self._initialize()
-        #try:
-        if False:
-            poynting_type = self.ini.read('OPA%i'%self.index, 'poynting_correction')
-            if poynting_type == 'zaber':
-                self.poynting_correction = ZaberCorrectionDevice()
-            if self.poynting_correction:
-                self.poynting_correction.initialize(inputs, address)
-
-                num_motors = len(self.motor_names)
-
-                if len(self.homeables) < num_motors:
-                    n = len(self.homeable)
-                    homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
-
-
-                self.motor_names += self.poynting_correction.motor_names
-                self.homeable += [True]*len(self.poynting_correction.motor_names)   
-        #except:
-        #    print('No poynting_correction in ini section for OPA%i'%self.index)
+        # poynting correction
+        if self.poynting_type == 'zaber':
+            self.poynting_correction = ZaberCorrectionDevice()
+        else:
+            self.poynting_correction = None
+        if self.poynting_correction:
+            self.poynting_correction.initialize(self)
+            num_motors = len(self.motor_names)
+            if len(self.homeables) < num_motors:
+                n = len(self.homeable)
+                homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
+            self.motor_names += self.poynting_correction.motor_names
+            self.homeable += [True]*len(self.poynting_correction.motor_names)   
+        # get position
         self.get_position()
-        self.initialized.write(True)
-        self.initialized_signal.emit()
-
+        # finish
+        hw.Driver.initialize(self)
 
     def load_curve(self, inputs=[]):
         '''
@@ -173,7 +169,6 @@ class Driver(hw.Driver):
             if motor_name in self.poynting_correction.motor_names:
                 self.poynting_correction.set_motor(motor_name,destination)
                 return
-
         self._set_motors([motor_index], [destination])
 
     def set_motors(self, inputs):
@@ -339,6 +334,7 @@ class GUI(hw.GUI):
         # TODO: 
         # update plot lines
         motor_name = self.plot_motor.read()
+        print(self.hardware.name, motor_name)
         motor_position = self.driver.motor_positions[motor_name].read()
         self.plot_h_line.setValue(motor_position)
         units = self.plot_units.read()
@@ -362,19 +358,12 @@ class GUI(hw.GUI):
         self.update()
 
     def on_home_all(self):
-        self.driver.hardware.q.push('home_all')
+        self.hardware.q.push('home_all')
         
     def on_limits_updated(self):
         low_energy_limit, high_energy_limit = self.driver.limits.read('wn')
         self.low_energy_limit_display.write(low_energy_limit, 'wn')
         self.high_energy_limit_display.write(high_energy_limit, 'wn')
-        
-    def show_advanced(self):
-        pass
-
-    def stop(self):
-        pass
-
 
 
 class MotorControlGUI(QtGui.QWidget):

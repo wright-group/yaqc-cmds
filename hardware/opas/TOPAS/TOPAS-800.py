@@ -23,7 +23,6 @@ class Driver(BaseDriver):
         self.curve_indices = {'Base': 1, 'Mixer 3': 4}
         self.kind = "TOPAS-800"
         BaseDriver.__init__(self, *args, **kwargs)
-        self.index = 1  # TODO: remove
 
 
 ### gui #######################################################################

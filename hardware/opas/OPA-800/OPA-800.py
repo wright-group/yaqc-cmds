@@ -232,7 +232,6 @@ class Driver(BaseDriver):
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'wn'
         BaseDriver.__init__(self, *args, **kwargs)
-        self.index = 2
         self.auto_tune = AutoTune(self)
         self.motors=[]
         self.motor_names = ['Grating', 'BBO', 'Mixer']
@@ -259,15 +258,11 @@ class Driver(BaseDriver):
             self.motor_positions.values()[i].write(val)
         return [mp.read() for mp in self.motor_positions.values()]
 
-    def _initialize(self):
-        '''
-        OPA initialization method. Inputs = [index]
-        '''
+    def initialize(self):
         self.position.write(self.ini.read('OPA%d'%self.index, 'current position ('+self.native_units+')'), self.native_units)
         self.hardware.destination.write(self.position.read(self.native_units), self.native_units)
         self.serial_number = -1
         self.recorded['w%d'%self.index] = [self.position, self.native_units, 1., str(self.index)]
-
         # motor positions
         self.motor_positions = collections.OrderedDict()
         motor_limits = pc.NumberLimits(min_value=0, max_value=50)
@@ -277,12 +272,9 @@ class Driver(BaseDriver):
             self.motors.append(pm_motors.Motor(pm_motors.identity['OPA%d %s'%(self.index, motor_name)]))
             self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower()] 
         self.get_motor_positions()
-
         ## TODO: Determine if pico_opa needs to have interaction string combo
         allowed_values = ['SHS']
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
-
-
         # load curve
         self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
         self.curve_path.updated.connect(self.curve_path.save)
@@ -290,13 +282,12 @@ class Driver(BaseDriver):
         self.load_curve(self.curve_path.read())
         self.curve_paths = collections.OrderedDict()
         self.curve_paths['Curve'] = self.curve_path
-
         # tuning
-
-
         self.best_points = {}
         self.best_points['SHS'] = np.linspace(13500, 18200, 21)
         self.best_points['DFG'] = np.linspace(1250, 2500, 11)
+        # finish
+        BaseDriver.initialize(self)
 
     def _is_busy(self):
         for motor in self.motors:

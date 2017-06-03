@@ -1,7 +1,3 @@
-# TODO: change curve_indices
-# TODO: make everything indices
-
-
 ### import ####################################################################
 
 
@@ -12,26 +8,20 @@ import collections
 
 import numpy as np
 
-from types import FunctionType
-from functools import wraps
-
-from PyQt4 import QtGui, QtCore
-
 import ctypes
 from ctypes import *
 
 import WrightTools as wt
-import WrightTools.units as wt_units
-from hardware.opas.opas import Driver as BaseDriver
-from hardware.opas.opas import GUI as BaseGUI
-from hardware.opas.opas import AutoTune as BaseAutoTune
-from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
 
 import project
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
+from hardware.opas.opas import Driver as BaseDriver
+from hardware.opas.opas import GUI as BaseGUI
+from hardware.opas.opas import AutoTune as BaseAutoTune
+from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
 
                                  
 ### define ####################################################################
@@ -292,12 +282,10 @@ class Driver(BaseDriver):
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'nm'
         BaseDriver.__init__(self, *args, **kwargs)
-        self.index = 2
         self.auto_tune = AutoTune(self)
         self.motors=[]
-        self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'TOPAS', 'TOPAS.ini'))
-        self.has_shutter = False  # TODO: better behavior
+        self.has_shutter = kwargs['has_shutter']
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
             self.exposed += [self.shutter_position]
@@ -387,18 +375,29 @@ class Driver(BaseDriver):
         # return shutter
         if self.has_shutter:
             self.set_shutter([original_shutter])
-        
+ 
+    def _is_busy(self):
+        if self.api.open:
+            error, still = self.api.are_all_motors_still()
+            return not still
+        else:
+            return False  # for shutdown
+
+    def _load_curve(self, inputs, interaction):
+        crv_paths = [m.read() for m in self.curve_paths.values()]
+        used = self.curve_indices.values()
+        need = [x for x in range(4) if x+1 not in used]        
+        for i in need:
+            crv_paths.insert(i,None)
+        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, self.kind, interaction)
+       
     def _set_motors(self, motor_indexes, motor_destinations, wait=True):
         for motor_index, destination in zip(motor_indexes, motor_destinations):
             error, destination_steps = self.api.convert_position_to_steps(motor_index, destination)
             self.api.start_motor_motion(motor_index, destination_steps)
         if wait:
             self.wait_until_still()
-        
-    def close(self):
-        if self.has_shutter:
-            self.api.set_shutter(False)
-        self.api.close()
+
     def _update_api(self, interaction):
         # write to TOPAS ini
         self.api.close()
@@ -411,18 +410,12 @@ class Driver(BaseDriver):
         self.api = TOPAS_API(self.TOPAS_ini_filepath)
         # save current interaction string
         self.ini.write('OPA%i'%self.index, 'current interaction string', interaction)
-    
-    def _load_curve(self, inputs, interaction):
-        crv_paths = [m.read() for m in self.curve_paths.values()]
 
-        used = self.curve_indices.values()
-        need = [x for x in range(4) if x+1 not in used]
-        
-        for i in need:
-            crv_paths.insert(i,None)
+    def close(self):
+        if self.has_shutter:
+            self.api.set_shutter(False)
+        self.api.close()
 
-        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, self.kind, interaction)
-        
     def get_motor_positions(self, inputs=[]):
         for motor_index, motor_mutex in enumerate(self.motor_positions.values()):
             error, position_steps = self.api.get_motor_position(motor_index)
@@ -481,17 +474,7 @@ class Driver(BaseDriver):
         g.queue_control.disable_when_true(self.interaction_string_combo)
         self.load_curve()
         # finish
-        self.initialized.write(True)
-        self.initialized_signal.emit()
-
-    def _is_busy(self):
-        return False  # TODO: remove
-        if self.api.open:
-            error, still = self.api.are_all_motors_still()
-            print('TOPAS IS BUSY', error, still, time.time())
-            return not still
-        else:
-            return False
+        BaseDriver.initialize(self)
     
     def set_shutter(self, inputs):
         shutter_state = inputs[0]
@@ -510,4 +493,3 @@ class Driver(BaseDriver):
 
 class GUI(BaseGUI):
     pass
-
