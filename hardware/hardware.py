@@ -28,7 +28,7 @@ class Driver(pc.Driver):
     initialized_signal = QtCore.pyqtSignal()
 
     def __init__(self, hardware, native_units=None, **kwargs):
-        QtCore.QObject.__init__(self)
+        pc.Driver.__init__(self)
         # basic attributes
         self.hardware = hardware
         self.enqueued = self.hardware.enqueued
@@ -41,7 +41,6 @@ class Driver(pc.Driver):
                                   display=True, set_method='set_position')
         self.offset = pc.Number(units=self.native_units, name='Offset',
                                 display=True)
-        self.initialized = pc.Bool()
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
@@ -158,82 +157,22 @@ def all_initialized():
     g.hardware_initialized.write(True)
 
 
-class Hardware(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    initialized_signal = QtCore.pyqtSignal()
+class Hardware(pc.Part):
 
-    def __init__(self, driver_class, driver_arguments, gui_class,
-                 name, model, serial=None):
-        """
-        Hardware representation object living in the main thread.
-        
-        Parameters
-        driver_class : Driver class
-            Class of driver.
-        driver_arguments : dictionary
-            Arguments passed to driver upon initialization.
-        name : string
-            Name. Must be unique.
-        model : string
-            Model. Need not be unique.
-        serial : string or None (optional)
-            Serial, if desired. Default is None.
-        """
-        QtCore.QObject.__init__(self)
-        self.name = name
-        self.model = model
-        self.serial = serial
-        # create objects
-        self.thread = QtCore.QThread()
-        self.enqueued = pc.Enqueued()
-        self.busy = pc.Busy()
-        self.driver = driver_class(self, **driver_arguments)
+    def __init__(self, *args, **kwargs):
+        pc.Part.__init__(self, *args, **kwargs)
         self.exposed = self.driver.exposed
+        for obj in self.exposed:
+            obj.updated.connect(self.update)
         self.recorded = self.driver.recorded
-        self.initialized = self.driver.initialized
         self.offset = self.driver.offset
         self.position = self.exposed[0]
-        self.gui = gui_class(self)  # TODO: more
         self.native_units = self.driver.native_units
         self.destination = pc.Number(units=self.native_units, display=True)
         self.destination.write(self.position.read(self.native_units), self.native_units)
         self.limits = self.driver.limits
-        self.q = pc.Q(self.enqueued, self.busy, self.driver)
-        # start thread
-        self.driver.moveToThread(self.thread)
-        self.thread.start()
-        # connect to address object signals
-        self.driver.update_ui.connect(self.update)
         self.driver.initialized_signal.connect(self.on_address_initialized)
-        for obj in self.exposed:
-            obj.updated.connect(self.update)
-        self.busy.update_signal = self.driver.update_ui
-        # initialize hardware
-        print('HELLO WORLD', driver_arguments)
-        self.q.push('initialize')
-        # integrate close into PyCMDS shutdown
-        self.shutdown_timeout = 30  # seconds
-        g.shutdown.add_method(self.close)
-        g.hardware_waits.add(self.wait_until_still)
         hardwares.append(self)
-
-    def close(self):
-        # begin hardware shutdown
-        self.q.push('close')
-        # wait for hardware shutdown to complete
-        start_time = time.time()
-        self.q.push('check_busy')
-        while self.busy.read():
-            if time.time()-start_time < self.shutdown_timeout:
-                self.busy.wait_for_update()
-            else:
-                g.logger.log('warning',
-                             'Wait until done timed out',
-                             self.name)
-                break
-        # quit thread
-        self.thread.exit()
-        self.thread.quit()
 
     def get_destination(self, output_units='same'):
         return self.destination.read(output_units=output_units)
@@ -296,13 +235,6 @@ class Hardware(QtCore.QObject):
     @property
     def units(self):
         return self.position.units
-
-    def update(self):
-        self.update_ui.emit()
-
-    def wait_until_still(self):
-        while self.busy.read():
-            self.busy.wait_for_update()
 
 
 ### import method #############################################################

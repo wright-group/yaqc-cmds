@@ -622,19 +622,21 @@ class String(PyCMDS_Object):
         self.updated.emit()
 
 
-### hardware ##################################################################
+### part ######################################################################
 
 
 class Driver(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
+    initialized = Bool()
     
-    def check_busy(self, *args, **kwargs):
+    def check_busy(self):
         """
         Handles writing of busy to False.
         
         Must always write to busy.
         """
+        print('Driver %s check_busy'%self.name)
         if self.is_busy():
             time.sleep(0.01)  # don't loop like crazy
             self.busy.write(True)
@@ -654,6 +656,7 @@ class Driver(QtCore.QObject):
         
         Calls own method with arguments from inputs.
         """
+        print('DRIVER DEQUEUE')
         self.update_ui.emit()
         method = str(method)  # method passed as qstring
         args, kwargs = inputs
@@ -665,7 +668,7 @@ class Driver(QtCore.QObject):
             self.queue_emptied.emit()
             self.check_busy()
             
-    def is_busy(self, *args, **kwargs):
+    def is_busy(self):
         return False
 
 
@@ -690,6 +693,78 @@ class Enqueued(QtCore.QMutex):
         self.lock()
         self.value = self.value[1:]
         self.unlock()
+
+
+class Part(QtCore.QObject):
+    update_ui = QtCore.pyqtSignal()
+    initialized_signal = QtCore.pyqtSignal()
+
+    def __init__(self, driver_class, driver_arguments, gui_class,
+                 name, model, serial=None):
+        """
+        Hardware representation object living in the main thread.
+        
+        Parameters
+        driver_class : Driver class
+            Class of driver.
+        driver_arguments : dictionary
+            Arguments passed to driver upon initialization.
+        name : string
+            Name. Must be unique.
+        model : string
+            Model. Need not be unique.
+        serial : string or None (optional)
+            Serial, if desired. Default is None.
+        """
+        QtCore.QObject.__init__(self)
+        self.name = name
+        self.model = model
+        self.serial = serial
+        # create objects
+        self.thread = QtCore.QThread()
+        self.enqueued = Enqueued()
+        self.busy = Busy()
+        self.driver = driver_class(self, **driver_arguments)
+        self.initialized = self.driver.initialized
+        self.gui = gui_class(self)
+        self.q = Q(self.enqueued, self.busy, self.driver)
+        # start thread
+        self.driver.moveToThread(self.thread)
+        self.thread.start()
+        # connect to address object signals
+        self.driver.update_ui.connect(self.update)
+        self.busy.update_signal = self.driver.update_ui
+        # initialize drivers
+        self.q.push('initialize')
+        # integrate close into PyCMDS shutdown
+        self.shutdown_timeout = 30  # seconds
+        g.shutdown.add_method(self.close)
+        g.hardware_waits.add(self.wait_until_still)
+
+    def close(self):
+        # begin driver shutdown
+        self.q.push('close')
+        # wait for driver shutdown to complete
+        start_time = time.time()
+        self.q.push('check_busy')
+        while self.busy.read():
+            if time.time()-start_time < self.shutdown_timeout:
+                self.busy.wait_for_update()
+            else:
+                g.logger.log('warning',
+                             'Wait until done timed out',
+                             self.name)
+                break
+        # quit thread
+        self.thread.exit()
+        self.thread.quit()
+
+    def update(self):
+        self.update_ui.emit()
+
+    def wait_until_still(self):
+        while self.busy.read():
+            self.busy.wait_for_update()
 
 
 class Q:

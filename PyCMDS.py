@@ -187,8 +187,7 @@ class MainWindow(QtGui.QMainWindow):
         somatic_tabs = pw.TabWidget()
         self.queue_widget = QtGui.QWidget()
         somatic_tabs.addTab(self.queue_widget, 'Queue')
-        from devices import devices
-        self.scan_widget = devices.control.gui.main_widget
+        self.scan_widget = QtGui.QWidget()
         somatic_tabs.addTab(self.scan_widget, 'Scan')
         somatic_tabs.setContentsMargins(0., 0., 0., 0.)
         layout.addWidget(somatic_tabs)

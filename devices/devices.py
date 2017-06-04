@@ -22,11 +22,16 @@ import pyqtgraph as pg
 import WrightTools as wt
 
 import project.project_globals as g
-main_dir = g.main_dir.read()
 import project.classes as pc
 import project.widgets as pw
 import project.ini_handler as ini_handler
-ini = ini_handler.daq
+
+
+### define ####################################################################
+
+
+main_dir = g.main_dir.read()
+ini = wt.kit.INI(os.path.join(main_dir, 'devices', 'devices.ini'))
 autocopy_ini = ini_handler.Ini(os.path.join(main_dir, 'devices', 'autocopy.ini'))
 autocopy_ini.return_raw = True
 
@@ -323,54 +328,56 @@ def q(method, inputs = []):
 ### device ####################################################################
 
 
-class Device(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
+class Device(pc.Part):
     settings_updated = QtCore.pyqtSignal()
     
-    def __init__(self, inputs=[]):
-        QtCore.QObject.__init__(self)
-        # attributes
+    def __init__(self, *args, **kwargs):
+        self.freerun = pc.Bool(initial_value=False)
+        self.Widget = kwargs.pop('Widget')
+        self.data = pc.Data()
         self.active = False
         self.shape = (1,)
         self.has_map = False
-        self.name = 'virtual'
-        self.model = 'virtual'
-        self.serial = None
         self.shots_compatible = False
-        # mutex attributes
-        self.busy = pc.Busy()
-        self.busy.update_signal = self.update_ui
-        self.data = pc.Data()
         self.nshots = pc.Number(initial_value=100)
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
-        self.Widget = Widget
-        self.initialized = False
-        self.freerun = pc.Bool(initial_value=False)
+        pc.Part.__init__(self, *args, **kwargs)
         self.settings_updated.emit()
 
     def close(self):
-        self.thread.quit()
+        # TODO:
+        if False:
+            # stop looping
+            self.set_freerun(False)
+            self.wait_until_done()
+            # TODO: log
+            if False:
+                if g.debug.read():
+                    print 'daq shutting down'
+                g.logger.log('info', 'DAQ shutdown')
+            # shutdown driver
+            q.push('shutdown')
+            self.wait_until_done()
+            self.thread.quit()
+        else:
+            self.thread.quit()
 
     def get_headers(self):
         out = collections.OrderedDict()
         out['shots'] = self.nshots.read()
         return out
         
-    def initialize(self, parent_widget):
-        print('DEVICE INITIALIZE BEGIN')
-        self.enqueued = pc.Enqueued()
-        self.driver = Driver(self)
-        self.q = pc.Q(self.enqueued, self.busy, self.driver)
-        self.thread = QtCore.QThread()
-        self.driver.moveToThread(self.thread)
-        self.thread.start()
-        self.thread.setPriority(QtCore.QThread.HighestPriority)
-        #self.q.push('initialize')
-        self.q.push('measure')
+    def give_widget(self, widget):
+        self.widget = widget
+        self.gui.create_frame(widget)
+        
+    def initialize(self):
+        print('DEVICE INITIALIZE BEGIN', self.busy.read())
         self.wait_until_done()
         self.freerun.updated.connect(lambda: self.q.push('loop'))
         self.update_ui.emit()
         self.driver.update_ui.connect(self.on_driver_update_ui)
+        self.settings_updated.emit()
         
     def load_settings(self, aqn):
         pass
@@ -383,13 +390,14 @@ class Device(QtCore.QObject):
 
     def set_freerun(self, state):
         self.freerun.write(state)
+        self.settings_updated.emit()  # TODO: should probably remove this
     
     def wait_until_done(self, timeout=10):
         """
         timeout in seconds (will only refer to timeout when
         busy.wait_for_update fires)
         """
-        if True:
+        if False:
             start_time = time.time()
             while self.busy.read():
                 print('DEVICE WAIT UNTIL DONE')
@@ -402,6 +410,7 @@ class Device(QtCore.QObject):
                     break
         else:
             while self.busy.read():
+                print('DEVICE BUSY LOOPING')
                 self.busy.wait_for_update()
 
 
@@ -409,12 +418,12 @@ class Device(QtCore.QObject):
 
 
 class Driver(pc.Driver):
+    settings_updated = QtCore.pyqtSignal()
     task_changed = QtCore.pyqtSignal()
     running = False
-    processing_timer = wt.kit.Timer(verbose=False)
     
     def __init__(self, device):
-        QtCore.QObject.__init__(self)
+        pc.Driver.__init__(self)
         # attributes
         self.name = 'Virtual'
         self.enqueued = device.enqueued
@@ -423,22 +432,19 @@ class Driver(pc.Driver):
         self.data = device.data
         self.shape = device.shape
         self.measure_time = device.measure_time
-        self.measure()  # TODO: REMOVE THIS!!!
-    
-    def close(self):
-        pass
+        self.thread = device.thread
 
-    def initialize(self, *args, **kwargs):
+    def initialize(self):
         self.measure()
 
     def loop(self):
         while self.freerun.read() and not self.enqueued.read():
-            self.measure([])
+            self.measure()
             self.busy.write(False)
         else:
             print(' '.join([self.name, 'exiting loop!']))
 
-    def measure(self, *args, **kwargs):
+    def measure(self):
         timer = wt.kit.Timer(verbose=False)
         with timer:
             time.sleep(0.1)
@@ -474,11 +480,11 @@ class Widget(QtGui.QWidget):
         ini.write('virtual', 'use', self.use.read())
 
         
-class GUI(QtCore.QObject):
+class DeviceGUI(QtCore.QObject):
 
-    def __init__(self, control):
+    def __init__(self, device):
         QtCore.QObject.__init__(self)
-        self.control = control
+        self.device = device
         self.samples_tab_initialized = False
 
     def close(self):
@@ -489,6 +495,9 @@ class GUI(QtCore.QObject):
         parent_widget.setLayout(QtGui.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         self.layout = parent_widget.layout()
+        input_table = pw.InputTable()
+        input_table.add('HELLO', None)
+        self.layout.addWidget(input_table)
 
 
 ### control ###################################################################
@@ -506,27 +515,55 @@ class Control(QtCore.QObject):
         g.main_window.read().queue_control.connect(self.queue_control_update)
         self.channel_names = []
         # import devices
-        if False:
-            for key in device_dict.keys():
-                if ini.read('device', key):
-                    lis = device_dict[key]
-                    module_path = lis[0]
-                    name = os.path.basename(module_path).split('.')[0]
-                    if False:
-                        directory = os.path.dirname(module_path)
-                        f, p, d = imp.find_module(name, [directory])
-                        device_module = imp.load_module(name, f, p, d)
+        for section in ini.sections:
+            if section == 'settings':
+                continue
+            if ini.read(section, 'enable'):
+                # collect arguments
+                kwargs = collections.OrderedDict()
+                for option in ini.get_options(section):
+                    if option in ['enable', 'model', 'serial', 'path']:
+                        continue
                     else:
-                        device_module = imp.load_source(name, module_path)
-                    device_class = getattr(device_module, lis[1])
-                    device_obj = device_class(inputs=lis[2])
-                    self.devices.append(device_obj)
-        else:
-            self.devices.append(Device())
-        # signals and slots
+                        kwargs[option] = ini.read(section, option)            
+                model = ini.read(section, 'model')
+                # import
+                if model == 'Virtual':
+                    device = Device(Driver, kwargs, DeviceGUI, Widget=DeviceWidget, name=section, model='Virtual')
+                else:
+                    path = os.path.abspath(ini.read(section, 'path'))
+                    fname = os.path.basename(path).split('.')[0]
+                    mod = imp.load_source(fname, path)
+                    device_cls = getattr(mod, 'Device')
+                    cls = getattr(mod, 'Driver')
+                    gui = getattr(mod, 'GUI')
+                    widget_cls = getattr(mod, 'Widget')
+                    serial = ini.read(section, 'serial')
+                    print(cls, kwargs, gui, model, serial)
+                    device = device_cls(cls, kwargs, gui, Widget=widget_cls, name=section, model=model, serial=serial)
+                self.devices.append(device)   
+        # gui
+        self.gui = GUI(self)
+        for device, widget in zip(self.devices, self.gui.device_widgets):
+            device.update_ui.connect(self.gui.create_main_tab)
+        # initialize
+        for device in self.devices:
+            device.initialize()
+        self.set_freerun(True)
+        self.wait_until_done()  # TODO:...
+        time.sleep(3)  # TOD: remove
+        # connect
         for device in self.devices:
             device.settings_updated.connect(self.on_device_settings_updated)
-    
+        self.t_last = time.time()
+        # initialize channel names
+        for device in self.devices:
+            for channel_name in device.data.cols:
+                self.channel_names.append(channel_name)
+        # finish
+        self.settings_updated.emit()
+        print('DEVICE CONTROL INITIALIZE COMPLETE', self.channel_names)
+ 
     def acquire(self, save=False, index=None):
         # loop time
         now = time.time()
@@ -621,33 +658,7 @@ class Control(QtCore.QObject):
             for device in self.devices:
                 data_arrs.append(device.data.read())
             current_slice.append(slice_position, data_arrs)
-        
-    def initialize(self):
-        print('DEVICE CONTROL INITIALIZE BEGIN')
-        # initialize own gui
-        self.gui = GUI(self)
-        device_widgets = self.gui.device_widgets
-        # initialize devices
-        for i, device in enumerate(self.devices):
-            device.initialize(device_widgets[i])
-            device.active = True
-        # begin freerunning
-        self.set_freerun(True)
-        # Ideally I would wait for the devices here
-        # however the NI 6251 hangs forever for reasons I don't understand
-        # finish
-        self.wait_until_done()  # TODO:...
-        time.sleep(3)
-        for i, device in enumerate(self.devices):
-            device.update_ui.connect(self.gui.create_main_tab)
-        self.t_last = time.time()
-        # fill out channel names
-        for device in self.devices:
-            for channel_name in device.data.cols:
-                self.channel_names.append(channel_name)
-        self.settings_updated.emit()
-        print('DEVICE CONTROL INITIALIZE COMPLETE', self.channel_names)
-        
+
     def initialize_scan(self, aqn, scan_folder, destinations_list):
         timestamp = wt.kit.TimeStamp()
         # stop freerunning
@@ -725,8 +736,10 @@ class Control(QtCore.QObject):
             device.set_freerun(state)
     
     def shutdown(self):
-        # TODO
-        pass
+        self.set_freerun(False)
+        self.wait_until_done()
+        for device in self.devices:
+            device.close()
     
     def update_cols(self, aqn):
         for cols_type in ['data', 'shots']:
@@ -825,10 +838,12 @@ class Control(QtCore.QObject):
             if device.active:
                 device.wait_until_done()
 
-control = Control()
-
 
 ### gui #######################################################################
+
+
+class DeviceWidget(QtGui.QWidget):
+    pass
 
 
 class Widget(QtGui.QWidget):
@@ -918,7 +933,7 @@ class GUI(QtCore.QObject):
 
     def create_frame(self):
         # scan widget
-        self.main_widget = QtGui.QWidget()
+        self.main_widget = g.main_window.read().scan_widget
         # device widgets
         # get parent widget
         parent_widget = g.daq_widget.read()
@@ -934,13 +949,14 @@ class GUI(QtCore.QObject):
             widget = QtGui.QWidget()
             self.tabs.addTab(widget, device.name)
             self.device_widgets.append(widget)
+            device.give_widget(widget)
         # finish
         layout.addWidget(self.tabs)
         
     def create_main_tab(self):
         if self.main_tab_created:
             return
-        for device in control.devices:
+        for device in self.control.devices:
             if len(device.data.read_properties()[1]) == 0:
                 print('next time')
                 return
@@ -988,13 +1004,13 @@ class GUI(QtCore.QObject):
         # display settings
         input_table = pw.InputTable()
         input_table.add('Display', None)
-        allowed_values = [device.name for device in control.devices]
+        allowed_values = [device.name for device in self.control.devices]
         self.device_combo = pc.Combo(allowed_values=allowed_values)
         self.device_combo.updated.connect(self.on_update_device)
         input_table.add('Device', self.device_combo)
         settings_layout.addWidget(input_table)
         self.display_settings_widgets = collections.OrderedDict()
-        for device in control.devices:
+        for device in self.control.devices:
             display_settings = DisplaySettings(device)
             self.display_settings_widgets[device.name] = display_settings
             settings_layout.addWidget(display_settings.widget)
@@ -1004,7 +1020,7 @@ class GUI(QtCore.QObject):
         input_table = pw.InputTable()
         input_table.add('Settings', None)
         input_table.add('ms Wait', ms_wait)
-        for device in control.devices:
+        for device in self.control.devices:
             input_table.add(device.name, None)
             input_table.add('Status', device.busy)
             input_table.add('Freerun', device.freerun)
@@ -1080,7 +1096,7 @@ class GUI(QtCore.QObject):
         self.idx_string.write(str(idx.read()))
         # big number
         current_device_index = self.device_combo.read_index()
-        device = control.devices[current_device_index]        
+        device = self.control.devices[current_device_index]        
         widget = list(self.display_settings_widgets.values())[current_device_index]
         channel_index = widget.get_channel_index()
         map_index = widget.get_map_index()
@@ -1094,10 +1110,10 @@ class GUI(QtCore.QObject):
         pass
 
 
-### start devices #############################################################
+### initialize ################################################################
 
 
-control.initialize()
+control = Control()
 
 import hardware.opas.opas as opas
 import hardware.spectrometers.spectrometers as spectrometers

@@ -19,27 +19,29 @@ import pyqtgraph as pg
 
 import WrightTools as wt
 
+from PyDAQmx import *
+
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 import project.ini_handler as ini
 from project.ini_handler import Ini
-app = g.app.read()
-main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'devices',
-                                 'NI_6251',
-                                 'NI_6251.ini'))
-
-from PyDAQmx import *
-
-if g.debug.read():
-    DAQ_device_name = ini.read('DAQ', 'simulated device name')
-else:
-    DAQ_device_name = ini.read('DAQ', 'device name')
+from devices.devices import Device as BaseDevice
+from devices.devices import Driver as BaseDriver
+from devices.devices import DeviceGUI as BaseGUI
+from devices.devices import DeviceWidget as BaseWidget
 
 
 ### define ####################################################################
 
+
+app = g.app.read()
+main_dir = g.main_dir.read()
+ini = Ini(os.path.join(main_dir, 'devices',
+                                 'PCI-6251',
+                                 'PCI-6251.ini'))
+
+DAQ_device_name = ini.read('DAQ', 'device name')
 
 # TODO: actually read these values from the driver ---Blaise 2017-01-06
 ranges = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]  # V
@@ -229,71 +231,114 @@ seconds_since_last_task = pc.Number(initial_value=np.nan, display=True, decimals
 seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 
-### address ###################################################################
+### device ####################################################################
 
 
-busy = pc.Busy()
+class Device(BaseDevice):
 
-enqueued = pc.Enqueued()
+    def __init__(self, *args, **kwargs):
+        print('DEVICE INIT')
+        self.initialized = False
+        nshots.updated.connect(self.update_task)
+        shots_processing_module_path.updated.connect(self.update_task)
+        self.update_sample_correspondances(channels.read(), choppers.read())
+        BaseDevice.__init__(self, *args, **kwargs)
 
-class Address(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
+    def load_settings(self, aqn):
+        nshots.write(aqn.read(self.name, 'shots'))
+        
+    def update_sample_correspondances(self, proposed_channels, proposed_choppers):
+        '''
+        Parameters
+        ----------
+        channels : list of Channel objects
+            The proposed channel settings.
+        choppers : list of Chopper objects
+            The proposed chopper settings.
+        '''
+        print('UPDATE SAMPLE CORRESPONDANCES')
+        # sections is a list of lists: [correspondance, start index, stop index]
+        sections = []
+        for i in range(len(proposed_channels)):
+            channel = proposed_channels[i]
+            if channel.active.read():                
+                correspondance = i + 1  # channels go from 1 --> infinity
+                start = channel.signal_start_index.read()
+                stop = channel.signal_stop_index.read()
+                sections.append([correspondance, start, stop])
+                if channel.use_baseline.read():
+                    start = channel.baseline_start_index.read()
+                    stop = channel.baseline_stop_index.read()
+                    sections.append([correspondance, start, stop])
+        # desired is a list of lists containing all of the channels 
+        # that desire to be read at a given sample
+        desired = [[] for _ in range(nsamples.read())]
+        for section in sections:
+            correspondance = section[0]
+            start = int(section[1])
+            stop = int(section[2])
+            for i in range(start, stop+1):
+                desired[i].append(correspondance)
+                desired[i] = [val for val in set(desired[i])]  # remove non-unique
+                desired[i].sort()
+        # samples is the proposed sample correspondances
+        samples = np.full(nsamples.read(), 0, dtype=int)
+        for i in range(len(samples)):
+            lis = desired[i]
+            if not len(lis) == 0:
+                samples[i] = lis[i%len(lis)]
+        # choppers
+        for i, chopper in enumerate(proposed_choppers):
+            if chopper.active.read():
+                samples[chopper.index.read()] = -(i+1)
+        # check if proposed is valid
+        # TODO: !!!!!!!!!!!!!!!
+        # apply to channels
+        channels.write(proposed_channels)
+        for channel in channels.read():
+            channel.save()
+        choppers.write(proposed_choppers)
+        for chopper in choppers.read():
+            chopper.save()
+        # update channel names
+        channel_names = [channel.name.read() for channel in channels.read() if channel.active.read()]
+        chopper_names = [chopper.name.read() for chopper in choppers.read() if chopper.active.read()]
+        allowed_values = channel_names + chopper_names
+        shot_channel_combo.set_allowed_values(allowed_values)
+        # finish
+        sample_correspondances.write(samples)
+        self.update_task()
+        
+    def update_task(self):
+        if self.initialized:
+            if freerun.read():
+                return_to_freerun = True
+                freerun.write(False)
+                self.wait_until_done()
+            else: 
+                return_to_freerun = False
+            q.push('create_task')
+            if return_to_freerun: 
+                freerun.write(True)
+            self.settings_updated.emit()
+
+
+### driver ####################################################################
+
+
+class Driver(BaseDriver):
     task_changed = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
-    running = False
-    processing_timer = wt.kit.Timer(verbose=False)
-    
-    def __init__(self):
-        QtCore.QObject.__init__(self)
-        self.task_created = False
-    
-    @QtCore.pyqtSlot(str, list)
-    def dequeue(self, method, inputs):
-        '''
-        accepts queued signals from 'queue' (address using q method)
-        method must be string, inputs must be list
-        '''
-        #DO NOT CHANGE THIS METHOD UNLESS YOU ~REALLY~ KNOW WHAT YOU ARE DOING!
-        if g.debug.read(): print 'NI 6251 dequeue:', method, inputs
-        enqueued.pop()
-        getattr(self, str(method))(inputs) #method passed as qstring
-        if not enqueued.read(): 
-            self.queue_emptied.emit()
-            self.check_busy([])
-            
-    def check_busy(self, inputs):
-        '''
-        decides if the hardware is done and handles writing of 'busy' to False
-        must always write busy whether answer is True or False
-        should include a sleep if answer is True to prevent very fast loops: time.sleep(0.1)
-        '''
-        # simply check if additional actions are enqueued, and if running
-        if enqueued.read():
-            time.sleep(0.01)
-            busy.write(True)
-        elif self.running:
-            time.sleep(0.01)
-            busy.write(True)
-        else:
-            busy.write(False)
-            
-    def loop(self, inputs):
-        while freerun.read() and not enqueued.read():
-            self.run_task([])
-            busy.write(False)
-        else:
-            print 'NI 6251 exiting loop!'
+    task_created = False
 
-    def initialize(self, inputs):
+    def initialize(self):
         self.previous_time = time.time()
-        if g.debug.read(): 
-            print 'NI 6251 initializing'
-        g.logger.log('info', 'NI 6251 initializing')
-        self.create_task([])
-        self.run_task([])
+        self.processing_timer = wt.kit.Timer(verbose=False)
+        self.create_task()
+        self.measure()
+        self.settings_updated.emit()
         print 'NI 6251 done initializing' 
     
-    def create_task(self, inputs):
+    def create_task(self):
         '''
         Define a new DAQ task. This needs to be run once every time the
         parameters of the aquisition (channel correspondance, shots, etc.)
@@ -301,6 +346,7 @@ class Address(QtCore.QObject):
         
         No inputs
         '''
+        print('CREATE TASK')
         # ensure previous task closed -----------------------------------------
         if self.task_created:
             DAQmxStopTask(self.task_handle)
@@ -313,8 +359,8 @@ class Address(QtCore.QObject):
         # create task ---------------------------------------------------------
         try:
             self.task_handle = TaskHandle()
-            self.read = int32()
-            DAQmxCreateTask('',byref(self.task_handle))
+            self.read = int32()  # ??? --BJT 2017-06-03
+            DAQmxCreateTask('', byref(self.task_handle))
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in task creation', err)
@@ -390,29 +436,36 @@ class Address(QtCore.QObject):
         self.task_created = True
         self.task_changed.emit()
 
-    def run_task(self, inputs):
-        '''
+    def measure(self):
+        """
         Acquire once using the created task.
-        '''
+        """
+        if len(self.data.cols) == 0:
+            return BaseDriver.measure(self)
         ### measure ###########################################################
         # unpack inputs -------------------------------------------------------
         self.running = True
-        self.update_ui.emit()
+        #self.update_ui.emit()
         if not self.task_created: 
             return
         start_time = time.time()
         # collect samples array -----------------------------------------------
         try:
-            DAQmxStartTask(self.task_handle)
-            DAQmxReadAnalogF64(self.task_handle,             # task handle
-                               long(self.shots),             # number of samples per channel
-                               10.0,                         # timeout (seconds) for each read operation
-                               DAQmx_Val_GroupByScanNumber,  # fill mode (specifies whether or not the samples are interleaved)
-                               self.samples,                 # read array
-                               self.samples_len,             # size of the array, in samples, into which samples are read
-                               byref(self.read),             # reference of thread
-                               None)                         # reserved by NI, pass NULL (?)
-            DAQmxStopTask(self.task_handle)
+            self.thread 
+            self.read = int32()
+            if True:
+                DAQmxStartTask(self.task_handle)
+                DAQmxReadAnalogF64(self.task_handle,             # task handle
+                                   long(self.shots),             # number of samples per channel
+                                   10.0,                         # timeout (seconds) for each read operation
+                                   DAQmx_Val_GroupByScanNumber,  # fill mode (specifies whether or not the samples are interleaved)
+                                   self.samples,                 # read array
+                                   self.samples_len,             # size of the array, in samples, into which samples are read
+                                   byref(self.read),             # reference of thread
+                                   None)                         # reserved by NI, pass NULL (?)
+                DAQmxStopTask(self.task_handle)                       
+            else:
+                self.samples = np.random.normal(size=self.samples_len)
         except DAQError as err:
             print "DAQmx Error: %s"%err
             g.logger.log('error', 'Error in timing definition', err)
@@ -496,7 +549,7 @@ class Address(QtCore.QObject):
             out, out_names = processing_module.process(shots_array, names, kinds)
         seconds_for_shots_processing.write(self.processing_timer.interval)
         # export last data
-        data.write_properties((1,), out_names, out)
+        self.data.write_properties((1,), out_names, out)
         self.update_ui.emit()
         ### finish ############################################################
         seconds_since_last_task.write(time.time() - self.previous_time)
@@ -509,234 +562,14 @@ class Address(QtCore.QObject):
          if self.task_created:
              DAQmxStopTask(self.task_handle)
              DAQmxClearTask(self.task_handle)
-
-# begin address object in seperate thread
-address_thread = QtCore.QThread()
-address = Address()
-address.moveToThread(address_thread)
-address_thread.start()
-address_thread.setPriority(QtCore.QThread.HighestPriority)
-
-# create q to communicate with address thread
-q = pc.Q(enqueued, busy, address)
-
-
-### device ####################################################################
-
-
-class Device(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    settings_updated = QtCore.pyqtSignal()
-    
-    def __init__(self, inputs=[]):
-        QtCore.QObject.__init__(self)
-        self.active = False
-        self.shape = (1,)
-        self.has_map = False
-        self.name = 'NI 6251'
-        self.data = data
-        self.busy = busy
-        self.busy.update_signal = self.update_ui
-        self.shots = shots
-        self.nshots = nshots
-        self.acquisition_time = seconds_for_acquisition
-        self.shots_compatible = True
-        self.Widget = Widget
-        self.initialized = False
-        self.freerun = freerun
-        self.freerun.updated.connect(lambda: q.push('loop'))
-        nshots.updated.connect(self.update_task)
-        shots_processing_module_path.updated.connect(self.update_task)
-        self.update_sample_correspondances(channels.read(), choppers.read())
-        self.settings_updated.emit()
-        
-    def acquire(self):
-        q.push('run_task')
-
-    def get_headers(self):
-        out = collections.OrderedDict()
-        out['shots'] = nshots.read()
-        return out
-        
-    def initialize(self, parent_widget):
-        # daq    
-        q.push('initialize')
-        # populate data with fake data
-        fake = np.random.random((8, nsamples.read()))
-        path = shots_processing_module_path.read()
-        name = os.path.basename(path).split('.')[0]
-        directory = os.path.dirname(path)
-        f, p, d = imp.find_module(name, [directory])
-        processing_module = imp.load_module(name, f, p, d)
-        active_channels = [channel for channel in channels.read() if channel.active.read()]
-        active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
-        channel_names = [channel.name.read() for channel in active_channels]
-        chopper_names = [chopper.name.read() for chopper in active_choppers]
-        kinds = ['channel' for _ in channel_names] + ['chopper' for _ in chopper_names]
-        names = channel_names + chopper_names
-        out, out_names = processing_module.process(fake, names, kinds)
-        self.data.write_properties((1,), out_names, None)
-        # gui
-        self.gui = GUI(self)
-        self.gui.create_frame(parent_widget)
-        # finish
-        self.active = True
-        self.initialized = True
-        address.update_ui.connect(self.update_ui.emit)
-        self.settings_updated.emit()
-        
-    def load_settings(self, aqn):
-        nshots.write(aqn.read(self.name, 'shots'))
-        
-    def set_freerun(self, state):
-        freerun.write(state)
-
-    def shutdown(self):   
-        # stop looping
-        self.set_freerun(False)
-        self.wait_until_done()
-        # log
-        if g.debug.read(): print 'daq shutting down'
-        g.logger.log('info', 'DAQ shutdown')
-        # shutdown other threads
-        q.push('shutdown')
-        self.wait_until_done()
-        address_thread.quit()
-        #close gui
-        self.gui.stop()
-        
-    def update_sample_correspondances(self, proposed_channels, proposed_choppers):
-        '''
-        Parameters
-        ----------
-        channels : list of Channel objects
-            The proposed channel settings.
-        choppers : list of Chopper objects
-            The proposed chopper settings.
-        '''
-        # sections is a list of lists: [correspondance, start index, stop index]
-        sections = []
-        for i in range(len(proposed_channels)):
-            channel = proposed_channels[i]
-            if channel.active.read():                
-                correspondance = i + 1  # channels go from 1 --> infinity
-                start = channel.signal_start_index.read()
-                stop = channel.signal_stop_index.read()
-                sections.append([correspondance, start, stop])
-                if channel.use_baseline.read():
-                    start = channel.baseline_start_index.read()
-                    stop = channel.baseline_stop_index.read()
-                    sections.append([correspondance, start, stop])
-        # desired is a list of lists containing all of the channels 
-        # that desire to be read at a given sample
-        desired = [[] for _ in range(nsamples.read())]
-        for section in sections:
-            correspondance = section[0]
-            start = int(section[1])
-            stop = int(section[2])
-            for i in range(start, stop+1):
-                desired[i].append(correspondance)
-                desired[i] = [val for val in set(desired[i])]  # remove non-unique
-                desired[i].sort()
-        # samples is the proposed sample correspondances
-        samples = np.full(nsamples.read(), 0, dtype=int)
-        for i in range(len(samples)):
-            lis = desired[i]
-            if not len(lis) == 0:
-                samples[i] = lis[i%len(lis)]
-        # choppers
-        for i, chopper in enumerate(proposed_choppers):
-            if chopper.active.read():
-                samples[chopper.index.read()] = -(i+1)
-        # check if proposed is valid
-        # TODO: !!!!!!!!!!!!!!!
-        # apply to channels
-        channels.write(proposed_channels)
-        for channel in channels.read():
-            channel.save()
-        choppers.write(proposed_choppers)
-        for chopper in choppers.read():
-            chopper.save()
-        # update channel names
-        channel_names = [channel.name.read() for channel in channels.read() if channel.active.read()]
-        chopper_names = [chopper.name.read() for chopper in choppers.read() if chopper.active.read()]
-        allowed_values = channel_names + chopper_names
-        shot_channel_combo.set_allowed_values(allowed_values)
-        # finish
-        sample_correspondances.write(samples)
-        self.update_task()
-        
-    def update_task(self):
-        if self.initialized:
-            if freerun.read():
-                return_to_freerun = True
-                freerun.write(False)
-                self.wait_until_done()
-            else: 
-                return_to_freerun = False
-            q.push('create_task')
-            if return_to_freerun: 
-                freerun.write(True)
-        self.settings_updated.emit()
-    
-    def wait_until_done(self, timeout=10):
-        '''
-        timeout in seconds
-        
-        will only refer to timeout when busy.wait_for_update fires
-        '''
-        start_time = time.time()
-        while busy.read():
-            time.sleep(0)  # yield?
-            QtCore.QThread.yieldCurrentThread()
-            if time.time()-start_time < timeout:
-                busy.wait_for_update()
-            else: 
-                print 'NI 6251 TIMED OUT!!!!!!!!!!!'
-                g.logger.log('warning', 'NI 6251 wait until done timed out', 'timeout set to {} seconds'.format(timeout))
-                break
     
 
 ### gui #######################################################################
 
-
-class Widget(QtGui.QWidget):
-
-    def __init__(self):
-        QtGui.QWidget.__init__(self)
-        layout = QtGui.QVBoxLayout()
-        self.setLayout(layout)
-        layout.setMargin(0)
-        input_table = pw.InputTable()
-        input_table.add('NI 6251', None)
-        self.use = pc.Bool(initial_value=True)
-        input_table.add('Use', self.use)
-        self.shots = pc.Number(initial_value=100, decimals=0)
-        input_table.add('Shots', self.shots)
-        self.save_shots = pc.Bool(initial_value=False)
-        input_table.add('Save Shots', self.save_shots)
-        layout.addWidget(input_table)
         
-    def load(self, aqn_path):
-        # TODO:
-        print('NI 6251 load_device_settings')
-   
-    def save(self, aqn_path):
-        ini = wt.kit.INI(aqn_path)
-        ini.add_section('NI 6251')
-        ini.write('NI 6251', 'use', self.use.read())
-        ini.write('NI 6251', 'shots', self.shots.read())
-        ini.write('NI 6251', 'save shots', self.save_shots.read())
-        
+class GUI(BaseGUI):
+    samples_tab_initialized = False
 
-        
-class GUI(QtCore.QObject):
-
-    def __init__(self, control):
-        QtCore.QObject.__init__(self)
-        self.control = control
-        self.samples_tab_initialized = False
-        
     def create_frame(self, parent_widget):
         # get layout
         parent_widget.setLayout(QtGui.QHBoxLayout())
@@ -762,7 +595,7 @@ class GUI(QtCore.QObject):
         layout.addWidget(self.tabs)
         self.samples_channel_combo.updated.connect(self.update_samples_tab)
         self.samples_chopper_combo.updated.connect(self.update_samples_tab)
-        address.update_ui.connect(self.update)
+        self.device.update_ui.connect(self.update)
         self.update_samples_tab()
                 
     def create_samples_tab(self, layout):
@@ -1144,9 +977,30 @@ class GUI(QtCore.QObject):
         pass
 
 
-### testing ###################################################################
+class Widget(BaseWidget):
 
-
-if __name__ == '__main__':
-    print 'hello'
-    
+    def __init__(self):
+        QtGui.QWidget.__init__(self)
+        layout = QtGui.QVBoxLayout()
+        self.setLayout(layout)
+        layout.setMargin(0)
+        input_table = pw.InputTable()
+        input_table.add('PCI-6251', None)
+        self.use = pc.Bool(initial_value=True)
+        input_table.add('Use', self.use)
+        self.shots = pc.Number(initial_value=100, decimals=0)
+        input_table.add('Shots', self.shots)
+        self.save_shots = pc.Bool(initial_value=False)
+        input_table.add('Save Shots', self.save_shots)
+        layout.addWidget(input_table)
+        
+    def load(self, aqn_path):
+        # TODO:
+        print('NI 6251 load_device_settings')
+   
+    def save(self, aqn_path):
+        ini = wt.kit.INI(aqn_path)
+        ini.add_section('PCI-6251')
+        ini.write('PCI-6251', 'use', self.use.read())
+        ini.write('PCI-6251', 'shots', self.shots.read())
+        ini.write('PCI-6251', 'save shots', self.save_shots.read())
