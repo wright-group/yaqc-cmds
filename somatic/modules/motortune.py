@@ -79,7 +79,7 @@ class OPA_GUI():
     
     def __init__(self, hardware, layout, use_tune_points):
         self.hardware = hardware
-        motor_names = self.hardware.address.ctrl.motor_names
+        motor_names = self.hardware.motor_names
         self.motors = []
         for name in motor_names:
             motor = MotorGUI(name, 30, 1, 11, use_tune_points)
@@ -154,7 +154,7 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.friendly_name
-        curve = opa_hardware.address.ctrl.curve
+        curve = opa_hardware.curve
         motor_names = self.aqn.read('motortune', 'motor names')
         # tune points        
         if self.aqn.read('motortune', 'use tune points'):

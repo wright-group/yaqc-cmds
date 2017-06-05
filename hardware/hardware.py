@@ -157,10 +157,10 @@ def all_initialized():
     g.hardware_initialized.write(True)
 
 
-class Hardware(pc.Part):
+class Hardware(pc.Hardware):
 
     def __init__(self, *args, **kwargs):
-        pc.Part.__init__(self, *args, **kwargs)
+        pc.Hardware.__init__(self, *args, **kwargs)
         self.exposed = self.driver.exposed
         for obj in self.exposed:
             obj.updated.connect(self.update)

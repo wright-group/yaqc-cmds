@@ -328,7 +328,7 @@ def q(method, inputs = []):
 ### device ####################################################################
 
 
-class Device(pc.Part):
+class Device(pc.Hardware):
     settings_updated = QtCore.pyqtSignal()
     
     def __init__(self, *args, **kwargs):
@@ -341,7 +341,7 @@ class Device(pc.Part):
         self.shots_compatible = False
         self.nshots = pc.Number(initial_value=100)
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
-        pc.Part.__init__(self, *args, **kwargs)
+        pc.Hardware.__init__(self, *args, **kwargs)
         self.settings_updated.emit()
 
     def close(self):

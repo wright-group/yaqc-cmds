@@ -36,22 +36,25 @@ class FileDialog(QtCore.QObject):
     
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
-        '''
-        accepts queued signals from 'queue' (address using q method) \n
-        string method, list inputs
-        '''
+        """
+        Slot to accept enqueued commands from main thread.
+        
+        Method passed as qstring, inputs as list of [args, kwargs].
+        
+        Calls own method with arguments from inputs.
+        """
         self.update_ui.emit()
-        # print self.name, 'dequeue:', method, inputs
-        # execute method
-        getattr(self, str(method))(inputs)  # method passed as qstring
-        # remove method from enqueued
+        method = str(method)  # method passed as qstring
+        args, kwargs = inputs
+        if g.debug.read():
+            print(self.name, ' dequeue:', method, inputs, self.busy.read())
         self.enqueued.pop()
-        if not self.enqueued.read():
+        getattr(self, method)(*args, **kwargs) 
+        if not self.enqueued.read(): 
             self.queue_emptied.emit()
-            self.check_busy([])
-            self.update_ui.emit()
+            self.check_busy()
             
-    def check_busy(self, inputs):
+    def check_busy(self):
         '''
         decides if the hardware is done and handles writing of 'busy' to False
         '''

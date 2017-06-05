@@ -49,7 +49,7 @@ class Worker(acquisition.Worker):
         opa_name = self.aqn.read('OPA', 'name')
         opa_index = opa_names.index(opa_name)
         opa = opas.hardwares[opa_index]
-        opa.address.ctrl.auto_tune.run(self)
+        opa.run_auto_tune(self)
 
  
 ### GUI #######################################################################
@@ -67,12 +67,12 @@ class GUI(acquisition.GUI):
         self.opa_widgets = collections.OrderedDict()
         self.opa_autotunes = collections.OrderedDict()
         for opa in opas.hardwares:
-            if hasattr(opa.address.ctrl, 'auto_tune'):
-                widget = opa.address.ctrl.auto_tune
+            if hasattr(opa.driver, 'auto_tune'):
+                widget = opa.driver.auto_tune
                 self.layout.addWidget(widget)
                 self.opa_widgets[opa.name] = widget
                 widget.hide()
-                self.opa_autotunes[opa.name] = opa.address.ctrl.auto_tune
+                self.opa_autotunes[opa.name] = opa.driver.auto_tune
         self.opa_combobox.set_allowed_values(self.opa_widgets.keys())
         self.on_opa_combobox_updated()
         for opa in opas.hardwares:

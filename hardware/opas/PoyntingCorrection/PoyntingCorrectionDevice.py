@@ -25,11 +25,14 @@ main_dir = g.main_dir.read()
 class PoyntingCorrectionDevice(object):
 
     def __init__(self, native_units='wn'):
-        self.native_units=native_units
-        self.limits=pc.NumberLimits(units=self.native_units)
-        self.offset = pc.Number(initial_value=0,units=self.native_units, display=True)
+        self.native_units = native_units
+        self.limits = pc.NumberLimits(units = self.native_units)
+        self.offset = pc.Number(initial_value = 0, units = self.native_units, display = True)
         self.recorded = collections.OrderedDict()
-        self.motor_names = ['phi', 'theta']
+        self.motor_names = ['Phi', 'Theta']
+        self.motor_positions = collections.OrderedDict()        
+        self.motor_positions['Phi'] = pc.Number()
+        self.motor_positions['Theta'] = pc.Number()
         self.motors = []
         self.ini = Ini(os.path.join(main_dir, 'hardware', 'opas', 'PoyntingCorrection', 'PoyntingCorrection.ini'))
         self.initialized = pc.Bool()
@@ -52,21 +55,21 @@ class PoyntingCorrectionDevice(object):
     def close(self):
         raise NotImplementedError
 
-    def get_crv_paths(self):
-        return [self.curve_path.read()]
-
-    def get_points(self):
-        return self.curve.colors
-
     def get_motor_position(self, motor):
+        # get motor index
         if isinstance(motor, str):
-            return self._get_motor_position(self.motor_names.index(motor))
-        elif isinstance(motor,int):
-            return self._get_motor_position(motor)
+            motor_index = self.motor_names.index(motor)
+        elif isinstance(motor, int):
+            motor_index = motor
         else:
-            return self._get_motor_position(self.motors.index(motor))
+            print('motor_index not recognized in PoyntingCorrectionDevice get_motor_position')
+            return
+        # read position
+        position = self._get_motor_position(motor_index)
+        self.motor_positions.values()[motor_index].write(position)
+        return position
 
-    def get_motor_positions(self, inputs=[]):
+    def get_motor_positions(self):
         return [self.get_motor_position(s) for s in self.motor_names]
 
     def home(self, motor=None):
@@ -80,30 +83,21 @@ class PoyntingCorrectionDevice(object):
         else:
             self._home(self.motors.index(motor))
 
-    def initialize(self, OPA):
-        self.address = OPA
+    def initialize(self, OPA, curve_path):
+        self.OPA = OPA
         self.index = OPA.index
         self.motor_positions = collections.OrderedDict()
         motor_limits = self.motor_limits()
         for motor_index, motor_name in enumerate(self.motor_names):
-            number = pc.Number(name=motor_name,initial_value = 0, decimals=0,limits=motor_limits,display=True)
+            number = pc.Number(name=motor_name, initial_value=0, decimals=0, limits=motor_limits, display=True)
             self.motor_positions[motor_name] = number
-            self.recorded['w%d_%s'%(self.index,motor_name)] = [number,None,1,motor_name.lower()]    
+            self.recorded['w%d_%s'%(self.index,motor_name)] = [number, None, 1, motor_name.lower()]    
         self._initialize()
-        self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File(*.curve)'])
-        self.curve_path.updated.connect(self.curve_path.save)
-        self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
-        self.load_curve(self.curve_path.read())
+        self.curve_path = curve_path
         self.initialized.write(True)
 
     def is_busy(self):
         raise NotImplementedError
-
-    def load_curve(self, path):
-        self.curve = wt.tuning.curve.from_poynting_curve(path)
-        min_color = self.curve.colors.min()
-        max_color = self.curve.colors.max()
-        self.limits.write(min_color, max_color, self.native_units)
 
     def motor_limits(self):
         raise NotImplementedError
@@ -117,21 +111,14 @@ class PoyntingCorrectionDevice(object):
             self._move_rel(self.motors.index(motor),position)
 
     def set_motor(self, motor, position):
+        print('POYNTING CORRECTION DEVICE SET MOTOR', motor, position)
         if isinstance(motor, str):
             self._set_motor(self.motor_names.index(motor), position)
         elif isinstance(motor,int):
             self._set_motor(motor, position)
         else:
             self._set_motor(self.motors.index(motor), position)
-
-    def set_position(self, color):
-        color = np.clip(color, self.curve.colors.min(), self.curve.colors.max())
-        motor_destinations = self.curve.get_motor_positions(color, self.native_units)
-        motor_names = self.curve.get_motor_names()
-        motor_destinations = self.curve.get_motor_positions(color, self.native_units)
-        for n in self.motor_names:
-            index = motor_names.index(n)
-            self.set_motor(n,motor_destinations[index])
+        self.get_motor_positions()
 
     def wait_until_still(self):
         while self.is_busy():

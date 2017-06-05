@@ -483,7 +483,22 @@ class Number(PyCMDS_Object):
         if self.units is not None and self.limits.units is None:
             self.limits.units = self.units
         self._set_limits()
-        self.limits.updated.connect(lambda: self._set_limits())
+        self.limits.updated.connect(self._set_limits)
+
+    def _set_limits(self):
+        min_value, max_value = self.limits.read()
+        limits_units = self.limits.units
+        min_value = wt_units.converter(min_value, limits_units, self.units)
+        max_value = wt_units.converter(max_value, limits_units, self.units)
+        # ensure order
+        min_value, max_value = [min([min_value, max_value]),
+                                max([min_value, max_value])]
+        if self.has_widget:
+            self.widget.setMinimum(min_value)
+            self.widget.setMaximum(max_value)
+            if not self.display:
+                self.set_tool_tip('min: ' + str(min_value) + '\n' +
+                                  'max: ' + str(max_value))
 
     def associate(self, display=None, pre_name=''):
         # display
@@ -556,6 +571,7 @@ class Number(PyCMDS_Object):
         self.widget.setToolTip(self.tool_tip)
         self.widget.setDisabled(self.disabled)
         self.has_widget = True
+        self._set_limits()
 
     def give_units_combo(self, units_combo_widget):
         self.units_widget = units_combo_widget
@@ -576,21 +592,6 @@ class Number(PyCMDS_Object):
         else:
             value = wt_units.converter(value, input_units, self.units)
         PyCMDS_Object.write(self, value)
-
-    def _set_limits(self):
-        min_value, max_value = self.limits.read()
-        limits_units = self.limits.units
-        min_value = wt_units.converter(min_value, limits_units, self.units)
-        max_value = wt_units.converter(max_value, limits_units, self.units)
-        # ensure order
-        min_value, max_value = [min([min_value, max_value]),
-                                max([min_value, max_value])]
-        if self.has_widget:
-            self.widget.setMinimum(min_value)
-            self.widget.setMaximum(max_value)
-            if not self.display:
-                self.set_tool_tip('min: ' + str(min_value) + '\n' +
-                                  'max: ' + str(max_value))
 
 
 class String(PyCMDS_Object):
@@ -656,7 +657,6 @@ class Driver(QtCore.QObject):
         
         Calls own method with arguments from inputs.
         """
-        print('DRIVER DEQUEUE')
         self.update_ui.emit()
         method = str(method)  # method passed as qstring
         args, kwargs = inputs
@@ -695,7 +695,7 @@ class Enqueued(QtCore.QMutex):
         self.unlock()
 
 
-class Part(QtCore.QObject):
+class Hardware(QtCore.QObject):
     update_ui = QtCore.pyqtSignal()
     initialized_signal = QtCore.pyqtSignal()
 

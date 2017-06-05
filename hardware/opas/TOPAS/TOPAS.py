@@ -376,32 +376,31 @@ class Driver(BaseDriver):
         if self.has_shutter:
             self.set_shutter([original_shutter])
  
-    def _is_busy(self):
-        if self.api.open:
-            error, still = self.api.are_all_motors_still()
-            return not still
-        else:
-            return False  # for shutdown
-
     def _load_curve(self, inputs, interaction):
+        interaction = self.interaction_string_combo.read()
         crv_paths = [m.read() for m in self.curve_paths.values()]
         used = self.curve_indices.values()
         need = [x for x in range(4) if x+1 not in used]        
         for i in need:
             crv_paths.insert(i,None)
+        if self.poynting_correction:
+            crv_paths.pop(-1)
         self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, self.kind, interaction)
+        return self.curve
        
-    def _set_motors(self, motor_indexes, motor_destinations, wait=True):
+    def _set_motors(self, motor_indexes, motor_destinations):
         for motor_index, destination in zip(motor_indexes, motor_destinations):
+            print('TOPAS SET MOTOR', motor_index, destination)
             error, destination_steps = self.api.convert_position_to_steps(motor_index, destination)
             self.api.start_motor_motion(motor_index, destination_steps)
-        if wait:
-            self.wait_until_still()
+        self.wait_until_still()
 
     def _update_api(self, interaction):
         # write to TOPAS ini
         self.api.close()
         for curve_type, curve_path_mutex in self.curve_paths.items():
+            if curve_type == 'Poynting':
+                continue
             curve_path = curve_path_mutex.read()            
             section = 'Optical Device'
             option = 'Curve ' + str(self.curve_indices[curve_type])
@@ -416,10 +415,11 @@ class Driver(BaseDriver):
             self.api.set_shutter(False)
         self.api.close()
 
-    def get_motor_positions(self, inputs=[]):
+    def get_motor_positions(self):
         for motor_index, motor_mutex in enumerate(self.motor_positions.values()):
             error, position_steps = self.api.get_motor_position(motor_index)
             error, position = self.api.convert_position_to_units(motor_index, position_steps)
+            print('GET MOTOR POSITIONS', position)
             motor_mutex.write(position)
     
     def get_speed_parameters(self, inputs):
@@ -430,14 +430,13 @@ class Driver(BaseDriver):
     def initialize(self):
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         # load api 
-        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
+        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')   
         self.api = TOPAS_API(self.TOPAS_ini_filepath)
         if self.has_shutter:
             self.api.set_shutter(False)
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
         self.TOPAS_ini.return_raw = True
         # motor positions
-        self.motor_positions = collections.OrderedDict()
         for motor_index, motor_name in enumerate(self.motor_names):
             error, min_position_steps, max_position_steps = self.api.get_motor_positions_range(motor_index)
             valid_position_steps = np.arange(min_position_steps, max_position_steps+1)
@@ -473,8 +472,21 @@ class Driver(BaseDriver):
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
         self.load_curve()
+        # set position
+        position = self.ini.read('OPA%i'%self.index, 'position (nm)')
+        self.hardware.destination.write(position, self.native_units)
+        self.set_position(position)
         # finish
         BaseDriver.initialize(self)
+
+    def is_busy(self):
+        print('TOPAS IS BUSY', self.api.open)
+        if self.api.open:
+            error, still = self.api.are_all_motors_still()
+            print(error, still)
+            return not still
+        else:
+            return False  # for shutdown
     
     def set_shutter(self, inputs):
         shutter_state = inputs[0]

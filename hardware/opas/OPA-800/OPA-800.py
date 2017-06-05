@@ -237,26 +237,40 @@ class Driver(BaseDriver):
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'OPA-800', 'OPA-800.ini'))
 
+    def _load_curve(self, inputs, interaction):
+        '''
+        when loading externally, write to curve_path object directly
+        '''
+        print(self.curve_paths)
+        self.curve = wt.tuning.curve.from_800_curve(self.curve_paths['Curve'].read())
+        return self.curve
+  
+    def _set_motors(self, motor_indexes, motor_destinations):
+        for axis, dest in zip(motor_indexes, motor_destinations):
+            if axis < 3:
+                if dest >= 0 and dest <=50:
+                    self.motors[axis].move_absolute(dest)
+                else:
+                    print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
+            else:
+                print('Unrecognized axis '+str(axis))
+    
+    def _wait_until_still(self, inputs=[]):
+        for motor in self.motors:
+            motor.wait_until_still(method=self.get_position)
+        self.get_motor_positions()
+
     def close(self):
         self.ini.write('OPA%d'%self.index, 'current position (wn)', self.position.read())
         for motor in self.motors:
             motor.close()
 
-    def _load_curve(self, inputs, interaction):
-        '''
-        when loading externally, write to curve_path object directly
-        '''
-        if isinstance(inputs,str):
-            filepath = inputs
-        else:
-            filepath = inputs[0]
-        self.curve = wt.tuning.curve.from_800_curve(filepath)
-
-    def get_motor_positions(self, inputs=[]):
+    def get_motor_positions(self):
         for i in range(len(self.motors)):
             val = self.motors[i].current_position_mm
             self.motor_positions.values()[i].write(val)
-        return [mp.read() for mp in self.motor_positions.values()]
+        if self.poynting_correction:
+            self.poynting_correction.get_motor_positions()
 
     def initialize(self):
         self.position.write(self.ini.read('OPA%d'%self.index, 'current position ('+self.native_units+')'), self.native_units)
@@ -264,7 +278,6 @@ class Driver(BaseDriver):
         self.serial_number = -1
         self.recorded['w%d'%self.index] = [self.position, self.native_units, 1., str(self.index)]
         # motor positions
-        self.motor_positions = collections.OrderedDict()
         motor_limits = pc.NumberLimits(min_value=0, max_value=50)
         for motor_index, motor_name in enumerate(self.motor_names):
             number = pc.Number(name=motor_name, initial_value=25., decimals=6, limits = motor_limits, display=True)
@@ -279,7 +292,6 @@ class Driver(BaseDriver):
         self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
         self.curve_path.updated.connect(self.curve_path.save)
         self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
-        self.load_curve(self.curve_path.read())
         self.curve_paths = collections.OrderedDict()
         self.curve_paths['Curve'] = self.curve_path
         # tuning
@@ -289,30 +301,13 @@ class Driver(BaseDriver):
         # finish
         BaseDriver.initialize(self)
 
-    def _is_busy(self):
+    def is_busy(self):
         for motor in self.motors:
             if not motor.is_stopped():
                 self.get_position()                
                 return True
         self.get_position()
         return False
-        
-    def _wait_until_still(self, inputs=[]):
-        for motor in self.motors:
-            motor.wait_until_still(method=self.get_position)
-        self.get_motor_positions()
-
-    def _set_motors(self, motor_indexes, motor_destinations, wait=True):
-        for axis,dest in zip(motor_indexes, motor_destinations):
-            if axis < 3:
-                if dest >= 0 and dest <=50:
-                    self.motors[axis].move_absolute(dest)
-                else:
-                    print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
-            else:
-                print('Unrecognized axis '+str(axis))
-        if wait:
-            self.wait_until_still()
 
 
 ### gui #######################################################################
