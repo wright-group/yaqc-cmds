@@ -94,18 +94,18 @@ class AutoTune(BaseAutoTune):
             # tune points
             points = self.driver.curve.colors
             units = self.driver.curve.units
-            name = identity = self.driver.address.hardware.friendly_name
+            name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.address.hardware.friendly_name, self.driver.curve.motor_names[1]])
+            name = '_'.join([self.driver.name, self.driver.curve.motor_names[1]])
             identity = 'D' + name
             width = worker.aqn.read('BBO', 'width') 
             npts = int(worker.aqn.read('BBO', 'number'))
             points = np.linspace(-width/2., width/2., npts)
             motor_positions = self.driver.curve.motors[1].positions
             kwargs = {'centers': motor_positions}
-            hardware_dict = {name: [self.driver.address.hardware, 'set_motor', ['BBO', 'destination']]}
+            hardware_dict = {name: [self.driver.hardware, 'set_motor', ['BBO', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
             axes.append(axis)
             # do scan
@@ -129,18 +129,18 @@ class AutoTune(BaseAutoTune):
             # tune points
             points = self.driver.curve.colors
             units = self.driver.curve.units
-            name = identity = self.driver.address.hardware.friendly_name
+            name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.address.hardware.friendly_name, self.driver.curve.motor_names[2]])
+            name = '_'.join([self.driver.name, self.driver.curve.motor_names[2]])
             identity = 'D' + name
             width = worker.aqn.read('Mixer', 'width') 
             npts = int(worker.aqn.read('Mixer', 'number'))
             points = np.linspace(-width/2., width/2., npts)
             motor_positions = self.driver.curve.motors[2].positions
             kwargs = {'centers': motor_positions}
-            hardware_dict = {name: [self.driver.address.hardware, 'set_motor', ['Mixer', 'destination']]}
+            hardware_dict = {name: [self.driver.hardware, 'set_motor', ['Mixer', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
             axes.append(axis)
             # do scan
@@ -164,7 +164,7 @@ class AutoTune(BaseAutoTune):
             # tune points
             points = self.driver.curve.colors
             units = self.driver.curve.units
-            name = identity = self.driver.address.hardware.friendly_name
+            name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # mono
@@ -254,6 +254,7 @@ class Driver(BaseDriver):
                     print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
             else:
                 print('Unrecognized axis '+str(axis))
+        self.wait_until_still()
     
     def _wait_until_still(self, inputs=[]):
         for motor in self.motors:

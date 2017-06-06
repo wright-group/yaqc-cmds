@@ -302,13 +302,10 @@ class Motor():
 
 
 if __name__ == '__main__':
-    if 0:
-        
-        import numpy as np
-    
+    if True:
         #mess with a single motor
-        motor = Motor('motor0')
-        motor.move_absolute(25, 'mm')
+        motor = Motor('motor3')
+        motor.move_absolute(15, 'mm')
         motor.wait_until_still()
         print(motor.get_position('mm'))
         motor.close()
