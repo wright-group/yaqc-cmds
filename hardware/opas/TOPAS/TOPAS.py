@@ -390,7 +390,6 @@ class Driver(BaseDriver):
        
     def _set_motors(self, motor_indexes, motor_destinations):
         for motor_index, destination in zip(motor_indexes, motor_destinations):
-            print('TOPAS SET MOTOR', motor_index, destination)
             error, destination_steps = self.api.convert_position_to_steps(motor_index, destination)
             self.api.start_motor_motion(motor_index, destination_steps)
         self.wait_until_still()

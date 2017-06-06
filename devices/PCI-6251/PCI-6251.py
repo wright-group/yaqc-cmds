@@ -794,7 +794,7 @@ class GUI(BaseGUI):
         new_channel.active.write(True)
         new_channels = copy.copy(channels.read())
         new_channels[new_channel_index] = new_channel
-        self.control.update_sample_correspondances(new_channels, choppers.read())
+        self.hardware.update_sample_correspondances(new_channels, choppers.read())
         self.update_samples_tab()
     
     def on_apply_chopper(self):
@@ -804,7 +804,7 @@ class GUI(BaseGUI):
         new_choppers = copy.copy(choppers.read())
         new_choppers[new_chopper_index] = new_chopper
         print new_chopper.name.read()
-        self.control.update_sample_correspondances(channels.read(), new_choppers)
+        self.hardware.update_sample_correspondances(channels.read(), new_choppers)
         self.update_samples_tab()
         
     def on_remove_channel(self):
@@ -815,7 +815,7 @@ class GUI(BaseGUI):
                 channel.active.write(False)
                 channel.save()
                 break
-        self.control.update_sample_correspondances(channels.read(), choppers.read())
+        self.hardware.update_sample_correspondances(channels.read(), choppers.read())
         allowed_values = [channel.section for channel in destination_channels.read() if channel.active.read()]
         self.samples_channel_combo.set_allowed_values(allowed_values)
         self.samples_channel_combo.write(allowed_values[-1])
@@ -829,7 +829,7 @@ class GUI(BaseGUI):
                 chopper.active.write(False)
                 chopper.save()
                 break
-        self.control.update_sample_correspondances(channels.read(), choppers.read())
+        self.hardware.update_sample_correspondances(channels.read(), choppers.read())
         allowed_values = [chopper.section for chopper in destination_choppers.read() if chopper.active.read()]
         self.samples_chopper_combo.set_allowed_values(allowed_values)
         self.samples_chopper_combo.write(allowed_values[-1])

@@ -70,10 +70,13 @@ class Driver(hw.Driver):
         self.homeables = []  # TODO:
         self.poynting_type = kwargs.pop('poynting_type')
         self.poynting_correction  = None
+        if self.poynting_type is not None:
+            self.motor_names += ['Phi', 'Theta']
         self.poynting_curve_path = kwargs.pop('poynting_curve_path')
         if 'native_units' not in kwargs.keys():
             kwargs['native_units'] = 'nm'
         hw.Driver.__init__(self, args[0], native_units=kwargs['native_units'])
+        print(self.name, self.motor_names)
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
@@ -144,10 +147,11 @@ class Driver(hw.Driver):
             if len(self.homeables) < num_motors:
                 n = len(self.homeable)
                 homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
-            self.motor_names += self.poynting_correction.motor_names
             self.homeable += [True]*len(self.poynting_correction.motor_names)
-            for name in self.poynting_correction.motor_names:            
-                self.motor_positions[name] = self.poynting_correction.motor_positions[name]
+            for name in self.poynting_correction.motor_names:
+                number = self.poynting_correction.motor_positions[name]
+                self.motor_positions[name] = number
+                self.recorded['w%d_'%self.index + name] = [number, None, 1., name]
             self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_correction.curve_path)
         # get position
         self.load_curve()
@@ -215,16 +219,14 @@ class Driver(hw.Driver):
         self.wait_until_still()
         self.get_position()
         
-    def set_position_except(self, inputs):
+    def set_position_except(self, destination, exceptions):
         '''
         set position, except for motors that follow
         
         does not wait until still...
         '''
-        destination = inputs[0]
         self.hardware.destination.write(destination)
         self.position.write(destination, self.native_units)
-        exceptions = inputs[1]  # list of integers
         motor_destinations = self.curve.get_motor_positions(destination, self.native_units)
         motor_indexes = []
         motor_positions = []
@@ -232,8 +234,8 @@ class Driver(hw.Driver):
             if i not in exceptions:
                 motor_indexes.append(i)
                 motor_positions.append(motor_destinations[i])
-        self._set_motors(motor_indexes, motor_positions, wait=False)
-        if self.poynting_correction:
+        self._set_motors(motor_indexes, motor_positions)
+        if self.poynting_correction and False:
             poynting_curve_names = self.poynting_correction.curve.get_motor_names()
             destinations = self.poynting_correction.curve.get_motor_positions(destination,self.poynting_correction.native_units)
             for name in self.poynting_correction.motor_names:
@@ -415,7 +417,7 @@ class MotorControlGUI(QtGui.QWidget):
         self.layout.addWidget(input_table)
         # buttons
         home_button, set_button = self.add_buttons(self.layout, 'HOME', 'advanced', 'SET', 'set')
-        homeable = driver.homeable[driver.motor_names.index(motor_name)%len(driver.homeable)]
+        #homeable = driver.homeable[driver.motor_names.index(motor_name)%len(driver.homeable)]
         #home_button.set_disabled(homeable)
         home_button.clicked.connect(self.on_home)
         set_button.clicked.connect(self.on_set)

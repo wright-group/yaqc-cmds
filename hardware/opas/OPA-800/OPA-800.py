@@ -231,10 +231,10 @@ class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'wn'
+        self.motor_names = ['Grating', 'BBO', 'Mixer']
         BaseDriver.__init__(self, *args, **kwargs)
         self.auto_tune = AutoTune(self)
-        self.motors=[]
-        self.motor_names = ['Grating', 'BBO', 'Mixer']
+        self.motors=[]        
         self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'OPA-800', 'OPA-800.ini'))
 
     def _load_curve(self, inputs, interaction):
@@ -280,6 +280,8 @@ class Driver(BaseDriver):
         # motor positions
         motor_limits = pc.NumberLimits(min_value=0, max_value=50)
         for motor_index, motor_name in enumerate(self.motor_names):
+            if motor_name in ['Phi', 'Theta']:
+                continue
             number = pc.Number(name=motor_name, initial_value=25., decimals=6, limits = motor_limits, display=True)
             self.motor_positions[motor_name] = number
             self.motors.append(pm_motors.Motor(pm_motors.identity['OPA%d %s'%(self.index, motor_name)]))

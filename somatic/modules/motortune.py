@@ -80,6 +80,7 @@ class OPA_GUI():
     def __init__(self, hardware, layout, use_tune_points):
         self.hardware = hardware
         motor_names = self.hardware.motor_names
+        print('MOTORTUNE', self.hardware.name, motor_names)
         self.motors = []
         for name in motor_names:
             motor = MotorGUI(name, 30, 1, 11, use_tune_points)
@@ -153,7 +154,7 @@ class Worker(acquisition.Worker):
         opa_names = [h.name for h in opas.hardwares]
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
-        opa_friendly_name = opa_hardware.friendly_name
+        opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve
         motor_names = self.aqn.read('motortune', 'motor names')
         # tune points        
@@ -194,10 +195,7 @@ class Worker(acquisition.Worker):
                 axis = acquisition.Axis(points, motor_units, name, identity, hardware_dict, **kwargs)
                 axes.append(axis)
             elif self.aqn.read(motor_name, 'method') == 'Set':
-                if self.aqn.read('motortune', 'use tune points'):
-                    pass
-                else:
-                    opa_hardware.q.push('set_motor', [motor_name, self.aqn.read(motor_name, 'center')])
+                pass
             elif self.aqn.read(motor_name, 'method') == 'Static':
                 opa_hardware.q.push('set_motor', [motor_name, self.aqn.read(motor_name, 'center')])
         # mono

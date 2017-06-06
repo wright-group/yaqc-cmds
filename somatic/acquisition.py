@@ -313,7 +313,7 @@ class Worker(QtCore.QObject):
                             inputs[input_index] = destination
                         elif input_val == 'units':
                             inputs[input_index] = d.units
-                    d.hardware.q.push(d.method, inputs)
+                    d.hardware.q.push(d.method, *inputs)
             # execute pre_wait_methods
             for method in pre_wait_methods:
                 method()
