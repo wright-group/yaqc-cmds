@@ -314,10 +314,10 @@ class Device(BaseDevice):
             if freerun.read():
                 return_to_freerun = True
                 freerun.write(False)
-                self.wait_until_done()
+                self.wait_until_still()
             else: 
                 return_to_freerun = False
-            q.push('create_task')
+            self.q.push('create_task')
             if return_to_freerun: 
                 freerun.write(True)
             self.settings_updated.emit()
@@ -336,7 +336,6 @@ class Driver(BaseDriver):
         self.create_task()
         self.measure()
         self.settings_updated.emit()
-        print 'NI 6251 done initializing' 
     
     def create_task(self):
         '''
@@ -346,7 +345,6 @@ class Driver(BaseDriver):
         
         No inputs
         '''
-        print('CREATE TASK')
         # ensure previous task closed -----------------------------------------
         if self.task_created:
             DAQmxStopTask(self.task_handle)
@@ -595,7 +593,7 @@ class GUI(BaseGUI):
         layout.addWidget(self.tabs)
         self.samples_channel_combo.updated.connect(self.update_samples_tab)
         self.samples_chopper_combo.updated.connect(self.update_samples_tab)
-        self.device.update_ui.connect(self.update)
+        self.hardware.update_ui.connect(self.update)
         self.update_samples_tab()
                 
     def create_samples_tab(self, layout):

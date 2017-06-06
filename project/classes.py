@@ -637,7 +637,6 @@ class Driver(QtCore.QObject):
         
         Must always write to busy.
         """
-        print('Driver %s check_busy'%self.name)
         if self.is_busy():
             time.sleep(0.01)  # don't loop like crazy
             self.busy.write(True)

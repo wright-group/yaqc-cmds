@@ -353,7 +353,7 @@ class Device(pc.Hardware):
             # TODO: log
             if False:
                 if g.debug.read():
-                    print 'daq shutting down'
+                    print('daq shutting down')
                 g.logger.log('info', 'DAQ shutdown')
             # shutdown driver
             q.push('shutdown')
@@ -372,9 +372,8 @@ class Device(pc.Hardware):
         self.gui.create_frame(widget)
         
     def initialize(self):
-        print('DEVICE INITIALIZE BEGIN', self.busy.read())
-        self.wait_until_done()
-        self.freerun.updated.connect(lambda: self.q.push('loop'))
+        self.wait_until_still()
+        self.freerun.updated.connect(self.on_freerun_updated)
         self.update_ui.emit()
         self.driver.update_ui.connect(self.on_driver_update_ui)
         self.settings_updated.emit()
@@ -387,31 +386,15 @@ class Device(pc.Hardware):
         
     def on_driver_update_ui(self):
         self.update_ui.emit()
+    
+    def on_freerun_updated(self):
+        print('ON FREERUN UPDATED')
+        self.q.push('loop')
 
     def set_freerun(self, state):
         self.freerun.write(state)
+        self.on_freerun_updated()
         self.settings_updated.emit()  # TODO: should probably remove this
-    
-    def wait_until_done(self, timeout=10):
-        """
-        timeout in seconds (will only refer to timeout when
-        busy.wait_for_update fires)
-        """
-        if False:
-            start_time = time.time()
-            while self.busy.read():
-                print('DEVICE WAIT UNTIL DONE')
-                QtCore.QThread.yieldCurrentThread()
-                if time.time()-start_time < timeout:
-                    self.busy.wait_for_update()
-                else:
-                    print('DEVICE WAIT UNTIL DONE TIMEOUT')
-                    g.logger.log('warning', '%s wait until done timed out'%self.name, 'timeout set to {} seconds'.format(timeout))
-                    break
-        else:
-            while self.busy.read():
-                print('DEVICE BUSY LOOPING')
-                self.busy.wait_for_update()
 
 
 ### driver ####################################################################
@@ -482,9 +465,9 @@ class Widget(QtGui.QWidget):
         
 class DeviceGUI(QtCore.QObject):
 
-    def __init__(self, device):
+    def __init__(self, hardware):
         QtCore.QObject.__init__(self)
-        self.device = device
+        self.hardware = hardware
         self.samples_tab_initialized = False
 
     def close(self):
@@ -495,8 +478,6 @@ class DeviceGUI(QtCore.QObject):
         parent_widget.setLayout(QtGui.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         self.layout = parent_widget.layout()
-        input_table = pw.InputTable()
-        input_table.add('HELLO', None)
         self.layout.addWidget(input_table)
 
 
@@ -836,7 +817,7 @@ class Control(QtCore.QObject):
         '''
         for device in self.devices:
             if device.active:
-                device.wait_until_done()
+                device.wait_until_still()
 
 
 ### gui #######################################################################
