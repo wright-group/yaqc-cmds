@@ -302,7 +302,7 @@ class Motor():
 
 
 if __name__ == '__main__':
-    if True:
+    if False:
         #mess with a single motor
         motor = Motor('motor3')
         motor.move_absolute(15, 'mm')

@@ -46,6 +46,7 @@ class MotorGUI():
         self.input_table = pw.InputTable()
         self.input_table.add(name, None)
         self.home = pc.Bool(initial_value=home)
+        self.input_table.add('Home', self.home)
 
 
 class OPA_GUI():
@@ -93,6 +94,7 @@ class Worker(acquisition.Worker):
         for motor_index, motor_name in enumerate(motor_names):
             if self.aqn.read(motor_name, 'home'):
                 opa_hardware.home_motor([motor_name])
+        opa_hardware.wait_until_still()
         if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull
 
@@ -111,7 +113,7 @@ class GUI(acquisition.GUI):
         self.opa_combo.updated.connect(self.on_opa_combo_updated)
         self.layout.addWidget(input_table)
         # motor settings
-        self.opa_guis = [OPA_GUI(hardware, self.layout, self.use_tune_points) for hardware in opas.hardwares]
+        self.opa_guis = [OPA_GUI(hardware, self.layout) for hardware in opas.hardwares]
         self.opa_guis[0].show()
         
     def load(self, aqn_path):
@@ -120,14 +122,11 @@ class GUI(acquisition.GUI):
         self.opa_combo.write(aqn.read('home', 'opa name'))
         # motor settings
         opa = self.opa_guis[self.opa_combo.read_index()]
-        for motor, motor_name in zip(opa.motors, aqn.read('motortune', 'motor names')):
+        for motor, motor_name in zip(opa.motors, aqn.read('home', 'motor names')):
             motor.home.write(aqn.read(motor_name, 'home'))
         # allow devices to read from aqn
         self.device_widget.load(aqn_path)
-    
-    def on_device_settings_updated(self):
-        self.main_channel.set_allowed_values(devices.control.channel_names)
-    
+
     def on_opa_combo_updated(self):
         self.show_opa_gui(self.opa_combo.read_index())
         

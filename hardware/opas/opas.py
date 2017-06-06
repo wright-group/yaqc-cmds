@@ -124,6 +124,7 @@ class Driver(hw.Driver):
         self._home_motors(indexes)
 
     def home_motor(self, inputs):
+        # TODO: clean up for new inputs behavior
         motor_name = inputs[0]
         if self.poynting_correction:
             if motor_name in self.poynting_correction.motor_names:
@@ -473,6 +474,12 @@ class Hardware(hw.Hardware):
     def curve(self):
         # TODO: a more thread-safe operation (copy?)
         return self.driver.curve
+
+    def home_motor(self, motor):
+        """
+        motor list [name]
+        """
+        self.q.push('home_motor', motor)
 
     @property
     def motor_names(self):

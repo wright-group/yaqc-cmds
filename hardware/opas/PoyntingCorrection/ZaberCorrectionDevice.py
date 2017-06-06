@@ -22,7 +22,6 @@ class ZaberCorrectionDevice(PoyntingCorrectionDevice):
     def _home(self, index):
         position = self.motors[index].get_position()
         self.motors[index].home()
-        time.sleep(2)
         self.motors[index].move_abs(position)
     
     def _initialize(self):
