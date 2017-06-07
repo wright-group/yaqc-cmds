@@ -404,7 +404,6 @@ class Driver(BaseDriver):
             section = 'Optical Device'
             option = 'Curve ' + str(self.curve_indices[curve_type])
             self.TOPAS_ini.write(section, option, curve_path)
-            print section, option, curve_path
         self.api = TOPAS_API(self.TOPAS_ini_filepath)
         # save current interaction string
         self.ini.write('OPA%i'%self.index, 'current interaction string', interaction)
@@ -418,7 +417,6 @@ class Driver(BaseDriver):
         for motor_index, motor_mutex in enumerate(self.motor_positions.values()):
             error, position_steps = self.api.get_motor_position(motor_index)
             error, position = self.api.convert_position_to_units(motor_index, position_steps)
-            print('GET MOTOR POSITIONS', position)
             motor_mutex.write(position)
     
     def get_speed_parameters(self, inputs):
@@ -479,7 +477,6 @@ class Driver(BaseDriver):
         BaseDriver.initialize(self)
 
     def is_busy(self):
-        print('TOPAS IS BUSY', self.api.open)
         if self.api.open:
             error, still = self.api.are_all_motors_still()
             print(error, still)

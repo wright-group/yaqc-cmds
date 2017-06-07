@@ -171,7 +171,7 @@ class Driver(hw.Driver):
             curve = self._load_curve(inputs, interaction)
             if self.poynting_correction:
                 self.curve = wt.tuning.curve.from_poynting_curve(self.poynting_correction.curve_path, subcurve=curve)
-                print('LOAD CURVE', self.curve.get_motor_names(), curve.subcurve)
+            self.curve.convert(self.native_units)
             # update limits
             min_color = self.curve.colors.min()
             max_color = self.curve.colors.max()
@@ -201,7 +201,7 @@ class Driver(hw.Driver):
         self._set_motors(motor_indexes, motor_positions)
 
     def set_position(self, destination):
-        print(self.name, 'SET POSITION', destination)
+        print(self.name, 'SET POSITION', destination, self.native_units, self.curve.units)
         # coerce destination to be within current tune range
         destination = np.clip(destination, self.curve.colors.min(), self.curve.colors.max())
         # get destinations from curve
