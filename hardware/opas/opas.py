@@ -76,7 +76,8 @@ class Driver(hw.Driver):
         if 'native_units' not in kwargs.keys():
             kwargs['native_units'] = 'nm'
         hw.Driver.__init__(self, args[0], native_units=kwargs['native_units'])
-        print(self.name, self.motor_names)
+        if not hasattr(self, 'motor_names'):  # for virtual...
+            self.motor_names = ['Delay', 'Crystal', 'Mixer']
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
@@ -345,7 +346,6 @@ class GUI(hw.GUI):
         self.driver.auto_tune.initialize()
 
     def update(self):
-        print 'OPA update'
         # set button disable
         if self.driver.busy.read():
             self.home_all_button.setDisabled(True)

@@ -478,7 +478,6 @@ class DeviceGUI(QtCore.QObject):
         parent_widget.setLayout(QtGui.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         self.layout = parent_widget.layout()
-        self.layout.addWidget(input_table)
 
 
 ### control ###################################################################
@@ -824,7 +823,19 @@ class Control(QtCore.QObject):
 
 
 class DeviceWidget(QtGui.QWidget):
-    pass
+    
+    def __init__(self):
+        QtGui.QWidget.__init__(self)
+    
+    def load(self, aqn_path):
+        # TODO:
+        pass
+   
+    def save(self, aqn_path):
+        # TODO:
+        ini = wt.kit.INI(aqn_path)
+        ini.add_section('Virtual')
+        ini.write('Virtual', 'use', True)
 
 
 class Widget(QtGui.QWidget):

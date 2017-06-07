@@ -978,7 +978,7 @@ class GUI(BaseGUI):
 class Widget(BaseWidget):
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
+        BaseWidget.__init__(self)
         layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
