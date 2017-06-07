@@ -57,6 +57,7 @@ messages_mutex = Messages()
 
 
 class Address(QtCore.QObject):
+    update_ui = QtCore.pyqtSignal()
     queue_emptied = QtCore.pyqtSignal()
 
     def __init__(self, busy, enqueued):
@@ -64,24 +65,51 @@ class Address(QtCore.QObject):
         self.busy = busy
         self.enqueued = enqueued
         self.ctrl = bots.witch
+        self.name = 'slack'
+
+    def check_busy(self):
+        """
+        Handles writing of busy to False.
+        
+        Must always write to busy.
+        """
+        if self.is_busy():
+            time.sleep(0.01)  # don't loop like crazy
+            self.busy.write(True)
+        elif self.enqueued.read():
+            time.sleep(0.1)  # don't loop like crazy
+            self.busy.write(True)
+        else:
+            self.busy.write(False)
+            self.update_ui.emit()
 
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
-        # execute method
-        getattr(self, str(method))(inputs)  # method passed as qstring
-        # remove method from enqueued
+        """
+        Slot to accept enqueued commands from main thread.
+        
+        Method passed as qstring, inputs as list of [args, kwargs].
+        
+        Calls own method with arguments from inputs.
+        """
+        self.update_ui.emit()
+        method = str(method)  # method passed as qstring
+        args, kwargs = inputs
         self.enqueued.pop()
-        if not self.enqueued.read():
-            self.ctrl.rtmbot.autoping()
+        getattr(self, method)(*args, **kwargs) 
+        if not self.enqueued.read(): 
             self.queue_emptied.emit()
-            self.busy.write(False)
+            self.check_busy()
             
     def get_messages(self, inputs):
         newer_than = inputs[0]
         messages = self.ctrl.get_messages(newer_than=newer_than)
         for message in messages:
             messages_mutex.push(message)
-            
+
+    def is_busy(self):
+        return False
+
     def send_message(self, inputs):
         text, channel, attachments = inputs
         self.ctrl.send_message(text, channel, attachments)
