@@ -103,7 +103,7 @@ class GUI(hw.GUI):
         new_zero = self.zero_destination.read('mm')
         self.driver.set_zero(new_zero)
         self.driver.offset.write(0)
-        name = self.driver.address.hardware.name
+        name = self.hardware.name
         g.coset_control.read().zero(name)
 
     def update(self):
