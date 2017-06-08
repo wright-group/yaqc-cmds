@@ -12,10 +12,6 @@ import time
 import shutil
 from distutils.dir_util import copy_tree
 
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
-from pydrive.files import GoogleDriveFile
-
 from PyQt4 import QtGui, QtCore
 
 import WrightTools as wt
@@ -24,8 +20,6 @@ import project.classes as pc
 import project.logging_handler as logging_handler
 import project.project_globals as g
 from project.ini_handler import Ini
-main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'project', 'google_drive', 'google_drive.ini'))
 
 
 ### define ####################################################################
@@ -33,6 +27,9 @@ ini = Ini(os.path.join(main_dir, 'project', 'google_drive', 'google_drive.ini'))
 
 directory = os.path.dirname(__file__)
 
+main_dir = g.main_dir.read()
+
+ini = Ini(os.path.join(main_dir, 'project', 'google_drive', 'google_drive.ini'))
 PyCMDS_data_ID = ini.read('main', 'PyCMDS data ID')
 
 
@@ -49,6 +46,8 @@ if not os.path.isdir(temp_directory):
 
 
 class Address(QtCore.QObject):
+    update_ui = QtCore.pyqtSignal()
+    queue_emptied = QtCore.pyqtSignal()
     
     def __init__(self, busy, enqueued, system_name):
         QtCore.QObject.__init__(self)
@@ -56,17 +55,48 @@ class Address(QtCore.QObject):
         self.enqueued = enqueued
         self.drive = wt.google_drive.Drive()
         self.system_name = system_name
+        self.name = 'drive'
+
+    def check_busy(self):
+        """
+        Handles writing of busy to False.
+        
+        Must always write to busy.
+        """
+        if self.is_busy():
+            time.sleep(0.01)  # don't loop like crazy
+            self.busy.write(True)
+        elif self.enqueued.read():
+            time.sleep(0.1)  # don't loop like crazy
+            self.busy.write(True)
+        else:
+            self.busy.write(False)
+            self.update_ui.emit()
 
     @QtCore.pyqtSlot(str, list)
     def dequeue(self, method, inputs):
-        # execute method
-        getattr(self, str(method))(inputs)  # method passed as qstring
-        # remove method from enqueued
+        """
+        Slot to accept enqueued commands from main thread.
+        
+        Method passed as qstring, inputs as list of [args, kwargs].
+        
+        Calls own method with arguments from inputs.
+        """
+        self.update_ui.emit()
+        method = str(method)  # method passed as qstring
+        args, kwargs = inputs
+        if g.debug.read():
+            print(self.name, ' dequeue:', method, inputs, self.busy.read())
         self.enqueued.pop()
-        if not self.enqueued.read():
-            self.busy.write(False)
+        getattr(self, method)(*args, **kwargs) 
+        if not self.enqueued.read(): 
+            self.queue_emptied.emit()
+            self.check_busy()
+                
+    def is_busy(self):
+        return False    
     
-    def upload(self, inputs):
+    def upload(self, *inputs):
         # copy into temp directory
         if inputs[0] == 'folder':
             _, folder_path, reference_path = inputs
@@ -93,7 +123,6 @@ class Address(QtCore.QObject):
         # sync temp directory to google drive
         for n in os.listdir(temp_directory):
             p = os.path.join(temp_directory, n)
-            print(p, '!!!!!!!!!!!!!!!!!!!!!!')
             self.drive.upload(p, PyCMDS_data_ID, overwrite=True, delete_local=True)
           
 
@@ -149,7 +178,7 @@ class Control:
         else:
             image_url = None
         # enqueue syncing    
-        self.q.push('upload', ['folder', folder_path, self.data_folder])
+        self.q.push('upload', 'folder', folder_path, self.data_folder)
         # finish
         return folder_url, image_url
     
@@ -158,19 +187,8 @@ class Control:
         upload a file, with path relative to data folder
         '''
         # enqueue syncing    
-        self.q.push('upload', ['file', filepath, self.data_folder])
-        
-        
-        
+        self.q.push('upload', 'file', filepath, self.data_folder)
         
 
 control = Control()
 g.google_drive_control.write(control)
-
-
-### testing ###################################################################
-
-
-if __name__ == '__main__':
-    pass
-    
