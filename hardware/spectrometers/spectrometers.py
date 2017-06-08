@@ -36,6 +36,7 @@ class Driver(hw.Driver):
         kwargs['native_units'] = 'nm'
         hw.Driver.__init__(self, *args, **kwargs)
         self.position.write(800.)
+        self.limits.write(0., 10000.)
 
 
 ### gui #######################################################################

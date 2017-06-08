@@ -38,7 +38,8 @@ class Driver(pc.Driver):
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
         self.position = pc.Number(units=self.native_units, name='Position',
-                                  display=True, set_method='set_position')
+                                  display=True, set_method='set_position',
+                                  limits=self.limits)
         self.offset = pc.Number(units=self.native_units, name='Offset',
                                 display=True)
         # attributes for 'exposure'
