@@ -43,7 +43,7 @@ class AutoTune(QtGui.QWidget):
         self.initialized = pc.Bool()
 
     def initialize(self):
-        raise NotImplementedError
+        pass
 
     def load(self, aqn_path):
         raise NotImplementedError
@@ -83,11 +83,21 @@ class Driver(hw.Driver):
         raise NotImplementedError
 
     def _load_curve(self, inputs, interaction):
-        raise NotImplementedError
+        # TODO: move into main load_curve method
+        colors = np.linspace(400, 10000, 17)
+        units = 'nm'
+        motors = []
+        motors.append(wt.tuning.curve.Motor(((colors-500)/1e4)**2, 'Delay'))
+        motors.append(wt.tuning.curve.Motor(-(colors-9000)**0.25, 'Crystal'))
+        motors.append(wt.tuning.curve.Motor((colors-30)**0.25, 'Mixer'))
+        name = 'curve'
+        interaction = 'sig'
+        kind = 'Virtual'
+        self.curve = wt.tuning.curve.Curve(colors, units, motors, name, interaction, kind)
+        self.curve.convert(self.native_units)
 
     def _set_motors(self, motor_indexes, motor_destinations):
-        # TODO: implement _set_motors in pico opa
-        raise NotImplementedError
+        pass
 
     def _update_api(self, interaction):
         pass
@@ -112,9 +122,8 @@ class Driver(hw.Driver):
         self.position.write(position, self.native_units)
         return position
         
-    # TODO Figure out what this should do/what calls this
-    def get_motor_positions(self, inputs=[]):
-        raise NotImplementedError
+    def get_motor_positions(self):
+        pass
 
     def home_all(self, inputs=[]):
         indexes = range(len(self.motor_names))
@@ -136,6 +145,15 @@ class Driver(hw.Driver):
             self._home_motors([motor_index])
 
     def initialize(self):
+        # virtual stuff
+        if self.model == 'Virtual':
+            self.interaction_string_combo = pc.Combo(allowed_values=['sig'])
+            self.curve_paths = collections.OrderedDict()
+            self.motor_positions['Delay'] = pc.Number()
+            self.motor_positions['Crystal'] = pc.Number()
+            self.motor_positions['Mixer'] = pc.Number()
+            self.auto_tune = AutoTune(self)
+            self.position.write(800., 'nm')
         # poynting correction
         if self.poynting_type == 'zaber':
             self.poynting_correction = ZaberCorrectionDevice()
@@ -284,9 +302,6 @@ class GUI(hw.GUI):
         self.layout.addWidget(settings_scroll_area)
         # opa properties
         input_table = pw.InputTable()
-        if self.driver.serial_number != -1:
-            serial_number_display = pc.Number(initial_value=self.driver.serial_number, decimals=0, display=True)
-            input_table.add('Serial Number', serial_number_display)
         settings_layout.addWidget(input_table)
         # plot control
         input_table = pw.InputTable()
@@ -294,7 +309,7 @@ class GUI(hw.GUI):
         self.plot_motor = pc.Combo(allowed_values=self.driver.curve.get_motor_names())
         self.plot_motor.updated.connect(self.update_plot)
         input_table.add('Motor', self.plot_motor)
-        allowed_values = wt.units.energy.keys()
+        allowed_values = list(wt.units.energy.keys())
         allowed_values.remove('kind')
         self.plot_units = pc.Combo(initial_value=self.driver.native_units, allowed_values=allowed_values)
         self.plot_units.updated.connect(self.update_plot)

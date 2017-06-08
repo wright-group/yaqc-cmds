@@ -34,6 +34,7 @@ class Driver(pc.Driver):
         self.enqueued = self.hardware.enqueued
         self.busy = self.hardware.busy
         self.name = self.hardware.name
+        self.model = self.hardware.model
         self.native_units = native_units
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
