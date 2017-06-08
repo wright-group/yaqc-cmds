@@ -22,7 +22,7 @@ import project.widgets as pw
 import somatic.acquisition as acquisition
 import project.ini_handler as ini_handler
 main_dir = g.main_dir.read()
-ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'home.ini'))
+#ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'home.ini'))
 app = g.app.read()
 
 import hardware.opas.opas as opas

@@ -201,13 +201,13 @@ class Worker(QtCore.QObject):
             if axis.identity[0] == 'D':
                 centers = axis.centers
                 # transpose so own index is first (all others slide down)
-                transpose_order = range(len(axes))
+                transpose_order = list(range(len(axes)))
                 transpose_order.insert(0, transpose_order.pop(axis_index))
                 arrs[axis_index] = np.transpose(arrs[axis_index], axes=transpose_order)
                 # add centers to transposed array
                 arrs[axis_index] += centers
                 # transpose out
-                transpose_order = range(len(axes))
+                transpose_order = list(range(len(axes)))
                 transpose_order.insert(axis_index, transpose_order.pop(0))
                 arrs[axis_index] = np.transpose(arrs[axis_index], axes=transpose_order)
         # create destination objects
