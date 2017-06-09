@@ -108,15 +108,6 @@ class Driver(hw.Driver):
             self.get_motor_positions()
         self.get_motor_positions()
 
-    def close(self):
-        raise NotImplementedError
-
-    def get_crv_paths(self):
-        return [o.read() for o in self.curve_paths.values()]
-
-    def get_points(self):
-        return self.curve.colors
-
     def get_position(self):
         position = self.hardware.destination.read()
         self.position.write(position, self.native_units)
@@ -149,9 +140,9 @@ class Driver(hw.Driver):
         if self.model == 'Virtual':
             self.interaction_string_combo = pc.Combo(allowed_values=['sig'])
             self.curve_paths = collections.OrderedDict()
-            self.motor_positions['Delay'] = pc.Number()
-            self.motor_positions['Crystal'] = pc.Number()
-            self.motor_positions['Mixer'] = pc.Number()
+            self.motor_positions['Delay'] = pc.Number(0., display=True)
+            self.motor_positions['Crystal'] = pc.Number(0., display=True)
+            self.motor_positions['Mixer'] = pc.Number(0., display=True)
             self.auto_tune = AutoTune(self)
             self.position.write(800., 'nm')
         # poynting correction
@@ -393,12 +384,10 @@ class GUI(hw.GUI):
         yi = self.driver.curve.get_motor_positions(xi, units)[motor_index]
         self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
         self.plot_curve.clear()
+        print(xi, yi)
         self.plot_curve.setData(xi, yi)
         self.plot_widget.graphics_layout.update()
         self.update()
-        
-        
-        print(self.driver.curve.subcurve)
         self.plot_motor.set_allowed_values(self.driver.curve.get_motor_names())
 
     def on_home_all(self):
@@ -489,6 +478,11 @@ class Hardware(hw.Hardware):
     def curve(self):
         # TODO: a more thread-safe operation (copy?)
         return self.driver.curve
+
+    def get_tune_points(self, units='native'):
+        if units == 'native':
+            units = self.native_units
+        return wt.units.converter(self.curve.colors, self.curve.units, units)
 
     def home_motor(self, motor):
         """
