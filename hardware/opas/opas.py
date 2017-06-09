@@ -70,14 +70,14 @@ class Driver(hw.Driver):
         self.homeables = []  # TODO:
         self.poynting_type = kwargs.pop('poynting_type')
         self.poynting_correction  = None
-        if self.poynting_type is not None:
-            self.motor_names += ['Phi', 'Theta']
         self.poynting_curve_path = kwargs.pop('poynting_curve_path')
         if 'native_units' not in kwargs.keys():
             kwargs['native_units'] = 'nm'
         hw.Driver.__init__(self, args[0], native_units=kwargs['native_units'])
         if not hasattr(self, 'motor_names'):  # for virtual...
             self.motor_names = ['Delay', 'Crystal', 'Mixer']
+        if self.poynting_type is not None:
+            self.motor_names += ['Phi', 'Theta']
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
