@@ -137,7 +137,7 @@ class Worker(acquisition.Worker):
                             fname=this_image_fname, verbose=False)
         # get output image
         if len(data.shape) <= 2:
-            output_image_path = channel + ' 000.png'
+            output_image_path = os.path.join(data_folder, '%s 000.png'%channel)
         else:
             output_folder = os.path.join(data_folder, channel)
             output_image_path = os.path.join(output_folder, 'animation.gif')

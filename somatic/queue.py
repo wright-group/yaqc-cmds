@@ -198,14 +198,11 @@ class Worker(QtCore.QObject):
         module = item.module
         worker = module.Worker(item.aqn_path, self, item.finished)
         # run it
-        if False:
-            try:
-                worker.run()
-            except Exception as error:
-                # TODO: log error
-                print('ACQUISITION ERROR:', error)
-        else:
+        try:
             worker.run()
+        except Exception as error:
+            # TODO: log error
+            print('ACQUISITION ERROR:', error)
         # upload aqn file
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload_file(item.aqn_path)

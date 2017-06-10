@@ -241,7 +241,6 @@ class Driver(BaseDriver):
         '''
         when loading externally, write to curve_path object directly
         '''
-        print(self.curve_paths)
         self.curve = wt.tuning.curve.from_800_curve(self.curve_paths['Curve'].read())
         return self.curve
   
@@ -254,12 +253,10 @@ class Driver(BaseDriver):
                     print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
             else:
                 print('Unrecognized axis '+str(axis))
-        self.wait_until_still()
     
-    def _wait_until_still(self, inputs=[]):
+    def _wait_until_still(self):
         for motor in self.motors:
             motor.wait_until_still(method=self.get_position)
-        self.get_motor_positions()
 
     def close(self):
         self.ini.write('OPA%d'%self.index, 'current position (wn)', self.position.read())

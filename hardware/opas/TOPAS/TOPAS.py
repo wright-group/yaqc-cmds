@@ -392,7 +392,6 @@ class Driver(BaseDriver):
         for motor_index, destination in zip(motor_indexes, motor_destinations):
             error, destination_steps = self.api.convert_position_to_steps(motor_index, destination)
             self.api.start_motor_motion(motor_index, destination_steps)
-        self.wait_until_still()
 
     def _update_api(self, interaction):
         # write to TOPAS ini
@@ -408,16 +407,23 @@ class Driver(BaseDriver):
         # save current interaction string
         self.ini.write('OPA%i'%self.index, 'current interaction string', interaction)
 
+    def _wait_until_still(self):
+        while self.is_busy():
+            time.sleep(0.1)
+
     def close(self):
         if self.has_shutter:
             self.api.set_shutter(False)
         self.api.close()
 
     def get_motor_positions(self):
-        for motor_index, motor_mutex in enumerate(self.motor_positions.values()):
-            error, position_steps = self.api.get_motor_position(motor_index)
-            error, position = self.api.convert_position_to_units(motor_index, position_steps)
+        for i in range(6):
+            motor_mutex = self.motor_positions.values()[i]
+            error, position_steps = self.api.get_motor_position(i)
+            error, position = self.api.convert_position_to_units(i, position_steps)
             motor_mutex.write(position)
+        if self.poynting_correction:
+            self.poynting_correction.get_motor_positions()
     
     def get_speed_parameters(self, inputs):
         motor_index = inputs[0]
@@ -479,7 +485,7 @@ class Driver(BaseDriver):
     def is_busy(self):
         if self.api.open:
             error, still = self.api.are_all_motors_still()
-            print(error, still)
+            print('TOPAS is busy', error, still)
             return not still
         else:
             return False  # for shutdown
