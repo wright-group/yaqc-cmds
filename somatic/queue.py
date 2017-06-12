@@ -4,6 +4,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import traceback
 import imp
 import time
 import shutil
@@ -203,6 +204,7 @@ class Worker(QtCore.QObject):
         except Exception as error:
             # TODO: log error
             print('ACQUISITION ERROR:', error)
+            traceback.print_exc()
         # upload aqn file
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload_file(item.aqn_path)

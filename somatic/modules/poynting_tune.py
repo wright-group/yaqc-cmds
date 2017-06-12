@@ -67,18 +67,18 @@ class Worker(acquisition.Worker):
 
         self.do_2D = self.aqn.read('processing', 'do_2D_scans')
         # mono
-        for spec in spectrometers:
+        for spec in spectrometers.hardwares:
             spec.set_position(0)
 
-        for section in ini.sections:
+        for section in self.aqn.sections:
             if section not in ['opa','processing','device settings', 'Virtual', 'info']:
                 if self.aqn.read(section, 'do'):
                     width = self.aqn.read(section,'width')
                     npts = int(self.aqn.read(section,'number'))
                     points = np.linspace(-width/2.,width/2., npts)
                     motor_positions = curve.motors[curve.motor_names.index(section)].positions
-                    kwargs  {'center': motor_positions}
-                    hardware_dict {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
+                    kwargs = {'center': motor_positions}
+                    hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
                     axis = acquisition.Axis(points, None, opa_name, opa_name, hardware_dict, **kwargs)
                     possible_axes[section] = axis
                     
@@ -94,7 +94,7 @@ class Worker(acquisition.Worker):
             # do scan
             self.scan(axes)
         else:
-            for name, axis in possible_axis.items():
+            for name, axis in possible_axes.items():
                 if name is not opa_name:
                     axes.append(possible_axes[opa_name])
                     axes.append(axis)
