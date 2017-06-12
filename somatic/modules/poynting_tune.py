@@ -59,7 +59,7 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
 
-        curve = opa_hardware.curve().copy()
+        curve = opa_hardware.curve.copy()
         curve.convert('wn')
 
         axis = acquisition.Axis(curve.colors, 'wn', opa_name, opa_name)
@@ -212,8 +212,8 @@ class GUI(acquisition.GUI):
 class OPA_GUI():
     def __init__(self,hardware,layout):
         self.hardware = hardware
-        print (dir(hardware))
-        curve = self.hardware.curve()
+        print(hardware.__class__)
+        curve = self.hardware.curve#()
         motor_names = curve.motor_names
         self.motors = []
         for name in motor_names:
