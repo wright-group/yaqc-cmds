@@ -42,7 +42,7 @@ module_name = 'POYNTING TUNE'
 class Worker(acquisition.Worker):
     
     def process(self, scan_folder):
-        if self.do_2D:
+        if False:#self.do_2D:
             data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(data_path)
             channel_name = self.aqn.read('processing', 'channel')
@@ -59,7 +59,7 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
 
-        curve = opa_hardware.curve.copy()
+        curve = opa_hardware.curve().copy()
         curve.convert('wn')
 
         axis = acquisition.Axis(curve.colors, 'wn', opa_name, opa_name)
@@ -121,13 +121,13 @@ class Worker(acquisition.Worker):
  
 ### GUI #######################################################################
 
-
 class GUI(acquisition.GUI):
 
     def create_frame(self):
         input_table = pw.InputTable()
         # opa combo
-        allowed = [hardware.name for hardware in opas.hardwares if hardware.driver.poynting_correction is not None]
+        allowed = [hardware.name for hardware in opas.hardwares if hardware.driver.poynting_type is not None]
+        print(allowed)
         self.opa_combo = pc.Combo(allowed)
         self.opa_combo.updated.connect(self.on_opa_combo_updated)
         input_table.add('OPA', self.opa_combo)
@@ -139,7 +139,7 @@ class GUI(acquisition.GUI):
         self.layout.addWidget(input_table)
 
         # motor selection
-        self.opa_guis = [OPA_GUI(hardware, self.layout) for hardware in opas.hardwares]
+        self.opa_guis = [OPA_GUI(hardware, self.layout) for hardware in opas.hardwares if hardware.driver.poynting_type is not None]
         self.opa_guis[0].show()
 
 
@@ -212,7 +212,9 @@ class GUI(acquisition.GUI):
 class OPA_GUI():
     def __init__(self,hardware,layout):
         self.hardware = hardware
-        motor_names = self.hardware.curve.motor_names
+        print (dir(hardware))
+        curve = self.hardware.curve()
+        motor_names = curve.motor_names
         self.motors = []
         for name in motor_names:
             motor = MotorGUI(name,1000,31)
