@@ -147,11 +147,11 @@ class AutoTune(BaseAutoTune):
             # tune points
             points = self.opa.curve.colors
             units = self.opa.curve.units
-            name = identity = self.opa.address.hardware.friendly_name
+            name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.opa.address.hardware.friendly_name, self.opa.curve.motor_names[1]])
+            name = '_'.join([name, self.opa.curve.motor_names[1]])
             identity = 'D' + name
             width = worker.aqn.read('BBO', 'width') 
             npts = int(worker.aqn.read('BBO', 'number'))
@@ -182,11 +182,11 @@ class AutoTune(BaseAutoTune):
             # tune points
             points = self.opa.curve.colors
             units = self.opa.curve.units
-            name = identity = self.opa.address.hardware.friendly_name
+            name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.opa.address.hardware.friendly_name, self.opa.curve.motor_names[2]])
+            name = '_'.join([name, self.opa.curve.motor_names[2]])
             identity = 'D' + name
             width = worker.aqn.read('Mixer', 'width') 
             npts = int(worker.aqn.read('Mixer', 'number'))
@@ -217,7 +217,7 @@ class AutoTune(BaseAutoTune):
             # tune points
             points = self.opa.curve.colors
             units = self.opa.curve.units
-            name = identity = self.opa.address.hardware.friendly_name
+            name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # mono

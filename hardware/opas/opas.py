@@ -274,6 +274,7 @@ class Driver(hw.Driver):
 class GUI(hw.GUI):
 
     def initialize(self):
+        self.hardware.driver.initialize()
         # container widget
         display_container_widget = QtGui.QWidget()
         display_container_widget.setLayout(QtGui.QVBoxLayout())

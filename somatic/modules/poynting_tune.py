@@ -42,42 +42,78 @@ module_name = 'POYNTING TUNE'
 class Worker(acquisition.Worker):
     
     def process(self, scan_folder):
-        data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
-        data = wt.data.from_PyCMDS(data_path)
-        # make tuning curve
-        opa_name = self.aqn.read('opa', 'opa')
-        opa_names = [opa.name for opa in opas.hardwares]
-        opa_index = opa_names.index(opa_name)
-        opa = opas.hardwares[opa_index]
-        curve = opa.curve.copy()
-        channel_name = self.aqn.read('processing', 'channel')
-        wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
-        # upload
-        self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
+        if self.do_2D:
+            data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
+            data = wt.data.from_PyCMDS(data_path)
+            channel_name = self.aqn.read('processing', 'channel')
+            wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
+            # upload
+            self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
     
     def run(self):
         axes = []
+        possible_axes = {}
         # OPA
         opa_name = self.aqn.read('opa', 'opa')
         opa_names = [opa.name for opa in opas.hardwares]
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
-        opa_friendly_name = opa_hardware.name
+
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
-        axis = acquisition.Axis(curve.colors, 'wn', opa_friendly_name, opa_friendly_name)
-        axes.append(axis)
+
+        axis = acquisition.Axis(curve.colors, 'wn', opa_name, opa_name)
+        possible_axes[opa_name] = axis
+
+        self.do_2D = self.aqn.read('processing', 'do_2D_scans')
         # mono
-        name = 'wm'
-        identity = 'Dwm'
-        kwargs = {'centers': curve.colors}
-        width = self.aqn.read('spectrometer', 'width')/2.
-        npts = self.aqn.read('spectrometer', 'number')
-        points = np.linspace(-width, width, npts)
-        axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
-        axes.append(axis)
-        # do scan
-        self.scan(axes)
+        for spec in spectrometers:
+            spec.set_position(0)
+
+        for section in ini.sections:
+            if section not in ['opa','processing','device settings', 'Virtual', 'info']:
+                if self.aqn.read(section, 'do'):
+                    width = self.aqn.read(section,'width')
+                    npts = int(self.aqn.read(section,'number'))
+                    points = np.linspace(-width/2.,width/2., npts)
+                    motor_positions = curve.motors[curve.motor_names.index(section)].positions
+                    kwargs  {'center': motor_positions}
+                    hardware_dict {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
+                    axis = acquisition.Axis(points, None, opa_name, opa_name, hardware_dict, **kwargs)
+                    possible_axes[section] = axis
+                    
+                
+
+        if self.do_2D:
+            self.axis_names = []
+            axes.append(possible_axes[opa_name])
+            for name, axis in possible_axes.items():
+                if name is not opa_name:
+                    axes.append(axis)
+                    self.axis_names.append(name)
+            # do scan
+            self.scan(axes)
+        else:
+            for name, axis in possible_axis.items():
+                if name is not opa_name:
+                    axes.append(possible_axes[opa_name])
+                    axes.append(axis)
+
+                    scan_folder = self.scan(axes)
+
+                    #process
+                    p = os.path.join(scan_folder, '000.data')
+                    data = wt.data.from_PyCMDS(p)
+                    channel = self.aqn.read('processing', 'channel')
+                    wt.tuning.workup.intensity(data, curve, channel, save_directory = scan_folder)
+
+                    p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
+                    opa_hardware.curve_path.write(p)
+
+                    # upload
+                    p = wt.kit.glob_handler('.png', folder = scan_folder)[0]
+                    self.upload(scan_folder, reference_image = p)
+
         # finish
         if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull

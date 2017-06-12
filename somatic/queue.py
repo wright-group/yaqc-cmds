@@ -965,7 +965,10 @@ class GUI(QtCore.QObject):
         self.queue_control.set_style('RUN QUEUE', 'go')
 
     def on_index_changed(self, row, new_index):
-        index = row.toInt()[0]  # given as QVariant
+        if isinstance(row,int):
+            index = row
+        else:
+            index = row.toInt()[0]  # given as QVariant
         new_index = new_index
         self.queue.change_index(index, new_index)
 
@@ -984,7 +987,10 @@ class GUI(QtCore.QObject):
         self.modules[self.module_combobox.read()].gui.load(p)
 
     def on_load_item(self, row):
-        index = row.toInt()[0]  # given as QVariant
+        if isinstance(row,int):
+            index = row
+        else:
+            index = row.toInt()[0]  # given as QVariant
         item = self.queue.items[index]
         if item.type == 'acquisition':
             self.type_combo.write('Acquisition')
@@ -1099,7 +1105,10 @@ class GUI(QtCore.QObject):
         self.queue_timestamp.write(self.queue.timestamp.path[-5:])
 
     def on_remove_item(self, row):
-        index = row.toInt()[0]  # given as QVariant
+        if isinstance(row,int):
+            index = row
+        else:
+            index = row.toInt()[0]  # given as QVariant
         self.queue.pop(index)
         
     def on_save_aqn(self):

@@ -90,13 +90,14 @@ class Constant():
         self.widget = pw.InputTable()
         self.widget.add('Constant', None)
         # hardware name
-        allowed_values = [h.friendly_name for h in all_hardwares]
+        allowed_values = [h.name for h in all_hardwares]
         self.hardware_name_combo = pc.Combo(allowed_values=allowed_values)
-        self.hardware_name_combo.write('w3')
+        self.hardware_name_combo.write(spectrometers.hardwares[0].name)
         #self.hardware_name_combo.set_disabled(True)
         self.widget.add('Hardware', self.hardware_name_combo)
         # expression
-        self.expression = pc.String(initial_value='wm-w1-w2')
+        opanames = [h.name for h in opas.hardwares]
+        self.expression = pc.String(initial_value="+".join(opanames))
         self.widget.add('Expression', self.expression)
 
     def get_name(self):

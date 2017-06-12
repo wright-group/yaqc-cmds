@@ -250,9 +250,10 @@ def import_hardwares(ini_path, name, Driver, GUI, Hardware):
             # initialization arguments
             kwargs = collections.OrderedDict()
             for option in ini.get_options(section):
-                if option in ['enable', 'model', 'serial', 'path']:
+                if option in ['__name__', 'enable', 'model', 'serial', 'path']:
                     continue
                 else:
+                    print('KWARGS', section,option)
                     kwargs[option] = ini.read(section, option)            
             model = ini.read(section, 'model')
             if model == 'Virtual':
