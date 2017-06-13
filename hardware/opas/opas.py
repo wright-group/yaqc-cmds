@@ -92,19 +92,7 @@ class Driver(hw.Driver):
             self.poynting_type = None
 
         if self.poynting_correction:
-            # initialize
-            self.poynting_correction.initialize(self, self.poynting_curve_path)  # TODO: move everything into __init__
-            # add
-            num_motors = len(self.motor_names)
-            if len(self.homeable) < num_motors:
-                n = len(self.homeable)
-                self.homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
-            self.homeable += [True]*len(self.poynting_correction.motor_names)
-            for name in self.poynting_correction.motor_names:
-                number = self.poynting_correction.motor_positions[name]
-                self.motor_positions[name] = number
-                self.recorded['w%d_'%self.index + name] = [number, None, 1., name]
-            self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_correction.curve_path)
+           self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_correction.curve_path)
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
@@ -171,6 +159,19 @@ class Driver(hw.Driver):
             self.motor_positions['Crystal'] = pc.Number(0., display=True)
             self.motor_positions['Mixer'] = pc.Number(0., display=True)
             self.auto_tune = AutoTune(self)
+        if self.poynting_correction:
+             # initialize
+            self.poynting_correction.initialize(self, self.poynting_curve_path)  # TODO: move everything into __init__
+            # add
+            num_motors = len(self.motor_names)
+            if len(self.homeable) < num_motors:
+                n = len(self.homeable)
+                self.homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
+            self.homeable += [True]*len(self.poynting_correction.motor_names)
+            for name in self.poynting_correction.motor_names:
+                number = self.poynting_correction.motor_positions[name]
+                self.motor_positions[name] = number
+                self.recorded['w%d_'%self.index + name] = [number, None, 1., name]
             self.position.write(800., 'nm')
         # get position
         self.load_curve()
