@@ -187,8 +187,9 @@ class Driver(hw.Driver):
             interaction = self.interaction_string_combo.read()
             curve = self._load_curve(inputs, interaction)
             if self.poynting_correction:
-                p = self.curve_paths['Poynting'].read()
                 print("LOAD CURVE FOR ", self.name)
+                p = self.curve_paths['Poynting'].read()
+               
                 self.curve = wt.tuning.curve.from_poynting_curve(p, subcurve=curve)
                 self.opa_ini.write(self.name, 'poynting_curve_path', p)
             self.curve.convert(self.native_units)
