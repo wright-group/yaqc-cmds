@@ -233,10 +233,16 @@ class Driver(BaseDriver):
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'wn'
         self.motor_names = ['Grating', 'BBO', 'Mixer']
-        BaseDriver.__init__(self, *args, **kwargs)
         self.auto_tune = AutoTune(self)
         self.motors=[]        
         self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'OPA-800', 'OPA-800.ini'))
+        # load curve
+        self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
+        self.curve_path.updated.connect(self.curve_path.save)
+        self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
+        self.curve_paths = collections.OrderedDict()
+        self.curve_paths['Curve'] = self.curve_path
+        BaseDriver.__init__(self, *args, **kwargs)
 
     def _load_curve(self, inputs, interaction):
         '''
@@ -289,12 +295,6 @@ class Driver(BaseDriver):
         ## TODO: Determine if pico_opa needs to have interaction string combo
         allowed_values = ['SHS']
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
-        # load curve
-        self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
-        self.curve_path.updated.connect(self.curve_path.save)
-        self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
-        self.curve_paths = collections.OrderedDict()
-        self.curve_paths['Curve'] = self.curve_path
         # tuning
         self.best_points = {}
         self.best_points['SHS'] = np.linspace(13500, 18200, 21)

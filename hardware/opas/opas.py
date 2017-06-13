@@ -77,9 +77,33 @@ class Driver(hw.Driver):
         hw.Driver.__init__(self, args[0], native_units=kwargs['native_units'])
         if not hasattr(self, 'motor_names'):  # for virtual...
             self.motor_names = ['Delay', 'Crystal', 'Mixer']
+        if not hasattr(self, 'curve_paths'):  # for virtual...
+            self.curve_paths = collections.OrderedDict()
         if self.poynting_type is not None:
             self.motor_names += ['Phi', 'Theta']
         self.curve = None
+        # poynting correction
+        if self.poynting_type == 'zaber':
+            self.poynting_correction = ZaberCorrectionDevice()
+        else:
+            self.poynting_correction = None
+            self.poynting_type = None
+
+        if self.poynting_correction:
+            # initialize
+            self.poynting_correction.initialize(self, self.poynting_curve_path)  # TODO: move everything into __init__
+            # add
+            num_motors = len(self.motor_names)
+            if len(self.homeables) < num_motors:
+                n = len(self.homeable)
+                homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
+            self.homeable += [True]*len(self.poynting_correction.motor_names)
+            for name in self.poynting_correction.motor_names:
+                number = self.poynting_correction.motor_positions[name]
+                self.motor_positions[name] = number
+                self.recorded['w%d_'%self.index + name] = [number, None, 1., name]
+            self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_correction.curve_path)
+        self.load_curve()
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
@@ -143,31 +167,11 @@ class Driver(hw.Driver):
         # virtual stuff
         if self.model == 'Virtual':
             self.interaction_string_combo = pc.Combo(allowed_values=['sig'])
-            self.curve_paths = collections.OrderedDict()
             self.motor_positions['Delay'] = pc.Number(0., display=True)
             self.motor_positions['Crystal'] = pc.Number(0., display=True)
             self.motor_positions['Mixer'] = pc.Number(0., display=True)
             self.auto_tune = AutoTune(self)
             self.position.write(800., 'nm')
-        # poynting correction
-        if self.poynting_type == 'zaber':
-            self.poynting_correction = ZaberCorrectionDevice()
-        else:
-            self.poynting_correction = None
-        if self.poynting_correction:
-            # initialize
-            self.poynting_correction.initialize(self, self.poynting_curve_path)  # TODO: move everything into __init__
-            # add
-            num_motors = len(self.motor_names)
-            if len(self.homeables) < num_motors:
-                n = len(self.homeable)
-                homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
-            self.homeable += [True]*len(self.poynting_correction.motor_names)
-            for name in self.poynting_correction.motor_names:
-                number = self.poynting_correction.motor_positions[name]
-                self.motor_positions[name] = number
-                self.recorded['w%d_'%self.index + name] = [number, None, 1., name]
-            self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_correction.curve_path)
         # get position
         self.load_curve()
         self.get_position()
