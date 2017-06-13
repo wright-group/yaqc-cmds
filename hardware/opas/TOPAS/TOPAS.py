@@ -292,6 +292,8 @@ class Driver(BaseDriver):
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
             self.exposed += [self.shutter_position]
+        self.interaction_string_combo = None
+        BaseDriver.__init__(self, *args, **kwargs)        
         # tuning curves
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
@@ -319,7 +321,6 @@ class Driver(BaseDriver):
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
         #self.load_curve()
-        BaseDriver.__init__(self, *args, **kwargs)        
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
         section = 'OPA' + str(self.index)

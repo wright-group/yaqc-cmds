@@ -82,7 +82,7 @@ class Driver(hw.Driver):
         if not hasattr(self, 'interaction_string_combo'):  # for virtual...
             self.interaction_string_combo = pc.Combo(allowed_values=['sig'])
         if self.poynting_type is not None:
-            self.motor_names += ['Phi', 'Theta']
+            self.motor_names += ['Phi', 'Theta'] #TODO: Generalize
         self.curve = None
         # poynting correction
         if self.poynting_type == 'zaber':
@@ -96,16 +96,15 @@ class Driver(hw.Driver):
             self.poynting_correction.initialize(self, self.poynting_curve_path)  # TODO: move everything into __init__
             # add
             num_motors = len(self.motor_names)
-            if len(self.homeables) < num_motors:
+            if len(self.homeable) < num_motors:
                 n = len(self.homeable)
-                homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
+                self.homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
             self.homeable += [True]*len(self.poynting_correction.motor_names)
             for name in self.poynting_correction.motor_names:
                 number = self.poynting_correction.motor_positions[name]
                 self.motor_positions[name] = number
                 self.recorded['w%d_'%self.index + name] = [number, None, 1., name]
             self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_correction.curve_path)
-        self.load_curve()
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
