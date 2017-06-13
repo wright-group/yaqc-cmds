@@ -73,6 +73,9 @@ $RECYCLE.BIN/
 *.spyderworkspace
 *.pyc
 
+# Vim swap files
+*.sw?
+
 # Directories potentially created on remote AFP share
 .AppleDB
 .AppleDesktop

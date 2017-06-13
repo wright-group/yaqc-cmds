@@ -134,10 +134,6 @@ class GUI(acquisition.GUI):
     def create_frame(self):
         input_table = pw.InputTable()
         # opa combo
-        for opa in opas.hardwares:
-            print (opa, opa.driver.curve)
-            while opa.driver.curve is None:
-                time.sleep(.1)
         allowed = [hardware.name for hardware in opas.hardwares if hardware.driver.poynting_type is not None]
         print(allowed)
         self.opa_combo = pc.Combo(allowed)
