@@ -22,7 +22,7 @@ from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 from hardware.opas.opas import AutoTune as BaseAutoTune
 from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
-
+from WrightTools.tuning.curve import TOPAS_interaction_by_kind
                                  
 ### define ####################################################################
 
@@ -287,18 +287,25 @@ class Driver(BaseDriver):
 
         self.auto_tune = AutoTune(self)
         self.motors=[]
+        self.curve_paths = collections.OrderedDict()
         self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'TOPAS', 'TOPAS.ini'))
         self.has_shutter = kwargs['has_shutter']
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
             self.exposed += [self.shutter_position]
-        self.interaction_string_combo = None
+        print(dir(wt.tuning.curve))		
+        allowed_values = TOPAS_interaction_by_kind[self.kind].keys()		
+        self.interaction_string_combo = pc.Combo(allowed_values	= allowed_values)
         BaseDriver.__init__(self, *args, **kwargs)        
         # tuning curves
+		
+        self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
         self.TOPAS_ini.return_raw = True
-        self.curve_paths = collections.OrderedDict()
+        # load api 
+           
+        self.api = TOPAS_API(self.TOPAS_ini_filepath)
         for curve_type in self.curve_indices.keys():
             section = 'Optical Device'
             option = 'Curve ' + str(self.curve_indices[curve_type])
@@ -320,7 +327,7 @@ class Driver(BaseDriver):
         self.interaction_string_combo.write(current_value)
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
-        #self.load_curve()
+        self.load_curve()
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
         section = 'OPA' + str(self.index)
@@ -409,13 +416,16 @@ class Driver(BaseDriver):
  
     def _load_curve(self, inputs, interaction):
         interaction = self.interaction_string_combo.read()
-        crv_paths = [m.read() for m in self.curve_paths.values()]
+        curve_paths_copy = self.curve_paths.copy()
+        print(curve_paths_copy)
+        if 'Poynting' in curve_paths_copy.keys():		
+            del curve_paths_copy['Poynting']
+        print(self.curve_paths)
+        crv_paths = [m.read() for m in curve_paths_copy.values()]
         used = self.curve_indices.values()
         need = [x for x in range(4) if x+1 not in used]        
         for i in need:
             crv_paths.insert(i,None)
-        if self.poynting_correction:
-            crv_paths.pop(-1)
         self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, self.kind, interaction)
         return self.curve
        
@@ -463,9 +473,7 @@ class Driver(BaseDriver):
 
     def initialize(self):
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
-        # load api 
-           
-        self.api = TOPAS_API(self.TOPAS_ini_filepath)
+        
         if self.has_shutter:
             self.api.set_shutter(False)
         
@@ -480,11 +488,11 @@ class Driver(BaseDriver):
             number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
             self.motor_positions[motor_name] = number
             self.recorded['w%d_'%self.index + motor_name] = [number, None, 1., motor_name]
-        self.get_motor_positions()
+        #self.get_motor_positions()
         # set position
         position = self.ini.read('OPA%i'%self.index, 'position (nm)')
         self.hardware.destination.write(position, self.native_units)
-        self.set_position(position)
+        #self.set_position(position) #TODO make sure set position is handled in the base class
         # finish
         BaseDriver.initialize(self)
 
