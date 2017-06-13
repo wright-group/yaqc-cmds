@@ -284,7 +284,7 @@ class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'nm'
-        BaseDriver.__init__(self, *args, **kwargs)
+
         self.auto_tune = AutoTune(self)
         self.motors=[]
         self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'TOPAS', 'TOPAS.ini'))
@@ -293,6 +293,9 @@ class Driver(BaseDriver):
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
             self.exposed += [self.shutter_position]
         # tuning curves
+        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
+        self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
+        self.TOPAS_ini.return_raw = True
         self.curve_paths = collections.OrderedDict()
         for curve_type in self.curve_indices.keys():
             section = 'Optical Device'
@@ -315,8 +318,8 @@ class Driver(BaseDriver):
         self.interaction_string_combo.write(current_value)
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
-        self.load_curve()
-        
+        #self.load_curve()
+        BaseDriver.__init__(self, *args, **kwargs)        
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
         section = 'OPA' + str(self.index)
@@ -460,12 +463,11 @@ class Driver(BaseDriver):
     def initialize(self):
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         # load api 
-        self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')   
+           
         self.api = TOPAS_API(self.TOPAS_ini_filepath)
         if self.has_shutter:
             self.api.set_shutter(False)
-        self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
-        self.TOPAS_ini.return_raw = True
+        
         # motor positions
         for motor_index, motor_name in enumerate(self.motor_names):
             error, min_position_steps, max_position_steps = self.api.get_motor_positions_range(motor_index)
