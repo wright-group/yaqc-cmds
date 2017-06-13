@@ -88,22 +88,26 @@ class AutoTune(BaseAutoTune):
         
     def run(self, worker):
         import somatic.acquisition as acquisition
+        curve = self.driver.curve
+        while curve.kind != 'opa800':
+            curve = curve.subcurve
+
         # BBO -----------------------------------------------------------------
         if worker.aqn.read('BBO', 'do'):
             axes = []
             # tune points
-            points = self.driver.curve.colors
-            units = self.driver.curve.units
+            points = curve.colors
+            units = curve.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.name, self.driver.curve.motor_names[1]])
+            name = '_'.join([self.driver.name, curve.motor_names[1]])
             identity = 'D' + name
             width = worker.aqn.read('BBO', 'width') 
             npts = int(worker.aqn.read('BBO', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = self.driver.curve.motors[1].positions
+            motor_positions = curve.motors[1].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.driver.hardware, 'set_motor', ['BBO', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
@@ -113,7 +117,6 @@ class AutoTune(BaseAutoTune):
             # process
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
-            curve = self.driver.curve
             channel = worker.aqn.read('BBO', 'channel')
             old_curve_filepath = self.driver.curve_path.read()
             wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
@@ -127,18 +130,18 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Mixer', 'do'):
             axes = []
             # tune points
-            points = self.driver.curve.colors
-            units = self.driver.curve.units
+            points = curve.colors
+            units = curve.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.name, self.driver.curve.motor_names[2]])
+            name = '_'.join([self.driver.name, curve.motor_names[2]])
             identity = 'D' + name
             width = worker.aqn.read('Mixer', 'width') 
             npts = int(worker.aqn.read('Mixer', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = self.driver.curve.motors[2].positions
+            motor_positions = curve.motors[2].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.driver.hardware, 'set_motor', ['Mixer', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
@@ -148,7 +151,6 @@ class AutoTune(BaseAutoTune):
             # process
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
-            curve = self.driver.curve
             channel = worker.aqn.read('Mixer', 'channel')
             old_curve_filepath = self.driver.curve_path.read()
             wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
@@ -162,8 +164,8 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Test', 'do'):
             axes = []
             # tune points
-            points = self.driver.curve.colors
-            units = self.driver.curve.units
+            points = curve.colors
+            units = curve.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
@@ -173,7 +175,7 @@ class AutoTune(BaseAutoTune):
             width = worker.aqn.read('Test', 'width') 
             npts = int(worker.aqn.read('Test', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            kwargs = {'centers': self.driver.curve.colors}
+            kwargs = {'centers': curve.colors}
             axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
             axes.append(axis)
             # do scan
@@ -181,7 +183,6 @@ class AutoTune(BaseAutoTune):
             # process
             p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(p)
-            curve = self.driver.curve
             channel = worker.aqn.read('Test', 'channel')
             wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
