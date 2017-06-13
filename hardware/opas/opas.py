@@ -79,6 +79,7 @@ class Driver(hw.Driver):
             self.motor_names = ['Delay', 'Crystal', 'Mixer']
         if self.poynting_type is not None:
             self.motor_names += ['Phi', 'Theta']
+        self.curve = None
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
@@ -183,6 +184,7 @@ class Driver(hw.Driver):
             curve = self._load_curve(inputs, interaction)
             if self.poynting_correction:
                 p = self.curve_paths['Poynting'].read()
+                print("LOAD CURVE FOR ", self.name)
                 self.curve = wt.tuning.curve.from_poynting_curve(p, subcurve=curve)
                 self.opa_ini.write(self.name, 'poynting_curve_path', p)
             self.curve.convert(self.native_units)
@@ -195,11 +197,12 @@ class Driver(hw.Driver):
             pass
 
     def set_motor(self, motor_name, destination, wait=True):
-        motor_index = self.motor_names.index(motor_name)
+        
         if self.poynting_correction:
             if motor_name in self.poynting_correction.motor_names:
                 self.poynting_correction.set_motor(motor_name, destination)
                 return
+        motor_index = self.motor_names.index(motor_name)
         self._set_motors([motor_index], [destination])
         if wait:
             self.wait_until_still()
@@ -487,7 +490,7 @@ class Hardware(hw.Hardware):
         self.kind = 'OPA'
         hw.Hardware.__init__(self, *arks, **kwargs)
 
-    @property
+    #@property
     def curve(self):
         # TODO: a more thread-safe operation (copy?)
         return self.driver.curve

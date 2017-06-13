@@ -155,7 +155,7 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.name
-        curve = opa_hardware.curve
+        curve = opa_hardware.curve()
         motor_names = self.aqn.read('motortune', 'motor names')
         # tune points        
         if self.aqn.read('motortune', 'use tune points'):

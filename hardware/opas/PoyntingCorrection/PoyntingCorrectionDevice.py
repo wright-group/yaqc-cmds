@@ -112,6 +112,8 @@ class PoyntingCorrectionDevice(object):
 
     def set_motor(self, motor, position):
         print('POYNTING CORRECTION DEVICE SET MOTOR', motor, position)
+        if isinstance(motor, unicode):
+            motor = str(motor)
         if isinstance(motor, str):
             self._set_motor(self.motor_names.index(motor), position)
         elif isinstance(motor,int):

@@ -59,7 +59,7 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
 
-        curve = opa_hardware.curve.copy()
+        curve = opa_hardware.curve().copy()
         curve.convert('wn')
 
         axis = acquisition.Axis(curve.colors, 'wn', opa_name, opa_name)
@@ -69,18 +69,20 @@ class Worker(acquisition.Worker):
         # mono
         for spec in spectrometers.hardwares:
             spec.set_position(0)
+            
 
         for section in self.aqn.sections:
-            if section not in ['opa','processing','device settings', 'Virtual', 'info']:
-                if self.aqn.read(section, 'do'):
-                    width = self.aqn.read(section,'width')
-                    npts = int(self.aqn.read(section,'number'))
-                    points = np.linspace(-width/2.,width/2., npts)
-                    motor_positions = curve.motors[curve.motor_names.index(section)].positions
-                    kwargs = {'center': motor_positions}
-                    hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
-                    axis = acquisition.Axis(points, None, opa_name, opa_name, hardware_dict, **kwargs)
-                    possible_axes[section] = axis
+            if section not in ['opa','processing','device settings', 'Virtual', 'info', 'PCI-6251']:
+                    if self.aqn.read(section, 'do'):
+                        width = self.aqn.read(section,'width')
+                        npts = int(self.aqn.read(section,'number'))
+                        points = np.linspace(-width/2.,width/2., npts)
+                        motor_positions = curve.motors[curve.motor_names.index(section)].positions
+                        kwargs = {'centers': motor_positions}
+                        print(opa_hardware.driver.motor_names)
+                        hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
+                        axis = acquisition.Axis(points, None, opa_name+'_'+section, 'D'+opa_name, hardware_dict, **kwargs)
+                        possible_axes[section] = axis
                     
                 
 
@@ -96,8 +98,14 @@ class Worker(acquisition.Worker):
         else:
             for name, axis in possible_axes.items():
                 if name is not opa_name:
+                    curve = opa_hardware.curve().copy()
+                    curve.convert('wn')                    
+                    
+                    axes = []
                     axes.append(possible_axes[opa_name])
                     axes.append(axis)
+                    
+                    print("POYNTING TUNE SCAN", axis.centers)
 
                     scan_folder = self.scan(axes)
 
@@ -108,7 +116,7 @@ class Worker(acquisition.Worker):
                     wt.tuning.workup.intensity(data, curve, channel, save_directory = scan_folder)
 
                     p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
-                    opa_hardware.curve_path.write(p)
+                    opa_hardware.driver.curve_paths['Poynting'].write(p)
 
                     # upload
                     p = wt.kit.glob_handler('.png', folder = scan_folder)[0]
@@ -126,6 +134,10 @@ class GUI(acquisition.GUI):
     def create_frame(self):
         input_table = pw.InputTable()
         # opa combo
+        for opa in opas.hardwares:
+            print (opa, opa.driver.curve)
+            while opa.driver.curve is None:
+                time.sleep(.1)
         allowed = [hardware.name for hardware in opas.hardwares if hardware.driver.poynting_type is not None]
         print(allowed)
         self.opa_combo = pc.Combo(allowed)
@@ -192,7 +204,7 @@ class GUI(acquisition.GUI):
         
     def save(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
-        aqn.write('info', 'description', '{} tune test'.format(self.opa_combo.read()))
+        aqn.write('info', 'description', '{} Poynting Tune'.format(self.opa_combo.read()))
         aqn.add_section('opa')
         aqn.write('opa', 'opa', self.opa_combo.read())
 
@@ -213,7 +225,7 @@ class OPA_GUI():
     def __init__(self,hardware,layout):
         self.hardware = hardware
         print(hardware.__class__)
-        curve = self.hardware.curve#()
+        curve = self.hardware.curve()
         motor_names = curve.motor_names
         self.motors = []
         for name in motor_names:
