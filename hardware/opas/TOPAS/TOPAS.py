@@ -141,22 +141,25 @@ class AutoTune(BaseAutoTune):
         
     def run(self, worker):
         import somatic.acquisition as acquisition
+        curve = self.opa.curve
+        while not curve.kind.startswith('TOPAS'):
+            curve = curve.subcurve
         # BBO -----------------------------------------------------------------
         if worker.aqn.read('BBO', 'do'):
             axes = []
             # tune points
-            points = self.opa.curve.colors
-            units = self.opa.curve.units
+            points = curve.colors
+            units = curve.units
             name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([name, self.opa.curve.motor_names[1]])
+            name = '_'.join([name, curve.motor_names[1]])
             identity = 'D' + name
             width = worker.aqn.read('BBO', 'width') 
             npts = int(worker.aqn.read('BBO', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = self.opa.curve.motors[1].positions
+            motor_positions = curve.motors[1].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.opa.address.hardware, 'set_motor', ['BBO', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
@@ -168,7 +171,7 @@ class AutoTune(BaseAutoTune):
             data = wt.data.from_PyCMDS(p)
             curve = self.opa.curve
             channel = worker.aqn.read('BBO', 'channel')
-            old_curve_filepath = self.opa.curve_path.read()
+            old_curve_filepath = curve_path.read()
             wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
@@ -180,18 +183,18 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Mixer', 'do'):
             axes = []
             # tune points
-            points = self.opa.curve.colors
-            units = self.opa.curve.units
+            points = curve.colors
+            units = curve.units
             name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([name, self.opa.curve.motor_names[2]])
+            name = '_'.join([name, curve.motor_names[2]])
             identity = 'D' + name
             width = worker.aqn.read('Mixer', 'width') 
             npts = int(worker.aqn.read('Mixer', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = self.opa.curve.motors[2].positions
+            motor_positions = curve.motors[2].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.opa.address.hardware, 'set_motor', ['Mixer', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
@@ -215,8 +218,8 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Test', 'do'):
             axes = []
             # tune points
-            points = self.opa.curve.colors
-            units = self.opa.curve.units
+            points = curve.colors
+            units = curve.units
             name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
@@ -226,7 +229,7 @@ class AutoTune(BaseAutoTune):
             width = worker.aqn.read('Test', 'width') 
             npts = int(worker.aqn.read('Test', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            kwargs = {'centers': self.opa.curve.colors}
+            kwargs = {'centers': curve.colors}
             axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
             axes.append(axis)
             # do scan
@@ -289,7 +292,31 @@ class Driver(BaseDriver):
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
             self.exposed += [self.shutter_position]
-
+        # tuning curves
+        self.curve_paths = collections.OrderedDict()
+        for curve_type in self.curve_indices.keys():
+            section = 'Optical Device'
+            option = 'Curve ' + str(self.curve_indices[curve_type])
+            initial_value = self.TOPAS_ini.read(section, option)
+            options = ['CRV (*.crv)']
+            curve_filepath = pc.Filepath(initial_value=initial_value, options=options)
+            curve_filepath.updated.connect(self.load_curve)
+            self.curve_paths[curve_type] = curve_filepath
+        # interaction string
+        allowed_values = []
+        for curve_path_mutex in self.curve_paths.values():
+            with open(curve_path_mutex.read()) as crv:
+                crv_lines = crv.readlines()
+            for line in crv_lines:
+                if 'NON' in line:
+                    allowed_values.append(line.rstrip())
+        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
+        current_value = self.ini.read('OPA%i'%self.index, 'current interaction string')
+        self.interaction_string_combo.write(current_value)
+        self.interaction_string_combo.updated.connect(self.load_curve)
+        g.queue_control.disable_when_true(self.interaction_string_combo)
+        self.load_curve()
+        
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
         section = 'OPA' + str(self.index)
@@ -451,30 +478,6 @@ class Driver(BaseDriver):
             self.motor_positions[motor_name] = number
             self.recorded['w%d_'%self.index + motor_name] = [number, None, 1., motor_name]
         self.get_motor_positions()
-        # tuning curves
-        self.curve_paths = collections.OrderedDict()
-        for curve_type in self.curve_indices.keys():
-            section = 'Optical Device'
-            option = 'Curve ' + str(self.curve_indices[curve_type])
-            initial_value = self.TOPAS_ini.read(section, option)
-            options = ['CRV (*.crv)']
-            curve_filepath = pc.Filepath(initial_value=initial_value, options=options)
-            curve_filepath.updated.connect(self.load_curve)
-            self.curve_paths[curve_type] = curve_filepath
-        # interaction string
-        allowed_values = []
-        for curve_path_mutex in self.curve_paths.values():
-            with open(curve_path_mutex.read()) as crv:
-                crv_lines = crv.readlines()
-            for line in crv_lines:
-                if 'NON' in line:
-                    allowed_values.append(line.rstrip())
-        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
-        current_value = self.ini.read('OPA%i'%self.index, 'current interaction string')
-        self.interaction_string_combo.write(current_value)
-        self.interaction_string_combo.updated.connect(self.load_curve)
-        g.queue_control.disable_when_true(self.interaction_string_combo)
-        self.load_curve()
         # set position
         position = self.ini.read('OPA%i'%self.index, 'position (nm)')
         self.hardware.destination.write(position, self.native_units)

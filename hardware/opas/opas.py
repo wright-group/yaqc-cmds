@@ -79,6 +79,8 @@ class Driver(hw.Driver):
             self.motor_names = ['Delay', 'Crystal', 'Mixer']
         if not hasattr(self, 'curve_paths'):  # for virtual...
             self.curve_paths = collections.OrderedDict()
+        if not hasattr(self, 'interaction_string_combo'):  # for virtual...
+            self.interaction_string_combo = pc.Combo(allowed_values=['sig'])
         if self.poynting_type is not None:
             self.motor_names += ['Phi', 'Theta']
         self.curve = None
@@ -166,7 +168,6 @@ class Driver(hw.Driver):
     def initialize(self):
         # virtual stuff
         if self.model == 'Virtual':
-            self.interaction_string_combo = pc.Combo(allowed_values=['sig'])
             self.motor_positions['Delay'] = pc.Number(0., display=True)
             self.motor_positions['Crystal'] = pc.Number(0., display=True)
             self.motor_positions['Mixer'] = pc.Number(0., display=True)

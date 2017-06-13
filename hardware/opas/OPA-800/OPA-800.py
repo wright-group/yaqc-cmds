@@ -236,6 +236,9 @@ class Driver(BaseDriver):
         self.auto_tune = AutoTune(self)
         self.motors=[]        
         self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'OPA-800', 'OPA-800.ini'))
+        ## TODO: Determine if pico_opa needs to have interaction string combo
+        allowed_values = ['SHS']
+        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
         # load curve
         self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
         self.curve_path.updated.connect(self.curve_path.save)
@@ -292,9 +295,6 @@ class Driver(BaseDriver):
             self.motors.append(pm_motors.Motor(pm_motors.identity['OPA%d %s'%(self.index, motor_name)]))
             self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower()] 
         self.get_motor_positions()
-        ## TODO: Determine if pico_opa needs to have interaction string combo
-        allowed_values = ['SHS']
-        self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
         # tuning
         self.best_points = {}
         self.best_points['SHS'] = np.linspace(13500, 18200, 21)
