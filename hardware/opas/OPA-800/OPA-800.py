@@ -298,7 +298,7 @@ class Driver(BaseDriver):
             self.motor_positions[motor_name] = number
             self.motors.append(pm_motors.Motor(pm_motors.identity['OPA%d %s'%(self.index, motor_name)]))
             self.recorded['w%d_%s'%(self.index,motor_name)] =[number, None, 0.001, motor_name.lower()] 
-        self.get_motor_positions()
+        #self.get_motor_positions()
         # tuning
         self.best_points = {}
         self.best_points['SHS'] = np.linspace(13500, 18200, 21)

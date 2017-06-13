@@ -92,7 +92,7 @@ class Driver(hw.Driver):
             self.poynting_type = None
 
         if self.poynting_correction:
-           self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_correction.curve_path)
+           self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_curve_path)
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
@@ -175,6 +175,7 @@ class Driver(hw.Driver):
             self.position.write(800., 'nm')
         # get position
         self.load_curve()
+        self.get_motor_positions()
         self.get_position()
         hw.Driver.initialize(self)
 
