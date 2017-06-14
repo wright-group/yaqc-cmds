@@ -61,12 +61,13 @@ class PoyntingCorrectionDevice(object):
             motor_index = self.motor_names.index(motor)
         elif isinstance(motor, int):
             motor_index = motor
+            motor = self.motor_name.index(motor)
         else:
             print('motor_index not recognized in PoyntingCorrectionDevice get_motor_position')
             return
         # read position
         position = self._get_motor_position(motor_index)
-        self.motor_positions.values()[motor_index].write(position)
+        self.motor_positions[motor].write(position)
         return position
 
     def get_motor_positions(self):
@@ -103,23 +104,21 @@ class PoyntingCorrectionDevice(object):
         raise NotImplementedError
 
     def move_rel(self, motor, position):
-        if isinstance(motor, str):
-            self._move_rel(self.motor_names.index(motor), position)
+        if str(motor) in self.motor_names:
+            self._move_rel(self.motor_names.index(motor), int(position))
         elif isinstance(motor,int):
-            self._move_rel(motor, position)
+            self._move_rel(motor, int(position))
         else:
-            self._move_rel(self.motors.index(motor),position)
+            self._move_rel(self.motors.index(motor),int(position))
 
     def set_motor(self, motor, position):
         print('POYNTING CORRECTION DEVICE SET MOTOR', motor, position)
-        if isinstance(motor, unicode):
-            motor = str(motor)
-        if isinstance(motor, str):
-            self._set_motor(self.motor_names.index(motor), position)
+        if str(motor) in self.motor_names:
+            self._set_motor(self.motor_names.index(motor), int(position))
         elif isinstance(motor,int):
-            self._set_motor(motor, position)
+            self._set_motor(motor, int(position))
         else:
-            self._set_motor(self.motors.index(motor), position)
+            self._set_motor(self.motors.index(motor), int(position))
         self.get_motor_positions()
 
     def wait_until_still(self):
