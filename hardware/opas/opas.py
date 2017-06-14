@@ -179,7 +179,7 @@ class Driver(hw.Driver):
         self.get_position()
         hw.Driver.initialize(self)
 
-    def load_curve(self, inputs=None):
+    def load_curve(self, inputs=None, update = True):
         '''
         inputs can be none (so it loads current curves) 
         or ['curve type', filepath]
@@ -199,7 +199,8 @@ class Driver(hw.Driver):
             min_color = self.curve.colors.min()
             max_color = self.curve.colors.max()
             self.limits.write(min_color, max_color, self.native_units)
-            self._update_api(interaction)
+            if update:
+                self._update_api(interaction)
         else:
             pass
 

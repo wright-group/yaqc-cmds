@@ -305,7 +305,7 @@ class Driver(BaseDriver):
         self.TOPAS_ini.return_raw = True
         # load api 
            
-        self.api = TOPAS_API(self.TOPAS_ini_filepath)
+        #self.api = TOPAS_API(self.TOPAS_ini_filepath)
         for curve_type in self.curve_indices.keys():
             section = 'Optical Device'
             option = 'Curve ' + str(self.curve_indices[curve_type])
@@ -327,7 +327,7 @@ class Driver(BaseDriver):
         self.interaction_string_combo.write(current_value)
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
-        self.load_curve()
+        self.load_curve(update = False)
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
         section = 'OPA' + str(self.index)
