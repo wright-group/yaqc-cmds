@@ -51,6 +51,8 @@ import project.widgets as pw
 import project.classes as pc
 import project.file_dialog_handler
 
+from hardware.hardware import all_initialized
+
 import WrightTools as wt
 
 
@@ -120,7 +122,7 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read():
             print('PyCMDS_ui.MainWindow.__init__ complete')
         g.logger.log('info', 'Startup', 'PyCMDS MainWindow __init__ finished')
-        
+        all_initialized()
         
     
     def _create_main_frame(self):
@@ -235,6 +237,7 @@ class MainWindow(QtGui.QMainWindow):
         if g.debug.read():
             print('initialize hardware')
         # import
+        import hardware
         import hardware.opas.opas
         import hardware.spectrometers.spectrometers
         import hardware.delays.delays

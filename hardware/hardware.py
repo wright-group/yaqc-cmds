@@ -150,11 +150,10 @@ class GUI(QtCore.QObject):
 
 hardwares = []
 def all_initialized():
-    time.sleep(1)
     # fires any time a hardware is initialized
     for hardware in hardwares:
-        if not hardware.initialized.read():
-            return
+        while not hardware.initialized.read():
+            time.sleep(0.1)
     # past here only runs when ALL hardwares are initialized
     g.hardware_initialized.write(True)
 
@@ -197,7 +196,7 @@ class Hardware(pc.Hardware):
             
     def on_address_initialized(self):
         self.destination.write(self.get_position(), self.native_units)
-        all_initialized()
+        #all_initialized()
         self.initialized_signal.emit()
 
     def poll(self, force=False):
