@@ -303,9 +303,7 @@ class Driver(BaseDriver):
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
         self.TOPAS_ini.return_raw = True
-        # load api 
-           
-        #self.api = TOPAS_API(self.TOPAS_ini_filepath)
+        
         for curve_type in self.curve_indices.keys():
             section = 'Optical Device'
             option = 'Curve ' + str(self.curve_indices[curve_type])
@@ -473,7 +471,9 @@ class Driver(BaseDriver):
 
     def initialize(self):
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
-        
+        # load api 
+           
+        self.api = TOPAS_API(self.TOPAS_ini_filepath)
         if self.has_shutter:
             self.api.set_shutter(False)
         

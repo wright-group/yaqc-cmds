@@ -71,6 +71,7 @@ class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'fs'
+        self.native_per_mm = fs_per_mm
         super(self.__class__, self).__init__(*args, **kwargs)
         self.motor_limits = pc.NumberLimits(0, 25, 'mm')
         

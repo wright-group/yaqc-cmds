@@ -38,9 +38,24 @@ class Driver(hw.Driver):
         self.position.write(0.)
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
+        self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'mm', 0.001, str(self.index), True]
         
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)
+
+    def set_offset(self, offset):
+        # update zero
+        print('SET OFFSET', offset)
+        offset_from_here = offset - self.offset.read(self.native_units)
+        offset_mm = offset_from_here/(self.native_per_mm*self.factor.read())
+        print('OFFSET MM', offset_mm)
+        new_zero = self.zero_position.read('mm') + offset_mm
+        print('NEW ZERO', new_zero)
+        self.set_zero(new_zero)
+        self.offset.write(offset, self.native_units)
+        # return to old position
+        destination = self.hardware.destination.read(self.native_units)
+        self.set_position(destination)
 
 
 ### gui #######################################################################

@@ -42,7 +42,7 @@ class Driver(pc.Driver):
                                   display=True, set_method='set_position',
                                   limits=self.limits)
         self.offset = pc.Number(units=self.native_units, name='Offset',
-                                display=True)
+                                display=True)                        
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
@@ -69,8 +69,7 @@ class Driver(pc.Driver):
         self.is_busy()
 
     def set_offset(self, offset):
-        # TODO:
-        pass
+        self.offset.write(offset, self.native_units)
 
     def set_position(self, destination):
         time.sleep(0.1)  # rate limiter for virtual hardware behavior
@@ -122,7 +121,9 @@ class GUI(QtCore.QObject):
         self.position = self.hardware.position.associate()
         self.hardware.position.updated.connect(self.on_position_updated)
         self.attributes_table.add('Position', self.position)
-        self.attributes_table.add('Offset', self.hardware.offset)
+        self.offset = self.hardware.offset.associate()        
+        self.hardware.offset.updated.connect(self.on_offset_updated)
+        self.attributes_table.add('Offset', self.offset)
         # initialization
         if self.hardware.initialized.read():
             self.initialize()
@@ -139,7 +140,11 @@ class GUI(QtCore.QObject):
         # stretch
         self.scroll_layout.addStretch(1)
         self.layout.addStretch(1)
-        
+
+    def on_offset_updated(self):
+        new = self.hardware.offset.read(self.hardware.native_units)
+        self.offset.write(new, self.hardware.native_units)
+
     def on_position_updated(self):
         new = self.hardware.position.read(self.hardware.native_units)
         self.position.write(new, self.hardware.native_units)
@@ -218,7 +223,7 @@ class Hardware(pc.Hardware):
         # do nothing if new offset is same as current offset
         if offset == self.offset.read(self.native_units):
             return
-        self.q.push('set_offset', [offset])
+        self.q.push('set_offset', offset)
 
     def set_position(self, destination, input_units=None, force_send=False):
         if input_units is None:

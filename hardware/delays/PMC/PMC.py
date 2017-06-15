@@ -35,6 +35,7 @@ class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
         self.index = kwargs['index']
+        self.native_per_mm = ps_per_mm
         BaseDriver.__init__(self, *args, **kwargs)
 
     def close(self):
