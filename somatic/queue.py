@@ -918,10 +918,11 @@ class GUI(QtCore.QObject):
                     module.mkGUI()
                     self.modules[module.module_name] = module
                     self.module_container_widget.layout().addWidget(module.gui.frame)
-        # update module combo
-        self.module_combobox.set_allowed_values(list(self.modules.keys()))
-        self.module_combobox.updated.connect(self.on_module_combobox_updated)
-        self.on_module_combobox_updated()
+        if len(self.modules)>0:
+            # update module combo
+            self.module_combobox.set_allowed_values(list(self.modules.keys()))
+            self.module_combobox.updated.connect(self.on_module_combobox_updated)
+            self.on_module_combobox_updated()
 
     def on_append_to_queue(self):
         current_type = self.type_combo.read()
