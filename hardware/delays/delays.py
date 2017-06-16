@@ -38,7 +38,7 @@ class Driver(hw.Driver):
         self.position.write(0.)
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
-        self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'mm', 0.001, str(self.index), True]
+        self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'mm', 0.001, self.name[-1], True]
         
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)

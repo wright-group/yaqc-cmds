@@ -284,7 +284,6 @@ class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'nm'
-
         self.auto_tune = AutoTune(self)
         self.motors=[]
         self.curve_paths = collections.OrderedDict()
@@ -292,18 +291,16 @@ class Driver(BaseDriver):
         self.has_shutter = kwargs['has_shutter']
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
-            self.exposed += [self.shutter_position]
-        print(dir(wt.tuning.curve))		
         allowed_values = TOPAS_interaction_by_kind[self.kind].keys()		
         self.interaction_string_combo = pc.Combo(allowed_values	= allowed_values)
-        BaseDriver.__init__(self, *args, **kwargs)        
+        BaseDriver.__init__(self, *args, **kwargs)  
+        if self.has_shutter:
+            self.exposed += [self.shutter_position]
         # tuning curves
-		
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
         self.TOPAS_ini.return_raw = True
-        
         for curve_type in self.curve_indices.keys():
             section = 'Optical Device'
             option = 'Curve ' + str(self.curve_indices[curve_type])
@@ -326,6 +323,7 @@ class Driver(BaseDriver):
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
         self.load_curve(update = False)
+
     def _home_motors(self, motor_indexes):
         motor_indexes = list(motor_indexes)
         section = 'OPA' + str(self.index)
