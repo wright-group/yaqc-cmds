@@ -914,8 +914,10 @@ class GUI(QtCore.QObject):
             if config.get('load', name) == 'True':
                 path = os.path.join(somatic_folder, 'modules', name + '.py')
                 module = imp.load_source(name, path)
-                self.modules[module.module_name] = module
-                self.module_container_widget.layout().addWidget(module.gui.frame)
+                if module.load():
+                    module.mkGUI()
+                    self.modules[module.module_name] = module
+                    self.module_container_widget.layout().addWidget(module.gui.frame)
         # update module combo
         self.module_combobox.set_allowed_values(list(self.modules.keys()))
         self.module_combobox.updated.connect(self.on_module_combobox_updated)

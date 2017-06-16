@@ -137,4 +137,8 @@ class GUI(acquisition.GUI):
         print(self.device_widget)
         self.device_widget.save(aqn_path)
         
-gui = GUI(module_name)
+def load():
+    return True
+def mkGUI():        
+    global gui
+    gui = GUI(module_name)
