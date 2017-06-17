@@ -194,10 +194,3 @@ class Driver(BaseDriver):
 
 class GUI(BaseGUI):
     pass
-
-
-### testing ###################################################################
-
-
-if __name__ == '__main__':
-    pass

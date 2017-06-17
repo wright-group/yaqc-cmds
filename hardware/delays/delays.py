@@ -45,12 +45,9 @@ class Driver(hw.Driver):
 
     def set_offset(self, offset):
         # update zero
-        print('SET OFFSET', offset)
         offset_from_here = offset - self.offset.read(self.native_units)
         offset_mm = offset_from_here/(self.native_per_mm*self.factor.read())
-        print('OFFSET MM', offset_mm)
         new_zero = self.zero_position.read('mm') + offset_mm
-        print('NEW ZERO', new_zero)
         self.set_zero(new_zero)
         self.offset.write(offset, self.native_units)
         # return to old position
