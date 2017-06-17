@@ -3,6 +3,7 @@
 
 import os
 import time
+import shutil
 import collections
 
 import numpy as np
@@ -97,7 +98,7 @@ class Driver(hw.Driver):
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
 
-    def _load_curve(self, inputs, interaction):
+    def _load_curve(self, interaction):
         if self.model == 'Virtual':
             colors = np.linspace(400, 10000, 17)
             units = 'nm'
@@ -179,30 +180,26 @@ class Driver(hw.Driver):
         self.get_position()
         hw.Driver.initialize(self)
 
-    def load_curve(self, inputs=None, update = True):
-        '''
-        inputs can be none (so it loads current curves) 
-        or ['curve type', filepath]
-        '''
-        if inputs is None:
-            # update own curve object
-            interaction = self.interaction_string_combo.read()
-            curve = self._load_curve(inputs, interaction)
-            if self.poynting_correction:
-                print("LOAD CURVE FOR ", self.name)
-                p = self.curve_paths['Poynting'].read()
-               
-                self.curve = wt.tuning.curve.from_poynting_curve(p, subcurve=curve)
-                self.opa_ini.write(self.name, 'poynting_curve_path', p)
-            self.curve.convert(self.native_units)
-            # update limits
-            min_color = self.curve.colors.min()
-            max_color = self.curve.colors.max()
-            self.limits.write(min_color, max_color, self.native_units)
-            if update:
-                self._update_api(interaction)
-        else:
-            pass
+    def load_curve(self, name=None, path=None, update=True):
+        interaction = self.interaction_string_combo.read()
+        # update curve_paths
+        if name is not None:
+            old_directory = os.path.dirname(self.curve_paths[name])
+            p = shutil.copy(path, old_directory)
+            self.curve_paths[name].write(os.path.abspath(p))
+        # remake own curve object
+        curve = self._load_curve(interaction)
+        if self.poynting_correction:
+            p = self.curve_paths['Poynting'].read()
+            self.curve = wt.tuning.curve.from_poynting_curve(p, subcurve=curve)
+            self.opa_ini.write(self.name, 'poynting_curve_path', p)
+        self.curve.convert(self.native_units)
+        # update limits
+        min_color = self.curve.colors.min()
+        max_color = self.curve.colors.max()
+        self.limits.write(min_color, max_color, self.native_units)
+        if update:
+            self._update_api(interaction)
 
     def set_motor(self, motor_name, destination, wait=True):
         
@@ -498,10 +495,18 @@ class Hardware(hw.Hardware):
         self.kind = 'OPA'
         hw.Hardware.__init__(self, *arks, **kwargs)
 
-    #@property
+    @property
     def curve(self):
         # TODO: a more thread-safe operation (copy?)
         return self.driver.curve
+    
+    @property
+    def curve_paths(self):
+        """
+        OrderedDict {name: path}
+        """
+        # TODO: a more thread-safe operation
+        return collections.OrderedDict({key: value.read() for key, value in self.driver.curve_paths.items()})
 
     def get_tune_points(self, units='native'):
         if units == 'native':
@@ -513,6 +518,9 @@ class Hardware(hw.Hardware):
         motor list [name]
         """
         self.q.push('home_motor', motor)
+
+    def load_curve(self, name, path):
+        self.q.push('load_curve', name, path)
 
     @property
     def motor_names(self):

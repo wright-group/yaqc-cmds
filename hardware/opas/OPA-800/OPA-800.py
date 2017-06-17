@@ -251,7 +251,7 @@ class Driver(BaseDriver):
         print(self.curve_paths)
         self.load_curve()
 
-    def _load_curve(self, inputs, interaction):
+    def _load_curve(self, interaction):
         '''
         when loading externally, write to curve_path object directly
         '''

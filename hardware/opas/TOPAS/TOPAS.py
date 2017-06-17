@@ -410,7 +410,7 @@ class Driver(BaseDriver):
         if self.has_shutter:
             self.set_shutter([original_shutter])
  
-    def _load_curve(self, inputs, interaction):
+    def _load_curve(self, interaction):
         interaction = self.interaction_string_combo.read()
         curve_paths_copy = self.curve_paths.copy()
         print(curve_paths_copy)
