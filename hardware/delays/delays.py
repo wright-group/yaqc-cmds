@@ -34,12 +34,19 @@ class Driver(hw.Driver):
     
     def __init__(self, *args, **kwargs):
         self.hardware_ini = ini
+        self.motor_units = kwargs.pop('motor_units')
         hw.Driver.__init__(self, *args, **kwargs)
-        self.position.write(0.)
         self.factor = self.hardware.factor
+        self.factor.write(kwargs['factor'])
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
+        self.zero_position.write(kwargs['zero_position'])
         self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'mm', 0.001, self.name[-1], True]
+        
+    def save_status(self):
+        self.hardware_ini.write(self.name, 'zero_position', self.zero_position.read(self.motor_units))
+        self.hardware_ini.write(self.name, 'factor', int(self.factor.read()))
+        hw.Driver.save_status(self)        
         
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)

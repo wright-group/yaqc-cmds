@@ -70,7 +70,6 @@ class Driver(pc.Driver):
         self.is_busy()
 
     def save_status(self):
-        print('SAVE STATUS', self.name)
         self.hardware_ini.write(self.name, 'position', self.position.read(self.native_units))
 
     def set_offset(self, offset):
