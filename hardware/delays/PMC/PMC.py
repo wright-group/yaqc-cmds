@@ -53,7 +53,7 @@ class Driver(BaseDriver):
         self.motor = motors.Motor(motor_identity)
         self.current_position_mm = pc.Number(units='mm', display=True, decimals=5)
         # factor
-        self.factor = pc.Number(name='Factor', ini=ini, section='D%s'%self.index, option='factor', decimals=0)
+        self.factor.write(ini.read('D%i'%self.index, 'factor'))
         # zero position
         zero = ini.read('D%i'%self.index, 'zero position (mm)')
         self.zero_position.write(zero, 'mm')
