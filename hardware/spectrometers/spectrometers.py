@@ -12,6 +12,7 @@ from PyQt4 import QtGui
 
 import WrightTools as wt
 
+import project
 import project.project_globals as g
 main_dir = g.main_dir.read()
 app = g.app.read()
@@ -24,7 +25,7 @@ import hardware.hardware as hw
 
 
 directory = os.path.dirname(os.path.abspath(__file__))
-ini = wt.kit.INI(os.path.join(directory, 'spectrometers.ini'))
+ini = project.ini_handler.Ini(os.path.join(directory, 'spectrometers.ini'))
 
 
 ### driver ####################################################################

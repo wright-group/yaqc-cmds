@@ -222,7 +222,7 @@ class OPA_GUI():
     def __init__(self,hardware,layout):
         self.hardware = hardware
         print(hardware.__class__)
-        curve = self.hardware.curve()
+        curve = self.hardware.curve
         motor_names = curve.motor_names
         self.motors = []
         for name in motor_names:
