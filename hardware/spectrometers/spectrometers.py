@@ -33,9 +33,8 @@ ini = wt.kit.INI(os.path.join(directory, 'spectrometers.ini'))
 class Driver(hw.Driver):
     
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'nm'
+        self.hardware_ini = ini
         hw.Driver.__init__(self, *args, **kwargs)
-        self.position.write(800.)
         self.limits.write(0., 10000.)
 
 

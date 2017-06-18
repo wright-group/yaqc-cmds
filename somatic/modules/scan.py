@@ -363,4 +363,8 @@ class GUI(acquisition.GUI):
         # allow devices to write settings
         self.device_widget.save(aqn_path)
         
-gui = GUI(module_name)
+def load():
+    return True
+def mkGUI():        
+    global gui
+    gui = GUI(module_name)

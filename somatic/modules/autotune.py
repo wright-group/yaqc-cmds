@@ -104,5 +104,8 @@ class GUI(acquisition.GUI):
         aqn.write('OPA', 'name', self.opa_combobox.read())
         self.opa_autotunes[self.opa_combobox.read()].save(aqn_path)
         self.device_widget.save(aqn_path)
-        
-gui = GUI(module_name)
+def load():
+    return True
+def mkGUI():        
+    global gui
+    gui = GUI(module_name)

@@ -231,7 +231,6 @@ class AutoTune(BaseAutoTune):
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'wn'
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.auto_tune = AutoTune(self)
         self.motors=[]        
@@ -251,7 +250,7 @@ class Driver(BaseDriver):
         print(self.curve_paths)
         self.load_curve()
 
-    def _load_curve(self, inputs, interaction):
+    def _load_curve(self, interaction):
         '''
         when loading externally, write to curve_path object directly
         '''

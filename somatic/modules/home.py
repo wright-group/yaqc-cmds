@@ -158,4 +158,8 @@ class GUI(acquisition.GUI):
     def update_mono_settings(self):
         pass
 
-gui = GUI(module_name)
+def mkGUI():
+    global gui
+    gui = GUI(module_name)
+def load():
+    return True
