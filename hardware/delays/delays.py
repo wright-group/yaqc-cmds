@@ -13,8 +13,6 @@ from PyQt4 import QtGui
 import WrightTools as wt
 
 import project.project_globals as g
-main_dir = g.main_dir.read()
-app = g.app.read()
 import project.widgets as pw
 import project.classes as pc
 import hardware.hardware as hw
@@ -23,8 +21,11 @@ import hardware.hardware as hw
 ### define ####################################################################
 
 
-directory = os.path.dirname(os.path.abspath(__file__))
+main_dir = g.main_dir.read()
+app = g.app.read()
 
+directory = os.path.dirname(os.path.abspath(__file__))
+ini = wt.kit.INI(os.path.join(directory, 'delays.ini'))
 
 ### driver ####################################################################
 
@@ -32,10 +33,8 @@ directory = os.path.dirname(os.path.abspath(__file__))
 class Driver(hw.Driver):
     
     def __init__(self, *args, **kwargs):
-        if 'native_units' not in kwargs.keys():
-            kwargs['native_units'] = 'ps'
+        self.hardware_ini = ini
         hw.Driver.__init__(self, *args, **kwargs)
-        self.position.write(0.)
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
         self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'mm', 0.001, self.name[-1], True]

@@ -283,7 +283,6 @@ class AutoTune(BaseAutoTune):
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'nm'
         self.auto_tune = AutoTune(self)
         self.motors=[]
         self.curve_paths = collections.OrderedDict()

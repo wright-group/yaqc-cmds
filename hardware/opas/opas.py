@@ -65,7 +65,7 @@ class AutoTune(QtGui.QWidget):
 class Driver(hw.Driver):
 
     def __init__(self, *args, **kwargs):
-        self.opa_ini = ini
+        self.hardware_ini = ini
         self.index = kwargs['index']
         self.motor_positions = collections.OrderedDict()
         self.homeable = [False]  # TODO:
@@ -73,9 +73,7 @@ class Driver(hw.Driver):
         self.poynting_type = kwargs.pop('poynting_type')
         self.poynting_correction  = None
         self.poynting_curve_path = kwargs.pop('poynting_curve_path')
-        if 'native_units' not in kwargs.keys():
-            kwargs['native_units'] = 'nm'
-        hw.Driver.__init__(self, args[0], native_units=kwargs['native_units'])
+        hw.Driver.__init__(self, *args, **kwargs)
         if not hasattr(self, 'motor_names'):  # for virtual...
             self.motor_names = ['Delay', 'Crystal', 'Mixer']
         if not hasattr(self, 'curve_paths'):  # for virtual...
@@ -192,7 +190,7 @@ class Driver(hw.Driver):
         if self.poynting_correction:
             p = self.curve_paths['Poynting'].read()
             self.curve = wt.tuning.curve.from_poynting_curve(p, subcurve=curve)
-            self.opa_ini.write(self.name, 'poynting_curve_path', p)
+            self.hardware_ini.write(self.name, 'poynting_curve_path', p)
         self.curve.convert(self.native_units)
         # update limits
         min_color = self.curve.colors.min()

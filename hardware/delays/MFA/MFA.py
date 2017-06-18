@@ -70,7 +70,6 @@ fs_per_mm = 6000.671281903963041  # a mm on the delay stage (factor of 2)
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'fs'
         self.index = kwargs.pop('index')
         self.native_per_mm = fs_per_mm
         super(self.__class__, self).__init__(*args, **kwargs)

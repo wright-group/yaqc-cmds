@@ -231,7 +231,6 @@ class AutoTune(BaseAutoTune):
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'wn'
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.auto_tune = AutoTune(self)
         self.motors=[]        
