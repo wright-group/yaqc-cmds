@@ -58,6 +58,7 @@ status_codes = collections.OrderedDict()
 status_codes[-2147478512] = 'moving'
 status_codes[-2147479552] = 'stopped not homed'
 status_codes[-2147478528] = 'stopped and homed'
+status_codes[-2147478496] = '???'
 
 
 ### units codes ###############################################################

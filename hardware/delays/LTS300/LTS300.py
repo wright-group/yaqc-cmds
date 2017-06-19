@@ -23,46 +23,52 @@ from library.ThorlabsAPT.APT import APTMotor
 
 
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'hardware', 'delays',
-                                 'LTS300',
-                                 'LTS300.ini'))
 
 
 ### driver ####################################################################
 
 
 class Driver(BaseDriver):
-    
+
     def __init__(self, *args, **kwargs):
         kwargs['native_units'] = 'ps'
         self.index = kwargs.pop('index')
         self.native_per_mm = 6.671281903963041
         BaseDriver.__init__(self, *args, **kwargs)
-        self.motor_limits = pc.NumberLimits(0, 300, 'mm')
-        
+
     def close(self):
         self.motor.close()
-    
+
+    def get_motor_position(self):
+        p = self.motor.position
+        self.motor_position.write(p, self.motor_units)
+        return p
+
+    def get_position(self):
+        position = self.get_motor_position()
+        # calculate delay
+        delay = (position - self.zero_position.read()) * self.native_per_mm * self.factor.read()
+        self.position.write(delay, self.native_units)
+        # return
+        return delay
+
     def initialize(self):
-        #self.motor = APTMotor(int(self.serial), 42)
-        # read from ini
-        self.factor = pc.Number(ini=ini, section='D{}'.format(self.index), option='factor', decimals=0, disable_under_queue_control=True)
-        self.factor.updated.connect(self.on_factor_updated)        
-        self.zero_position = pc.Number(name='Zero', initial_value=12.5,
-                                       ini=ini, section='D{}'.format(self.index),
-                                       option='zero position (mm)', import_from_ini=True,
-                                       save_to_ini_at_shutdown=True,
-                                       limits=self.motor_limits,
-                                       decimals=5,
-                                       units='mm', display=True)                                   
-        self.set_zero(self.zero_position.read())
-        self.label = pc.String(ini=ini, section='D{}'.format(self.index), option='label', disable_under_queue_control=True)
-        self.label.updated.connect(self.update_recorded)
-        self.update_recorded()
-        # finish
-        self.get_position()
-        self.initialized.write(True)
-        self.initialized_signal.emit()
+        self.motor = APTMotor(serial_number=int(self.serial), hardware_type=42)
+        self.motor_limits.write(self.motor.minimum_position, self.motor.maximum_position, self.motor_units)
+
+    def is_busy(self):
+        return self.motor.status == 'moving'
+
+    def set_position(self, destination):
+        destination_mm = self.zero_position.read() + destination/(self.native_per_mm * self.factor.read())
+        self.set_motor_position(destination_mm)
+
+    def set_motor_position(self, motor_position):
+        self.motor.set_position(motor_position)
+        while self.is_busy():
+            time.sleep(0.01)
+            self.get_position()
+        BaseDriver.set_motor_position(self, motor_position)
 
 
 ### gui #######################################################################

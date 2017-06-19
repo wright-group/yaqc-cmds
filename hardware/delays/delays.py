@@ -39,6 +39,7 @@ class Driver(hw.Driver):
         hw.Driver.__init__(self, *args, **kwargs)
         self.factor = self.hardware.factor
         self.factor.write(kwargs['factor'])
+        self.motor_limits = self.hardware.motor_limits
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
         self.zero_position.write(kwargs['zero_position'])
@@ -139,9 +140,8 @@ class Hardware(hw.Hardware):
     def __init__(self, *arks, **kwargs):
         self.kind = 'delay'        
         self.factor = pc.Number(1, decimals=0)
-        motor_limits = pc.NumberLimits()
-        self.motor_position = pc.Number(units='mm', display=True, limits=motor_limits)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')
+        self.motor_position = pc.Number(units='mm', display=True, limits=self.motor_limits)        
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)

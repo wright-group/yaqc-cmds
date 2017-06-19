@@ -2,16 +2,10 @@
 
 
 import os
-import collections
 import time
-
-import numpy as np
-
-from PyQt4 import QtGui, QtCore
 
 import project.com_handler as com_handler
 import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
 from hardware.delays.delays import Driver as BaseDriver
@@ -60,8 +54,6 @@ status_dict = {'READY from MOVING': '33',
                'MOVING': '28',
                'NOT REF from RESET': '0A',
                '????': 'P-'}
-              
-fs_per_mm = 6000.671281903963041  # a mm on the delay stage (factor of 2)
 
 
 ### driver ####################################################################
@@ -71,7 +63,8 @@ class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
         self.index = kwargs.pop('index')
-        self.native_per_mm = fs_per_mm
+        self.axis = kwargs.pop('axis')
+        self.native_per_mm = 6000.671281903963041
         super(self.__class__, self).__init__(*args, **kwargs)
         self.motor_limits = pc.NumberLimits(0, 25, 'mm')
         
@@ -95,7 +88,7 @@ class Driver(BaseDriver):
         position = float(str(position).split('TP')[1])
         self.motor_position.write(position, 'mm')
         # calculate delay (fs)
-        delay = (position - self.zero_position.read()) * fs_per_mm * self.factor.read()
+        delay = (position - self.zero_position.read()) * self.native_per_mm * self.factor.read()
         self.position.write(delay, 'fs')
         # return
         return delay
@@ -107,30 +100,13 @@ class Driver(BaseDriver):
             self.get_position()
 
     def initialize(self):
-        self.axis = ini.read('D' + str(self.index), 'axis')
-        # load communications channel
-        self.port = com_handler.get_com(COM_channel)
-        # read from ini
-        self.factor = pc.Number(ini=ini, section='D{}'.format(self.index), option='factor', decimals=0, disable_under_queue_control=True)
-        self.factor.updated.connect(self.on_factor_updated)        
-        self.zero_position = pc.Number(name='Zero', initial_value=12.5,
-                                       ini=ini, section='D{}'.format(self.index),
-                                       option='zero position (mm)', import_from_ini=True,
-                                       save_to_ini_at_shutdown=True,
-                                       limits=self.motor_limits,
-                                       decimals=5,
-                                       units='mm', display=True)                                   
+        self.port = com_handler.get_com(COM_channel)   
         self.set_zero(self.zero_position.read())
-        self.label = pc.String(ini=ini, section='D{}'.format(self.index), option='label', disable_under_queue_control=True)
         self.label.updated.connect(self.update_recorded)
         self.update_recorded()
-        # finish
         self.get_position()
         self.initialized.write(True)
         self.initialized_signal.emit()
-
-    def is_busy(self):
-        return False
         
     def on_factor_updated(self):
         if self.factor.read() == 0:
@@ -138,24 +114,13 @@ class Driver(BaseDriver):
         # record factor
         self.factor.save()
         # update limits
-        min_value = -self.zero_position.read() * fs_per_mm * self.factor.read()
-        max_value = (25. - self.zero_position.read()) * fs_per_mm * self.factor.read()
+        min_value = -self.zero_position.read() * self.native_per_mm * self.factor.read()
+        max_value = (25. - self.zero_position.read()) * self.native_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, 'fs')
-        
-    def set_offset(self, offset):
-        # update zero
-        offset_from_here = offset - self.offset.read('fs')
-        offset_mm = offset_from_here/(fs_per_mm*self.factor.read())
-        new_zero = self.zero_position.read('mm') + offset_mm
-        self.set_zero(new_zero)
-        self.offset.write(offset)
-        # return to old position
-        destination = self.address.hardware.destination.read('fs')
-        self.set_position(destination)       
         
     def set_position(self, destination):
         # get destination_mm
-        destination_mm = self.zero_position.read() + destination/(fs_per_mm * self.factor.read())
+        destination_mm = self.zero_position.read() + destination/(self.native_per_mm * self.factor.read())
         self.set_motor_position(destination_mm)
         
     def set_motor_position(self, motor_position):
@@ -173,13 +138,9 @@ class Driver(BaseDriver):
         
     def set_zero(self, zero):
         self.zero_position.write(zero)
-        min_value = -self.zero_position.read() * fs_per_mm * self.factor.read()
-        max_value = (25. - self.zero_position.read()) * fs_per_mm * self.factor.read()
+        min_value = -self.zero_position.read() * self.native_per_mm * self.factor.read()
+        max_value = (25. - self.zero_position.read()) * self.native_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, 'fs')
-        # write new position to ini
-        section = 'D{}'.format(self.index)
-        option = 'zero position (mm)'
-        ini.write(section, option, zero)
         
     def update_recorded(self):
         self.recorded.clear()
