@@ -22,10 +22,6 @@ import hardware.spectrometers.MicroHR.gen_py.JYMono as JYMono
 
 
 main_dir = g.main_dir.read()
-ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 
-                                                     'spectrometers',
-                                                     'MicroHR',
-                                                     'MicroHR.ini'))
 
 
 ### driver ####################################################################
@@ -34,21 +30,19 @@ ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware',
 class Driver(BaseDriver):
     
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'nm'
+        self.unique_id = kwargs.pop('unique_id')
         BaseDriver.__init__(self, *args, **kwargs)
         self.grating_index = pc.Combo(name='Grating', allowed_values=[1, 2],
-                                      ini=ini, section='main',
-                                      option='grating index',
+                                      ini=self.hardware_ini, section=self.name,
+                                      option='grating_index',
                                       import_from_ini=True, display=True,
                                       set_method='set_turret')
         self.exposed.append(self.grating_index)
 
     def close(self):
-        # close control
         self.ctrl.CloseCommunications()
-        # save current position to ini
-        ini.write('main', 'grating index', self.grating_index.read())
-        ini.write('main', 'position (nm)', self.position.read())
+        self.hardware_ini.write(self.name, 'grating_index', self.grating_index.read())
+        BaseDriver.close(self)
 
     def get_grating_details(self):
         """
@@ -65,7 +59,7 @@ class Driver(BaseDriver):
     def initialize(self, *args, **kwargs):
         # open control
         self.ctrl = JYMono.Monochromator()
-        self.ctrl.Uniqueid = ini.read('main', 'unique id')
+        self.ctrl.Uniqueid = self.unique_id
         self.ctrl.Load()
         self.ctrl.OpenCommunications()
         # initialize hardware
@@ -78,15 +72,15 @@ class Driver(BaseDriver):
         self.serial_number = self.ctrl.SerialNumber
         self.position.write(self.ctrl.GetCurrentWavelength())
         # import information from ini
-        init_grating_index = ini.read('main', 'grating index')
-        init_wavelength = ini.read('main', 'position (nm)')
+        init_position = self.hardware_ini.read(self.name, 'position')
+        init_grating_index = self.hardware_ini.read(self.name, 'grating_index')
         # recorded
         self.recorded['wm'] = [self.position, 'nm', 1., 'm', False]
         # go to old position after initialization is done
         while self.is_busy():
             time.sleep(0.1)
         self.set_turret(init_grating_index)
-        self.set_position(init_wavelength)
+        self.set_position(init_position)
         # finish
         self.initialized.write(True)
         self.initialized_signal.emit()
@@ -110,7 +104,7 @@ class Driver(BaseDriver):
         while self.is_busy():
             time.sleep(0.01)
         # update own limits
-        max_limit = ini.read('grating {}'.format(self.grating_index.read()), 'maximum wavelength (nm)')
+        max_limit = self.hardware_ini.read(self.name, 'grating_%i_maximum_wavelength'%self.grating_index.read())
         if self.grating_index.read() == 1:
             self.limits.write(0, max_limit, 'nm')
         elif self.grating_index.read() == 2:
@@ -124,85 +118,3 @@ class Driver(BaseDriver):
 
 class GUI(BaseGUI):
     pass
-
-
-### mono object ###############################################################
-
-
-# CRITICAL:
-# FOR SOME REASON THE PHYSICAL USB KEY IS NEEDED FOR THIS CODE TO WORK
-
-class PLACEHOLDER(BaseDriver):
-
-    def __init__(self):
-        # list of objects to be exposed to PyCMDS
-        self.native_units = 'nm'
-        self.limits = pc.NumberLimits(min_value=0, max_value=20000, units='nm')
-        self.current_position = pc.Number(name='Color',
-                                          ini=ini, import_from_ini=True,
-                                          section='main',
-                                          option='position (nm)',
-                                          limits=self.limits,
-                                          units='nm', display=True,
-                                          set_method='set_position')
-
-
-
-
-
-
-### gui #######################################################################
-
-
-class PLACEHOLDER(BaseGUI):
-
-    def __init__(self, driver):
-        QtCore.QObject.__init__(self)
-        self.driver = driver
-
-    def create_frame(self, layout):
-        layout.setMargin(5)
-        self.layout = layout
-        self.frame = QtGui.QWidget()
-        self.frame.setLayout(self.layout)
-        #g.module_advanced_widget.add_child(self.frame)
-        if self.driver.initialized.read():
-            self.initialize()
-        else:
-            self.driver.initialized.updated.connect(self.initialize)
-
-    def initialize(self):
-        # settings container
-        settings_container_widget = QtGui.QWidget()
-        settings_scroll_area = pw.scroll_area(show_bar=False)
-        settings_scroll_area.setWidget(settings_container_widget)
-        settings_scroll_area.setMinimumWidth(300)
-        settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
-        settings_layout = settings_container_widget.layout()
-        settings_layout.setMargin(5)
-        self.layout.addWidget(settings_scroll_area)
-        # input table
-        input_table = pw.InputTable()
-        self.current_position = self.driver.current_position.associate()
-        input_table.add('Current', self.current_position)
-        details = self.driver.get_grating_details()
-        for grating_index in [0, 1]:
-            input_table.add('Grating {}'.format(grating_index+1), None)
-            grooves_per_mm = pc.Number(initial_value=float(details[1][grating_index]), display=True)
-            input_table.add('gr/mm', grooves_per_mm)
-            blaze_wavelength = pc.Number(initial_value=float(details[2][grating_index]), display=True)
-            input_table.add('Blaze Wavelength (nm)', blaze_wavelength)
-            serial_number = pc.String(initial_value=details[-1][grating_index][4:], display=True)
-            input_table.add('S/N', serial_number)
-        settings_layout.addWidget(input_table)
-        # finish
-        settings_layout.addStretch(1)
-        self.layout.addStretch(1)
-        self.driver.address.update_ui.connect(self.update)
-
-    def update(self):
-        self.current_position.write(self.driver.current_position.read())
-
-    def stop(self):
-        pass

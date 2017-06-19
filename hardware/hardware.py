@@ -27,7 +27,7 @@ import project.project_globals as g
 class Driver(pc.Driver):
     initialized_signal = QtCore.pyqtSignal()
 
-    def __init__(self, hardware, native_units=None, **kwargs):
+    def __init__(self, hardware, **kwargs):
         pc.Driver.__init__(self)
         # basic attributes
         self.hardware = hardware
@@ -35,14 +35,15 @@ class Driver(pc.Driver):
         self.busy = self.hardware.busy
         self.name = self.hardware.name
         self.model = self.hardware.model
-        self.native_units = native_units
+        self.native_units = kwargs['native_units']
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
-        self.position = pc.Number(units=self.native_units, name='Position',
+        self.position = pc.Number(initial_value=kwargs['position'],
+                                  units=self.native_units, name='Position',
                                   display=True, set_method='set_position',
                                   limits=self.limits)
         self.offset = pc.Number(units=self.native_units, name='Offset',
-                                display=True)
+                                display=True)                        
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
@@ -68,9 +69,11 @@ class Driver(pc.Driver):
         self.get_position()
         self.is_busy()
 
+    def save_status(self):
+        self.hardware_ini.write(self.name, 'position', self.position.read(self.native_units))
+
     def set_offset(self, offset):
-        # TODO:
-        pass
+        self.offset.write(offset, self.native_units)
 
     def set_position(self, destination):
         time.sleep(0.1)  # rate limiter for virtual hardware behavior
@@ -122,7 +125,9 @@ class GUI(QtCore.QObject):
         self.position = self.hardware.position.associate()
         self.hardware.position.updated.connect(self.on_position_updated)
         self.attributes_table.add('Position', self.position)
-        self.attributes_table.add('Offset', self.hardware.offset)
+        self.offset = self.hardware.offset.associate()        
+        self.hardware.offset.updated.connect(self.on_offset_updated)
+        self.attributes_table.add('Offset', self.offset)
         # initialization
         if self.hardware.initialized.read():
             self.initialize()
@@ -139,7 +144,11 @@ class GUI(QtCore.QObject):
         # stretch
         self.scroll_layout.addStretch(1)
         self.layout.addStretch(1)
-        
+
+    def on_offset_updated(self):
+        new = self.hardware.offset.read(self.hardware.native_units)
+        self.offset.write(new, self.hardware.native_units)
+
     def on_position_updated(self):
         new = self.hardware.position.read(self.hardware.native_units)
         self.position.write(new, self.hardware.native_units)
@@ -174,6 +183,10 @@ class Hardware(pc.Hardware):
         self.limits = self.driver.limits
         self.driver.initialized_signal.connect(self.on_address_initialized)
         hardwares.append(self)
+
+    def close(self):
+        self.q.push('save_status')
+        pc.Hardware.close(self)
 
     def get_destination(self, output_units='same'):
         return self.destination.read(output_units=output_units)
@@ -217,7 +230,7 @@ class Hardware(pc.Hardware):
         # do nothing if new offset is same as current offset
         if offset == self.offset.read(self.native_units):
             return
-        self.q.push('set_offset', [offset])
+        self.q.push('set_offset', offset)
 
     def set_position(self, destination, input_units=None, force_send=False):
         if input_units is None:
@@ -252,7 +265,6 @@ def import_hardwares(ini_path, name, Driver, GUI, Hardware):
                 if option in ['__name__', 'enable', 'model', 'serial', 'path']:
                     continue
                 else:
-                    print('KWARGS', section,option)
                     kwargs[option] = ini.read(section, option)            
             model = ini.read(section, 'model')
             if model == 'Virtual':

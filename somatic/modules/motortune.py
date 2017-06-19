@@ -372,4 +372,8 @@ class GUI(acquisition.GUI):
         elif method == 'Static':
             self.mono_center.set_disabled(False)
         
-gui = GUI(module_name)
+def mkGUI():        
+    global gui
+    gui = GUI(module_name)
+def load():
+    return True

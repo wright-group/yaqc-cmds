@@ -13,8 +13,6 @@ from PyQt4 import QtGui
 import WrightTools as wt
 
 import project.project_globals as g
-main_dir = g.main_dir.read()
-app = g.app.read()
 import project.widgets as pw
 import project.classes as pc
 import hardware.hardware as hw
@@ -23,7 +21,11 @@ import hardware.hardware as hw
 ### define ####################################################################
 
 
+main_dir = g.main_dir.read()
+app = g.app.read()
+
 directory = os.path.dirname(os.path.abspath(__file__))
+ini = wt.kit.INI(os.path.join(directory, 'delays.ini'))
 
 
 ### driver ####################################################################
@@ -32,15 +34,34 @@ directory = os.path.dirname(os.path.abspath(__file__))
 class Driver(hw.Driver):
     
     def __init__(self, *args, **kwargs):
-        if 'native_units' not in kwargs.keys():
-            kwargs['native_units'] = 'ps'
+        self.hardware_ini = ini
+        self.motor_units = kwargs.pop('motor_units')
         hw.Driver.__init__(self, *args, **kwargs)
-        self.position.write(0.)
+        self.factor = self.hardware.factor
+        self.factor.write(kwargs['factor'])
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
+        self.zero_position.write(kwargs['zero_position'])
+        self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'mm', 0.001, self.name[-1], True]
+        
+    def save_status(self):
+        self.hardware_ini.write(self.name, 'zero_position', self.zero_position.read(self.motor_units))
+        self.hardware_ini.write(self.name, 'factor', int(self.factor.read()))
+        hw.Driver.save_status(self)        
         
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)
+
+    def set_offset(self, offset):
+        # update zero
+        offset_from_here = offset - self.offset.read(self.native_units)
+        offset_mm = offset_from_here/(self.native_per_mm*self.factor.read())
+        new_zero = self.zero_position.read('mm') + offset_mm
+        self.set_zero(new_zero)
+        self.offset.write(offset, self.native_units)
+        # return to old position
+        destination = self.hardware.destination.read(self.native_units)
+        self.set_position(destination)
 
 
 ### gui #######################################################################
@@ -117,7 +138,7 @@ class Hardware(hw.Hardware):
     
     def __init__(self, *arks, **kwargs):
         self.kind = 'delay'        
-        self.factor = pc.Number(1)
+        self.factor = pc.Number(1, decimals=0)
         motor_limits = pc.NumberLimits()
         self.motor_position = pc.Number(units='mm', display=True, limits=motor_limits)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')

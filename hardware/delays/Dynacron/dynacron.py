@@ -29,7 +29,6 @@ ps_per_mm = 6.671281903963041  # a mm on the delay stage (factor of 2)
 class Driver():
 
     def __init__(self):
-        self.native_units = 'ps'
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
         self.limits_mm = pc.NumberLimits(0, 250, units='mm')

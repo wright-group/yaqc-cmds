@@ -12,6 +12,7 @@ from PyQt4 import QtGui
 
 import WrightTools as wt
 
+import project
 import project.project_globals as g
 main_dir = g.main_dir.read()
 app = g.app.read()
@@ -24,7 +25,7 @@ import hardware.hardware as hw
 
 
 directory = os.path.dirname(os.path.abspath(__file__))
-ini = wt.kit.INI(os.path.join(directory, 'spectrometers.ini'))
+ini = project.ini_handler.Ini(os.path.join(directory, 'spectrometers.ini'))
 
 
 ### driver ####################################################################
@@ -33,9 +34,8 @@ ini = wt.kit.INI(os.path.join(directory, 'spectrometers.ini'))
 class Driver(hw.Driver):
     
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'nm'
+        self.hardware_ini = ini
         hw.Driver.__init__(self, *args, **kwargs)
-        self.position.write(800.)
         self.limits.write(0., 10000.)
 
 

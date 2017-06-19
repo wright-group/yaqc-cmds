@@ -135,7 +135,8 @@ class GUI(acquisition.GUI):
         input_table = pw.InputTable()
         # opa combo
         allowed = [hardware.name for hardware in opas.hardwares if hardware.driver.poynting_type is not None]
-        print(allowed)
+        if len(allowed) == 0:
+            return
         self.opa_combo = pc.Combo(allowed)
         self.opa_combo.updated.connect(self.on_opa_combo_updated)
         input_table.add('OPA', self.opa_combo)
@@ -221,7 +222,7 @@ class OPA_GUI():
     def __init__(self,hardware,layout):
         self.hardware = hardware
         print(hardware.__class__)
-        curve = self.hardware.curve()
+        curve = self.hardware.curve
         motor_names = curve.motor_names
         self.motors = []
         for name in motor_names:
@@ -254,4 +255,9 @@ class MotorGUI():
         self.input_table.add('Number', self.number)
         
         
-gui = GUI(module_name)
+def load():
+    allowed = [hardware.name for hardware in opas.hardwares if hardware.driver.poynting_type is not None]
+    return len(allowed)>0
+def mkGUI():        
+    global gui
+    gui = GUI(module_name)

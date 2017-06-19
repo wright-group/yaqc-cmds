@@ -70,7 +70,8 @@ fs_per_mm = 6000.671281903963041  # a mm on the delay stage (factor of 2)
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
-        kwargs['native_units'] = 'fs'
+        self.index = kwargs.pop('index')
+        self.native_per_mm = fs_per_mm
         super(self.__class__, self).__init__(*args, **kwargs)
         self.motor_limits = pc.NumberLimits(0, 25, 'mm')
         
@@ -105,8 +106,7 @@ class Driver(BaseDriver):
             time.sleep(0.01)
             self.get_position()
 
-    def initialize(self, inputs):
-        self.index = inputs[0]
+    def initialize(self):
         self.axis = ini.read('D' + str(self.index), 'axis')
         # load communications channel
         self.port = com_handler.get_com(COM_channel)
@@ -192,11 +192,4 @@ class Driver(BaseDriver):
 
 
 class GUI(BaseGUI):
-    pass
-
-
-### testing ###################################################################
-
-
-if __name__ == '__main__':
     pass
