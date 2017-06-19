@@ -236,13 +236,12 @@ class Driver(BaseDriver):
         self.motors=[]        
         self.homeable = [False]
         self.curve_paths = collections.OrderedDict()
-        self.ini = project.ini_handler.Ini(os.path.join(main_dir, 'hardware', 'opas', 'OPA-800', 'OPA-800.ini'))
         ## TODO: Determine if pico_opa needs to have interaction string combo
         allowed_values = ['SHS']
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
         BaseDriver.__init__(self, *args, **kwargs)
         # load curve
-        self.curve_path = pc.Filepath(ini=self.ini, section='OPA%d'%self.index, option='curve path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
+        self.curve_path = pc.Filepath(ini=self.hardware_ini, section=self.name, option='curve_path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
         self.curve_path.updated.connect(self.curve_path.save)
         self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
 
@@ -272,9 +271,9 @@ class Driver(BaseDriver):
             motor.wait_until_still(method=self.get_position)
 
     def close(self):
-        self.ini.write('OPA%d'%self.index, 'current position (wn)', self.position.read())
         for motor in self.motors:
             motor.close()
+        BaseDriver.close(self)
 
     def get_motor_positions(self):
         for i in range(len(self.motors)):
@@ -284,7 +283,6 @@ class Driver(BaseDriver):
             self.poynting_correction.get_motor_positions()
 
     def initialize(self):
-        self.position.write(self.ini.read('OPA%d'%self.index, 'current position ('+self.native_units+')'), self.native_units)
         self.hardware.destination.write(self.position.read(self.native_units), self.native_units)
         self.serial_number = -1
         self.recorded['w%d'%self.index] = [self.position, self.native_units, 1., str(self.index)]
