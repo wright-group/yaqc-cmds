@@ -531,7 +531,7 @@ class Control(QtCore.QObject):
             device.initialize()
         self.set_freerun(True)
         self.wait_until_done()  # TODO:...
-        time.sleep(3)  # TOD: remove
+        #time.sleep(3)  # TOD: remove
         # connect
         for device in self.devices:
             device.settings_updated.connect(self.on_device_settings_updated)
