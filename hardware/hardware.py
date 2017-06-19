@@ -35,6 +35,8 @@ class Driver(pc.Driver):
         self.busy = self.hardware.busy
         self.name = self.hardware.name
         self.model = self.hardware.model
+        self.label = pc.String(kwargs['label'])
+        self.label.updated.connect(self.on_label_updated)
         self.native_units = kwargs['native_units']
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
@@ -48,7 +50,7 @@ class Driver(pc.Driver):
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
-        self.recorded[self.name] = [self.position, self.native_units, 1., self.name, False] 
+        self.recorded[self.name] = [self.position, self.native_units, 1., self.label.read(), False] 
 
     def close(self):
         pass
@@ -62,6 +64,9 @@ class Driver(pc.Driver):
         """
         self.initialized.write(True)
         self.initialized_signal.emit()
+        
+    def on_label_updated(self):
+        self.recorded[self.name] = [self.position, self.native_units, 1., self.label.read(), False] 
 
     def poll(self):
         """
@@ -73,6 +78,7 @@ class Driver(pc.Driver):
     def save_status(self):
         self.hardware_ini.write(self.name, 'position', self.position.read(self.native_units))
         self.hardware_ini.write(self.name, 'display_units', self.position.units)
+        self.hardware_ini.write(self.name, 'label', self.label.read())
 
     def set_offset(self, offset):
         self.offset.write(offset, self.native_units)
@@ -126,6 +132,7 @@ class GUI(QtCore.QObject):
         self.attributes_table.add('Serial', serial)
         self.position = self.hardware.position.associate()
         self.hardware.position.updated.connect(self.on_position_updated)
+        self.attributes_table.add('Label', self.hardware.driver.label)
         self.attributes_table.add('Position', self.position)
         self.offset = self.hardware.offset.associate()        
         self.hardware.offset.updated.connect(self.on_offset_updated)
