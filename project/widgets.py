@@ -528,6 +528,8 @@ class HardwareFrontPanel(QtCore.QObject):
                 input_table.add(obj.label, obj)
                 dest_obj = obj.associate(display=False, pre_name='Dest. ')
                 destination_objects.append(dest_obj)
+                obj.units_updated.connect(self.on_position_units_updated)
+                dest_obj.units_updated.connect(self.on_destination_units_updated)
             for obj in destination_objects:
                 input_table.add(obj.label, obj)
             self.front_panel_elements.append([current_objects, destination_objects])
@@ -550,6 +552,14 @@ class HardwareFrontPanel(QtCore.QObject):
 
     def show_advanced(self):
         self.advanced.emit()
+
+    def on_destination_units_updated(self):
+        for pl, dl in self.front_panel_elements:
+            pl[0].set_units(dl[0].units)
+    
+    def on_position_units_updated(self):
+        for pl, dl in self.front_panel_elements:
+            dl[0].set_units(pl[0].units)
 
     def on_set(self):
         for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):

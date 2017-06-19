@@ -43,7 +43,8 @@ class Driver(pc.Driver):
                                   display=True, set_method='set_position',
                                   limits=self.limits)
         self.offset = pc.Number(units=self.native_units, name='Offset',
-                                display=True)                        
+                                display=True)
+        self.position.set_units(kwargs['display_units'])
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
@@ -71,13 +72,14 @@ class Driver(pc.Driver):
 
     def save_status(self):
         self.hardware_ini.write(self.name, 'position', self.position.read(self.native_units))
+        self.hardware_ini.write(self.name, 'display_units', self.position.units)
 
     def set_offset(self, offset):
         self.offset.write(offset, self.native_units)
 
     def set_position(self, destination):
         time.sleep(0.1)  # rate limiter for virtual hardware behavior
-        self.position.write(destination)
+        self.position.write(destination, self.native_units)
         self.get_position()
 
 

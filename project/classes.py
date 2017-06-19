@@ -457,6 +457,7 @@ class NumberLimits(PyCMDS_Object):
 
 
 class Number(PyCMDS_Object):
+    units_updated = QtCore.pyqtSignal()
 
     def __init__(self, initial_value=np.nan, single_step=1., decimals=3, 
                  limits=None, units=None, *args, **kwargs):
@@ -515,12 +516,15 @@ class Number(PyCMDS_Object):
 
     def convert(self, destination_units):
         # value
+        self.value.lock()
         old_val = self.value.read()
         new_val = wt_units.converter(old_val, self.units, str(destination_units))
+        self.value.unlock()
         self.value.write(new_val)
         # commit and signal
         self.units = str(destination_units)
         self._set_limits()
+        self.units_updated.emit()
         self.updated.emit()
 
     def read(self, output_units='same'):
@@ -545,6 +549,14 @@ class Number(PyCMDS_Object):
         self.disabled_units = bool(disabled)
         if self.has_widget:
             self.units_widget.setDisabled(self.disabled_units)
+
+    def set_units(self, units):
+        if self.has_widget:
+            allowed = [self.units_widget.itemText(i) for i in range(self.units_widget.count())]
+            index = allowed.index(units)
+            self.units_widget.setCurrentIndex(index)
+        else:
+            self.convert(units)
 
     def set_widget(self):
         # special value text is displayed when widget is at minimum
