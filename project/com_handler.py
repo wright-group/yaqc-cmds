@@ -84,15 +84,22 @@ class COM(QtCore.QMutex):
         return value
         
     def write(self, data, then_read=False):
-        if not self.external_lock_control: self.lock()
+        if not self.external_lock_control:
+            self.lock()
+        version = int(sys.version[0])
         if self.data == 'pass':
             value = self.instrument.write(data)
         elif self.data == 'ASCII':
-            data = str(data)  # just making sure
-            value = self.instrument.write(data)#Python3: bytes(data,'utf-8'))
-            if not data.endswith(self.write_termination):
-                value+=self.instrument.write(self.write_termination)#Python 3: bytes(self.write_termination,'utf-8'))
-                
+            if version == 2:
+                data = str(data)  # just making sure
+                value = self.instrument.write(data)
+                if not data.endswith(self.write_termination):
+                    value+=self.instrument.write(self.write_termination)
+            else:
+                data = bytes(data, 'utf-8')
+                value = self.instrument.write(data)
+                if not data.endswith(bytes(self.write_termination, 'utf-8')):
+                    value+=self.instrument.write(bytes(self.write_termination, 'utf-8'))            
         else:
             value = self.instrument.write(''.join([chr(i) for i in data]))# Python3: bytes(data))
         if then_read:
