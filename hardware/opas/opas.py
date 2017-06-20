@@ -102,7 +102,7 @@ class Driver(hw.Driver):
             units = 'nm'
             motors = []
             motors.append(wt.tuning.curve.Motor(((colors-500)/1e4)**2, 'Delay'))
-            motors.append(wt.tuning.curve.Motor(-(colors-9000)**0.25, 'Crystal'))
+            motors.append(wt.tuning.curve.Motor(-(colors-90)**0.25, 'Crystal'))
             motors.append(wt.tuning.curve.Motor((colors-30)**0.25, 'Mixer'))
             name = 'curve'
             interaction = 'sig'
