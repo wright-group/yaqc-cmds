@@ -85,13 +85,14 @@ class Driver(hw.Driver):
         self.curve = None
         # poynting correction
         if self.poynting_type == 'zaber':
-            self.poynting_correction = ZaberCorrectionDevice()
+            self.poynting_correction = ZaberCorrectionDevice(kwargs.pop('poynting_port'), kwargs.pop('poynting_indexes'))
         else:
             self.poynting_correction = None
             self.poynting_type = None
 
         if self.poynting_correction:
            self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_curve_path)
+        self.load_curve()
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
@@ -160,7 +161,7 @@ class Driver(hw.Driver):
             self.auto_tune = AutoTune(self)
         if self.poynting_correction:
              # initialize
-            self.poynting_correction.initialize(self, self.poynting_curve_path)  # TODO: move everything into __init__
+            self.poynting_correction.initialize(self)  
             # add
             num_motors = len(self.motor_names)
             if len(self.homeable) < num_motors:
@@ -170,8 +171,8 @@ class Driver(hw.Driver):
             for name in self.poynting_correction.motor_names:
                 number = self.poynting_correction.motor_positions[name]
                 self.motor_positions[name] = number
-                self.recorded['w%d_'%self.index + name] = [number, None, 1., name]
-            self.position.write(800., 'nm')
+                self.recorded[self.name + '_' + name] = [number, None, 1., name]
+            #self.position.write(800., 'nm')
         # get position
         self.load_curve()
         self.get_motor_positions()

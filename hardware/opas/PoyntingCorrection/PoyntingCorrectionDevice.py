@@ -25,16 +25,17 @@ main_dir = g.main_dir.read()
 class PoyntingCorrectionDevice(object):
 
     def __init__(self, native_units='wn'):
+        print(self, native_units)
         self.native_units = native_units
         self.limits = pc.NumberLimits(units = self.native_units)
         self.offset = pc.Number(initial_value = 0, units = self.native_units, display = True)
+        # TODO: not use hardcoded Phi and Theta as motor names, read from curve
         self.recorded = collections.OrderedDict()
         self.motor_names = ['Phi', 'Theta']
         self.motor_positions = collections.OrderedDict()        
         self.motor_positions['Phi'] = pc.Number()
         self.motor_positions['Theta'] = pc.Number()
         self.motors = []
-        self.ini = Ini(os.path.join(main_dir, 'hardware', 'opas', 'PoyntingCorrection', 'PoyntingCorrection.ini'))
         self.initialized = pc.Bool()
 
     def _get_motor_position(self, index):
@@ -84,17 +85,15 @@ class PoyntingCorrectionDevice(object):
         else:
             self._home(self.motors.index(motor))
 
-    def initialize(self, OPA, curve_path):
+    def initialize(self, OPA):
         self.OPA = OPA
-        self.index = OPA.index
         self.motor_positions = collections.OrderedDict()
         motor_limits = self.motor_limits()
         for motor_index, motor_name in enumerate(self.motor_names):
             number = pc.Number(name=motor_name, initial_value=0, decimals=0, limits=motor_limits, display=True)
             self.motor_positions[motor_name] = number
-            self.recorded['w%d_%s'%(self.index,motor_name)] = [number, None, 1, motor_name.lower()]    
+            self.recorded['%s_%s'%(self.OPA.name,motor_name)] = [number, None, 1, motor_name.lower()]    
         self._initialize()
-        self.curve_path = curve_path
         self.initialized.write(True)
 
     def is_busy(self):
@@ -112,7 +111,6 @@ class PoyntingCorrectionDevice(object):
             self._move_rel(self.motors.index(motor),int(position))
 
     def set_motor(self, motor, position):
-        print('POYNTING CORRECTION DEVICE SET MOTOR', motor, position)
         if str(motor) in self.motor_names:
             self._set_motor(self.motor_names.index(motor), int(position))
         elif isinstance(motor,int):

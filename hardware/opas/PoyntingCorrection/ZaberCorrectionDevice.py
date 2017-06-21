@@ -15,6 +15,13 @@ from hardware.opas.PoyntingCorrection.PoyntingCorrectionDevice import PoyntingCo
 
 
 class ZaberCorrectionDevice(PoyntingCorrectionDevice):
+    
+    def __init__ (self, port, indexes, native_units = 'wn'):
+        self.portStg = port
+        print("HEIIDSLKDFJLKJASLK, ", indexes)
+        self.indexes = list(indexes[0])
+        print(self.indexes)
+        PoyntingCorrectionDevice.__init__(self, native_units)
 
     def _get_motor_position(self, index):
         return self.motors[index].get_position()
@@ -25,10 +32,9 @@ class ZaberCorrectionDevice(PoyntingCorrectionDevice):
         self.motors[index].move_abs(position)
     
     def _initialize(self):
-        portStg = self.ini.read('OPA%d'%self.index, 'port')
-        self.port = zb.BinarySerial(portStg)
-        indexes = self.ini.read('OPA%d'%self.index, 'zaber_device_numbers')
-        for i in indexes:
+        self.port = zb.BinarySerial(self.portStg)
+        print(self.indexes)
+        for i in self.indexes:
             self.motors.append(zb.BinaryDevice(self.port, i))    
 
     def _set_motor(self, index, position):
