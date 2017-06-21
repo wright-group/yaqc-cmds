@@ -92,7 +92,8 @@ class Driver(hw.Driver):
 
         if self.poynting_correction:
            self.curve_paths['Poynting'] = pc.Filepath(initial_value=self.poynting_curve_path)
-        self.load_curve()
+        if self.model == 'Virtual':
+            self.load_curve()
 
     def _home_motors(self, motor_indexes):
         raise NotImplementedError
