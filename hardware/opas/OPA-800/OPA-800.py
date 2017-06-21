@@ -18,7 +18,7 @@ import project.project_globals as g
 from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 from hardware.opas.opas import AutoTune as BaseAutoTune
-import project.precision_micro_motors.precision_motors as pm_motors
+import library.precision_micro_motors.precision_motors as pm_motors
 
 
 ### define ####################################################################

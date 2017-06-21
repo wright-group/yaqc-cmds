@@ -5,7 +5,7 @@ import project.classes as pc
 import project.project_globals as g
 from hardware.delays.delays import Driver as BaseDriver
 from hardware.delays.delays import GUI as BaseGUI
-import project.precision_micro_motors.precision_motors as motors
+import library.precision_micro_motors.precision_motors as motors
 
 
 ### define ####################################################################

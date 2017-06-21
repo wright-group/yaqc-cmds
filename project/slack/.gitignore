@@ -49,7 +49,7 @@ Temporary Items
 .apdisk
 modules/_play.py
 modules/2D_Delay_scan.py
-project/precision_micro_motors/precision_motors.ini
+library/precision_micro_motors/precision_motors.ini
 opas/pico/OPA2 curves/Old_curves/
 opas/pico/OPA1 curves/Old_curves/
 opas/pico/OPA3 curves/Old_curves/

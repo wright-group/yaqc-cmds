@@ -10,7 +10,7 @@ if __name__ == '__main__': os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 import project.project_globals as g
 main_dir = g.main_dir.read()
 import project.ini_handler as ini
-ini = ini.Ini(os.path.join(main_dir, 'project', 'precision_micro_motors', 'precision_motors.ini'))
+ini = ini.Ini(os.path.join(main_dir, 'library', 'precision_micro_motors', 'precision_motors.ini'))
 
 ### define ####################################################################
 

@@ -10,7 +10,7 @@ import project.project_globals as g
 main_dir = g.main_dir.read()
 import project.classes as pc
 import project.ini_handler as ini
-ini = ini.Ini(os.path.join(main_dir, 'project', 'precision_micro_motors', 'precision_motors.ini'))
+ini = ini.Ini(os.path.join(main_dir, 'library', 'precision_micro_motors', 'precision_motors.ini'))
 
 ### define ####################################################################
 

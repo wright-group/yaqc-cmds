@@ -8,7 +8,8 @@ import struct
 import logging
 import sys
 
-from project.zaber.exceptions import TimeoutError, UnexpectedReplyError
+# Changed path to accurately import
+from library.zaber.exceptions import TimeoutError, UnexpectedReplyError
 
 # See https://docs.python.org/2/howto/logging.html#configuring-logging-
 # for-a-library for info on why we have these two lines here.
