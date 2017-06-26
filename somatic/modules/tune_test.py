@@ -49,7 +49,7 @@ class Worker(acquisition.Worker):
         opa_names = [opa.name for opa in opas.hardwares]
         opa_index = opa_names.index(opa_name)
         opa = opas.hardwares[opa_index]
-        curve = opa.curve().copy()
+        curve = opa.curve.copy()
         channel_name = self.aqn.read('processing', 'channel')
         wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
         # upload
@@ -63,7 +63,7 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.name
-        curve = opa_hardware.curve().copy()
+        curve = opa_hardware.curve.copy()
         curve.convert('wn')
         axis = acquisition.Axis(curve.colors, 'wn', opa_friendly_name, opa_friendly_name)
         axes.append(axis)

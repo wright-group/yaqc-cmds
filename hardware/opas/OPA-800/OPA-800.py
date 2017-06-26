@@ -243,7 +243,7 @@ class Driver(BaseDriver):
         # load curve
         self.curve_path = pc.Filepath(ini=self.hardware_ini, section=self.name, option='curve_path', import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
         self.curve_path.updated.connect(self.curve_path.save)
-        self.curve_path.updated.connect(lambda: self.load_curve(self.curve_path.read()))
+        self.curve_path.updated.connect(lambda: self.load_curve())
 
         self.curve_paths['Curve'] = self.curve_path
         print(self.curve_paths)

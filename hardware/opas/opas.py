@@ -184,7 +184,7 @@ class Driver(hw.Driver):
         interaction = self.interaction_string_combo.read()
         # update curve_paths
         if name is not None:
-            old_directory = os.path.dirname(self.curve_paths[name])
+            old_directory = os.path.dirname(str(self.curve_paths[name]))
             p = shutil.copy(path, old_directory)
             self.curve_paths[name].write(os.path.abspath(p))
         # remake own curve object

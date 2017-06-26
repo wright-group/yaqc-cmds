@@ -59,7 +59,7 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
 
-        curve = opa_hardware.curve().copy()
+        curve = opa_hardware.curve.copy()
         curve.convert('wn')
 
         axis = acquisition.Axis(curve.colors, 'wn', opa_name, opa_name)
@@ -98,7 +98,7 @@ class Worker(acquisition.Worker):
         else:
             for name, axis in possible_axes.items():
                 if name is not opa_name:
-                    curve = opa_hardware.curve().copy()
+                    curve = opa_hardware.curve.copy()
                     curve.convert('wn')                    
                     
                     axes = []

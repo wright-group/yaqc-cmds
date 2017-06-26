@@ -516,5 +516,3 @@ class BinarySerial(object):
                 raise ValueError("Unkown mode string: {:s}. Valid strings are "
                         "'computer', 'manual'. Or input an integer".format(mode))
         self.write(device,40,mode)
-
-
