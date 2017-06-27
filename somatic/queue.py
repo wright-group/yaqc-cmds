@@ -11,6 +11,7 @@ import shutil
 import datetime
 import dateutil
 import collections
+import threading
 
 try:
     import configparser as configparser  # python 3
@@ -326,6 +327,8 @@ class Queue():
         self.gui = gui
         self.status = gui.queue_status
         self.timestamp = wt.kit.TimeStamp()
+        import time
+        t = time.time()
         # create queue folder
         if folder is None:
             folder_name = ' '.join([self.timestamp.path, self.name])
@@ -345,14 +348,43 @@ class Queue():
         self.index = 0
         self.going = pc.Busy()
         self.paused = pc.Busy()
+        
+        self.gui.update_ui()
         # create storage folder on google drive
+        thread = None
+        self.url = url
         if url is None:
             if g.google_drive_enabled.read():
-                self.url = g.google_drive_control.read().create_folder(self.folder)
+                thread = threading.Thread(target=self._drive_create_folder)
+                thread.start()
+                #self.url = g.google_drive_control.read().create_folder(self.folder)
             else:
                 self.url = None
         else:
             self.url = url
+        print(time.time()-t, "DONE WITH GDRIVE")
+        if thread == None:
+            # initialize worker
+            self.worker_enqueued = pc.Enqueued()
+            self.worker_busy = pc.Busy()
+            self.worker = Worker(self.worker_enqueued, self.worker_busy, self.status, self.url)
+            self.worker.fraction_complete.updated.connect(self.update_progress)
+            self.worker.action_complete.connect(self.on_action_complete)
+            self.worker_thread = QtCore.QThread()
+            self.worker.moveToThread(self.worker_thread)
+            self.worker_thread.start()
+            self.worker_q = pc.Q(self.worker_enqueued, self.worker_busy, self.worker)
+        # message on slack
+        if g.slack_enabled.read():
+            message = ':baby: new queue created - {0} - {1}'.format(folder_name, self.url)
+            g.slack_control.read().send_message(message)
+        self.gui.update_ui()
+        #if thread:
+            #thread.start()
+            
+
+    def _drive_create_folder(self):
+        self.url = g.google_drive_control.read().create_folder(self.folder)
         # initialize worker
         self.worker_enqueued = pc.Enqueued()
         self.worker_busy = pc.Busy()
@@ -363,10 +395,10 @@ class Queue():
         self.worker.moveToThread(self.worker_thread)
         self.worker_thread.start()
         self.worker_q = pc.Q(self.worker_enqueued, self.worker_busy, self.worker)
-        # message on slack
-        if g.slack_enabled.read():
-            message = ':baby: new queue created - {0} - {1}'.format(folder_name, self.url)
-            g.slack_control.read().send_message(message)
+        self.worker.queue_url = self.url
+        self.worker_thread.start()
+        self.update(False)
+        
         
     def _start_next_action(self):
         print('this is start next action', self.index)
@@ -520,7 +552,7 @@ class Queue():
         # finish
         self.update()
     
-    def update(self):
+    def update(self, gui=True):
         print('queue update')
         # update ini
         self.ini.clear()
@@ -530,23 +562,25 @@ class Queue():
         self.ini.write('info', 'runtime', self.get_runtime())
         self.ini.write('info', 'name', self.name)
         self.ini.write('info', 'url', self.url)
-        for index, item in enumerate(self.items):
-            index_str = str(index).zfill(3)
-            self.ini.add_section(index_str)
-            self.ini.write(index_str, 'type', item.type)
-            self.ini.write(index_str, 'name', item.name)
-            self.ini.write(index_str, 'info', item.info)
-            self.ini.write(index_str, 'description', item.description)
-            self.ini.write(index_str, 'status', item.status)
-            self.ini.write(index_str, 'created', item.created.RFC3339)
-            if item.started is not None:
-                self.ini.write(index_str, 'started', item.started.RFC3339)
-            if item.exited is not None:
-                self.ini.write(index_str, 'exited', item.exited.RFC3339)
-            # allow item to write additional information
-            item.write_to_ini(self.ini, index_str)
+        if self.items:
+            for index, item in enumerate(self.items):
+                index_str = str(index).zfill(3)
+                self.ini.add_section(index_str)
+                self.ini.write(index_str, 'type', item.type)
+                self.ini.write(index_str, 'name', item.name)
+                self.ini.write(index_str, 'info', item.info)
+                self.ini.write(index_str, 'description', item.description)
+                self.ini.write(index_str, 'status', item.status)
+                self.ini.write(index_str, 'created', item.created.RFC3339)
+                if item.started is not None:
+                    self.ini.write(index_str, 'started', item.started.RFC3339)
+                if item.exited is not None:
+                    self.ini.write(index_str, 'exited', item.exited.RFC3339)
+                # allow item to write additional information
+                item.write_to_ini(self.ini, index_str)
         # update display
-        self.gui.update_ui()
+        if gui:
+            self.gui.update_ui()
         # upload ini
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload_file(self.ini_path)
@@ -882,16 +916,17 @@ class GUI(QtCore.QObject):
             fields.append(make_field('url', self.queue.url, short=False))
             attachments.append(make_attachment('', fields=fields, color='#00FFFF'))
             # queue items 
-            for item_index, item in enumerate(self.queue.items):
-                name = ' - '.join([str(item_index).zfill(3), item.type, item.description])
-                fields = []
-                if item.started is not None:
-                    fields.append(make_field('started', item.started.human, short=True))
-                if item.exited is not None:
-                    fields.append(make_field('exited', item.exited.human, short=True))
-                if item.type == 'acquisition' and item.status in ['COMPLETE', 'FAILED']:
-                    fields.append(make_field('url', item.url, short=False))
-                attachments.append(make_attachment('', title=name, fields=fields, color=colors[item.status]))
+            if self.queue.items:
+                for item_index, item in enumerate(self.queue.items):
+                    name = ' - '.join([str(item_index).zfill(3), item.type, item.description])
+                    fields = []
+                    if item.started is not None:
+                        fields.append(make_field('started', item.started.human, short=True))
+                    if item.exited is not None:
+                        fields.append(make_field('exited', item.exited.human, short=True))
+                    if item.type == 'acquisition' and item.status in ['COMPLETE', 'FAILED']:
+                        fields.append(make_field('url', item.url, short=False))
+                    attachments.append(make_attachment('', title=name, fields=fields, color=colors[item.status]))
             return message, attachments
     
     def load_modules(self):
@@ -1169,47 +1204,48 @@ class GUI(QtCore.QObject):
         for _ in range(self.table.rowCount()):
             self.table.removeRow(0)
         # add elements from queue
-        for i, item in enumerate(self.queue.items):
-            self.table.insertRow(i)
-            # index
-            index = self.add_index_to_table(i, len(self.queue.items)-1)
-            if not item.status == 'ENQUEUED':
-                index.setDisabled(True)
-            # type
-            label = pw.Label(item.type)
-            label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setMargin(3)
-            self.table.setCellWidget(i, 1, label)
-            # status
-            label = pw.Label(item.status)
-            label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setMargin(3)
-            self.table.setCellWidget(i, 2, label)
-            # started
-            if item.started is not None:
-                text = item.started.hms
-                label = pw.Label(text)
+        if hasattr(self.queue, 'items'):
+            for i, item in enumerate(self.queue.items):
+                self.table.insertRow(i)
+                # index
+                index = self.add_index_to_table(i, len(self.queue.items)-1)
+                if not item.status == 'ENQUEUED':
+                    index.setDisabled(True)
+                # type
+                label = pw.Label(item.type)
                 label.setAlignment(QtCore.Qt.AlignCenter)
                 label.setMargin(3)
-                self.table.setCellWidget(i, 3, label)
-            # exited
-            if item.exited is not None:
-                text = item.exited.hms
-                label = pw.Label(text)
+                self.table.setCellWidget(i, 1, label)
+                # status
+                label = pw.Label(item.status)
                 label.setAlignment(QtCore.Qt.AlignCenter)
                 label.setMargin(3)
-                self.table.setCellWidget(i, 4, label)
-            # description
-            label = pw.Label(item.description)
-            label.setMargin(3)
-            label.setToolTip(item.description)
-            self.table.setCellWidget(i, 5, label)
-            # remove
-            button = self.add_button_to_table(i, 6, 'REMOVE', 'stop', self.on_remove_item)
-            if not item.status == 'ENQUEUED':
-                button.setDisabled(True)
-            # load
-            button = self.add_button_to_table(i, 7, 'LOAD', 'go', self.on_load_item)
+                self.table.setCellWidget(i, 2, label)
+                # started
+                if item.started is not None:
+                    text = item.started.hms
+                    label = pw.Label(text)
+                    label.setAlignment(QtCore.Qt.AlignCenter)
+                    label.setMargin(3)
+                    self.table.setCellWidget(i, 3, label)
+                # exited
+                if item.exited is not None:
+                    text = item.exited.hms
+                    label = pw.Label(text)
+                    label.setAlignment(QtCore.Qt.AlignCenter)
+                    label.setMargin(3)
+                    self.table.setCellWidget(i, 4, label)
+                # description
+                label = pw.Label(item.description)
+                label.setMargin(3)
+                label.setToolTip(item.description)
+                self.table.setCellWidget(i, 5, label)
+                # remove
+                button = self.add_button_to_table(i, 6, 'REMOVE', 'stop', self.on_remove_item)
+                if not item.status == 'ENQUEUED':
+                    button.setDisabled(True)
+                # load
+                button = self.add_button_to_table(i, 7, 'LOAD', 'go', self.on_load_item)
 
     def update_type(self):
         for frame in self.type_frames.values():
