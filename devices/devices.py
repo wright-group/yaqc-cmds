@@ -502,9 +502,10 @@ class Control(QtCore.QObject):
                 # collect arguments
                 kwargs = collections.OrderedDict()
                 for option in ini.get_options(section):
-                    if option in ['enable', 'model', 'serial', 'path']:
+                    if option in ['enable', 'model', 'serial', 'path', '__name__']:
                         continue
                     else:
+                        print(section, option)
                         kwargs[option] = ini.read(section, option)            
                 model = ini.read(section, 'model')
                 # import
