@@ -355,8 +355,8 @@ class Queue():
         self.url = url
         if url is None:
             if g.google_drive_enabled.read():
-                thread = threading.Thread(target=self._drive_create_folder)
-                thread.start()
+                self.drive_thread = threading.Thread(target=self._drive_create_folder)
+                self.drive_thread.start()
                 #self.url = g.google_drive_control.read().create_folder(self.folder)
             else:
                 self.url = None
@@ -552,7 +552,7 @@ class Queue():
         # finish
         self.update()
     
-    def update(self, gui=True):
+    def update(self, gui=True, upload_ini=True):
         print('queue update')
         # update ini
         self.ini.clear()
@@ -583,7 +583,11 @@ class Queue():
             self.gui.update_ui()
         # upload ini
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(self.ini_path)
+            if upload_ini:
+                import traceback
+                print("UPDATE QUEUE")
+                traceback.print_stack()
+                g.google_drive_control.read().upload_file(self.ini_path)
     
     def update_progress(self):
         # progress bar
@@ -855,7 +859,7 @@ class GUI(QtCore.QObject):
         self.queue_name.write(self.queue.name)
         self.queue_timestamp.write(self.queue.timestamp.path[-5:])
         self.message_widget.setText('QUEUE NOT YET RUN')
-        self.queue.update()  # will call self.update_ui
+        self.queue.update(upload_ini=False)  # will call self.update_ui
 
     def create_script_frame(self):
         frame = QtGui.QWidget()
