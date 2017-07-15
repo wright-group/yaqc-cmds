@@ -156,10 +156,10 @@ class PyCMDS_bot(object):
             for idx in range(fl_info['paging']['pages']-1):
                 all_files.extend(self.slacker.files.list(ts_to=all_files[-1]['created'],count=1000)['files'][1:])
             space_used = sum([f['size'] for f in all_files])
-            if space_used > 4*10^9:
+            if space_used > 4 * 10 ^ 9:
                 to_del=[]
                 idx = -1
-                while space_used > 4*10^9:
+                while space_used > 4 * 10 ^ 9:
                     if not all_files[idx]['is_starred']:
                         to_del.append(all_files[idx]['id'])
                         space_used = space_used - all_files[idx]['size']
