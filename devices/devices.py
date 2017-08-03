@@ -1,4 +1,4 @@
-### import ####################################################################
+# --- import --------------------------------------------------------------------------------------
 
 
 import os
@@ -27,17 +27,13 @@ import project.widgets as pw
 import project.ini_handler as ini_handler
 
 
-### define ####################################################################
+# --- define --------------------------------------------------------------------------------------
 
 
 main_dir = g.main_dir.read()
 ini = wt.kit.INI(os.path.join(main_dir, 'devices', 'devices.ini'))
 autocopy_ini = ini_handler.Ini(os.path.join(main_dir, 'devices', 'autocopy.ini'))
 autocopy_ini.return_raw = True
-
-
-### define ####################################################################
-
 
 # dictionary of how to access all PyCMDS-compatible DAQ devices
 # [module path, class name, initialization arguments, friendly name]
@@ -69,8 +65,8 @@ autocopy_enable = pc.Bool(initial_value=enable)
 autocopy_path = pc.Filepath(initial_value=path, kind='directory')
 
                     
-### classes ###################################################################
-                    
+# --- classes -------------------------------------------------------------------------------------
+                
 
 class CurrentSlice(QtCore.QObject):
     indexed = QtCore.pyqtSignal()
@@ -200,7 +196,7 @@ class Headers:
 headers = Headers()
 
 
-### file writing class ########################################################
+# --- file writing class --------------------------------------------------------------------------
 
 
 data_busy = pc.Busy()
@@ -325,7 +321,7 @@ def q(method, inputs = []):
     data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
 
-### device ####################################################################
+# --- device --------------------------------------------------------------------------------------
 
 
 class Device(pc.Hardware):
@@ -336,9 +332,21 @@ class Device(pc.Hardware):
         self.Widget = kwargs.pop('Widget')
         self.data = pc.Data()
         self.active = False
-        self.shape = (1,)
-        self.has_map = False
-        self.shots_compatible = False
+        # shape
+        if 'shape' in kwargs.keys():
+            self.shape = kwargs.pop('shape')
+        else:
+            self.shape = (1,)
+        # map
+        if 'has_map' in kwargs.keys():
+            self.has_map = kwargs.pop('has_map')
+        else:
+            self.has_map = False
+        # shots_compatable
+        if 'shots_compatible' in kwargs.keys():
+            self.shots_compatible = kwargs.pop('shots_compatible')
+        else:
+            self.shots_compatible = False    
         self.nshots = pc.Number(initial_value=100)
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
         pc.Hardware.__init__(self, *args, **kwargs)
@@ -388,7 +396,6 @@ class Device(pc.Hardware):
         self.update_ui.emit()
     
     def on_freerun_updated(self):
-        print('ON FREERUN UPDATED')
         self.q.push('loop')
 
     def set_freerun(self, state):
@@ -397,12 +404,11 @@ class Device(pc.Hardware):
         self.settings_updated.emit()  # TODO: should probably remove this
 
 
-### driver ####################################################################
+# --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(pc.Driver):
     settings_updated = QtCore.pyqtSignal()
-    task_changed = QtCore.pyqtSignal()
     running = False
     
     def __init__(self, device):
@@ -437,8 +443,11 @@ class Driver(pc.Driver):
         self.measure_time.write(timer.interval)
         self.update_ui.emit()
 
+    def shutdown(self):
+        pass
 
-### gui #######################################################################
+
+# --- gui -----------------------------------------------------------------------------------------
 
 
 class Widget(QtGui.QWidget):
@@ -480,7 +489,7 @@ class DeviceGUI(QtCore.QObject):
         self.layout = parent_widget.layout()
 
 
-### control ###################################################################
+# --- control -------------------------------------------------------------------------------------
 
 
 class Control(QtCore.QObject):
@@ -609,10 +618,10 @@ class Control(QtCore.QObject):
             # acquisition maps
             for device in self.devices:
                 if device.active and device.has_map:
-                    data_arr[data_i] = device.get_map()
+                    data_arr[data_i] = device.map.read()
                     data_i += 1
                     if device.shots_compatible:
-                        shots_arr[shots_i] = device.get_map()
+                        shots_arr[shots_i] = device.map.read()
                         shots_i += 1
             # acquisitions
             for device in self.devices:
@@ -820,7 +829,7 @@ class Control(QtCore.QObject):
                 device.wait_until_still()
 
 
-### gui #######################################################################
+# --- gui -----------------------------------------------------------------------------------------
 
 
 class DeviceWidget(QtGui.QWidget):
@@ -951,6 +960,7 @@ class GUI(QtCore.QObject):
             return
         for device in self.control.devices:
             if len(device.data.read_properties()[1]) == 0:
+                print(device.data.read_properties())
                 print('next time')
                 return
         self.main_tab_created = True
@@ -1103,7 +1113,7 @@ class GUI(QtCore.QObject):
         pass
 
 
-### initialize ################################################################
+# --- initialize ----------------------------------------------------------------------------------
 
 
 control = Control()
