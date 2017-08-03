@@ -1,4 +1,4 @@
-### import ####################################################################
+# --- import --------------------------------------------------------------------------------------
 
 
 import time
@@ -17,13 +17,13 @@ from hardware.delays.delays import GUI as BaseGUI
 from library.ThorlabsAPT.APT import APTMotor
 
 
-### define ####################################################################
+# --- define --------------------------------------------------------------------------------------
 
 
 main_dir = g.main_dir.read()
 
 
-### driver ####################################################################
+# --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(BaseDriver):
@@ -50,6 +50,10 @@ class Driver(BaseDriver):
         # return
         return delay
 
+    def home(self):
+        self.motor.go_home()
+        self.set_position(self.hardware.destination.read())
+
     def initialize(self):
         self.motor = APTMotor(serial_number=int(self.serial), hardware_type=42)
         self.motor_limits.write(self.motor.minimum_position, self.motor.maximum_position, self.motor_units)
@@ -69,7 +73,7 @@ class Driver(BaseDriver):
         BaseDriver.set_motor_position(self, motor_position)
 
 
-### gui #######################################################################
+# --- gui -----------------------------------------------------------------------------------------
 
 
 class GUI(BaseGUI):

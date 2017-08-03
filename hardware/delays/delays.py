@@ -1,4 +1,4 @@
-### import ####################################################################
+# --- import --------------------------------------------------------------------------------------
 
 
 import os
@@ -18,7 +18,7 @@ import project.classes as pc
 import hardware.hardware as hw
 
 
-### define ####################################################################
+# --- define --------------------------------------------------------------------------------------
 
 
 main_dir = g.main_dir.read()
@@ -28,7 +28,7 @@ directory = os.path.dirname(os.path.abspath(__file__))
 ini = wt.kit.INI(os.path.join(directory, 'delays.ini'))
 
 
-### driver ####################################################################
+# --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(hw.Driver):
@@ -65,7 +65,7 @@ class Driver(hw.Driver):
         self.set_position(destination)
 
 
-### gui #######################################################################
+# --- gui -----------------------------------------------------------------------------------------
 
 
 class GUI(hw.GUI):
@@ -114,7 +114,7 @@ class GUI(hw.GUI):
         self.hardware.update_ui.connect(self.update)
         
     def on_home(self):
-        self.driver.address.hardware.q.push('home')
+        self.driver.hardware.q.push('home')
         
     def on_set_motor(self):
         new_mm = self.motor_destination.read('mm')
@@ -132,7 +132,7 @@ class GUI(hw.GUI):
         pass
 
 
-### hardware ##################################################################
+# --- hardware ------------------------------------------------------------------------------------
 
 
 class Hardware(hw.Hardware):
@@ -151,7 +151,7 @@ class Hardware(hw.Hardware):
         self.q.push('set_motor_position', motor_position)
 
 
-### import ####################################################################
+# --- import --------------------------------------------------------------------------------------
 
 
 ini_path = os.path.join(directory, 'delays.ini')

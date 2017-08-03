@@ -152,7 +152,7 @@ class APTMotor():
         Move the stage home.
         """
         serial_number = ctypes.c_long(self.serial_number)
-        error = self.dll.MOT_MoveHome(serial_number)	
+        error = self.dll.MOT_MoveHome(serial_number, True)
         return error
        
     @property
