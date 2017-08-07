@@ -428,7 +428,7 @@ class Driver(BaseDriver):
             DAQmxClearTask(self.task_handle)
             return
         # create arrays for task to fill --------------------------------------
-        self.samples = np.zeros(self.shots*nsamples.read(), dtype=numpy.float64)
+        self.samples = np.zeros(int(self.shots*nsamples.read()), dtype=np.float64)
         self.samples_len = len(self.samples)  # do not want to call for every acquisition
         # finish --------------------------------------------------------------
         self.task_created = True
@@ -475,7 +475,7 @@ class Driver(BaseDriver):
         # calculate shot values for each channel, chopper ---------------------
         active_channels = [channel for channel in channels.read() if channel.active.read()]
         active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
-        shots_array = np.full((len(active_channels)+len(active_choppers), self.shots), np.nan)
+        shots_array = np.full((len(active_channels)+len(active_choppers), int(self.shots)), np.nan)
         folded_samples = self.samples.copy().reshape((nsamples.read(), -1), order='F')
         index = 0
         # channels
