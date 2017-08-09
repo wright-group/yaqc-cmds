@@ -1,4 +1,4 @@
-### import ####################################################################
+# --- import --------------------------------------------------------------------------------------
 
 
 import os
@@ -32,7 +32,7 @@ from devices.devices import DeviceGUI as BaseGUI
 from devices.devices import DeviceWidget as BaseWidget
 
 
-### define ####################################################################
+# --- define --------------------------------------------------------------------------------------
 
 
 app = g.app.read()
@@ -55,15 +55,15 @@ resolution[5.0] = 160.0
 resolution[10.0] = 320.0
 
     
-### data mutex objects ########################################################
-    
+# --- data mutex objects --------------------------------------------------------------------------
+ 
 
 data = pc.Data()
 shots = pc.Data()
 samples = pc.Mutex()
 
 
-### special objects ###########################################################
+# --- special objects -----------------------------------------------------------------------------
 
 
 rest_channel = pc.Number(decimals=0, ini=ini, section='DAQ', 
@@ -231,7 +231,7 @@ seconds_since_last_task = pc.Number(initial_value=np.nan, display=True, decimals
 seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 
-### device ####################################################################
+# --- device --------------------------------------------------------------------------------------
 
 
 class Device(BaseDevice):
@@ -290,7 +290,7 @@ class Device(BaseDevice):
         # choppers
         for i, chopper in enumerate(proposed_choppers):
             if chopper.active.read():
-                samples[chopper.index.read()] = -(i+1)
+                samples[int(chopper.index.read())] = -(i+1)
         # check if proposed is valid
         # TODO: !!!!!!!!!!!!!!!
         # apply to channels
@@ -323,7 +323,7 @@ class Device(BaseDevice):
             self.settings_updated.emit()
 
 
-### driver ####################################################################
+# --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(BaseDriver):
@@ -428,7 +428,7 @@ class Driver(BaseDriver):
             DAQmxClearTask(self.task_handle)
             return
         # create arrays for task to fill --------------------------------------
-        self.samples = np.zeros(self.shots*nsamples.read(), dtype=numpy.float64)
+        self.samples = np.zeros(int(self.shots*nsamples.read()), dtype=np.float64)
         self.samples_len = len(self.samples)  # do not want to call for every acquisition
         # finish --------------------------------------------------------------
         self.task_created = True
@@ -444,7 +444,7 @@ class Driver(BaseDriver):
         # unpack inputs -------------------------------------------------------
         self.running = True
         #self.update_ui.emit()
-        if not self.task_created: 
+        if not self.task_created:
             return
         start_time = time.time()
         # collect samples array -----------------------------------------------
@@ -475,7 +475,7 @@ class Driver(BaseDriver):
         # calculate shot values for each channel, chopper ---------------------
         active_channels = [channel for channel in channels.read() if channel.active.read()]
         active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
-        shots_array = np.full((len(active_channels)+len(active_choppers), self.shots), np.nan)
+        shots_array = np.full((len(active_channels)+len(active_choppers), int(self.shots)), np.nan)
         folded_samples = self.samples.copy().reshape((nsamples.read(), -1), order='F')
         index = 0
         # channels
@@ -522,7 +522,7 @@ class Driver(BaseDriver):
         # choppers
         for chopper in active_choppers:
             cutoff = 1. # volts
-            out = folded_samples[chopper.index.read()]
+            out = folded_samples[int(chopper.index.read())]
             out[out<=cutoff] = -1.
             out[out>cutoff] = 1.            
             if chopper.invert.read():
@@ -555,6 +555,7 @@ class Driver(BaseDriver):
         self.running = False
         stop_time = time.time()
         seconds_for_acquisition.write(stop_time - start_time)
+        self.measure_time.write(seconds_for_acquisition.read())
 
     def shutdown(self, inputs):
          if self.task_created:
@@ -562,7 +563,7 @@ class Driver(BaseDriver):
              DAQmxClearTask(self.task_handle)
     
 
-### gui #######################################################################
+# --- gui -----------------------------------------------------------------------------------------
 
         
 class GUI(BaseGUI):
@@ -902,7 +903,7 @@ class GUI(BaseGUI):
                 yi = np.hstack((yi, samples.read()[self.baseline_indicies]))
             self.samples_plot_active_scatter.setData(xi, yi)
         # shots
-        yi = shots.read()[shot_channel_combo.read_index()]
+        yi = shots.read()[int(shot_channel_combo.read_index())]
         xi = np.arange(len(yi))
         self.shots_plot_scatter.clear()
         self.shots_plot_scatter.setData(xi, yi)
