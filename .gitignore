@@ -5,6 +5,7 @@ autonomic/files/
 somatic/saved/
 somatic/temp/
 hardware/opas/OPA-800/OPA2 curves/
+hardware/opas/PoyntingCorrection/curves/
 hardware/opas/OPA-800/OPA3 curves/
 hardware/opas/OPA-800/Master Curves/
 hardware/opas/TOPAS/OPA? (*) curves/
