@@ -102,11 +102,11 @@ class GUI(acquisition.GUI):
         aqn = wt.kit.INI(aqn_path)
         aqn.add_section('OPA')
         aqn.write('OPA', 'name', self.opa_combobox.read())
+        self.opa_autotunes[self.opa_combobox.read()].save(aqn_path)
         aqn.write('info', 'description', "AUTOTUNE {} [{}]".format(
                                             self.opa_combobox.read(), 
                                             ','.join([section for section in aqn.sections 
-                                                if aqn.has_option(section, 'do') and aqn.get_options(section)['do']])))
-        self.opa_autotunes[self.opa_combobox.read()].save(aqn_path)
+                                                if aqn.has_option(section, 'do') and aqn.read(section,'do')])))
         self.device_widget.save(aqn_path)
 def load():
     return True
