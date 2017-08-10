@@ -199,7 +199,6 @@ class AutoTune(BaseAutoTune):
     
     def save(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
-        aqn.write('info', 'description', 'DESCRIPTION TODO')
         aqn.add_section('BBO')
         aqn.write('BBO', 'do', self.do_BBO.read())
         aqn.write('BBO', 'width', self.BBO_width.read())
