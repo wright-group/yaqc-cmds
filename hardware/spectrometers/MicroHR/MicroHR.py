@@ -98,7 +98,7 @@ class Driver(BaseDriver):
         if type(destination_index) == list:
             destination_index = destination_index[0]
         # turret index on ActiveX call starts from zero
-        destination_index_zero_based = destination_index - 1
+        destination_index_zero_based = int(destination_index) - 1
         self.ctrl.MovetoTurret(destination_index_zero_based)
         self.grating_index.write(destination_index)
         while self.is_busy():
