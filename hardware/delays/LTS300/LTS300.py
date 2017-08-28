@@ -57,6 +57,9 @@ class Driver(BaseDriver):
     def initialize(self):
         self.motor = APTMotor(serial_number=int(self.serial), hardware_type=42)
         self.motor_limits.write(self.motor.minimum_position, self.motor.maximum_position, self.motor_units)
+        self.get_position()
+        self.initialized.write(True)
+        self.initialized_signal.emit()
 
     def is_busy(self):
         return self.motor.status == 'moving'

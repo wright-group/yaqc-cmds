@@ -119,8 +119,7 @@ class GUI(hw.GUI):
     def on_set_motor(self):
         new_mm = self.motor_destination.read('mm')
         self.hardware.set_motor_position(new_mm, units='mm')
-        
-        
+
     def on_set_zero(self):
         new_zero = self.zero_destination.read('mm')
         self.driver.set_zero(new_zero)

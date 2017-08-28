@@ -68,6 +68,9 @@ class Driver(BaseDriver):
     def initialize(self):
         self.port = com_handler.get_com(self.com_channel)   
         self.motor_limits.write(0, 250, 'mm')
+        self.get_position()
+        self.initialized.write(True)
+        self.initialized_signal.emit()
 
     def is_busy(self):
         if self.port.is_open():
