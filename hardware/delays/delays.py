@@ -126,6 +126,7 @@ class GUI(hw.GUI):
         self.driver.offset.write(0)
         name = self.hardware.name
         g.coset_control.read().zero(name)
+        self.driver.get_position()
 
     def update(self):
         pass
