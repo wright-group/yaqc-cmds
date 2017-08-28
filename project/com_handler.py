@@ -76,6 +76,9 @@ class COM(QtCore.QMutex):
         if not self.external_lock_control: self.lock()
         self.instrument.flush()
         if not self.external_lock_control: self.unlock()
+        
+    def is_open(self):
+        return self.instrument.isOpen()
     
     def read(self, size=None):
         if not self.external_lock_control: self.lock()

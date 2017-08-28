@@ -70,10 +70,13 @@ class Driver(BaseDriver):
         self.motor_limits.write(0, 250, 'mm')
 
     def is_busy(self):
-        status = self.port.write('Q', then_read=True)
-        if status == 'B':
-            return True
-        elif status == 'R':
+        if self.port.is_open():
+            status = self.port.write('Q', then_read=True)
+            if status == 'B':
+                return True
+            elif status == 'R':
+                return False
+        else:
             return False
 
     def set_position(self, destination):
