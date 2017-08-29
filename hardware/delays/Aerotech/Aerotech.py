@@ -68,6 +68,7 @@ class Driver(BaseDriver):
     def initialize(self):
         self.port = com_handler.get_com(self.com_channel)   
         self.motor_limits.write(0, 250, 'mm')
+        self.update_recorded()
         self.set_zero(self.zero_position.read())
         self.get_position()
         self.initialized.write(True)

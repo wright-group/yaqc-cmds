@@ -172,11 +172,7 @@ class Driver(BaseDriver):
         max_value = (25. - self.zero_position.read()) * self.native_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, 'fs')
         
-    def update_recorded(self):
-        self.recorded.clear()
-        self.recorded['d' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
-        self.recorded['d' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
-        self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
+
 
 
 ### gui #######################################################################

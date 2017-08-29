@@ -63,6 +63,12 @@ class Driver(hw.Driver):
         # return to old position
         destination = self.hardware.destination.read(self.native_units)
         self.set_position(destination)
+        
+    def update_recorded(self):
+        self.recorded.clear()
+        self.recorded['d' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
+        self.recorded['d' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
+        self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
 
 
 # --- gui -----------------------------------------------------------------------------------------
