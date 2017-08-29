@@ -55,6 +55,7 @@ hardware_types[44] = '1/2/3 Ch benchtop brushless DC servo driver'
 
 
 status_codes = collections.OrderedDict()
+status_codes[0] = 'stopped and disconnected'
 status_codes[-2147478512] = 'moving'
 status_codes[-2147479552] = 'stopped not homed'
 status_codes[-2147478528] = 'stopped and homed'
@@ -79,7 +80,7 @@ class APTMotor():
         self.hardware_type = hardware_type
         # create dll
         p = os.path.join(directory, 'APT.dll')
-        self.dll = ctypes.windll.LoadLibrary(p)        
+        self.dll = ctypes.windll.LoadLibrary(str(p))       
         # initialize hardware
         self.dll.EnableEventDlg(True)
         self.dll.APTInit()
@@ -145,7 +146,7 @@ class APTMotor():
         return error
 
     def close(self):
-        self.aptdll.APTCleanUp()
+        self.dll.APTCleanUp()
 
     def go_home(self):
         """

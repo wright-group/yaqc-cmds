@@ -86,6 +86,8 @@ class Driver(BaseDriver):
         self.status = pc.String(display=True)
         super(self.__class__, self).__init__(*args, **kwargs)
         self.motor_limits = pc.NumberLimits(0, 25, 'mm')
+        self.motor_position.decimals = 5
+        self.zero_position.decimals = 5
         
     def _tell_status(self):
         # read
