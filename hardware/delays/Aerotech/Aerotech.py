@@ -45,8 +45,11 @@ class Driver(BaseDriver):
             p = float(self.port.write('G', then_read=True))
             self.motor_position.write(p)
             return(p)
-        except:
+        except BaseException as error:
+            print('AEROTECH GET MOTOR POSITION EXCEPT', error)
             time.sleep(1)
+            self.port.instrument.reset_input_buffer()
+            self.port.instrument.reset_output_buffer()
             self.port.flush()
             return self.get_motor_position()
 
@@ -76,6 +79,7 @@ class Driver(BaseDriver):
 
     def is_busy(self):
         if self.port.is_open():
+            self.port.flush()
             status = self.port.write('Q', then_read=True)
             if status == 'B':
                 return True
