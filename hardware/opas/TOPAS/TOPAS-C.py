@@ -24,6 +24,7 @@ class Driver(BaseDriver):
         self.curve_indices = {'Base': 1, 'Mixer 1': 2, 'Mixer 2': 3, 'Mixer 3': 4}
         self.kind = 'TOPAS-C'
         BaseDriver.__init__(self, *args, **kwargs)
+        self.homeable = [True]
 
 
 # --- gui -----------------------------------------------------------------------------------------
