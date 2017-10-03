@@ -222,7 +222,7 @@ class CoSetHW:
         Apply offsets.
         '''
         if self.use_bool.read():
-            corr_results = [corr.evaluate() for corr in self.corrs]
+            corr_results = [wt.units.converter(corr.evaluate(), corr.offset_units, self.hardware.native_units) for corr in self.corrs]
             new_offset = np.sum(corr_results)
             if g.hardware_initialized.read():
                 self.hardware.set_offset(new_offset, self.hardware.native_units)
