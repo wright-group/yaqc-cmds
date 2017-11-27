@@ -20,6 +20,7 @@ import pyqtgraph as pg
 import WrightTools as wt
 
 from PyDAQmx import *
+from PyDAQmx import byref
 
 import project.project_globals as g
 import project.classes as pc
