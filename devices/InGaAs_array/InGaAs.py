@@ -151,13 +151,13 @@ class Driver(BaseDriver):
         self.serial_port.timeout = 0.1  # might need to make this larger...
         self.serial_port.open()
         # initialize arrays for later use
-        self.spectra_averaged = 1
+        self.spectra_averaged = 5 #int(ini.read('main', 'spectra averaged'))
         self.out = np.zeros(256)
         self.buffer = np.zeros([256, self.spectra_averaged])
         # finish
         self.timer = wt.kit.Timer(verbose=False)
         #self.measure()
-
+		
     def measure(self):
         # prepare
         self.running = True

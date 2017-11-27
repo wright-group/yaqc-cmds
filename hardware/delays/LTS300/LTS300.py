@@ -75,6 +75,11 @@ class Driver(BaseDriver):
         while self.is_busy():
             time.sleep(0.01)
             self.get_position()
+        # do it again (see issue #78)
+        time.sleep(0.05)
+        while self.is_busy():
+            time.sleep(0.01)
+            self.get_position()
         self.get_position()
         BaseDriver.set_motor_position(self, motor_position)
 
