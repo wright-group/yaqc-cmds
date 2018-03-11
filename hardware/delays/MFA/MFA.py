@@ -120,9 +120,9 @@ class Driver(BaseDriver):
         return delay
         
     def home(self, inputs=[]):
-        self.port.write(unicode(str(self.axis)+'RS'))  # reset
+        self.port.write(str(self.axis)+'RS')  # reset
         time.sleep(5)
-        self.port.write(unicode(str(self.axis)+'OR'))  # execute home search
+        self.port.write(str(self.axis)+'OR')  # execute home search
         while not self._tell_status()['state'] == status_dict['READY from HOMING']:
             time.sleep(0.1)
         time.sleep(5)
@@ -159,7 +159,7 @@ class Driver(BaseDriver):
         """
         # move hardware
         # TODO: consider backlash correction? 
-        self.port.write(unicode(str(self.axis)+'PA'+str(motor_position)))
+        self.port.write(str(self.axis)+'PA'+str(motor_position))
         while not self._tell_status()['state'] == status_dict['READY from MOVING']:
             time.sleep(0.01)
             self.get_position()

@@ -15,7 +15,7 @@ ini_path = os.path.join(main_dir, 'project', 'slack', 'bots.ini')
 ini = Ini(ini_path)
 
 from slacker.__init__ import Slacker
-from rtmbot import RtmBot
+from .rtmbot import RtmBot
 
 team_creation = ini.read('bots','team_creation')
 debug = ini.read("bots","DEBUG")
@@ -45,24 +45,6 @@ class PyCMDS_bot(object):
             while hello == []:
                 hello = self.rtmbot.rtm_read()
                 time.sleep(.01)
-            if hello[0]['type'] == 'hello':
-                #self.online = self.send_message("Picosecond system signing on.")
-                hello = []
-                while hello == []:
-                    hello = self.rtmbot.rtm_read()
-                    time.sleep(.01)
-                if 'ok' in hello[0]:
-                    if hello[0]['ok']:
-                        pass
-                    else:
-                        try:
-                            print 'Error in posting to rtm: ' + hello['error']
-                        except:
-                            print 'Error in posting to rtm: '
-            else:
-                print 'Error in rtm handshake: ' + hello['error']
-        #except:
-        #    print "oops"
 
     def _check_channel(self,channel=None):
         if not channel:

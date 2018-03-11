@@ -71,9 +71,9 @@ class TOPAS_API():
     
     def __init__(self, ini_filepath):
         self.open = False
-        self.ini_filepath = ini_filepath
+        self.ini_filepath = ini_filepath.encode()
         # get index
-        serial = int(os.path.basename(self.ini_filepath).split('.')[0])
+        serial = int(os.path.basename(self.ini_filepath).split('.'.encode())[0])
         if serial not in indicies.keys():
             indicies[serial] = len(indicies.keys())
         self.index = indicies[serial]
@@ -91,6 +91,7 @@ class TOPAS_API():
             dll_busy.wait_for_update()
         dll_busy.write(True)
         error = dll.Topas_OpenDevice(c_ushort(self.index), ini_filepath)
+        print(error_dict[error], '_open_device', ini_filepath)
         dll_busy.write(False)
         # finish
         self.open = True
