@@ -78,9 +78,11 @@ class PyCMDS_bot(object):
         while not m == []:
             messages.extend(m)
             m = self.rtmbot.rtm_read()
-        #messages = self._filter_messages(messages)
+        messages = self._filter_messages(messages)
         #outs = [[i["text"],i['ts'],i['channel'],i['user'],i['type']] for i in messages]
-        return messages #outs
+        #print(outs)
+        print(messages)
+        return messages
 
 
     def send_message(self,text,channel=None,attachments=[]):
@@ -96,8 +98,8 @@ class PyCMDS_bot(object):
             channel_object = self.rtmbot.slack_client.server.channels.find(channel)
             try:
                 if attachments == []:
-                    message = text.encode('ascii','ignore')
-                    channel_object.send_message("{}".format(message))
+                    message = text.encode('ascii', 'ignore')
+                    channel_object.send_message("{}".format(text))
                 else:
                     self.slacker.chat.post_message(channel, text, attachments=attachments, as_user=True)
                 return True

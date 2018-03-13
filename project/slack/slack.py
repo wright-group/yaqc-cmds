@@ -246,6 +246,7 @@ class Control:
     def read_messages(self):
         messages = messages_mutex.read()
         for message in messages:
+            print('!!!', message)
             # only process messages
             if not 'type' in message.keys():
                 continue
@@ -258,7 +259,7 @@ class Control:
             if not channel == ini.read('bots', 'channel'):
                 continue
             # only process messages that start with '@witch'
-            if not text.startswith('<@U0qEALA010>'):
+            if False: #not text.startswith('<@U0qEALA010>'):
                 continue
             else:
                 text = text.split(' ', 1)[1]
