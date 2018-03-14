@@ -81,7 +81,7 @@ class PyCMDS_bot(object):
         messages = self._filter_messages(messages)
         #outs = [[i["text"],i['ts'],i['channel'],i['user'],i['type']] for i in messages]
         #print(outs)
-        print(messages)
+        #print(messages) # DJM 2018-03-14 this causes a '[]' to print every 1/2 sec and doesn't seem to serve a purpose
         return messages
 
 

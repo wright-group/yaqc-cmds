@@ -105,7 +105,7 @@ class Device(BaseDevice):
             points = map_wn
             centers = centers_wn
             interpolate = True
-            print points
+            print(points)
         else:
             identity = 'wa'
             units = 'nm'
@@ -142,7 +142,7 @@ class Driver(BaseDriver):
     def initialize(self):
         print('INGAAS INITIALIZE')
         if g.debug.read():
-            print 'InGaAs initializing'
+            print('InGaAs initializing')
         g.logger.log('info', 'InGaAs initializing')
         # initialize serial port
         self.serial_port = serial.Serial()
@@ -172,7 +172,7 @@ class Driver(BaseDriver):
                     if len(raw_string) == 519:
                         done = True
                     else:
-                        print 'InGaAs array bad read!'
+                        print('InGaAs array bad read!')
                 # transform to floats
                 lsbs = raw_string[:512:2]
                 msbs = raw_string[1:512:2]
