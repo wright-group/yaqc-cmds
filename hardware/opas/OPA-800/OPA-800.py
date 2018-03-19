@@ -270,7 +270,7 @@ class Driver(BaseDriver):
     def get_motor_positions(self):
         for i in range(len(self.motors)):
             val = self.motors[i].current_position_mm
-            self.motor_positions.values()[i].write(val)
+            list(self.motor_positions.values())[i].write(val)
         if self.poynting_correction:
             self.poynting_correction.get_motor_positions()
 

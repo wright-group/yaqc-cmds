@@ -269,7 +269,10 @@ class CoSetHW:
         Fires when one of the REMOVE buttons gets pushed.
         '''
         # get row as int (given as QVariant)
-        row = row.toInt()[0]
+        try:
+            row = row.toInt()[0]
+        except AttributeError:
+            pass # already an int?
         self.unload_file(row)
 
     def on_toggle_use(self):
