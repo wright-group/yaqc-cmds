@@ -17,16 +17,16 @@ import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
 
-main_dir = g.main_dir.read()
-ini = project.ini_handler.Ini(os.path.join(main_dir, 'autonomic', 'coset.ini'))
-ini.return_raw = True
-
-#hardwares (also ensure present in GUI)
+# hardwares (also ensure present in GUI)
 import hardware.opas.opas as opas
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
 import hardware.filters.filters as filters
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+
+main_dir = g.main_dir.read()
+ini = project.ini_handler.Ini(os.path.join(main_dir, 'autonomic', 'coset.ini'))
+ini.return_raw = True
 
 # ensure that all elements are in the ini file
 all_hardware_names = [hw.name for hw in all_hardwares]
@@ -44,14 +44,13 @@ for section in all_hardware_names:
             if not ini.config.has_option(section, option):
                 ini.write(section, option, None)
                 ini.write(section, option + ' offset', 0.)
-            
 
 
 ### objects ###################################################################
 
 
 class Corr:
-    
+
     def __init__(self, path):
         self.path = path
         # headers
@@ -92,16 +91,17 @@ class Corr:
         '''
         control_position = self.control_hardware.get_destination(self.control_units)
         # coerce control position to be within control_points array
-        control_position = np.clip(control_position, self.control_points.min(), self.control_points.max())
+        control_position = np.clip(
+            control_position, self.control_points.min(), self.control_points.max())
         out = self.function(control_position)
         return out
-        
+
     def interpolate(self):
         '''
         Generate interpolation function.
         '''
         self.function = scipy.interpolate.interp1d(self.control_points, self.offset_points)
-        
+
     def zero(self):
         '''
         Zero based on current positions.
@@ -113,7 +113,7 @@ class Corr:
 
 
 class CoSetHW:
-    
+
     def __init__(self, hardware):
         self.hardware = hardware
         # directly write stored offset to hardware
@@ -141,7 +141,7 @@ class CoSetHW:
         # initialize
         self.update_display()
         self.update_use_bool()
-                
+
     def add_table_row(self, corr):
         # insert into table
         new_row_index = self.table.rowCount()
@@ -216,18 +216,19 @@ class CoSetHW:
         self.table.setColumnWidth(1, 100)
         self.table.horizontalHeader().setStretchLastSection(True)
         settings_layout.addWidget(self.table)
-        
+
     def launch(self):
         '''
         Apply offsets.
         '''
         if self.use_bool.read():
-            corr_results = [wt.units.converter(corr.evaluate(), corr.offset_units, self.hardware.native_units) for corr in self.corrs]
+            corr_results = [wt.units.converter(
+                corr.evaluate(), corr.offset_units, self.hardware.native_units) for corr in self.corrs]
             new_offset = np.sum(corr_results)
             if g.hardware_initialized.read():
                 self.hardware.set_offset(new_offset, self.hardware.native_units)
                 ini.write(self.hardware.name, 'offset', new_offset)
-        
+
     def load_file(self, path):
         '''
         Load a file.
@@ -238,7 +239,7 @@ class CoSetHW:
         self.update_combobox()
         self.update_use_bool()
         return corr
-        
+
     def on_add_file(self):
         '''
         Add a file through file dialog.
@@ -262,15 +263,18 @@ class CoSetHW:
         self.load_file(path)
         ini.write(self.hardware.name, corr.control_name, corr.path, with_apostrophe=True)
         self.display_combobox.write(corr.control_name)
-        
+
     def on_remove_file(self, row):
         '''
         Fires when one of the REMOVE buttons gets pushed.
         '''
         # get row as int (given as QVariant)
-        row = row.toInt()[0]
+        try:
+            row = row.toInt()[0]
+        except AttributeError:
+            pass # already an int?
         self.unload_file(row)
-        
+
     def on_toggle_use(self):
         ini.write(self.hardware.name, 'use', self.use_bool.read())
         if self.use_bool.read():
@@ -279,7 +283,7 @@ class CoSetHW:
             if g.hardware_initialized.read():
                 self.hardware.set_offset(0., self.hardware.native_units)
                 ini.write(self.hardware.name, 'offset', 0.)
-        
+
     def unload_file(self, index):
         removed_corr = self.corrs.pop(index)
         ini.write(self.hardware.name, removed_corr.headers['control'], None)
@@ -300,14 +304,14 @@ class CoSetHW:
             allowed_values = [corr.headers['control'] for corr in self.corrs]
         self.display_combobox.set_allowed_values(allowed_values)
         self.update_display()
-        
+
     def update_use_bool(self):
         if len(self.corrs) == 0:
             self.use_bool.write(False)
             self.use_bool.set_disabled(True)
         else:
             self.use_bool.set_disabled(False)
-        
+
     def update_display(self):
         if len(self.corrs) > 0:
             corr = self.corrs[self.display_combobox.read_index()]
@@ -319,9 +323,9 @@ class CoSetHW:
             self.plot_scatter.clear()
             self.plot_scatter.setData(xi, yi)
         else:
-            # this doesn't work as expected, but that isn't crucial right now 
+            # this doesn't work as expected, but that isn't crucial right now
             # - Blaise 2015.10.24
-            self.plot_widget.set_labels('', '')            
+            self.plot_widget.set_labels('', '')
             self.plot_scatter.clear()
             self.plot_widget.update()
             self.plot_scatter.update()
@@ -339,6 +343,7 @@ class CoSetHW:
         self.launch()
         self.update_display()
 
+
 coset_hardwares = []  # list to contain all coset hardware objects
 
 
@@ -346,14 +351,14 @@ coset_hardwares = []  # list to contain all coset hardware objects
 
 
 class Control():
-    
+
     def __init__(self):
         pass
-    
+
     def launch(self):
         for coset_hardware in coset_hardwares:
             coset_hardware.launch()
-    
+
     def zero(self, hardware_name):
         '''
         Offsets to zero forr all corrs based on current positions.
@@ -362,7 +367,8 @@ class Control():
             if coset_harware.hardware.name == hardware_name:
                 coset_harware.zero()
                 break
-    
+
+
 control = Control()
 g.hardware_waits.give_coset_control(control)
 g.coset_control.write(control)
@@ -375,7 +381,7 @@ class GUI(QtCore.QObject):
     def __init__(self):
         QtCore.QObject.__init__(self)
         self.create_frame()
-        
+
     def create_frame(self):
         # get parent layout
         parent_widget = g.coset_widget.read()
@@ -397,7 +403,7 @@ class GUI(QtCore.QObject):
         if len(filters.hardwares) > 0:
             self.create_hardware_frame('Filters', filters.hardwares)
         parent_layout.addWidget(self.tabs)
-        
+
     def create_hardware_frame(self, name, hardwares):
         container_widget = QtGui.QWidget()
         container_box = QtGui.QHBoxLayout()
@@ -411,7 +417,8 @@ class GUI(QtCore.QObject):
             coset_hardware = CoSetHW(hardware)
             coset_hardwares.append(coset_hardware)
             tabs.addTab(coset_hardware.widget, hardware.name)
-            
+
+
 gui = GUI()
 
 
