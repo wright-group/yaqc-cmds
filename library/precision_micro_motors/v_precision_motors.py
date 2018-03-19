@@ -1,15 +1,14 @@
 ### import ####################################################################
-print "Virtual motor load attempted"
 
 import os
 import time
-if __name__ == '__main__': os.chdir(r'C:\Users\John\Desktop\PyCMDS')
 
-#from mcapi import * ### Not needed for virtual motors
+# from mcapi import * ### Not needed for virtual motors
 
 import project.project_globals as g
-main_dir = g.main_dir.read()
 import project.ini_handler as ini
+
+main_dir = g.main_dir.read()
 ini = ini.Ini(os.path.join(main_dir, 'library', 'precision_micro_motors', 'precision_motors.ini'))
 
 ### define ####################################################################
@@ -43,20 +42,25 @@ identity = {'D1': 'motor0',
 def translate(mm):
     return (50-mm)*counts_per_mm
 
+
 def open_controllers():
     controller0 = 0
     controller1 = 1
     return [controller0, controller1]
 
+
 # open controllers upon import
 controllers = open_controllers()
+
 
 def close_controllers():
     for controller in controllers:
         controllers.remove(controller)
 
+
 # a list to contain initialized motors
 initialized_motors = []
+
 
 class Motor():
 
@@ -99,7 +103,7 @@ class Motor():
         elif returned_units == 'mm':
             return 50. - self.current_position/counts_per_mm
         else:
-            print 'returned_units kind', returned_units, 'not recognized in v_precision_motors.get_position'
+            print('returned_units kind', returned_units, 'not recognized in v_precision_motors.get_position')
 
     def is_stopped(self, timeout=60):
         return True
@@ -110,7 +114,7 @@ class Motor():
         elif input_units == 'mm':
             destination = 50*counts_per_mm - destination*counts_per_mm
         else:
-            print 'input_units kind', input_units, 'not recognized in v_precision_motors.move_absolute'
+            print('input_units kind', input_units, 'not recognized in v_precision_motors.move_absolute')
         self.current_position = destination
         if wait:
             self.wait_until_still()
@@ -121,7 +125,7 @@ class Motor():
         elif input_units == 'mm':
             distance = - distance*counts_per_mm
         else:
-            print 'input_units kind', input_units, 'not recognized in v_precision_motors.move_relative'
+            print('input_units kind', input_units, 'not recognized in v_precision_motors.move_relative')
         self.current_position = self.current_position + distance
         if wait:
             self.wait_until_still()
@@ -156,16 +160,16 @@ if __name__ == '__main__':
 
         # close
         for motor in motors:
-            print motor.get_position('mm')
+            print(motor.get_position('mm'))
             motor.close()
 
     if False:
-        #mess with a single motor
+        # mess with a single motor
         motor = Motor('motor1')
         motor.move_absolute(20, 'mm')
         motor.wait_until_still()
-        print motor.is_stopped()
-        print motor.get_position('mm')
+        print(motor.is_stopped())
+        print(motor.get_position('mm'))
         motor.close()
 
     if False:
@@ -173,5 +177,5 @@ if __name__ == '__main__':
         motor = Motor('motor9')
         motor.move_relative(-0.5, 'mm')
         motor.wait_until_still()
-        print motor.get_position('mm')
+        print(motor.get_position('mm'))
         motor.close()
