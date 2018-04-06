@@ -109,7 +109,7 @@ class AutoTune(BaseAutoTune):
         self.widgets['SHS'] = w
         self.layout.addWidget(w)
         # finish ----------------------------------------------------------------------------------
-        self.operation_combo.set_allowed_values(self.widgets.keys())
+        self.operation_combo.set_allowed_values(list(self.widgets.keys()))
         # repetitions
         input_table = pw.InputTable()
         input_table.add('Repetitions', None)
@@ -290,8 +290,8 @@ class Driver(BaseDriver):
         self.has_shutter = kwargs['has_shutter']
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
-        allowed_values = TOPAS_interaction_by_kind[self.kind].keys()		
-        self.interaction_string_combo = pc.Combo(allowed_values	= allowed_values)
+        allowed_values = list(TOPAS_interaction_by_kind[self.kind].keys())
+        self.interaction_string_combo = pc.Combo(allowed_values = allowed_values)
         BaseDriver.__init__(self, *args, **kwargs)  
         if self.has_shutter:
             self.exposed += [self.shutter_position]
@@ -408,16 +408,16 @@ class Driver(BaseDriver):
         # return shutter
         if self.has_shutter:
             self.set_shutter([original_shutter])
- 
+
     def _load_curve(self, interaction):
         interaction = self.interaction_string_combo.read()
         curve_paths_copy = self.curve_paths.copy()
         print(curve_paths_copy)
-        if 'Poynting' in curve_paths_copy.keys():		
+        if 'Poynting' in curve_paths_copy.keys():
             del curve_paths_copy['Poynting']
         print(self.curve_paths)
         crv_paths = [m.read() for m in curve_paths_copy.values()]
-        used = self.curve_indices.values()
+        used = list(self.curve_indices.values())
         need = [x for x in range(4) if x+1 not in used]        
         for i in need:
             crv_paths.insert(i,None)
@@ -454,7 +454,7 @@ class Driver(BaseDriver):
 
     def get_motor_positions(self):
         for i in range(6):
-            motor_mutex = self.motor_positions.values()[i]
+            motor_mutex = list(self.motor_positions.values())[i]
             error, position_steps = self.api.get_motor_position(i)
             error, position = self.api.convert_position_to_units(i, position_steps)
             motor_mutex.write(position)
@@ -468,8 +468,7 @@ class Driver(BaseDriver):
 
     def initialize(self):
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
-        # load api 
-           
+        # load api
         self.api = TOPAS_API(self.TOPAS_ini_filepath)
         if self.has_shutter:
             self.api.set_shutter(False)

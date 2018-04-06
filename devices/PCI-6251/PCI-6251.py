@@ -1,6 +1,9 @@
 # --- import --------------------------------------------------------------------------------------
 
 
+from __future__ import print_function
+
+
 import os
 import sys
 import imp
@@ -361,7 +364,7 @@ class Driver(BaseDriver):
             self.read = int32()  # ??? --BJT 2017-06-03
             DAQmxCreateTask('', byref(self.task_handle))
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in task creation', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
@@ -409,7 +412,7 @@ class Driver(BaseDriver):
                                          None)                                        # custom scale
                 name_index += 1
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in virtual channel creation', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
@@ -421,9 +424,9 @@ class Driver(BaseDriver):
                                   1000.0,                           # sampling rate (samples per second per channel) (float 64) (in externally clocked mode, only used to initialize buffer)
                                   DAQmx_Val_Rising,                 # acquire samples on the rising edges of the sample clock
                                   DAQmx_Val_FiniteSamps,            # acquire a finite number of samples
-                                  long(self.shots))                 # samples per channel to acquire (unsigned integer 64)         
+                                  int(self.shots))                 # samples per channel to acquire (unsigned integer 64)         
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
@@ -455,7 +458,7 @@ class Driver(BaseDriver):
             if True:
                 DAQmxStartTask(self.task_handle)
                 DAQmxReadAnalogF64(self.task_handle,             # task handle
-                                   long(self.shots),             # number of samples per channel
+                                   int(self.shots),              # number of samples per channel
                                    10.0,                         # timeout (seconds) for each read operation
                                    DAQmx_Val_GroupByScanNumber,  # fill mode (specifies whether or not the samples are interleaved)
                                    self.samples,                 # read array
@@ -466,7 +469,7 @@ class Driver(BaseDriver):
             else:
                 self.samples = np.random.normal(size=self.samples_len)
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
@@ -803,7 +806,7 @@ class GUI(BaseGUI):
         new_chopper.active.write(True)
         new_choppers = copy.copy(choppers.read())
         new_choppers[new_chopper_index] = new_chopper
-        print new_chopper.name.read()
+        print(new_chopper.name.read())
         self.hardware.update_sample_correspondances(channels.read(), new_choppers)
         self.update_samples_tab()
         
@@ -845,7 +848,7 @@ class GUI(BaseGUI):
         
     def on_sample_shots_displayed_updated(self):
         # all samples
-        self.sample_xi = range(nsamples.read())*int(self.sample_shots_displayed.read())
+        self.sample_xi = list(range(nsamples.read()))*int(self.sample_shots_displayed.read())
         # signal samples
         current_channel_object = channels.read()[self.samples_channel_combo.read_index()]
         signal_start_index = int(current_channel_object.signal_start_index.read())

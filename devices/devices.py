@@ -960,8 +960,8 @@ class GUI(QtCore.QObject):
             return
         for device in self.control.devices:
             if len(device.data.read_properties()[1]) == 0:
-                print(device.data.read_properties())
-                print('next time')
+                #print(device.data.read_properties())
+                #print('next time')
                 return
         self.main_tab_created = True
         # create main daq tab

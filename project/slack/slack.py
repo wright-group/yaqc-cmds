@@ -13,7 +13,7 @@ import project.classes as pc
 import project.logging_handler as logging_handler
 import project.project_globals as g
 from project.ini_handler import Ini
-import bots
+from . import bots
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'project', 'slack', 'bots.ini'))
 #import daq.daq as daq
@@ -170,9 +170,9 @@ class Control:
 
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
-        print text
+        print(text)
         if 'get' in text:
-            print log_filepath
+            print(log_filepath)
             self.upload_file(log_filepath, channel=channel)
             return
         # extract numbers from text
@@ -246,6 +246,7 @@ class Control:
     def read_messages(self):
         messages = messages_mutex.read()
         for message in messages:
+            print('!!!', message)
             # only process messages
             if not 'type' in message.keys():
                 continue
@@ -258,11 +259,11 @@ class Control:
             if not channel == ini.read('bots', 'channel'):
                 continue
             # only process messages that start with '@witch'
-            if not text.startswith('<@U0EALA010>'):
+            if False: #not text.startswith('<@U0qEALA010>'):
                 continue
             else:
                 text = text.split(' ', 1)[1]
-                print 'message read from slack:', text
+                print('message read from slack:', text)
             # process
             if 'echo ' in text.lower():
                 out = text.split('echo ', 1)[1]

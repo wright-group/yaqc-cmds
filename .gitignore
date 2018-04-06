@@ -73,6 +73,7 @@ $RECYCLE.BIN/
 # python specific
 *.spyderworkspace
 *.pyc
+*__pycache__*
 
 # Vim swap files
 *.sw?
