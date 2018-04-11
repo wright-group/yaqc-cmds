@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import collections
+import codecs
 
 import numpy as np
 
@@ -105,7 +106,7 @@ class Device(BaseDevice):
             points = map_wn
             centers = centers_wn
             interpolate = True
-            print points
+            print(points)
         else:
             identity = 'wa'
             units = 'nm'
@@ -125,14 +126,13 @@ class Driver(BaseDriver):
     
     def _read(self):
         # handle communication with special end of line 'ready'
-        eol = r'ready\n'
-        leneol = len(eol)
-        line = ''
+        eol = r'ready\n'.encode()
+        line = ''.encode()
         while True:
             c = self.serial_port.read(1)
             if c:
                 line += c
-                if line[-leneol:] == eol:
+                if line.endswith(eol):
                     break
             else:
                 break
@@ -142,7 +142,7 @@ class Driver(BaseDriver):
     def initialize(self):
         print('INGAAS INITIALIZE')
         if g.debug.read():
-            print 'InGaAs initializing'
+            print('InGaAs initializing')
         g.logger.log('info', 'InGaAs initializing')
         # initialize serial port
         self.serial_port = serial.Serial()
@@ -167,16 +167,17 @@ class Driver(BaseDriver):
                 done = False
                 while not done:
                     # get data as string from arduino
-                    self.serial_port.write('S')
+                    self.serial_port.write('S'.encode())
                     raw_string = self._read()
                     if len(raw_string) == 519:
                         done = True
                     else:
-                        print 'InGaAs array bad read!'
+                        print('InGaAs array bad read!')
                 # transform to floats
+                raw_string = codecs.encode(raw_string, 'hex')
                 lsbs = raw_string[:512:2]
                 msbs = raw_string[1:512:2]
-                raw_pixels = [int('0x' + lsb.encode('hex') + msb.encode('hex'), 16) for lsb, msb in zip(lsbs, msbs)]
+                raw_pixels = [int('0x' + str(lsb) + str(msb), 16) for lsb, msb in zip(lsbs, msbs)]
                 # hardcoded processing
                 pixels = 0.00195*(raw_pixels[::-1] - (2060. + -0.0142*np.arange(256)))
                 self.buffer[:, i] = pixels
