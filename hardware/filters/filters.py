@@ -44,6 +44,7 @@ class Driver(hw.Driver):
         self.zero_position = self.hardware.zero_position
         self.zero_position.write(kwargs['zero_position'])
         self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'deg', 0.01, self.name[-1], True]
+        self.native_per_deg = 400
         
     def save_status(self):
         self.hardware_ini.write(self.name, 'zero_position', self.zero_position.read(self.motor_units))
@@ -56,7 +57,7 @@ class Driver(hw.Driver):
     def set_offset(self, offset):
         # update zero
         offset_from_here = offset - self.offset.read(self.native_units)
-        offset_deg = offset_from_here/(self.native_per_mm*self.factor.read())
+        offset_deg = offset_from_here/(self.native_per_deg * self.factor.read())
         new_zero = self.zero_position.read('deg') + offset_deg
         self.set_zero(new_zero)
         self.offset.write(offset, self.native_units)
@@ -66,9 +67,9 @@ class Driver(hw.Driver):
         
     def update_recorded(self):
         self.recorded.clear()
-        self.recorded['d' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
-        self.recorded['d' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
-        self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
+        self.recorded['f' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
+        self.recorded['f' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
+        self.recorded['f' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
 
 
 # --- gui -----------------------------------------------------------------------------------------
@@ -146,7 +147,7 @@ class Hardware(hw.Hardware):
     def __init__(self, *arks, **kwargs):
         self.kind = 'filter'        
         self.factor = pc.Number(1, decimals=0)
-        self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units='mm')
+        self.motor_limits = pc.NumberLimits(min_value=-360., max_value=360., units='mm')
         self.motor_position = pc.Number(units='deg', display=True, limits=self.motor_limits)        
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
