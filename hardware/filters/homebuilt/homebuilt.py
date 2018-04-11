@@ -78,8 +78,7 @@ class Driver(BaseDriver):
         #TODO:
         return False
 
-    def set_degrees(self, inputs=[]):
-        degrees = int(inputs[0])
+    def set_degrees(self, degrees):
         change = degrees - self.motor_position.read()
         steps = np.floor(change/self.degrees_per_step)
         if self.invert.read():
@@ -95,13 +94,8 @@ class Driver(BaseDriver):
         self.motor_position.write(motor_position)
         self.get_position()
         
-    def set_offset(self, offset):
-        self.offset.write(offset, 'deg')
-        destination = self.hardware.destination.read('deg')
-        self.set_position(destination)
-        
     def set_position(self, destination):
-        self.set_degrees([destination])
+        self.set_degrees(self.zero_position.read('deg') + destination / (self.native_per_deg * self.factor.read()))
         
     def set_zero(self, zero):
         self.zero_position.write(zero)
