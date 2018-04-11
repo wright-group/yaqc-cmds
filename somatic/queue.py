@@ -712,10 +712,12 @@ class GUI(QtCore.QObject):
         # new queue button
         self.new_queue_button = pw.SetButton('MAKE NEW QUEUE')
         self.new_queue_button.clicked.connect(self.create_new_queue)
+        g.queue_control.disable_when_true(self.new_queue_button)
         settings_layout.addWidget(self.new_queue_button)
         # load button
         self.load_button = pw.SetButton('OPEN QUEUE')
         self.load_button.clicked.connect(self.on_open_queue)
+        g.queue_control.disable_when_true(self.load_button)
         settings_layout.addWidget(self.load_button)
         # current queue name
         input_table = pw.InputTable()
