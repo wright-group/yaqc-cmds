@@ -244,6 +244,7 @@ class Driver(hw.Driver):
         # finish
         self.wait_until_still()
         self.get_position()
+        self.save_status()
         
     def set_position_except(self, destination, exceptions):
         '''
