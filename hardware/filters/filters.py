@@ -44,7 +44,7 @@ class Driver(hw.Driver):
         self.zero_position = self.hardware.zero_position
         self.zero_position.write(kwargs['zero_position'])
         self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'deg', 0.01, self.name[-1], True]
-        self.native_per_deg = 400
+        self.native_per_deg = 1
         
     def save_status(self):
         self.hardware_ini.write(self.name, 'zero_position', self.zero_position.read(self.motor_units))
