@@ -60,7 +60,6 @@ class Driver(BaseDriver):
         steps_per_rotation = ini.read('main', 'full steps per rotation') * self.microsteps
         self.degrees_per_step = 360. / steps_per_rotation
         self.port.write('U %i' % self.microsteps)
-        self.invert = pc.Bool(ini=ini, section='nd'+str(self.index), option='invert')
         # read from ini
         self.home_position = pc.Number(initial_value=ini.read('nd'+str(self.index), 'home position (deg)'),
                                        display=True, limits=self.limits, units='deg')
@@ -81,10 +80,7 @@ class Driver(BaseDriver):
     def set_degrees(self, degrees):
         change = degrees - self.motor_position.read()
         steps = np.floor(change/self.degrees_per_step)
-        if self.invert.read():
-            signed_steps = steps * -1
-        else:
-            signed_steps = steps
+        signed_steps = steps
         command = ' '.join(['M', str(self.index), str(signed_steps)])
         self.port.write(command)
         self.wait_until_ready()
