@@ -64,7 +64,6 @@ class Driver(BaseDriver):
         self.motor_position.write(ini.read('nd'+str(self.index), 'current position (deg)'))
         # recorded
         self.recorded['nd' + str(self.index)] = [self.motor_position, self.native_units, 1., '0', False]
-        self.recorded['nd%i_home' % self.index] = [self.home_position, 'deg', 1., '0', False]
 
         # finish
         self.initialized.write(True)
