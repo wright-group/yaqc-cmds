@@ -43,7 +43,7 @@ class Driver(BaseDriver):
     def home(self, inputs=[]):
         self.port.write(' '.join(['H', str(self.index)]))
         self.wait_until_ready()
-        self.motor_position.write(ini.read('nd'+str(self.index), 'home position (deg)'))
+        self.motor_position.write(0)
         self.get_position()
 
     def get_position(self):
@@ -61,8 +61,6 @@ class Driver(BaseDriver):
         self.degrees_per_step = 360. / steps_per_rotation
         self.port.write('U %i' % self.microsteps)
         # read from ini
-        self.home_position = pc.Number(initial_value=ini.read('nd'+str(self.index), 'home position (deg)'),
-                                       display=True, limits=self.limits, units='deg')
         self.motor_position.write(ini.read('nd'+str(self.index), 'current position (deg)'))
         # recorded
         self.recorded['nd' + str(self.index)] = [self.motor_position, self.native_units, 1., '0', False]
