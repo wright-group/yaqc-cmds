@@ -47,7 +47,7 @@ class Driver(BaseDriver):
         self.get_position()
 
     def get_position(self):
-        position = self.motor_position.read()
+        position = (self.motor_position.read() - self.zero_position.read()) * self.native_per_deg * self.factor.read()
         self.position.write(position, 'deg')
         return position
 
