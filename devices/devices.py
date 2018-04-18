@@ -779,9 +779,10 @@ class Control(QtCore.QObject):
                     for i in range(len(device.map_axes)):
                         kind.append('hardware')
                         tolerance.append(None)
-                        units.append(device.map_axes.values()[i][1])
-                        label.append(device.map_axes.values()[i][0])
-                        name.append(device.map_axes.keys()[i])
+                        vals = list(device.map_axes.values())
+                        units.append(vals[i][1])
+                        label.append(vals[i][0])
+                        name.append(list(device.map_axes.keys())[i])
             # channels
             self.channel_names = []
             for device in self.devices:
