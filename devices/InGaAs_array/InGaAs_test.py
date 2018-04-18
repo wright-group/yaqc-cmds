@@ -44,13 +44,13 @@ out = np.zeros(256)
 #remove 'ready' from end
 string = line[:512]
 
-
-out = [string[511-(2*i):510-(2*i):-1] for i in range(256)]
-out = out[::-1]
-out = [codecs.encode(o, 'hex') for o in out]
-out = [int(o, 16) for o in out]
-out = np.array(out, dtype=np.float64)
-out -= (2060 + -0.0142 * np.arange(256))
+out = np.frombuffer(string, dtype='>i2')
+#out = [string[511-(2*i):510-(2*i):-1] for i in range(256)]
+#out = out[::-1]
+#out = [codecs.encode(o, 'hex') for o in out]
+#out = [int(o, 16) for o in out]
+#out = np.array(out, dtype=np.float64)
+out = out - (2060 + -0.0142 * np.arange(256))
 out *= 0.0195
 
 

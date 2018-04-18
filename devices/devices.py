@@ -897,7 +897,7 @@ class DisplaySettings(QtCore.QObject):
         self.widget.add('Channel', self.channel_combo)
         self.shape_controls = []
         if self.device.shape != (1,):
-            map_axis_names = self.device.map_axes.keys()
+            map_axis_names = list(self.device.map_axes.keys())
             for i in range(len(self.device.shape)):
                 limits = pc.NumberLimits(0, self.device.shape[i]-1)
                 control = pc.Number(initial_value=0, decimals=0, limits=limits)
