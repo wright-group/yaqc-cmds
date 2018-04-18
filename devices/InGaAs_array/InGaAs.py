@@ -146,7 +146,7 @@ class Driver(BaseDriver):
         g.logger.log('info', 'InGaAs initializing')
         # initialize serial port
         self.serial_port = serial.Serial()
-        self.serial_port.baudrate = 9600
+        self.serial_port.baudrate = 57600
         self.serial_port.port = 'COM16'#'COM' + str(ini.read('main', 'serial port'))
         self.serial_port.timeout = 0.1  # might need to make this larger...
         self.serial_port.open()
@@ -174,10 +174,7 @@ class Driver(BaseDriver):
                     else:
                         print('InGaAs array bad read!')
                 # transform to floats
-                raw_string = codecs.encode(raw_string, 'hex')
-                lsbs = raw_string[:512:2]
-                msbs = raw_string[1:512:2]
-                raw_pixels = [int('0x' + str(lsb) + str(msb), 16) for lsb, msb in zip(lsbs, msbs)]
+                raw_pixels = np.frombuffer(raw_string, dtype='>i2', count=512)
                 # hardcoded processing
                 pixels = 0.00195*(raw_pixels[::-1] - (2060. + -0.0142*np.arange(256)))
                 self.buffer[:, i] = pixels
