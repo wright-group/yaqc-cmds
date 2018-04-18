@@ -174,7 +174,7 @@ class Driver(BaseDriver):
                     else:
                         print('InGaAs array bad read!')
                 # transform to floats
-                raw_pixels = np.frombuffer(raw_string, dtype='>i2', count=512)
+                raw_pixels = np.frombuffer(raw_string, dtype='>i2', count=256)
                 # hardcoded processing
                 pixels = 0.00195*(raw_pixels[::-1] - (2060. + -0.0142*np.arange(256)))
                 self.buffer[:, i] = pixels
