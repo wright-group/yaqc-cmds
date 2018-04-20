@@ -43,11 +43,11 @@ class Driver(BaseDriver):
     def home(self, inputs=[]):
         self.port.write(' '.join(['H', str(self.index)]))
         self.wait_until_ready()
-        self.motor_position.write(ini.read('nd'+str(self.index), 'home position (deg)'))
+        self.motor_position.write(0)
         self.get_position()
 
     def get_position(self):
-        position = self.motor_position.read()
+        position = (self.motor_position.read() - self.zero_position.read()) * self.native_per_deg * self.factor.read()
         self.position.write(position, 'deg')
         return position
 
@@ -60,14 +60,10 @@ class Driver(BaseDriver):
         steps_per_rotation = ini.read('main', 'full steps per rotation') * self.microsteps
         self.degrees_per_step = 360. / steps_per_rotation
         self.port.write('U %i' % self.microsteps)
-        self.invert = pc.Bool(ini=ini, section='nd'+str(self.index), option='invert')
         # read from ini
-        self.home_position = pc.Number(initial_value=ini.read('nd'+str(self.index), 'home position (deg)'),
-                                       display=True, limits=self.limits, units='deg')
-        self.motor_position.write(ini.read('nd'+str(self.index), 'current position (deg)'))
+        self.motor_position.write(ini.read(self.name, 'current position (deg)'))
         # recorded
-        self.recorded['nd' + str(self.index)] = [self.motor_position, self.native_units, 1., '0', False]
-        self.recorded['nd%i_home' % self.index] = [self.home_position, 'deg', 1., '0', False]
+        self.recorded[self.name] = [self.motor_position, self.native_units, 1., '0', False]
 
         # finish
         self.initialized.write(True)
@@ -81,10 +77,7 @@ class Driver(BaseDriver):
     def set_degrees(self, degrees):
         change = degrees - self.motor_position.read()
         steps = np.floor(change/self.degrees_per_step)
-        if self.invert.read():
-            signed_steps = steps * -1
-        else:
-            signed_steps = steps
+        signed_steps = steps
         command = ' '.join(['M', str(self.index), str(signed_steps)])
         self.port.write(command)
         self.wait_until_ready()
@@ -100,9 +93,8 @@ class Driver(BaseDriver):
     def set_zero(self, zero):
         self.zero_position.write(zero)
         # write new position to ini
-        section = 'nd{}'.format(self.index)
         option = 'zero position (steps)'
-        ini.write(section, option, zero)
+        ini.write(self.name, option, zero)
         
     def wait_until_ready(self):
         while True:

@@ -779,9 +779,10 @@ class Control(QtCore.QObject):
                     for i in range(len(device.map_axes)):
                         kind.append('hardware')
                         tolerance.append(None)
-                        units.append(device.map_axes.values()[i][1])
-                        label.append(device.map_axes.values()[i][0])
-                        name.append(device.map_axes.keys()[i])
+                        vals = list(device.map_axes.values())
+                        units.append(vals[i][1])
+                        label.append(vals[i][0])
+                        name.append(list(device.map_axes.keys())[i])
             # channels
             self.channel_names = []
             for device in self.devices:
@@ -897,7 +898,7 @@ class DisplaySettings(QtCore.QObject):
         self.widget.add('Channel', self.channel_combo)
         self.shape_controls = []
         if self.device.shape != (1,):
-            map_axis_names = self.device.map_axes.keys()
+            map_axis_names = list(self.device.map_axes.keys())
             for i in range(len(self.device.shape)):
                 limits = pc.NumberLimits(0, self.device.shape[i]-1)
                 control = pc.Number(initial_value=0, decimals=0, limits=limits)

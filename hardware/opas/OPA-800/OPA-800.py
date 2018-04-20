@@ -275,7 +275,6 @@ class Driver(BaseDriver):
             self.poynting_correction.get_motor_positions()
 
     def initialize(self):
-        self.hardware.destination.write(self.position.read(self.native_units), self.native_units)
         self.serial_number = -1
         self.recorded['w%d' % self.index] = [self.position, self.native_units, 1., str(self.index)]
         # motor positions
