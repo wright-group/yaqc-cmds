@@ -173,7 +173,12 @@ class Worker(acquisition.Worker):
         # constants
         constants = []
         for constant_name in self.aqn.read('scan', 'constant names'):
-            units = 'wn'  # TODO: this is a hack, remove it
+            for hardware in all_hardwares:
+                if hardware.name == constant_name:
+                    units = hardware.units
+                    if wt.units.kind(units) == 'energy':
+                        units = 'wn'
+                    break
             name = constant_name
             identity = expression = self.aqn.read(constant_name, 'expression')
             constant = acquisition.Constant(units, name, identity, expression=expression, static=False)
