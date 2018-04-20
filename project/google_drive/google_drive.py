@@ -144,14 +144,14 @@ class Control:
         # create q
         self.q = pc.Q(self.enqueued, self.busy, self.address)
         # connect
-        g.shutdown.add_method(self.close)
+    #    g.shutdown.add_method(self.close)
         # own google drive method for quick operations
         self.drive = wt.google_drive.Drive()
         # session path variables
         self.data_folder = os.path.abspath(os.path.join(g.main_dir.read(), 'data'))
 
-    def close(self):
-        self.q.push('close')
+    #def close(self):
+    #    self.q.push('close')
         
     def create_folder(self, path):
         '''

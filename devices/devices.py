@@ -437,7 +437,7 @@ class Driver(pc.Driver):
         timer = wt.kit.Timer(verbose=False)
         with timer:
             time.sleep(0.1)
-            out_names = ['channel %i'%i for i in range(5)]
+            out_names = ['channel_%i'%i for i in range(5)]
             out = np.random.standard_normal(len(out_names))
             self.data.write_properties(self.shape, out_names, out)
         self.measure_time.write(timer.interval)
