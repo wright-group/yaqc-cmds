@@ -41,18 +41,21 @@ class Driver(hw.Driver):
         self.factor.write(kwargs['factor'])
         self.motor_limits = self.hardware.motor_limits
         self.motor_position = self.hardware.motor_position
+        self.motor_position.write(kwargs['motor_position'])
         self.zero_position = self.hardware.zero_position
         self.zero_position.write(kwargs['zero_position'])
-        self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'deg', 0.01, self.name[-1], True]
+        self.update_recorded()
         self.native_per_deg = 1
         
     def save_status(self):
         self.hardware_ini.write(self.name, 'zero_position', self.zero_position.read(self.motor_units))
         self.hardware_ini.write(self.name, 'factor', int(self.factor.read()))
+        self.hardware_ini.write(self.name, 'motor_position', self.motor_position.read(self.motor_units))
         hw.Driver.save_status(self)        
         
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)
+        self.save_status()
 
     def set_offset(self, offset):
         # update zero
@@ -65,11 +68,15 @@ class Driver(hw.Driver):
         destination = self.hardware.destination.read(self.native_units)
         self.set_position(destination)
         
+    def set_zero(self, zero):
+        self.zero_position.write(zero)
+        self.save_status()
+
     def update_recorded(self):
         self.recorded.clear()
-        self.recorded['f' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
-        self.recorded['f' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
-        self.recorded['f' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
+        self.recorded[self.name] = [self.position, self.native_units, 1., self.label.read(), False]
+        self.recorded[self.name + '_position'] = [self.motor_position, 'deg', 1., self.label.read(), False]
+        self.recorded[self.name + '_zero'] = [self.zero_position, 'deg', 1., self.label.read(), False] 
 
 
 # --- gui -----------------------------------------------------------------------------------------

@@ -60,11 +60,6 @@ class Driver(BaseDriver):
         steps_per_rotation = ini.read('main', 'full steps per rotation') * self.microsteps
         self.degrees_per_step = 360. / steps_per_rotation
         self.port.write('U %i' % self.microsteps)
-        # read from ini
-        self.motor_position.write(ini.read(self.name, 'current position (deg)'))
-        # recorded
-        self.recorded[self.name] = [self.motor_position, self.native_units, 1., '0', False]
-
         # finish
         self.initialized.write(True)
         self.initialized_signal.emit()
@@ -89,12 +84,7 @@ class Driver(BaseDriver):
         
     def set_position(self, destination):
         self.set_degrees(self.zero_position.read('deg') + destination / (self.native_per_deg * self.factor.read()))
-        
-    def set_zero(self, zero):
-        self.zero_position.write(zero)
-        # write new position to ini
-        option = 'zero position (steps)'
-        ini.write(self.name, option, zero)
+        self.save_status()
         
     def wait_until_ready(self):
         while True:

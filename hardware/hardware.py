@@ -88,6 +88,7 @@ class Driver(pc.Driver):
         time.sleep(0.1)  # rate limiter for virtual hardware behavior
         self.position.write(destination, self.native_units)
         self.get_position()
+        self.save_status()
 
 
 ### gui #######################################################################
