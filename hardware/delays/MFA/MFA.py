@@ -109,9 +109,15 @@ class Driver(BaseDriver):
 
     def get_position(self):
         # read
-        position = self.port.write(str(self.axis)+'TP', then_read=True)
-        # proccess (mm)
-        position = float(str(position).split('TP')[1])
+        while(True):
+            try:
+                position = self.port.write(str(self.axis)+'TP', then_read=True)
+                # proccess (mm)
+                position = float(str(position).split('TP')[1])
+            except IndexError:
+                pass
+            else:
+                break
         self.motor_position.write(position, 'mm')
         # calculate delay (fs)
         delay = (position - self.zero_position.read()) * self.native_per_mm * self.factor.read()
