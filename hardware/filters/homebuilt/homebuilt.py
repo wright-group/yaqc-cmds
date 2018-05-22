@@ -13,6 +13,7 @@ import time
 import numpy as np
 
 from PyQt4 import QtGui, QtCore
+from serial import SerialException
 
 import WrightTools as wt
 
@@ -40,10 +41,12 @@ class Driver(BaseDriver):
         self.port.close()
         
     def home(self, inputs=[]):
+        position = self.get_position()
         self.port.write(' '.join(['H', str(self.index)]))
         self.wait_until_ready()
         self.motor_position.write(0)
         self.get_position()
+        self.set_position(position)
 
     def get_position(self):
         position = (self.motor_position.read() - self.zero_position.read()) * self.native_per_deg * self.factor.read()
@@ -65,8 +68,12 @@ class Driver(BaseDriver):
         self.wait_until_ready()
 
     def is_busy(self):
-        status = self.port.write('Q %d' % self.index, then_read=True).rstrip()
-        return status != 'R'
+        try:
+            status = self.port.write('Q %d' % self.index, then_read=True).rstrip()
+            return status != 'R'
+        except SerialException:
+            # Serial is closed, cannot be busy
+            return False
 
     def set_degrees(self, degrees):
         change = degrees - self.motor_position.read()
