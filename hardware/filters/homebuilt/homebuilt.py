@@ -25,7 +25,6 @@ from hardware.filters.filters import GUI as BaseGUI
 import project.com_handler as com_handler
 from project.ini_handler import Ini
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, 'hardware', 'filters', 'homebuilt', 'homebuilt.ini'))
 
 
 ### driver ####################################################################
@@ -53,11 +52,11 @@ class Driver(BaseDriver):
 
     def initialize(self):
         # open com port
-        port_index = ini.read('main', 'serial port')
+        port_index = self.hardware_ini.read(self.name, 'serial_port')
         self.port = com_handler.get_com(port_index, timeout=100000)  # timeout in 100 seconds
         # stepping
-        self.microsteps = ini.read('main', 'degree of microstepping')
-        steps_per_rotation = ini.read('main', 'full steps per rotation') * self.microsteps
+        self.microsteps = self.hardware_ini.read(self.name, 'degree_of_microstepping')
+        steps_per_rotation = self.hardware_ini.read(self.name, 'full_steps_per_rotation') * self.microsteps
         self.degrees_per_step = 360. / steps_per_rotation
         self.port.write('U %i' % self.microsteps)
         # finish
@@ -66,8 +65,8 @@ class Driver(BaseDriver):
         self.wait_until_ready()
 
     def is_busy(self):
-        #TODO:
-        return False
+        status = self.port.write('Q %d' % self.index, then_read=True).rstrip()
+        return status != 'R'
 
     def set_degrees(self, degrees):
         change = degrees - self.motor_position.read()
