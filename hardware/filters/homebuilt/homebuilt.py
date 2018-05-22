@@ -68,12 +68,9 @@ class Driver(BaseDriver):
         self.wait_until_ready()
 
     def is_busy(self):
-        try:
-            status = self.port.write('Q %d' % self.index, then_read=True).rstrip()
-            return status != 'R'
-        except SerialException:
-            # Serial is closed, cannot be busy
-            return False
+        # KFS 2018-05-22: Attempted to write an actual is_busy
+        # Resulted in timeout at shutdown time for some reason
+        return False
 
     def set_degrees(self, degrees):
         change = degrees - self.motor_position.read()
@@ -95,6 +92,8 @@ class Driver(BaseDriver):
     def wait_until_ready(self):
         while True:
             command = ' '.join(['Q', str(self.index)])
+            if not self.port.is_open():
+                return
             status = self.port.write(command, then_read=True).rstrip()
             if status == 'R':
                 break
