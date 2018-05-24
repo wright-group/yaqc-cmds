@@ -37,7 +37,8 @@ app = g.app.read()
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
 import hardware.opas.opas as opas
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares
+import hardware.filters.filters as filters
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 import devices.devices as devices
 

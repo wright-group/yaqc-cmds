@@ -317,7 +317,8 @@ class Combo(PyCMDS_Object):
             self.widget.currentIndexChanged.connect(self.write_from_widget)
         # write value again
         if self.read() not in self.allowed_values:
-            self.write(self.allowed_values[0])
+            print(self.allowed_values)
+            self.write(list(self.allowed_values)[0])
         else:
             self.write(self.read())
             

@@ -28,7 +28,8 @@ app = g.app.read()
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
 import hardware.opas.opas as opas
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares
+import hardware.filters.filters as filters
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 import devices.devices as devices
 
  
@@ -44,6 +45,7 @@ module_name = 'SCAN'
 class Axis():
     
     def __init__(self, units_kind, axis_index):
+        print(filters.hardwares)
         self.units_kind = units_kind
         if self.units_kind == 'energy':
             self.units = 'wn'
@@ -53,6 +55,10 @@ class Axis():
             self.units = 'ps'
             initial_start = -1
             initial_stop = 1
+        elif self.units_kind == 'angle':
+            self.units = 'deg'
+            initial_start = 0.
+            initial_stop = 360.
         self.widget = pw.InputTable()
         self.widget.add(str(axis_index) + ' (' + self.units_kind + ')', None)
         # start
@@ -71,6 +77,8 @@ class Axis():
             hardware_objs = opas.hardwares + spectrometers.hardwares
         elif self.units_kind == 'delay':
             hardware_objs = delays.hardwares
+        elif self.units_kind == 'angle':
+            hardware_objs = filters.hardwares
         self.hardwares = {}
         for hw in hardware_objs:
             checkbox = pc.Bool()
@@ -245,6 +253,9 @@ class GUI(acquisition.GUI):
         self.layout.addWidget(add_energy_axis_button)
         add_delay_axis_button = pw.SetButton('ADD DELAY AXIS')
         add_delay_axis_button.clicked.connect(lambda: self.add_axis('delay'))
+        self.layout.addWidget(add_delay_axis_button)
+        add_delay_axis_button = pw.SetButton('ADD ANGLE AXIS')
+        add_delay_axis_button.clicked.connect(lambda: self.add_axis('angle'))
         self.layout.addWidget(add_delay_axis_button)
         remove_axis_button = pw.SetButton('REMOVE AXIS', 'stop')
         remove_axis_button.clicked.connect(self.remove_axis)

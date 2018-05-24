@@ -3,6 +3,7 @@
 
 import os
 import time
+import warnings
 
 import project.com_handler as com_handler
 import project.classes as pc
@@ -109,9 +110,20 @@ class Driver(BaseDriver):
 
     def get_position(self):
         # read
-        position = self.port.write(str(self.axis)+'TP', then_read=True)
-        # proccess (mm)
-        position = float(str(position).split('TP')[1])
+        # KFS 2018-05-24: Loop was added because there was some miscommunication
+        # Causing the response to be different than expected
+        # The root cause is as yet unknown, but the strategy to mitigate is to simply
+        # retry the request until the expected response is recieved.
+        # Thus far, it has worked.
+        while(True):
+            try:
+                position = self.port.write(str(self.axis)+'TP', then_read=True)
+                # proccess (mm)
+                position = float(str(position).split('TP')[1])
+            except IndexError:
+                warnings.warn("Unexpected reply from MFA: expected '#TP##', got '{}'".format(position))
+            else:
+                break
         self.motor_position.write(position, 'mm')
         # calculate delay (fs)
         delay = (position - self.zero_position.read()) * self.native_per_mm * self.factor.read()
