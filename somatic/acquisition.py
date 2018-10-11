@@ -15,6 +15,7 @@ import time
 import copy
 import shutil
 import collections
+import pathlib
 
 try:
     import configparser as ConfigParser  # python 3
@@ -109,7 +110,6 @@ orderers = []
 config = ConfigParser.SafeConfigParser()
 p = os.path.join(somatic_folder, 'order', 'order.ini')
 config.read(p)
-print(config, p)
 for name in config.options('load'):
     if config.get('load', name) == 'True':
         path = os.path.join(somatic_folder, 'order', name + '.py')
@@ -138,9 +138,23 @@ class Worker(QtCore.QObject):
         self.going = self.queue_worker.queue_status.going
         self.stop = self.queue_worker.queue_status.stop
         self.stopped = self.queue_worker.queue_status.stopped
+        # move aqn file into queue folder
+        ini = wt.kit.INI(aqn_path)
+        module_name = ini.read('info', 'module')
+        item_name = ini.read('info', 'name')
+        aqn_path = pathlib.Path(aqn_path)
+        aqn_index_str = str(self.queue_worker.index.read()).zfill(3)
+        aqn_name = ' '.join([aqn_index_str, module_name, item_name]).rstrip()
+        folder_path = pathlib.Path(self.queue_worker.folder.read()).joinpath(aqn_name)
+        if aqn_path != folder_path.with_suffix(".aqn"):
+            shutil.copyfile(aqn_path, folder_path.with_suffix(".aqn"))
+            if aqn_path.parent == folder_path.parent:
+                aqn_path.unlink()
+        self.aqn_path = folder_path.with_suffix(".aqn")
+        self.aqn = wt.kit.INI(self.aqn_path)
+        self.folder = pathlib.Path(folder_path)
+        self.folder.mkdir(exist_ok=True)
         # create acquisition folder
-        self.folder = self.aqn_path[:-4]
-        os.mkdir(self.folder)
         # initialize
         self.scan_index = None
         self.scan_folders = []

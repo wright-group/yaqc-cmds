@@ -37,16 +37,14 @@ main_window = g.main_window.read()
 
 somatic_folder = os.path.dirname(__file__)
 saved_folder = os.path.join(somatic_folder, 'saved')
-temp_folder = os.path.join(somatic_folder, 'temp')
 data_folder = main_window.data_folder
 
 
 ### ensure folders exist ######################################################
 
 
-for p in [saved_folder, temp_folder]:
-    if not os.path.isdir(p):
-        os.mkdir(p)
+if not os.path.isdir(saved_folder):
+    os.mkdir(saved_folder)
 
 
 ### queue item classes ########################################################
@@ -138,13 +136,15 @@ class Wait(Item):
 class Worker(QtCore.QObject):
     action_complete = QtCore.pyqtSignal()
 
-    def __init__(self, enqueued, busy, queue_status, queue_url):
+    def __init__(self, enqueued, busy, queue_status, queue_url, queue_index, queue_folder):
         QtCore.QObject.__init__(self)
         self.enqueued = enqueued
         self.busy = busy
         self.queue_status = queue_status
         self.fraction_complete = pc.Number(initial_value=0.)
         self.queue_url = queue_url
+        self.index = queue_index
+        self.folder = queue_folder
         
     def check_busy(self, _=[]):
         if self.enqueued.read():  # there are items in enqueued
@@ -329,26 +329,26 @@ class Queue():
         # create queue folder
         if folder is None:
             folder_name = ' '.join([self.timestamp.path, self.name])
-            self.folder = os.path.join(g.main_window.read().data_folder, folder_name)
-            os.mkdir(self.folder)
+            self.folder = pc.Value(os.path.join(g.main_window.read().data_folder, folder_name))
+            os.mkdir(self.folder.read())
         else:
-            self.folder = folder
-            folder_name = os.path.basename(self.folder)
+            self.folder = pc.Value(folder)
+            folder_name = os.path.basename(self.folder.read())
         # create queue file
-        self.ini_path = os.path.abspath(os.path.join(self.folder, 'queue.ini'))
+        self.ini_path = os.path.abspath(os.path.join(self.folder.read(), 'queue.ini'))
         if not os.path.isfile(self.ini_path):
             with open(self.ini_path, 'a'):
                 os.utime(self.ini_path, None)  # quickly create empty file
         self.ini = wt.kit.INI(self.ini_path)  # I don't use ini_handler here
         # parameters and status indicators
         self.items = []
-        self.index = 0
+        self.index = pc.Value(0)
         self.going = pc.Busy()
         self.paused = pc.Busy()
         # create storage folder on google drive
         if url is None:
             if g.google_drive_enabled.read():
-                self.url = g.google_drive_control.read().create_folder(self.folder)
+                self.url = g.google_drive_control.read().create_folder(self.folder.read())
             else:
                 self.url = None
         else:
@@ -356,7 +356,7 @@ class Queue():
         # initialize worker
         self.worker_enqueued = pc.Enqueued()
         self.worker_busy = pc.Busy()
-        self.worker = Worker(self.worker_enqueued, self.worker_busy, self.status, self.url)
+        self.worker = Worker(self.worker_enqueued, self.worker_busy, self.status, self.url, self.index, self.folder)
         self.worker.fraction_complete.updated.connect(self.update_progress)
         self.worker.action_complete.connect(self.on_action_complete)
         self.worker_thread = QtCore.QThread()
@@ -369,13 +369,13 @@ class Queue():
             g.slack_control.read().send_message(message)
         
     def _start_next_action(self):
-        print('this is start next action', self.index)
+        print('this is start next action', self.index.read())
         self.status.pause.write(False)
         self.status.paused.write(False)
         self.status.stop.write(False)
         self.status.stopped.write(False)
         self.gui.progress_bar.begin_new_scan_timer()
-        item = self.items[self.index]
+        item = self.items[self.index.read()]
         item.status = 'RUNNING'
         self.worker_q.push('excecute', item)
         self.gui.message_widget.setText(item.description.upper())
@@ -383,18 +383,11 @@ class Queue():
     def append_acquisition(self, aqn_path, update=True):
         # get properties
         ini = wt.kit.INI(aqn_path)
-        aqn_index_str = str(len(self.items)).zfill(3)
         module_name = ini.read('info', 'module')
         item_name = ini.read('info', 'name')
         info = ini.read('info', 'info')
         description = ini.read('info', 'description')
         module = self.gui.modules[module_name]
-        # move aqn file into queue folder
-        aqn_name = ' '.join([aqn_index_str, module_name, item_name]).rstrip() + '.aqn'
-        new_aqn_path = os.path.join(self.folder, aqn_name)
-        if not aqn_path == new_aqn_path:
-            shutil.copyfile(aqn_path, os.path.abspath(new_aqn_path))
-            aqn_path = os.path.abspath(new_aqn_path)
         # create item
         acquisition = Acquisition(aqn_path, module, name=item_name, info=info, description=description)
         # append and update
@@ -427,8 +420,8 @@ class Queue():
     
     def change_index(self, current_index, new_index):
         item = self.items.pop(current_index)
-        if new_index < self.index:
-            new_index = self.index + 1
+        if new_index < self.index.read():
+            new_index = self.index.read() + 1
         self.items.insert(new_index, item)
         self.update()
         return item
@@ -484,7 +477,7 @@ class Queue():
 
     def on_action_complete(self):
         # update current item
-        item = self.items[self.index]
+        item = self.items[self.index.read()]
         if item.finished.read():
             item.status = 'COMPLETE'
         else:
@@ -493,8 +486,8 @@ class Queue():
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload_file(self.ini_path)
         # onto next item
-        self.index += 1
-        queue_done = len(self.items) == self.index
+        self.index.write(self.index.read() + 1)
+        queue_done = len(self.items) == self.index.read()
         print('queue done', queue_done)
         # check if any more items exist in queue
         if queue_done:
@@ -880,7 +873,7 @@ class GUI(QtCore.QObject):
             fields.append(make_field('name', self.queue.name, short=True))
             fields.append(make_field('created', self.queue.timestamp.human, short=True))
             fields.append(make_field('runtime', self.queue.get_runtime(), short=True))
-            fields.append(make_field('done/total', '/'.join([str(self.queue.index), str(len(self.queue.items))]), short=True))
+            fields.append(make_field('done/total', '/'.join([str(self.queue.index.read()), str(len(self.queue.items))]), short=True))
             fields.append(make_field('url', self.queue.url, short=False))
             attachments.append(make_attachment('', fields=fields, color='#00FFFF'))
             # queue items 
@@ -929,9 +922,8 @@ class GUI(QtCore.QObject):
     def on_append_to_queue(self):
         current_type = self.type_combo.read()
         if current_type == 'Acquisition':
-            p = self.save_aqn(temp_folder)
+            p = self.save_aqn(self.queue.folder.read())
             self.queue.append_acquisition(p)
-            # TODO: remove temporary aqn file
         elif current_type == 'Wait':
             name = self.wait_name.read()
             info = self.wait_info.read()
@@ -963,7 +955,7 @@ class GUI(QtCore.QObject):
         if self.queue_status.going.read():
             self.queue.interrupt()
         else:  # queue not currently running
-            queue_full = len(self.queue.items) == self.queue.index
+            queue_full = len(self.queue.items) == self.queue.index.read()
             if not queue_full:
                 self.queue.run()
         self.update_ui()
