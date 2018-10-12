@@ -1,8 +1,6 @@
 ### import ####################################################################
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
 import traceback
 import imp
@@ -488,7 +486,6 @@ class Queue():
         # onto next item
         self.index.write(self.index.read() + 1)
         queue_done = len(self.items) == self.index.read()
-        print('queue done', queue_done)
         # check if any more items exist in queue
         if queue_done:
             self.finish()
@@ -514,7 +511,6 @@ class Queue():
         self.update()
     
     def update(self):
-        print('queue update')
         # update ini
         self.ini.clear()
         self.ini.add_section('info')
@@ -538,6 +534,12 @@ class Queue():
                 self.ini.write(index_str, 'exited', item.exited.RFC3339)
             # allow item to write additional information
             item.write_to_ini(self.ini, index_str)
+            if item.status != "ENQUEUED" and hasattr(item, "module"):
+                # KFS: This is a slight bit of a hack to get around editing the queue file from worker thread
+                # Rather than replacing the path in the queue when the file is copied, it is done here in update
+                path = os.path.join(self.folder.read(), " ".join([index_str, item.module.module_name, item.name]).rstrip()) + ".aqn"
+                if os.path.exists(path):
+                    self.ini.write(index_str, 'path', path)
         # update display
         self.gui.update_ui()
         # upload ini
@@ -1054,7 +1056,6 @@ class GUI(QtCore.QObject):
         i = 0
         while True:
             section = str(i).zfill(3)
-            print('section', section)
             try:
                 item_type = ini.read(section, 'type')
             except:
@@ -1094,10 +1095,9 @@ class GUI(QtCore.QObject):
         for index, item in enumerate(self.queue.items):
             if item.status == 'ENQUEUED':
                 break
-            else:
-                self.queue.index += 1
-        if not self.queue.items[-1].status == 'ENQUEUED':
-            self.queue.index += 1
+        else:
+            index += 1
+        self.queue.index.write(index)
         # finish
         self.queue.update()
         self.queue_name.write(self.queue.name)
