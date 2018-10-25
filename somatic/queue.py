@@ -963,8 +963,9 @@ class GUI(QtCore.QObject):
         if self.queue_status.going.read():
             self.queue.interrupt()
         else:  # queue not currently running
+            self.queue.status.go.write(not self.queue.status.go.read())
             queue_full = len(self.queue.items) == self.queue.index
-            if not queue_full:
+            if not queue_full and self.queue.status.go.read():
                 self.queue.run()
         self.update_ui()
 
