@@ -218,7 +218,6 @@ axes = pc.Mutex()
 origin = pc.Mutex()
 
 # daq
-nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', disable_under_module_control=True, decimals=0)
 nsamples = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='samples', decimals=0, display=True)
 scan_index = pc.Number(initial_value=0, display=True, decimals=0)
 
@@ -243,13 +242,14 @@ class Device(BaseDevice):
     def __init__(self, *args, **kwargs):
         print('DEVICE INIT')
         self.initialized = False
-        nshots.updated.connect(self.update_task)
+        self.nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', disable_under_module_control=True, decimals=0)
+        self.nshots.updated.connect(self.update_task)
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
         BaseDevice.__init__(self, *args, **kwargs)
 
     def load_settings(self, aqn):
-        nshots.write(aqn.read(self.name, 'shots'))
+        self.nshots.write(aqn.read(self.name, 'shots'))
         
     def update_sample_correspondances(self, proposed_channels, proposed_choppers):
         '''
@@ -355,7 +355,7 @@ class Driver(BaseDriver):
             DAQmxClearTask(self.task_handle)
         self.task_created = False
         # import --------------------------------------------------------------
-        self.shots = nshots.read()
+        self.shots = self.nshots.read()
         # calculate the number of 'virtual samples' to take -------------------
         self.virtual_samples = nsamples.read()
         # create task ---------------------------------------------------------
@@ -764,7 +764,7 @@ class GUI(BaseGUI):
         input_table.add('Channel', shot_channel_combo)
         shot_channel_combo.updated.connect(self.on_shot_channel_updated)
         input_table.add('Settings', None)
-        input_table.add('Shots', nshots)
+        input_table.add('Shots', self.nshots)
         input_table.add('Save Shots', save_shots_bool)
         input_table.add('Shot Processing', shots_processing_module_path)
         input_table.add('Processing Time', seconds_for_shots_processing)
@@ -998,9 +998,11 @@ class Widget(BaseWidget):
         layout.addWidget(input_table)
         
     def load(self, aqn_path):
-        # TODO:
-        print('NI 6251 load_device_settings')
-   
+        ini = wt.kit.INI(aqn_path)
+        self.use.write(ini.read('PCI-6251', 'use'))
+        self.shots.write(ini.read('PCI-6251', 'shots'))
+        self.save_shots.write(ini.read('PCI-6251', 'save shots'))
+
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
         ini.add_section('PCI-6251')
