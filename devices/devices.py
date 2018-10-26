@@ -32,8 +32,6 @@ import project.ini_handler as ini_handler
 
 main_dir = g.main_dir.read()
 ini = wt.kit.INI(os.path.join(main_dir, 'devices', 'devices.ini'))
-autocopy_ini = ini_handler.Ini(os.path.join(main_dir, 'devices', 'autocopy.ini'))
-autocopy_ini.return_raw = True
 
 # dictionary of how to access all PyCMDS-compatible DAQ devices
 # [module path, class name, initialization arguments, friendly name]
@@ -58,13 +56,6 @@ ms_wait_limits = pc.NumberLimits(0, 10000)
 ms_wait = pc.Number(ini=ini, section='settings', option='ms wait', decimals=0,
                     limits=ms_wait_limits, display=True)
                 
-# autocopy
-enable = bool(util.strtobool(autocopy_ini.read('main', 'enable')))
-path = autocopy_ini.read('main', 'path')
-autocopy_enable = pc.Bool(initial_value=enable)
-autocopy_path = pc.Filepath(initial_value=path, kind='directory')
-
-                    
 # --- classes -------------------------------------------------------------------------------------
                 
 
@@ -871,8 +862,12 @@ class Widget(QtGui.QWidget):
             self.device_widgets.append(widget)
 
     def load(self, aqn_path):
-        # TODO:
         print('load_device_settings')
+        ini = wt.kit.INI(aqn_path)
+        self.ms_wait.write(ini.read('device settings', 'ms wait'))
+        for device_widget in self.device_widgets:
+            device_widget.load(aqn_path)
+
    
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
@@ -1032,8 +1027,6 @@ class GUI(QtCore.QObject):
         input_table.add('File', None)
         data_busy.update_signal = data_obj.update_ui        
         input_table.add('Status', data_busy)
-        input_table.add('Autocopy', autocopy_enable)
-        input_table.add('Autocopy Path', autocopy_path)
         input_table.add('Scan', None)
         input_table.add('Loop Time', loop_time)
         self.idx_string = pc.String(initial_value='None', display=True)
@@ -1048,15 +1041,6 @@ class GUI(QtCore.QObject):
             device.update_ui.connect(self.update)
         current_slice.indexed.connect(self.on_slice_index)
         current_slice.appended.connect(self.on_slice_append)
-        autocopy_enable.updated.connect(self.on_autocopy_updated)
-        autocopy_path.updated.connect(self.on_autocopy_updated)
-        self.on_autocopy_updated()
-
-    def on_autocopy_updated(self):
-        enable = str(autocopy_enable.read())
-        path = autocopy_path.read()
-        autocopy_ini.write('main', 'enable', enable)
-        autocopy_ini.write('main', 'path', path)
 
     def on_slice_append(self):
         device_index = self.device_combo.read_index()
