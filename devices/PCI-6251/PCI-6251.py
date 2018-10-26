@@ -242,11 +242,11 @@ class Device(BaseDevice):
     def __init__(self, *args, **kwargs):
         print('DEVICE INIT')
         self.initialized = False
-        self.nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', disable_under_module_control=True, decimals=0)
-        self.nshots.updated.connect(self.update_task)
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
         BaseDevice.__init__(self, *args, **kwargs)
+        self.nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', disable_under_module_control=True, decimals=0)
+        self.nshots.updated.connect(self.update_task)
 
     def load_settings(self, aqn):
         self.nshots.write(aqn.read(self.name, 'shots'))
