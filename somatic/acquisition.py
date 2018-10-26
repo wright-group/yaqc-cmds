@@ -386,12 +386,6 @@ class Worker(QtCore.QObject):
             field['image_url'] = image_url
             message = ':tada: scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text())
             slack.send_message(message, attachments=[field])
-        # automatically copy to user-defined folder
-        if devices.autocopy_enable.read():
-            src = scan_folder
-            name = src.split(os.sep)[-1]
-            dst = os.path.join(devices.autocopy_path.read(), name)
-            shutil.copytree(src, dst)
 
 
 ### GUI base ##################################################################
@@ -417,16 +411,7 @@ class GUI(QtCore.QObject):
         # signals and slots
         devices.control.settings_updated.connect(self.on_device_settings_updated)
         
-    def autocopy(self, data_folder):
-        '''
-        Copy the data to the data folder defined in devices (if enabled).
-        '''
-        if devices.autocopy_enable.read():
-            src = data_folder
-            name = src.split(os.sep)[-1]
-            dst = os.path.join(devices.autocopy_path.read(), name)
-            shutil.copytree(src, dst)
-            
+
     def create_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)
