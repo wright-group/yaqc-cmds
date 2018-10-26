@@ -363,7 +363,12 @@ class Worker(QtCore.QObject):
         self.update_ui.emit()
         self.scan_complete.emit()
         # process scan --------------------------------------------------------
-        getattr(self, processing_method)(scan_folder)
+        try:
+            getattr(self, processing_method)(scan_folder)
+        except BaseException:
+            # Yeah, yeah, excepting BaseException.... KFS and BJT
+            # deal with it ---sunglasses---  ---BJT 2018-10-25
+            self.upload(scan_folder)
         return scan_folder
     
     def upload(self, scan_folder, message='scan complete', reference_image=None):
