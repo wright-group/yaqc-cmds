@@ -243,13 +243,14 @@ class Device(BaseDevice):
     def __init__(self, *args, **kwargs):
         print('DEVICE INIT')
         self.initialized = False
-        nshots.updated.connect(self.update_task)
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
         BaseDevice.__init__(self, *args, **kwargs)
+        self.nshots = nshots
+        self.nshots.updated.connect(self.update_task)
 
     def load_settings(self, aqn):
-        nshots.write(aqn.read(self.name, 'shots'))
+        self.nshots.write(aqn.read(self.name, 'shots'))
         
     def update_sample_correspondances(self, proposed_channels, proposed_choppers):
         '''
@@ -998,9 +999,11 @@ class Widget(BaseWidget):
         layout.addWidget(input_table)
         
     def load(self, aqn_path):
-        # TODO:
-        print('NI 6251 load_device_settings')
-   
+        ini = wt.kit.INI(aqn_path)
+        self.use.write(ini.read('PCI-6251', 'use'))
+        self.shots.write(ini.read('PCI-6251', 'shots'))
+        self.save_shots.write(ini.read('PCI-6251', 'save shots'))
+
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
         ini.add_section('PCI-6251')
