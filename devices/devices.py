@@ -871,8 +871,12 @@ class Widget(QtGui.QWidget):
             self.device_widgets.append(widget)
 
     def load(self, aqn_path):
-        # TODO:
         print('load_device_settings')
+        ini = wt.kit.INI(aqn_path)
+        self.ms_wait.write(ini.read('device settings', 'ms wait'))
+        for device_widget in self.device_widgets:
+            device_widget.load(aqn_path)
+
    
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)

@@ -218,6 +218,7 @@ axes = pc.Mutex()
 origin = pc.Mutex()
 
 # daq
+nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', disable_under_module_control=True, decimals=0)
 nsamples = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='samples', decimals=0, display=True)
 scan_index = pc.Number(initial_value=0, display=True, decimals=0)
 
@@ -245,7 +246,7 @@ class Device(BaseDevice):
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
         BaseDevice.__init__(self, *args, **kwargs)
-        self.nshots = pc.Number(initial_value = np.nan, ini=ini, section='DAQ', option='Shots', disable_under_module_control=True, decimals=0)
+        self.nshots = nshots
         self.nshots.updated.connect(self.update_task)
 
     def load_settings(self, aqn):
@@ -355,7 +356,7 @@ class Driver(BaseDriver):
             DAQmxClearTask(self.task_handle)
         self.task_created = False
         # import --------------------------------------------------------------
-        self.shots = self.nshots.read()
+        self.shots = nshots.read()
         # calculate the number of 'virtual samples' to take -------------------
         self.virtual_samples = nsamples.read()
         # create task ---------------------------------------------------------
@@ -764,7 +765,7 @@ class GUI(BaseGUI):
         input_table.add('Channel', shot_channel_combo)
         shot_channel_combo.updated.connect(self.on_shot_channel_updated)
         input_table.add('Settings', None)
-        input_table.add('Shots', self.nshots)
+        input_table.add('Shots', nshots)
         input_table.add('Save Shots', save_shots_bool)
         input_table.add('Shot Processing', shots_processing_module_path)
         input_table.add('Processing Time', seconds_for_shots_processing)

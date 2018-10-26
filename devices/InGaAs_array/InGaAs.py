@@ -289,7 +289,8 @@ class Widget(BaseWidget):
         layout.addWidget(input_table)
         
     def load(self, aqn_path):
-        pass
+        ini = wt.kit.INI(aqn_path)
+        self.use.write(ini.read('InGaAs', 'use'))
    
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
