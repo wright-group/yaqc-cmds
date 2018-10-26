@@ -16,6 +16,7 @@ import copy
 import shutil
 import collections
 import pathlib
+import traceback
 
 try:
     import configparser as ConfigParser  # python 3
@@ -368,6 +369,7 @@ class Worker(QtCore.QObject):
         except BaseException:
             # Yeah, yeah, excepting BaseException.... KFS and BJT
             # deal with it ---sunglasses---  ---BJT 2018-10-25
+            traceback.print_exc()
             self.upload(scan_folder)
         return scan_folder
     
