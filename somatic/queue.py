@@ -410,9 +410,11 @@ class Queue():
         # TODO:
         print('append_device')
 
-    def append_hardware(self):
-        # TODO:
-        print('append_hardware')
+    def append_hardware(self, hardwares, value, units, name, info, description, update=True):
+        hardware = Hardware(hardwares, value, units, name=name, info=info, description=description)
+        self.items.append(hardware)
+        if update:
+            self.update()
 
     def append_interrupt(self):
         # TODO:
@@ -798,11 +800,17 @@ class GUI(QtCore.QObject):
         self.hardware_info = pc.String()
         input_table.add('Info', self.hardware_info)       
         layout.addWidget(input_table)        
-        # not implemented message
-        label = QtGui.QLabel('hardware not currently implemented')
-        StyleSheet = 'QLabel{color: custom_color; font: bold 14px}'.replace('custom_color', g.colors_dict.read()['text_light'])
-        label.setStyleSheet(StyleSheet)
-        layout.addWidget(label)
+        self.hardware_hardwares = {}
+        for hw in all_hardwares:
+            checkbox = pc.Bool()
+            input_table.add(hw.name, checkbox)
+            self.hardware_hardwares[hw.name] = checkbox
+
+        self.hardware_value = pc.Number()
+        input_table.add("Value", self.hardware_value)
+        self.hardware_units = pc.String()
+        input_table.add("Units", self.hardware_units)
+
         return frame
 
     def create_interrupt_frame(self):
@@ -951,8 +959,13 @@ class GUI(QtCore.QObject):
             description = 'interrupt'
             self.queue.append_interrupt(name=name, info=info, description=description)
         elif current_type == 'Hardware':
-            # TODO:
-            self.queue.append_hardware()
+            name = self.hardware_name.read()
+            info = self.hardware_info.read()
+            description = 'hardware'
+            hardwares = [k for k,v in self.hardware_hardwares.items() if v.read()]
+            value = self.hardware_value.read()
+            units = self.hardware_units.read()
+            self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
         elif current_type == 'Device':
             # TODO:
             self.queue.append_device()
