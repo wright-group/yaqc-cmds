@@ -25,6 +25,11 @@ import project.widgets as pw
 import project.ini_handler as ini_handler
 import project.file_dialog_handler as file_dialog_handler
 
+import hardware.spectrometers.spectrometers as spectrometers
+import hardware.delays.delays as delays
+import hardware.opas.opas as opas
+import hardware.filters.filters as filters
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 ### define ####################################################################
 
@@ -92,14 +97,23 @@ class Device(Item):
 
 class Hardware(Item):
 
-    def __init__(self, **kwargs):
+    def __init__(self, hardwares, value, units, **kwargs):
         Item.__init__(self, **kwargs)
         self.type = 'hardware'
+        self.hardwares = [ah for ah in all_hardwares if ah.name in hardwares]
+        self.value = value
+        self.units = units
     
     def execute(self):
-        # TODO:
         print('hardware excecute')
+        for hw in self.hardwares:
+            hw.set_position(self.value, self.units)
+        g.hardware_waits.wait()
 
+    def write_to_ini(self, ini, section):
+        ini.write(section, 'value', self.value)
+        ini.write(section, 'units', self.units)
+        ini.write(section, 'hardwares', [hw.name for hw in self.hardwares])
 
 class Interrupt(Item):
 
@@ -218,9 +232,8 @@ class Worker(QtCore.QObject):
         item.finished.write(False)
         
     def execute_hardware(self, item):
-        # TODO:
-        time.sleep(5)
-        item.finished.write(False)
+        item.execute()
+        item.finished.write(True)
         
     def execute_script(self, item):
         # TODO:
@@ -746,7 +759,6 @@ class GUI(QtCore.QObject):
         input_table = pw.InputTable()
         allowed_values = ['Acquisition', 'Wait', 'Interrupt', 'Hardware', 'Device', 'Script']
         allowed_values.remove('Interrupt')  # not ready yet
-        allowed_values.remove('Hardware')  # not ready yet
         allowed_values.remove('Device')  # not ready yet
         allowed_values.remove('Script')  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
