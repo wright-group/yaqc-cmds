@@ -1032,7 +1032,18 @@ class GUI(QtCore.QObject):
         elif item.type == 'device':
             raise NotImplementedError()
         elif item.type == 'hardware':
-            raise NotImplementedError()
+            self.type_combo.write('Hardware')
+            self.hardware_name.write(item.name)
+            self.hardware_info.write(item.info)
+            self.hardware_units.write(item.units)
+            self.hardware_value.write(item.value)
+            for k,v in self.hardware_hardwares.items():
+                for h in item.hardwares:
+                    if k == h.name:
+                        v.write(True)
+                        break;
+                else:
+                    v.write(False)
         elif item.type == 'interrupt':
             raise NotImplementedError()
         elif item.type == 'script':
@@ -1092,13 +1103,24 @@ class GUI(QtCore.QObject):
             elif item_type == 'device':
                 raise NotImplementedError
             elif item_type == 'hardware':
-                raise NotImplementedError
+                name = ini.read(section, 'name')
+                info = ini.read(section, 'info')
+                description = ini.read(section, 'description')
+                hardwares = ini.read(section, 'hardwares')
+                value = ini.read(section, 'value')
+                units = ini.read(section, 'units')
+                self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
             elif item_type == 'interrupt':
                 raise NotImplementedError
             elif item_type == 'script':
                 raise NotImplementedError
             elif item_type == 'wait':
-                raise NotImplementedError
+                name = ini.read(section, 'name')
+                info = ini.read(section, 'info')
+                operation = ini.read(section, 'operation')
+                amount = ini.read(section, 'amount')
+                description = ini.read(section, 'description')
+                self.queue.append_wait(operation, amount, name=name, info=info, description=description)
             else:
                 raise KeyError
             if operation == 'REPLACE':
