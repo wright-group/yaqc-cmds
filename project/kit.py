@@ -76,5 +76,5 @@ if __name__ == '__main__':
                                     number_of_pixels=256,
                                     pixel_width=50.,
                                     calibration_pixel=100)
-    print arr[100]
+    print(arr[100])
 

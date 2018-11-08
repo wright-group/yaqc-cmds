@@ -1,0 +1,9 @@
+numexpr
+psutil
+pydaqmx
+pydrive
+#PyQt4==4
+pyqtgraph
+pyserial
+slackclient
+slacker

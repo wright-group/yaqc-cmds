@@ -67,7 +67,7 @@ directory = os.path.abspath(os.path.dirname(__file__))
 
 # MAJOR.MINOR.PATCH (semantic versioning)
 # major version changes may break backwards compatibility
-__version__ = '0.8.0'
+__version__ = '0.9.0'
 
 # add git branch, if appropriate
 p = os.path.join(directory, '.git', 'HEAD')
@@ -93,7 +93,7 @@ class MainWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self, parent=None)
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
-        self.setWindowTitle('Coherent Multidimensional Spectroscopy | Python')
+        self.setWindowTitle('PyCMDS %s'%__version__)
         # begin poll timer
         self._begin_poll_loop()
         # disable 'x'

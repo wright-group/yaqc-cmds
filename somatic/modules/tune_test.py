@@ -50,6 +50,8 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa = opas.hardwares[opa_index]
         curve = opa.curve.copy()
+        if curve.kind == 'poynting':
+            curve = curve.subcurve
         channel_name = self.aqn.read('processing', 'channel')
         wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
         # upload

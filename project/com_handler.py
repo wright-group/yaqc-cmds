@@ -50,8 +50,8 @@ class COM(QtCore.QMutex):
             char = self.instrument.read()
             while char != b'':
                 buf = buf + char
-                if buf.endswith(self.write_termination):
-                    buf = buf.rstrip(self.write_termination)
+                if buf.endswith(self.write_termination.encode()):
+                    buf = buf.rstrip(self.write_termination.encode())
                     break;
                 char = self.instrument.read()
             return buf.decode('utf-8')
@@ -76,6 +76,9 @@ class COM(QtCore.QMutex):
         if not self.external_lock_control: self.lock()
         self.instrument.flush()
         if not self.external_lock_control: self.unlock()
+        
+    def is_open(self):
+        return self.instrument.isOpen()
     
     def read(self, size=None):
         if not self.external_lock_control: self.lock()
@@ -93,13 +96,13 @@ class COM(QtCore.QMutex):
             if version == 2:
                 data = str(data)  # just making sure
                 value = self.instrument.write(data)
-                if not data.endswith(self.write_termination):
+                if not data.endswith(self.write_termination.encode()):
                     value+=self.instrument.write(self.write_termination)
             else:
                 data = bytes(data, 'utf-8')
                 value = self.instrument.write(data)
-                if not data.endswith(bytes(self.write_termination, 'utf-8')):
-                    value+=self.instrument.write(bytes(self.write_termination, 'utf-8'))            
+                if not data.endswith(self.write_termination.encode()):
+                    value+=self.instrument.write(self.write_termination.encode())            
         else:
             value = self.instrument.write(''.join([chr(i) for i in data]))# Python3: bytes(data))
         if then_read:

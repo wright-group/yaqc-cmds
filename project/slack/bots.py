@@ -15,7 +15,7 @@ ini_path = os.path.join(main_dir, 'project', 'slack', 'bots.ini')
 ini = Ini(ini_path)
 
 from slacker.__init__ import Slacker
-from rtmbot import RtmBot
+from .rtmbot import RtmBot
 
 team_creation = ini.read('bots','team_creation')
 debug = ini.read("bots","DEBUG")
@@ -45,24 +45,6 @@ class PyCMDS_bot(object):
             while hello == []:
                 hello = self.rtmbot.rtm_read()
                 time.sleep(.01)
-            if hello[0]['type'] == 'hello':
-                #self.online = self.send_message("Picosecond system signing on.")
-                hello = []
-                while hello == []:
-                    hello = self.rtmbot.rtm_read()
-                    time.sleep(.01)
-                if 'ok' in hello[0]:
-                    if hello[0]['ok']:
-                        pass
-                    else:
-                        try:
-                            print 'Error in posting to rtm: ' + hello['error']
-                        except:
-                            print 'Error in posting to rtm: '
-            else:
-                print 'Error in rtm handshake: ' + hello['error']
-        #except:
-        #    print "oops"
 
     def _check_channel(self,channel=None):
         if not channel:
@@ -96,9 +78,11 @@ class PyCMDS_bot(object):
         while not m == []:
             messages.extend(m)
             m = self.rtmbot.rtm_read()
-        #messages = self._filter_messages(messages)
+        messages = self._filter_messages(messages)
         #outs = [[i["text"],i['ts'],i['channel'],i['user'],i['type']] for i in messages]
-        return messages #outs
+        #print(outs)
+        #print(messages) # DJM 2018-03-14 this causes a '[]' to print every 1/2 sec and doesn't seem to serve a purpose
+        return messages
 
 
     def send_message(self,text,channel=None,attachments=[]):
@@ -114,8 +98,8 @@ class PyCMDS_bot(object):
             channel_object = self.rtmbot.slack_client.server.channels.find(channel)
             try:
                 if attachments == []:
-                    message = text.encode('ascii','ignore')
-                    channel_object.send_message("{}".format(message))
+                    message = text.encode('ascii', 'ignore')
+                    channel_object.send_message("{}".format(text))
                 else:
                     self.slacker.chat.post_message(channel, text, attachments=attachments, as_user=True)
                 return True

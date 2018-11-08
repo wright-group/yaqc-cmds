@@ -23,7 +23,7 @@ volatile boolean pixel_ready = false;
 const int ds_address = 0xB0 >> 1; // DS1077 default address from its datasheet is 10110000,
                                   // or B0 but the wire library drops the read/write bit 
                                   // and instead uses different read/write functions.
-int reset_time = 200;
+int reset_time = 1000;
 int runs_summed = 1;
 boolean running = false; // running ensures that the acquisitions won't begin until communication with labView is initiated
 String reset_string = "0000200";

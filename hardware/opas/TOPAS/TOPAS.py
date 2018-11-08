@@ -1,4 +1,4 @@
-### import ####################################################################
+# --- import --------------------------------------------------------------------------------------
 
 
 import os
@@ -24,13 +24,13 @@ from hardware.opas.opas import AutoTune as BaseAutoTune
 from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
 from WrightTools.tuning.curve import TOPAS_interaction_by_kind
                                  
-### define ####################################################################
+# --- define --------------------------------------------------------------------------------------
 
 
 main_dir = g.main_dir.read()
 
 
-### autotune ##################################################################
+# --- autotune ------------------------------------------------------------------------------------
 
 
 class AutoTune(BaseAutoTune):
@@ -44,7 +44,7 @@ class AutoTune(BaseAutoTune):
         self.layout.addWidget(input_table)
         # widgets
         self.widgets = collections.OrderedDict()
-        # signal preamp -------------------------------------------------------
+        # signal preamp ---------------------------------------------------------------------------
         w = pw.InputTable()
         # D1
         d1_width = pc.Number(initial_value=0.5)
@@ -64,7 +64,7 @@ class AutoTune(BaseAutoTune):
         w.add('Channel', channel, key='Test Channel')
         self.widgets['signal preamp'] = w
         self.layout.addWidget(w)
-        # signal poweramp -----------------------------------------------------
+        # signal poweramp -------------------------------------------------------------------------
         w = pw.InputTable()
         # D2
         w.add('D2', None)
@@ -86,7 +86,7 @@ class AutoTune(BaseAutoTune):
         w.add('Channel', channel)
         self.widgets['signal poweramp'] = w
         self.layout.addWidget(w)
-        # SHS -----------------------------------------------------------------
+        # SHS -------------------------------------------------------------------------------------
         w = pw.InputTable()
         # M2
         w.add('M2', None)
@@ -108,8 +108,8 @@ class AutoTune(BaseAutoTune):
         w.add('Channel', channel)        
         self.widgets['SHS'] = w
         self.layout.addWidget(w)
-        # finish --------------------------------------------------------------
-        self.operation_combo.set_allowed_values(self.widgets.keys())
+        # finish ----------------------------------------------------------------------------------
+        self.operation_combo.set_allowed_values(list(self.widgets.keys()))
         # repetitions
         input_table = pw.InputTable()
         input_table.add('Repetitions', None)
@@ -144,7 +144,7 @@ class AutoTune(BaseAutoTune):
         curve = self.opa.curve
         while not curve.kind.startswith('TOPAS'):
             curve = curve.subcurve
-        # BBO -----------------------------------------------------------------
+        # BBO -------------------------------------------------------------------------------------
         if worker.aqn.read('BBO', 'do'):
             axes = []
             # tune points
@@ -179,7 +179,7 @@ class AutoTune(BaseAutoTune):
             # upload
             p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
             worker.upload(scan_folder, reference_image=p)
-        # Mixer ---------------------------------------------------------------
+        # Mixer -----------------------------------------------------------------------------------
         if worker.aqn.read('Mixer', 'do'):
             axes = []
             # tune points
@@ -214,7 +214,7 @@ class AutoTune(BaseAutoTune):
             # upload
             p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
             worker.upload(scan_folder, reference_image=p)
-        # Tune Test -----------------------------------------------------------
+        # Tune Test -------------------------------------------------------------------------------
         if worker.aqn.read('Test', 'do'):
             axes = []
             # tune points
@@ -246,7 +246,7 @@ class AutoTune(BaseAutoTune):
             # upload
             p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
             worker.upload(scan_folder, reference_image=p)
-        # finish --------------------------------------------------------------
+        # finish ----------------------------------------------------------------------------------
         # return to old curve
         # TODO:
         if not worker.stopped.read():
@@ -277,7 +277,7 @@ class AutoTune(BaseAutoTune):
             c.set_allowed_values(channel_names)
 
 
-### driver ####################################################################
+# --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(BaseDriver):
@@ -290,8 +290,8 @@ class Driver(BaseDriver):
         self.has_shutter = kwargs['has_shutter']
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
-        allowed_values = TOPAS_interaction_by_kind[self.kind].keys()		
-        self.interaction_string_combo = pc.Combo(allowed_values	= allowed_values)
+        allowed_values = list(TOPAS_interaction_by_kind[self.kind].keys())
+        self.interaction_string_combo = pc.Combo(allowed_values = allowed_values)
         BaseDriver.__init__(self, *args, **kwargs)  
         if self.has_shutter:
             self.exposed += [self.shutter_position]
@@ -335,7 +335,7 @@ class Driver(BaseDriver):
         for motor_index in motor_indexes:
             error, position = self.api.get_motor_position(motor_index)
             original_positions.append(position)
-        # send motors to left reference switch --------------------------------
+        # send motors to left reference switch ----------------------------------------------------
         # set all max, current positions to spoof values
         overflow = 8388607
         for motor_index in motor_indexes:
@@ -354,11 +354,11 @@ class Driver(BaseDriver):
                     motor_indexes_not_homed.remove(motor_index)
                     # set counter to zero
                     self.api.set_motor_position(motor_index, 0)
-        # send motors to 400 steps --------------------------------------------
+        # send motors to 400 steps ----------------------------------------------------------------
         for motor_index in motor_indexes:
             self.api.start_motor_motion(motor_index, 400)
         self.wait_until_still()
-        # send motors left reference switch slowly ----------------------------
+        # send motors left reference switch slowly ------------------------------------------------
         # set motor speed
         for motor_index in motor_indexes:
             min_velocity = self.ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
@@ -382,13 +382,13 @@ class Driver(BaseDriver):
                     motor_indexes_not_homed.remove(motor_index)
                     # set counter to zero
                     self.api.set_motor_position(motor_index, 0)
-        # send motors to 400 steps (which is now true zero) -------------------
+        # send motors to 400 steps (which is now true zero) ---------------------------------------
         for motor_index in motor_indexes:
             self.api.start_motor_motion(motor_index, 400)
         self.wait_until_still()
         for motor_index in motor_indexes:
             self.api.set_motor_position(motor_index, 0)
-        # finish --------------------------------------------------------------
+        # finish ----------------------------------------------------------------------------------
         # set speed back to real values
         for motor_index in motor_indexes:
             min_velocity = self.ini.read(section, 'motor {} min velocity (us/s)'.format(motor_index))
@@ -408,16 +408,16 @@ class Driver(BaseDriver):
         # return shutter
         if self.has_shutter:
             self.set_shutter([original_shutter])
- 
+
     def _load_curve(self, interaction):
         interaction = self.interaction_string_combo.read()
         curve_paths_copy = self.curve_paths.copy()
         print(curve_paths_copy)
-        if 'Poynting' in curve_paths_copy.keys():		
+        if 'Poynting' in curve_paths_copy.keys():
             del curve_paths_copy['Poynting']
         print(self.curve_paths)
         crv_paths = [m.read() for m in curve_paths_copy.values()]
-        used = self.curve_indices.values()
+        used = list(self.curve_indices.values())
         need = [x for x in range(4) if x+1 not in used]        
         for i in need:
             crv_paths.insert(i,None)
@@ -454,7 +454,7 @@ class Driver(BaseDriver):
 
     def get_motor_positions(self):
         for i in range(6):
-            motor_mutex = self.motor_positions.values()[i]
+            motor_mutex = list(self.motor_positions.values())[i]
             error, position_steps = self.api.get_motor_position(i)
             error, position = self.api.convert_position_to_units(i, position_steps)
             motor_mutex.write(position)
@@ -468,8 +468,7 @@ class Driver(BaseDriver):
 
     def initialize(self):
         self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
-        # load api 
-           
+        # load api
         self.api = TOPAS_API(self.TOPAS_ini_filepath)
         if self.has_shutter:
             self.api.set_shutter(False)
@@ -513,7 +512,7 @@ class Driver(BaseDriver):
         return error
 
 
-### gui #######################################################################
+# --- gui -----------------------------------------------------------------------------------------
 
 
 class GUI(BaseGUI):

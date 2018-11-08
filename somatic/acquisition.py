@@ -15,6 +15,8 @@ import time
 import copy
 import shutil
 import collections
+import pathlib
+import traceback
 
 try:
     import configparser as ConfigParser  # python 3
@@ -37,7 +39,8 @@ app = g.app.read()
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
 import hardware.opas.opas as opas
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares
+import hardware.filters.filters as filters
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 import devices.devices as devices
 
@@ -108,7 +111,6 @@ orderers = []
 config = ConfigParser.SafeConfigParser()
 p = os.path.join(somatic_folder, 'order', 'order.ini')
 config.read(p)
-print(config, p)
 for name in config.options('load'):
     if config.get('load', name) == 'True':
         path = os.path.join(somatic_folder, 'order', name + '.py')
@@ -137,9 +139,23 @@ class Worker(QtCore.QObject):
         self.going = self.queue_worker.queue_status.going
         self.stop = self.queue_worker.queue_status.stop
         self.stopped = self.queue_worker.queue_status.stopped
+        # move aqn file into queue folder
+        ini = wt.kit.INI(aqn_path)
+        module_name = ini.read('info', 'module')
+        item_name = ini.read('info', 'name')
+        aqn_path = pathlib.Path(aqn_path)
+        aqn_index_str = str(self.queue_worker.index.read()).zfill(3)
+        aqn_name = ' '.join([aqn_index_str, module_name, item_name]).rstrip()
+        folder_path = pathlib.Path(self.queue_worker.folder.read()).joinpath(aqn_name)
+        if aqn_path != folder_path.with_suffix(".aqn"):
+            shutil.copyfile(aqn_path, folder_path.with_suffix(".aqn"))
+            if aqn_path.parent == folder_path.parent:
+                aqn_path.unlink()
+        self.aqn_path = folder_path.with_suffix(".aqn")
+        self.aqn = wt.kit.INI(self.aqn_path)
+        self.folder = pathlib.Path(folder_path)
+        self.folder.mkdir(exist_ok=True)
         # create acquisition folder
-        self.folder = self.aqn_path[:-4]
-        os.mkdir(self.folder)
         # initialize
         self.scan_index = None
         self.scan_folders = []
@@ -348,7 +364,13 @@ class Worker(QtCore.QObject):
         self.update_ui.emit()
         self.scan_complete.emit()
         # process scan --------------------------------------------------------
-        getattr(self, processing_method)(scan_folder)
+        try:
+            getattr(self, processing_method)(scan_folder)
+        except BaseException:
+            # Yeah, yeah, excepting BaseException.... KFS and BJT
+            # deal with it ---sunglasses---  ---BJT 2018-10-25
+            traceback.print_exc()
+            self.upload(scan_folder)
         return scan_folder
     
     def upload(self, scan_folder, message='scan complete', reference_image=None):
@@ -366,12 +388,6 @@ class Worker(QtCore.QObject):
             field['image_url'] = image_url
             message = ':tada: scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text())
             slack.send_message(message, attachments=[field])
-        # automatically copy to user-defined folder
-        if devices.autocopy_enable.read():
-            src = scan_folder
-            name = src.split(os.sep)[-1]
-            dst = os.path.join(devices.autocopy_path.read(), name)
-            shutil.copytree(src, dst)
 
 
 ### GUI base ##################################################################
@@ -397,16 +413,7 @@ class GUI(QtCore.QObject):
         # signals and slots
         devices.control.settings_updated.connect(self.on_device_settings_updated)
         
-    def autocopy(self, data_folder):
-        '''
-        Copy the data to the data folder defined in devices (if enabled).
-        '''
-        if devices.autocopy_enable.read():
-            src = data_folder
-            name = src.split(os.sep)[-1]
-            dst = os.path.join(devices.autocopy_path.read(), name)
-            shutil.copytree(src, dst)
-            
+
     def create_frame(self):
         layout = QtGui.QVBoxLayout()
         layout.setMargin(5)

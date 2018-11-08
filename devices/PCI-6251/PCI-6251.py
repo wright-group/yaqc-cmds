@@ -1,4 +1,7 @@
-### import ####################################################################
+# --- import --------------------------------------------------------------------------------------
+
+
+from __future__ import print_function
 
 
 import os
@@ -20,6 +23,7 @@ import pyqtgraph as pg
 import WrightTools as wt
 
 from PyDAQmx import *
+from PyDAQmx import byref
 
 import project.project_globals as g
 import project.classes as pc
@@ -32,7 +36,7 @@ from devices.devices import DeviceGUI as BaseGUI
 from devices.devices import DeviceWidget as BaseWidget
 
 
-### define ####################################################################
+# --- define --------------------------------------------------------------------------------------
 
 
 app = g.app.read()
@@ -55,15 +59,15 @@ resolution[5.0] = 160.0
 resolution[10.0] = 320.0
 
     
-### data mutex objects ########################################################
-    
+# --- data mutex objects --------------------------------------------------------------------------
+ 
 
 data = pc.Data()
 shots = pc.Data()
 samples = pc.Mutex()
 
 
-### special objects ###########################################################
+# --- special objects -----------------------------------------------------------------------------
 
 
 rest_channel = pc.Number(decimals=0, ini=ini, section='DAQ', 
@@ -231,7 +235,7 @@ seconds_since_last_task = pc.Number(initial_value=np.nan, display=True, decimals
 seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 
-### device ####################################################################
+# --- device --------------------------------------------------------------------------------------
 
 
 class Device(BaseDevice):
@@ -239,13 +243,14 @@ class Device(BaseDevice):
     def __init__(self, *args, **kwargs):
         print('DEVICE INIT')
         self.initialized = False
-        nshots.updated.connect(self.update_task)
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
         BaseDevice.__init__(self, *args, **kwargs)
+        self.nshots = nshots
+        self.nshots.updated.connect(self.update_task)
 
     def load_settings(self, aqn):
-        nshots.write(aqn.read(self.name, 'shots'))
+        self.nshots.write(aqn.read(self.name, 'shots'))
         
     def update_sample_correspondances(self, proposed_channels, proposed_choppers):
         '''
@@ -290,7 +295,7 @@ class Device(BaseDevice):
         # choppers
         for i, chopper in enumerate(proposed_choppers):
             if chopper.active.read():
-                samples[chopper.index.read()] = -(i+1)
+                samples[int(chopper.index.read())] = -(i+1)
         # check if proposed is valid
         # TODO: !!!!!!!!!!!!!!!
         # apply to channels
@@ -323,7 +328,7 @@ class Device(BaseDevice):
             self.settings_updated.emit()
 
 
-### driver ####################################################################
+# --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(BaseDriver):
@@ -360,7 +365,7 @@ class Driver(BaseDriver):
             self.read = int32()  # ??? --BJT 2017-06-03
             DAQmxCreateTask('', byref(self.task_handle))
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in task creation', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
@@ -408,7 +413,7 @@ class Driver(BaseDriver):
                                          None)                                        # custom scale
                 name_index += 1
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in virtual channel creation', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
@@ -420,15 +425,15 @@ class Driver(BaseDriver):
                                   1000.0,                           # sampling rate (samples per second per channel) (float 64) (in externally clocked mode, only used to initialize buffer)
                                   DAQmx_Val_Rising,                 # acquire samples on the rising edges of the sample clock
                                   DAQmx_Val_FiniteSamps,            # acquire a finite number of samples
-                                  long(self.shots))                 # samples per channel to acquire (unsigned integer 64)         
+                                  int(self.shots))                 # samples per channel to acquire (unsigned integer 64)         
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
             return
         # create arrays for task to fill --------------------------------------
-        self.samples = np.zeros(self.shots*nsamples.read(), dtype=numpy.float64)
+        self.samples = np.zeros(int(self.shots*nsamples.read()), dtype=np.float64)
         self.samples_len = len(self.samples)  # do not want to call for every acquisition
         # finish --------------------------------------------------------------
         self.task_created = True
@@ -444,7 +449,7 @@ class Driver(BaseDriver):
         # unpack inputs -------------------------------------------------------
         self.running = True
         #self.update_ui.emit()
-        if not self.task_created: 
+        if not self.task_created:
             return
         start_time = time.time()
         # collect samples array -----------------------------------------------
@@ -454,7 +459,7 @@ class Driver(BaseDriver):
             if True:
                 DAQmxStartTask(self.task_handle)
                 DAQmxReadAnalogF64(self.task_handle,             # task handle
-                                   long(self.shots),             # number of samples per channel
+                                   int(self.shots),              # number of samples per channel
                                    10.0,                         # timeout (seconds) for each read operation
                                    DAQmx_Val_GroupByScanNumber,  # fill mode (specifies whether or not the samples are interleaved)
                                    self.samples,                 # read array
@@ -465,7 +470,7 @@ class Driver(BaseDriver):
             else:
                 self.samples = np.random.normal(size=self.samples_len)
         except DAQError as err:
-            print "DAQmx Error: %s"%err
+            print("DAQmx Error: %s"%err)
             g.logger.log('error', 'Error in timing definition', err)
             DAQmxStopTask(self.task_handle)
             DAQmxClearTask(self.task_handle)
@@ -475,7 +480,7 @@ class Driver(BaseDriver):
         # calculate shot values for each channel, chopper ---------------------
         active_channels = [channel for channel in channels.read() if channel.active.read()]
         active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
-        shots_array = np.full((len(active_channels)+len(active_choppers), self.shots), np.nan)
+        shots_array = np.full((len(active_channels)+len(active_choppers), int(self.shots)), np.nan)
         folded_samples = self.samples.copy().reshape((nsamples.read(), -1), order='F')
         index = 0
         # channels
@@ -522,7 +527,7 @@ class Driver(BaseDriver):
         # choppers
         for chopper in active_choppers:
             cutoff = 1. # volts
-            out = folded_samples[chopper.index.read()]
+            out = folded_samples[int(chopper.index.read())]
             out[out<=cutoff] = -1.
             out[out>cutoff] = 1.            
             if chopper.invert.read():
@@ -555,6 +560,7 @@ class Driver(BaseDriver):
         self.running = False
         stop_time = time.time()
         seconds_for_acquisition.write(stop_time - start_time)
+        self.measure_time.write(seconds_for_acquisition.read())
 
     def shutdown(self, inputs):
          if self.task_created:
@@ -562,7 +568,7 @@ class Driver(BaseDriver):
              DAQmxClearTask(self.task_handle)
     
 
-### gui #######################################################################
+# --- gui -----------------------------------------------------------------------------------------
 
         
 class GUI(BaseGUI):
@@ -801,7 +807,7 @@ class GUI(BaseGUI):
         new_chopper.active.write(True)
         new_choppers = copy.copy(choppers.read())
         new_choppers[new_chopper_index] = new_chopper
-        print new_chopper.name.read()
+        print(new_chopper.name.read())
         self.hardware.update_sample_correspondances(channels.read(), new_choppers)
         self.update_samples_tab()
         
@@ -843,7 +849,7 @@ class GUI(BaseGUI):
         
     def on_sample_shots_displayed_updated(self):
         # all samples
-        self.sample_xi = range(nsamples.read())*int(self.sample_shots_displayed.read())
+        self.sample_xi = list(range(nsamples.read()))*int(self.sample_shots_displayed.read())
         # signal samples
         current_channel_object = channels.read()[self.samples_channel_combo.read_index()]
         signal_start_index = int(current_channel_object.signal_start_index.read())
@@ -902,7 +908,7 @@ class GUI(BaseGUI):
                 yi = np.hstack((yi, samples.read()[self.baseline_indicies]))
             self.samples_plot_active_scatter.setData(xi, yi)
         # shots
-        yi = shots.read()[shot_channel_combo.read_index()]
+        yi = shots.read()[int(shot_channel_combo.read_index())]
         xi = np.arange(len(yi))
         self.shots_plot_scatter.clear()
         self.shots_plot_scatter.setData(xi, yi)
@@ -993,9 +999,11 @@ class Widget(BaseWidget):
         layout.addWidget(input_table)
         
     def load(self, aqn_path):
-        # TODO:
-        print('NI 6251 load_device_settings')
-   
+        ini = wt.kit.INI(aqn_path)
+        self.use.write(ini.read('PCI-6251', 'use'))
+        self.shots.write(ini.read('PCI-6251', 'shots'))
+        self.save_shots.write(ini.read('PCI-6251', 'save shots'))
+
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
         ini.add_section('PCI-6251')

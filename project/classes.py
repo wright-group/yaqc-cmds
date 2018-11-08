@@ -264,8 +264,8 @@ class Combo(PyCMDS_Object):
     def __init__(self, allowed_values=['None'], initial_value=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, *args, **kwargs)
         self.type = 'combo'
-        self.allowed_values = allowed_values
-        self.data_type = type(allowed_values[0])
+        self.allowed_values = list(allowed_values)
+        self.data_type = type(self.allowed_values[0])
         if initial_value is None:
             self.write(self.allowed_values[0])
         else:
@@ -307,7 +307,7 @@ class Combo(PyCMDS_Object):
         '''
         if allowed_values == self.allowed_values:
             return
-        self.allowed_values = allowed_values
+        self.allowed_values = list(allowed_values)
         # update widget
         if self.has_widget:
             self.widget.currentIndexChanged.disconnect(self.write_from_widget)
@@ -317,7 +317,8 @@ class Combo(PyCMDS_Object):
             self.widget.currentIndexChanged.connect(self.write_from_widget)
         # write value again
         if self.read() not in self.allowed_values:
-            self.write(self.allowed_values[0])
+            print(self.allowed_values)
+            self.write(list(self.allowed_values)[0])
         else:
             self.write(self.read())
             
@@ -381,7 +382,7 @@ class Filepath(PyCMDS_Object):
         self.button.clicked.connect(self.on_load)
         
     def on_load(self):
-        import file_dialog_handler
+        from project import file_dialog_handler
         # directory
         if self.directory is not None:
             directory_string = self.directory

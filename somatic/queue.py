@@ -1,8 +1,6 @@
 ### import ####################################################################
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
 import traceback
 import imp
@@ -27,6 +25,11 @@ import project.widgets as pw
 import project.ini_handler as ini_handler
 import project.file_dialog_handler as file_dialog_handler
 
+import hardware.spectrometers.spectrometers as spectrometers
+import hardware.delays.delays as delays
+import hardware.opas.opas as opas
+import hardware.filters.filters as filters
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 ### define ####################################################################
 
@@ -37,16 +40,14 @@ main_window = g.main_window.read()
 
 somatic_folder = os.path.dirname(__file__)
 saved_folder = os.path.join(somatic_folder, 'saved')
-temp_folder = os.path.join(somatic_folder, 'temp')
 data_folder = main_window.data_folder
 
 
 ### ensure folders exist ######################################################
 
 
-for p in [saved_folder, temp_folder]:
-    if not os.path.isdir(p):
-        os.mkdir(p)
+if not os.path.isdir(saved_folder):
+    os.mkdir(saved_folder)
 
 
 ### queue item classes ########################################################
@@ -96,14 +97,23 @@ class Device(Item):
 
 class Hardware(Item):
 
-    def __init__(self, **kwargs):
+    def __init__(self, hardwares, value, units, **kwargs):
         Item.__init__(self, **kwargs)
         self.type = 'hardware'
+        self.hardwares = [ah for ah in all_hardwares if ah.name in hardwares]
+        self.value = value
+        self.units = units
     
     def execute(self):
-        # TODO:
         print('hardware excecute')
+        for hw in self.hardwares:
+            hw.set_position(self.value, self.units)
+        g.hardware_waits.wait()
 
+    def write_to_ini(self, ini, section):
+        ini.write(section, 'value', self.value)
+        ini.write(section, 'units', self.units)
+        ini.write(section, 'hardwares', [hw.name for hw in self.hardwares])
 
 class Interrupt(Item):
 
@@ -138,13 +148,15 @@ class Wait(Item):
 class Worker(QtCore.QObject):
     action_complete = QtCore.pyqtSignal()
 
-    def __init__(self, enqueued, busy, queue_status, queue_url):
+    def __init__(self, enqueued, busy, queue_status, queue_url, queue_index, queue_folder):
         QtCore.QObject.__init__(self)
         self.enqueued = enqueued
         self.busy = busy
         self.queue_status = queue_status
         self.fraction_complete = pc.Number(initial_value=0.)
         self.queue_url = queue_url
+        self.index = queue_index
+        self.folder = queue_folder
         
     def check_busy(self, _=[]):
         if self.enqueued.read():  # there are items in enqueued
@@ -220,9 +232,8 @@ class Worker(QtCore.QObject):
         item.finished.write(False)
         
     def execute_hardware(self, item):
-        # TODO:
-        time.sleep(5)
-        item.finished.write(False)
+        item.execute()
+        item.finished.write(True)
         
     def execute_script(self, item):
         # TODO:
@@ -329,26 +340,26 @@ class Queue():
         # create queue folder
         if folder is None:
             folder_name = ' '.join([self.timestamp.path, self.name])
-            self.folder = os.path.join(g.main_window.read().data_folder, folder_name)
-            os.mkdir(self.folder)
+            self.folder = pc.Value(os.path.join(g.main_window.read().data_folder, folder_name))
+            os.mkdir(self.folder.read())
         else:
-            self.folder = folder
-            folder_name = os.path.basename(self.folder)
+            self.folder = pc.Value(folder)
+            folder_name = os.path.basename(self.folder.read())
         # create queue file
-        self.ini_path = os.path.abspath(os.path.join(self.folder, 'queue.ini'))
+        self.ini_path = os.path.abspath(os.path.join(self.folder.read(), 'queue.ini'))
         if not os.path.isfile(self.ini_path):
             with open(self.ini_path, 'a'):
                 os.utime(self.ini_path, None)  # quickly create empty file
         self.ini = wt.kit.INI(self.ini_path)  # I don't use ini_handler here
         # parameters and status indicators
         self.items = []
-        self.index = 0
+        self.index = pc.Value(0)
         self.going = pc.Busy()
         self.paused = pc.Busy()
         # create storage folder on google drive
         if url is None:
             if g.google_drive_enabled.read():
-                self.url = g.google_drive_control.read().create_folder(self.folder)
+                self.url = g.google_drive_control.read().create_folder(self.folder.read())
             else:
                 self.url = None
         else:
@@ -356,7 +367,7 @@ class Queue():
         # initialize worker
         self.worker_enqueued = pc.Enqueued()
         self.worker_busy = pc.Busy()
-        self.worker = Worker(self.worker_enqueued, self.worker_busy, self.status, self.url)
+        self.worker = Worker(self.worker_enqueued, self.worker_busy, self.status, self.url, self.index, self.folder)
         self.worker.fraction_complete.updated.connect(self.update_progress)
         self.worker.action_complete.connect(self.on_action_complete)
         self.worker_thread = QtCore.QThread()
@@ -369,13 +380,13 @@ class Queue():
             g.slack_control.read().send_message(message)
         
     def _start_next_action(self):
-        print('this is start next action', self.index)
+        print('this is start next action', self.index.read())
         self.status.pause.write(False)
         self.status.paused.write(False)
         self.status.stop.write(False)
         self.status.stopped.write(False)
         self.gui.progress_bar.begin_new_scan_timer()
-        item = self.items[self.index]
+        item = self.items[self.index.read()]
         item.status = 'RUNNING'
         self.worker_q.push('excecute', item)
         self.gui.message_widget.setText(item.description.upper())
@@ -383,18 +394,11 @@ class Queue():
     def append_acquisition(self, aqn_path, update=True):
         # get properties
         ini = wt.kit.INI(aqn_path)
-        aqn_index_str = str(len(self.items)).zfill(3)
         module_name = ini.read('info', 'module')
         item_name = ini.read('info', 'name')
         info = ini.read('info', 'info')
         description = ini.read('info', 'description')
         module = self.gui.modules[module_name]
-        # move aqn file into queue folder
-        aqn_name = ' '.join([aqn_index_str, module_name, item_name]).rstrip() + '.aqn'
-        new_aqn_path = os.path.join(self.folder, aqn_name)
-        if not aqn_path == new_aqn_path:
-            shutil.copyfile(aqn_path, os.path.abspath(new_aqn_path))
-            aqn_path = os.path.abspath(new_aqn_path)
         # create item
         acquisition = Acquisition(aqn_path, module, name=item_name, info=info, description=description)
         # append and update
@@ -406,9 +410,11 @@ class Queue():
         # TODO:
         print('append_device')
 
-    def append_hardware(self):
-        # TODO:
-        print('append_hardware')
+    def append_hardware(self, hardwares, value, units, name, info, description, update=True):
+        hardware = Hardware(hardwares, value, units, name=name, info=info, description=description)
+        self.items.append(hardware)
+        if update:
+            self.update()
 
     def append_interrupt(self):
         # TODO:
@@ -427,8 +433,8 @@ class Queue():
     
     def change_index(self, current_index, new_index):
         item = self.items.pop(current_index)
-        if new_index < self.index:
-            new_index = self.index + 1
+        if new_index < self.index.read():
+            new_index = self.index.read() + 1
         self.items.insert(new_index, item)
         self.update()
         return item
@@ -484,7 +490,7 @@ class Queue():
 
     def on_action_complete(self):
         # update current item
-        item = self.items[self.index]
+        item = self.items[self.index.read()]
         if item.finished.read():
             item.status = 'COMPLETE'
         else:
@@ -493,9 +499,8 @@ class Queue():
         if g.google_drive_enabled.read():
             g.google_drive_control.read().upload_file(self.ini_path)
         # onto next item
-        self.index += 1
-        queue_done = len(self.items) == self.index
-        print('queue done', queue_done)
+        self.index.write(self.index.read() + 1)
+        queue_done = len(self.items) == self.index.read()
         # check if any more items exist in queue
         if queue_done:
             self.finish()
@@ -521,7 +526,6 @@ class Queue():
         self.update()
     
     def update(self):
-        print('queue update')
         # update ini
         self.ini.clear()
         self.ini.add_section('info')
@@ -545,6 +549,12 @@ class Queue():
                 self.ini.write(index_str, 'exited', item.exited.RFC3339)
             # allow item to write additional information
             item.write_to_ini(self.ini, index_str)
+            if item.status != "ENQUEUED" and hasattr(item, "module"):
+                # KFS: This is a slight bit of a hack to get around editing the queue file from worker thread
+                # Rather than replacing the path in the queue when the file is copied, it is done here in update
+                path = os.path.join(self.folder.read(), " ".join([index_str, item.module.module_name, item.name]).rstrip()) + ".aqn"
+                if os.path.exists(path):
+                    self.ini.write(index_str, 'path', path)
         # update display
         self.gui.update_ui()
         # upload ini
@@ -712,10 +722,12 @@ class GUI(QtCore.QObject):
         # new queue button
         self.new_queue_button = pw.SetButton('MAKE NEW QUEUE')
         self.new_queue_button.clicked.connect(self.create_new_queue)
+        g.queue_control.disable_when_true(self.new_queue_button)
         settings_layout.addWidget(self.new_queue_button)
         # load button
         self.load_button = pw.SetButton('OPEN QUEUE')
         self.load_button.clicked.connect(self.on_open_queue)
+        g.queue_control.disable_when_true(self.load_button)
         settings_layout.addWidget(self.load_button)
         # current queue name
         input_table = pw.InputTable()
@@ -749,7 +761,6 @@ class GUI(QtCore.QObject):
         input_table = pw.InputTable()
         allowed_values = ['Acquisition', 'Wait', 'Interrupt', 'Hardware', 'Device', 'Script']
         allowed_values.remove('Interrupt')  # not ready yet
-        allowed_values.remove('Hardware')  # not ready yet
         allowed_values.remove('Device')  # not ready yet
         allowed_values.remove('Script')  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
@@ -789,11 +800,17 @@ class GUI(QtCore.QObject):
         self.hardware_info = pc.String()
         input_table.add('Info', self.hardware_info)       
         layout.addWidget(input_table)        
-        # not implemented message
-        label = QtGui.QLabel('hardware not currently implemented')
-        StyleSheet = 'QLabel{color: custom_color; font: bold 14px}'.replace('custom_color', g.colors_dict.read()['text_light'])
-        label.setStyleSheet(StyleSheet)
-        layout.addWidget(label)
+        self.hardware_hardwares = {}
+        for hw in all_hardwares:
+            checkbox = pc.Bool()
+            input_table.add(hw.name, checkbox)
+            self.hardware_hardwares[hw.name] = checkbox
+
+        self.hardware_value = pc.Number()
+        input_table.add("Value", self.hardware_value)
+        self.hardware_units = pc.String()
+        input_table.add("Units", self.hardware_units)
+
         return frame
 
     def create_interrupt_frame(self):
@@ -878,7 +895,7 @@ class GUI(QtCore.QObject):
             fields.append(make_field('name', self.queue.name, short=True))
             fields.append(make_field('created', self.queue.timestamp.human, short=True))
             fields.append(make_field('runtime', self.queue.get_runtime(), short=True))
-            fields.append(make_field('done/total', '/'.join([str(self.queue.index), str(len(self.queue.items))]), short=True))
+            fields.append(make_field('done/total', '/'.join([str(self.queue.index.read()), str(len(self.queue.items))]), short=True))
             fields.append(make_field('url', self.queue.url, short=False))
             attachments.append(make_attachment('', fields=fields, color='#00FFFF'))
             # queue items 
@@ -927,9 +944,8 @@ class GUI(QtCore.QObject):
     def on_append_to_queue(self):
         current_type = self.type_combo.read()
         if current_type == 'Acquisition':
-            p = self.save_aqn(temp_folder)
+            p = self.save_aqn(self.queue.folder.read())
             self.queue.append_acquisition(p)
-            # TODO: remove temporary aqn file
         elif current_type == 'Wait':
             name = self.wait_name.read()
             info = self.wait_info.read()
@@ -943,8 +959,13 @@ class GUI(QtCore.QObject):
             description = 'interrupt'
             self.queue.append_interrupt(name=name, info=info, description=description)
         elif current_type == 'Hardware':
-            # TODO:
-            self.queue.append_hardware()
+            name = self.hardware_name.read()
+            info = self.hardware_info.read()
+            hardwares = [k for k,v in self.hardware_hardwares.items() if v.read()]
+            value = self.hardware_value.read()
+            units = self.hardware_units.read()
+            description = "%s %f %s" % (hardwares, value, units)
+            self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
         elif current_type == 'Device':
             # TODO:
             self.queue.append_device()
@@ -961,8 +982,9 @@ class GUI(QtCore.QObject):
         if self.queue_status.going.read():
             self.queue.interrupt()
         else:  # queue not currently running
-            queue_full = len(self.queue.items) == self.queue.index
-            if not queue_full:
+            self.queue.status.go.write(not self.queue.status.go.read())
+            queue_full = len(self.queue.items) == self.queue.index.value
+            if not queue_full and self.queue.status.go.read():
                 self.queue.run()
         self.update_ui()
 
@@ -1010,7 +1032,18 @@ class GUI(QtCore.QObject):
         elif item.type == 'device':
             raise NotImplementedError()
         elif item.type == 'hardware':
-            raise NotImplementedError()
+            self.type_combo.write('Hardware')
+            self.hardware_name.write(item.name)
+            self.hardware_info.write(item.info)
+            self.hardware_units.write(item.units)
+            self.hardware_value.write(item.value)
+            for k,v in self.hardware_hardwares.items():
+                for h in item.hardwares:
+                    if k == h.name:
+                        v.write(True)
+                        break;
+                else:
+                    v.write(False)
         elif item.type == 'interrupt':
             raise NotImplementedError()
         elif item.type == 'script':
@@ -1060,7 +1093,6 @@ class GUI(QtCore.QObject):
         i = 0
         while True:
             section = str(i).zfill(3)
-            print('section', section)
             try:
                 item_type = ini.read(section, 'type')
             except:
@@ -1071,13 +1103,24 @@ class GUI(QtCore.QObject):
             elif item_type == 'device':
                 raise NotImplementedError
             elif item_type == 'hardware':
-                raise NotImplementedError
+                name = ini.read(section, 'name')
+                info = ini.read(section, 'info')
+                description = ini.read(section, 'description')
+                hardwares = ini.read(section, 'hardwares')
+                value = ini.read(section, 'value')
+                units = ini.read(section, 'units')
+                self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
             elif item_type == 'interrupt':
                 raise NotImplementedError
             elif item_type == 'script':
                 raise NotImplementedError
             elif item_type == 'wait':
-                raise NotImplementedError
+                name = ini.read(section, 'name')
+                info = ini.read(section, 'info')
+                operation = ini.read(section, 'operation')
+                amount = ini.read(section, 'amount')
+                description = ini.read(section, 'description')
+                self.queue.append_wait(operation, amount, name=name, info=info, description=description)
             else:
                 raise KeyError
             if operation == 'REPLACE':
@@ -1100,10 +1143,9 @@ class GUI(QtCore.QObject):
         for index, item in enumerate(self.queue.items):
             if item.status == 'ENQUEUED':
                 break
-            else:
-                self.queue.index += 1
-        if not self.queue.items[-1].status == 'ENQUEUED':
-            self.queue.index += 1
+        else:
+            index += 1
+        self.queue.index.write(index)
         # finish
         self.queue.update()
         self.queue_name.write(self.queue.name)
