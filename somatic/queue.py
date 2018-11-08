@@ -25,6 +25,11 @@ import project.widgets as pw
 import project.ini_handler as ini_handler
 import project.file_dialog_handler as file_dialog_handler
 
+import hardware.spectrometers.spectrometers as spectrometers
+import hardware.delays.delays as delays
+import hardware.opas.opas as opas
+import hardware.filters.filters as filters
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 ### define ####################################################################
 
@@ -92,14 +97,23 @@ class Device(Item):
 
 class Hardware(Item):
 
-    def __init__(self, **kwargs):
+    def __init__(self, hardwares, value, units, **kwargs):
         Item.__init__(self, **kwargs)
         self.type = 'hardware'
+        self.hardwares = [ah for ah in all_hardwares if ah.name in hardwares]
+        self.value = value
+        self.units = units
     
     def execute(self):
-        # TODO:
         print('hardware excecute')
+        for hw in self.hardwares:
+            hw.set_position(self.value, self.units)
+        g.hardware_waits.wait()
 
+    def write_to_ini(self, ini, section):
+        ini.write(section, 'value', self.value)
+        ini.write(section, 'units', self.units)
+        ini.write(section, 'hardwares', [hw.name for hw in self.hardwares])
 
 class Interrupt(Item):
 
@@ -218,9 +232,8 @@ class Worker(QtCore.QObject):
         item.finished.write(False)
         
     def execute_hardware(self, item):
-        # TODO:
-        time.sleep(5)
-        item.finished.write(False)
+        item.execute()
+        item.finished.write(True)
         
     def execute_script(self, item):
         # TODO:
@@ -397,9 +410,11 @@ class Queue():
         # TODO:
         print('append_device')
 
-    def append_hardware(self):
-        # TODO:
-        print('append_hardware')
+    def append_hardware(self, hardwares, value, units, name, info, description, update=True):
+        hardware = Hardware(hardwares, value, units, name=name, info=info, description=description)
+        self.items.append(hardware)
+        if update:
+            self.update()
 
     def append_interrupt(self):
         # TODO:
@@ -746,7 +761,6 @@ class GUI(QtCore.QObject):
         input_table = pw.InputTable()
         allowed_values = ['Acquisition', 'Wait', 'Interrupt', 'Hardware', 'Device', 'Script']
         allowed_values.remove('Interrupt')  # not ready yet
-        allowed_values.remove('Hardware')  # not ready yet
         allowed_values.remove('Device')  # not ready yet
         allowed_values.remove('Script')  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
@@ -786,11 +800,17 @@ class GUI(QtCore.QObject):
         self.hardware_info = pc.String()
         input_table.add('Info', self.hardware_info)       
         layout.addWidget(input_table)        
-        # not implemented message
-        label = QtGui.QLabel('hardware not currently implemented')
-        StyleSheet = 'QLabel{color: custom_color; font: bold 14px}'.replace('custom_color', g.colors_dict.read()['text_light'])
-        label.setStyleSheet(StyleSheet)
-        layout.addWidget(label)
+        self.hardware_hardwares = {}
+        for hw in all_hardwares:
+            checkbox = pc.Bool()
+            input_table.add(hw.name, checkbox)
+            self.hardware_hardwares[hw.name] = checkbox
+
+        self.hardware_value = pc.Number()
+        input_table.add("Value", self.hardware_value)
+        self.hardware_units = pc.String()
+        input_table.add("Units", self.hardware_units)
+
         return frame
 
     def create_interrupt_frame(self):
@@ -939,8 +959,13 @@ class GUI(QtCore.QObject):
             description = 'interrupt'
             self.queue.append_interrupt(name=name, info=info, description=description)
         elif current_type == 'Hardware':
-            # TODO:
-            self.queue.append_hardware()
+            name = self.hardware_name.read()
+            info = self.hardware_info.read()
+            description = 'hardware'
+            hardwares = [k for k,v in self.hardware_hardwares.items() if v.read()]
+            value = self.hardware_value.read()
+            units = self.hardware_units.read()
+            self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
         elif current_type == 'Device':
             # TODO:
             self.queue.append_device()
@@ -1007,7 +1032,18 @@ class GUI(QtCore.QObject):
         elif item.type == 'device':
             raise NotImplementedError()
         elif item.type == 'hardware':
-            raise NotImplementedError()
+            self.type_combo.write('Hardware')
+            self.hardware_name.write(item.name)
+            self.hardware_info.write(item.info)
+            self.hardware_units.write(item.units)
+            self.hardware_value.write(item.value)
+            for k,v in self.hardware_hardwares.items():
+                for h in item.hardwares:
+                    if k == h.name:
+                        v.write(True)
+                        break;
+                else:
+                    v.write(False)
         elif item.type == 'interrupt':
             raise NotImplementedError()
         elif item.type == 'script':
@@ -1067,13 +1103,24 @@ class GUI(QtCore.QObject):
             elif item_type == 'device':
                 raise NotImplementedError
             elif item_type == 'hardware':
-                raise NotImplementedError
+                name = ini.read(section, 'name')
+                info = ini.read(section, 'info')
+                description = ini.read(section, 'description')
+                hardwares = ini.read(section, 'hardwares')
+                value = ini.read(section, 'value')
+                units = ini.read(section, 'units')
+                self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
             elif item_type == 'interrupt':
                 raise NotImplementedError
             elif item_type == 'script':
                 raise NotImplementedError
             elif item_type == 'wait':
-                raise NotImplementedError
+                name = ini.read(section, 'name')
+                info = ini.read(section, 'info')
+                operation = ini.read(section, 'operation')
+                amount = ini.read(section, 'amount')
+                description = ini.read(section, 'description')
+                self.queue.append_wait(operation, amount, name=name, info=info, description=description)
             else:
                 raise KeyError
             if operation == 'REPLACE':
