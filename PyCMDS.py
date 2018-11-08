@@ -67,7 +67,7 @@ directory = os.path.abspath(os.path.dirname(__file__))
 
 # MAJOR.MINOR.PATCH (semantic versioning)
 # major version changes may break backwards compatibility
-__version__ = '0.8.0'
+__version__ = '0.9.0'
 
 # add git branch, if appropriate
 p = os.path.join(directory, '.git', 'HEAD')
