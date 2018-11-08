@@ -24,6 +24,7 @@ hardware/filters/homebuilt/wheel B calibration
 
 # Google Drive Credentials
 *.json
+!.zenodo.json
 *mycreds.txt
 
 # PDFs
