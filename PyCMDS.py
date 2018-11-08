@@ -93,7 +93,7 @@ class MainWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self, parent=None)
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
-        self.setWindowTitle('Coherent Multidimensional Spectroscopy | Python')
+        self.setWindowTitle('PyCMDS %s'%__version__)
         # begin poll timer
         self._begin_poll_loop()
         # disable 'x'
