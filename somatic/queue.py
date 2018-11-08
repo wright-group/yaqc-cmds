@@ -961,10 +961,10 @@ class GUI(QtCore.QObject):
         elif current_type == 'Hardware':
             name = self.hardware_name.read()
             info = self.hardware_info.read()
-            description = 'hardware'
             hardwares = [k for k,v in self.hardware_hardwares.items() if v.read()]
             value = self.hardware_value.read()
             units = self.hardware_units.read()
+            description = "%s %f %s" % (hardwares, value, units)
             self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
         elif current_type == 'Device':
             # TODO:
