@@ -210,6 +210,7 @@ class Worker(QtCore.QObject):
         # create acquisition worker object
         module = item.module
         worker = module.Worker(item.aqn_path, self, item.finished)
+        item.aqn_path = worker.aqn_path
         # run it
         try:
             worker.run()
