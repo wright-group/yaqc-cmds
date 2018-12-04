@@ -554,6 +554,7 @@ class Driver(BaseDriver):
                 out, out_names, out_signed = out
             else:
                 out, out_names = out
+                out_signed = False
             
         seconds_for_shots_processing.write(self.processing_timer.interval)
         # export last data
