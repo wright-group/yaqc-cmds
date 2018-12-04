@@ -200,6 +200,10 @@ class Worker(QtCore.QObject):
             self.check_busy([])
     
     def execute_acquisition(self, item):
+        # create acquisition worker object
+        module = item.module
+        worker = module.Worker(item.aqn_path, self, item.finished)
+        item.aqn_path = worker.aqn_path
         # create acquisition folder on google drive
         folder_name = os.path.abspath(item.aqn_path)[:-4]
         if g.google_drive_enabled.read():
@@ -207,9 +211,6 @@ class Worker(QtCore.QObject):
             ini = wt.kit.INI(item.aqn_path)
             ini.write('info', 'url', url)
             item.url = url
-        # create acquisition worker object
-        module = item.module
-        worker = module.Worker(item.aqn_path, self, item.finished)
         # run it
         try:
             worker.run()

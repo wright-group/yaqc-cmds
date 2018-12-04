@@ -429,8 +429,9 @@ class Driver(pc.Driver):
         with timer:
             time.sleep(0.1)
             out_names = ['channel_%i' % i for i in range(5)]
+            signed = [not i % 2 for i in range(5)]
             out = np.random.standard_normal(len(out_names))
-            self.data.write_properties(self.shape, out_names, out)
+            self.data.write_properties(self.shape, out_names, out, signed)
         self.measure_time.write(timer.interval)
         self.update_ui.emit()
 
@@ -683,7 +684,10 @@ class Control(QtCore.QObject):
         self.update_cols(aqn)
         # add channel signed choices
         # TODO: better implementation. for now, just assume not signed
-        headers.channel_info['channel signed'] = [False for kind in headers.data_cols['kind'] if kind == 'channel']
+        signed = []
+        for device in self.devices:
+            signed += device.data.signed
+        headers.channel_info['channel signed'] = signed
         # add daq information to headers
         for device in self.devices:
             if device.active:
