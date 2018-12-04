@@ -82,6 +82,7 @@ class Data(QtCore.QMutex):
         self.size = 1
         self.channels = []
         self.cols = []
+        self.signed = []
         self.map = None
 
     def read(self):
@@ -105,12 +106,15 @@ class Data(QtCore.QMutex):
         self.WaitCondition.wakeAll()
         self.unlock()
         
-    def write_properties(self, shape, cols, channels, map=None):
+    def write_properties(self, shape, cols, channels, signed=False, map=None):
         self.lock()
         self.shape = shape
         self.size = np.prod(shape)
         self.channels = channels
         self.cols = cols
+        self.signed = signed
+        if not signed:
+            self.signed = [False] * len(self.cols)
         self.map = map
         self.WaitCondition.wakeAll()
         self.unlock()

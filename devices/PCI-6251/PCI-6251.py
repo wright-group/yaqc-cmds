@@ -549,10 +549,15 @@ class Driver(BaseDriver):
             processing_module = imp.load_module(name, f, p, d)
             kinds = ['channel' for _ in channel_names] + ['chopper' for _ in chopper_names]
             names = channel_names + chopper_names
-            out, out_names = processing_module.process(shots_array, names, kinds)
+            out = processing_module.process(shots_array, names, kinds)
+            if len(out) == 3:
+                out, out_names, out_signed = out
+            else:
+                out, out_names = out
+            
         seconds_for_shots_processing.write(self.processing_timer.interval)
         # export last data
-        self.data.write_properties((1,), out_names, out)
+        self.data.write_properties((1,), out_names, out, out_signed)
         self.update_ui.emit()
         ### finish ############################################################
         seconds_since_last_task.write(time.time() - self.previous_time)
