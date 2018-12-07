@@ -8,6 +8,7 @@ Acquisition infrastructure shared by all modules.
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import re
 import os
 import sys
 import imp
@@ -66,8 +67,9 @@ class Axis:
         self.hardware_dict = hardware_dict.copy()
         self.__dict__.update(kwargs)
         # fill hardware dictionary with defaults
-        names, operators = wt.kit.parse_identity(self.identity)
-        if 'F' in operators:  # last name should be a 'following' in this case
+        names = re.split("[=F]+", self.identity)
+        # KFS 2018-12-07: Is this still used at all? replacing wt2 kit.parse_identity
+        if 'F' in self.identity:  # last name should be a 'following' in this case
             names.pop(-1)
         for name in names:
             if name[0] == 'D':
@@ -171,7 +173,10 @@ class Worker(QtCore.QObject):
         if len(data.shape) > 2:
             chopped_datas = data.chop(0, 1, verbose=False)
         # make figures for each channel
-        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        data_path = pathlib.Path(data_path)
+        data_folder = str(data_path.parent)
+        file_name = data_path.stem
+        file_extension = data_path.suffix
         # chop data if over 2D
         for channel_index, channel_name in enumerate(data.channel_names):
             image_fname = channel_name + ' ' + file_name

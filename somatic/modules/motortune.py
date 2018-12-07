@@ -4,6 +4,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import pathlib
 import sys
 import time
 import numexpr as ne
@@ -115,7 +116,10 @@ class Worker(acquisition.Worker):
         # chop data if over 2D
         if len(data.shape) > 2:
             chopped_datas = data.chop(0, 1, verbose=False)
-        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        data_path = pathlib.Path(data_path)
+        data_folder = str(data_path.parent)
+        file_name = data_path.stem
+        file_extension = data_path.suffix
         # make all images
         channel = self.aqn.read('processing', 'channel')
         image_fname = channel

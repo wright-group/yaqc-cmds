@@ -20,6 +20,7 @@ from PyQt4 import QtCore, QtGui
 import pyqtgraph as pg
 
 import WrightTools as wt
+import tidy_headers
 
 import project.project_globals as g
 import project.classes as pc
@@ -243,7 +244,7 @@ class FileAddress(QtCore.QObject):
         data_path.write(os.path.join(scan_folder, self.filename + '.data'))
         # generate file
         dictionary = headers.read(kind='data')
-        wt.kit.write_headers(data_path.read(), dictionary)
+        tidy_headers.write(data_path.read(), dictionary)
         # shots ---------------------------------------------------------------
         # TODO: this is hack
         if aqn.has_section('NI 6251'):
