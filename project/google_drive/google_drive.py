@@ -14,7 +14,7 @@ from distutils.dir_util import copy_tree
 
 from PyQt4 import QtGui, QtCore
 
-import WrightTools as wt
+from . import _google_drive
 
 import project.classes as pc
 import project.logging_handler as logging_handler
@@ -53,7 +53,7 @@ class Address(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.busy = busy
         self.enqueued = enqueued
-        self.drive = wt.google_drive.Drive()
+        self.drive = _google_drive.Drive()
         self.system_name = system_name
         self.name = 'drive'
 
@@ -146,7 +146,7 @@ class Control:
         # connect
         g.shutdown.add_method(self.close)
         # own google drive method for quick operations
-        self.drive = wt.google_drive.Drive()
+        self.drive = _google_drive.Drive()
         # session path variables
         self.data_folder = os.path.abspath(os.path.join(g.main_dir.read(), 'data'))
 
@@ -162,7 +162,7 @@ class Control:
         relative_path = os.path.relpath(os.path.abspath(path), self.data_folder)
         folder_names = [self.system_name] + relative_path.split(os.sep)
         folderid = self.drive.create_folder(folder_names, PyCMDS_data_ID)
-        folder_url = wt.google_drive.id_to_url(folderid)
+        folder_url = _google_drive.id_to_url(folderid)
         return folder_url
         
     def upload_scan(self, folder_path, representative_image_path=None):
@@ -170,7 +170,7 @@ class Control:
         folder_names = [self.system_name, queue_folder_name, acquisition_folder_name, scan_folder_name]  
         # create folder on google drive
         folderid = self.drive.create_folder(folder_names, PyCMDS_data_ID)
-        folder_url = wt.google_drive.id_to_url(folderid)
+        folder_url = _google_drive.id_to_url(folderid)
         # upload representative image
         if representative_image_path is not None:
             imageid = self.drive.upload(representative_image_path, folderid)
