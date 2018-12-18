@@ -103,13 +103,13 @@ class Driver(hw.Driver):
             colors = np.linspace(400, 10000, 17)
             units = 'nm'
             motors = []
-            motors.append(wt.tuning.curve.Motor(((colors-500)/1e4)**2, 'Delay'))
-            motors.append(wt.tuning.curve.Motor(-(colors-90)**0.25, 'Crystal'))
-            motors.append(wt.tuning.curve.Motor((colors-30)**0.25, 'Mixer'))
+            motors.append(attune.curve.Motor(((colors-500)/1e4)**2, 'Delay'))
+            motors.append(attune.curve.Motor(-(colors-90)**0.25, 'Crystal'))
+            motors.append(attune.curve.Motor((colors-30)**0.25, 'Mixer'))
             name = 'curve'
             interaction = 'sig'
             kind = 'Virtual'
-            self.curve = wt.tuning.curve.Curve(colors, units, motors, name, interaction, kind)
+            self.curve = attune.curve.Curve(colors, units, motors, name, interaction, kind)
             self.curve.convert(self.native_units)
         else:
             raise NotImplementedError
@@ -191,7 +191,7 @@ class Driver(hw.Driver):
         curve = self._load_curve(interaction)
         if self.poynting_correction:
             p = self.curve_paths['Poynting'].read()
-            self.curve = wt.tuning.curve.from_poynting_curve(p, subcurve=curve)
+            self.curve = attune.curve.read(p, subcurve=curve)
             self.hardware_ini.write(self.name, 'poynting_curve_path', p)
         self.curve.convert(self.native_units)
         # update limits

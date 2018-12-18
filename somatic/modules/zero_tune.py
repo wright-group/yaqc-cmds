@@ -59,7 +59,7 @@ class Worker(acquisition.Worker):
         color_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'energy'][0]
         delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'delay'][0]
         for delay in delays: 
-            wt.tuning.spectral_delay_correction.process_wigner(data, channel_name, opa_name, delay, "{}_{}".format(opa_name, delay), global_cutoff_factor = 0, color_units=color_units, delay_units=delay_units, save_directory=scan_folder)
+            attune.spectral_delay_correction.process_wigner(data, channel_name, opa_name, delay, "{}_{}".format(opa_name, delay), global_cutoff_factor = 0, color_units=color_units, delay_units=delay_units, save_directory=scan_folder)
         # upload
         self.upload(scan_folder)
     

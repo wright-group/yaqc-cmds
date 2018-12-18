@@ -113,7 +113,7 @@ class AutoTune(BaseAutoTune):
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
             channel = worker.aqn.read('BBO', 'channel')
-            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.driver.curve_path.write(p)
@@ -146,7 +146,7 @@ class AutoTune(BaseAutoTune):
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
             channel = worker.aqn.read('Mixer', 'channel')
-            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.driver.curve_path.write(p)
@@ -177,7 +177,7 @@ class AutoTune(BaseAutoTune):
             p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(p)
             channel = worker.aqn.read('Test', 'channel')
-            wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
+            attune.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.driver.curve_path.write(p)
@@ -245,7 +245,7 @@ class Driver(BaseDriver):
         '''
         when loading externally, write to curve_path object directly
         '''
-        self.curve = wt.tuning.curve.from_800_curve(self.curve_paths['Curve'].read())
+        self.curve = attune.curve.read(self.curve_paths['Curve'].read())
         return self.curve
 
     def _set_motors(self, motor_indexes, motor_destinations):

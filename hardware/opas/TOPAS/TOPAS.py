@@ -172,7 +172,7 @@ class AutoTune(BaseAutoTune):
             curve = self.opa.curve
             channel = worker.aqn.read('BBO', 'channel')
             old_curve_filepath = curve_path.read()
-            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.opa.curve_path.write(p)
@@ -207,7 +207,7 @@ class AutoTune(BaseAutoTune):
             curve = self.opa.curve
             channel = worker.aqn.read('Mixer', 'channel')
             old_curve_filepath = self.opa.curve_path.read()
-            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.opa.curve_path.write(p)
@@ -239,7 +239,7 @@ class AutoTune(BaseAutoTune):
             data = wt.data.from_PyCMDS(p)
             curve = self.opa.curve
             channel = worker.aqn.read('Test', 'channel')
-            wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
+            attune.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.opa.curve_path.write(p)
@@ -421,7 +421,7 @@ class Driver(BaseDriver):
         need = [x for x in range(4) if x+1 not in used]        
         for i in need:
             crv_paths.insert(i,None)
-        self.curve = wt.tuning.curve.from_TOPAS_crvs(crv_paths, self.kind, interaction)
+        self.curve = attune.curve.topas.read(crv_paths, self.kind, interaction)
         return self.curve
        
     def _set_motors(self, motor_indexes, motor_destinations):

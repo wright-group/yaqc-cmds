@@ -46,7 +46,7 @@ class Worker(acquisition.Worker):
             data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(data_path)
             channel_name = self.aqn.read('processing', 'channel')
-            wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
+            attune.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
             # upload
             self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
     
@@ -113,7 +113,7 @@ class Worker(acquisition.Worker):
                     p = os.path.join(scan_folder, '000.data')
                     data = wt.data.from_PyCMDS(p)
                     channel = self.aqn.read('processing', 'channel')
-                    wt.tuning.workup.intensity(data, curve, channel, save_directory = scan_folder, cutoff_factor=1e-3)
+                    attune.workup.intensity(data, curve, channel, save_directory = scan_folder, cutoff_factor=1e-3)
 
                     p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
                     opa_hardware.driver.curve_paths['Poynting'].write(p)

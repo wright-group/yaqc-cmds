@@ -53,7 +53,7 @@ class Worker(acquisition.Worker):
         if curve.kind == 'poynting':
             curve = curve.subcurve
         channel_name = self.aqn.read('processing', 'channel')
-        wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
+        attune.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
         # upload
         self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
     
