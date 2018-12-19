@@ -113,40 +113,30 @@ class Worker(acquisition.Worker):
         data_path = devices.data_path.read() 
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
-        # chop data if over 2D
-        if len(data.shape) > 2:
-            chopped_datas = data.chop(0, 1, verbose=False)
         data_path = pathlib.Path(data_path)
-        data_folder = str(data_path.parent)
+        data_folder = data_path.parent
+        ouput_folder = data_folder
+        channel_path = data_folder / channel
+        if data.ndim > 2:
+            output_folder = channel_path
+            channel_path.mkdir()
         file_name = data_path.stem
         file_extension = data_path.suffix
         # make all images
         channel = self.aqn.read('processing', 'channel')
         image_fname = channel
-        if len(data.shape) == 1:
-            artist = wt.artists.mpl_1D(data, verbose=False)
-            artist.plot(channel, autosave=True, output_folder=data_folder,
-                        fname=image_fname, verbose=False)
-        elif len(data.shape) == 2:
-            artist = wt.artists.mpl_2D(data, verbose=False)
-            artist.plot(channel, autosave=True, output_folder=data_folder,
+        if data.ndim == 1:
+            filepaths = wt.artists.quick1D(data, channel=channel, autosave=True, save_directory=output_folder,
                         fname=image_fname, verbose=False)
         else:
-            channel_folder = os.path.join(data_folder, channel)
-            os.mkdir(channel_folder)
-            for index, chopped_data in enumerate(chopped_datas):
-                this_image_fname = image_fname + ' ' + str(index).zfill(3)
-                artist = wt.artists.mpl_2D(chopped_data, verbose=False)
-                artist.plot(channel, autosave=True, output_folder=channel_folder,
-                            fname=this_image_fname, verbose=False)
+            filepaths = wt.artists.quick2D(data, -1, -2, channel=channel, autosave=True, save_directory=output_folder,
+                        fname=image_fname, verbose=False)
         # get output image
-        if len(data.shape) <= 2:
-            output_image_path = os.path.join(data_folder, '%s 000.png'%channel)
+        if len(filepaths) == 1:
+            output_image_path = filepaths[0]
         else:
-            output_folder = os.path.join(data_folder, channel)
-            output_image_path = os.path.join(output_folder, 'animation.gif')
-            images = wt.kit.glob_handler('.png', folder=output_folder)
-            wt.artists.stitch_to_animation(images=images, outpath=output_image_path)
+            output_image_path = str(output_folder / 'animation.gif')
+            wt.artists.stitch_to_animation(images=filepaths, outpath=output_image_path)
         # upload
         self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)    
     
