@@ -135,22 +135,22 @@ class Worker(acquisition.Worker):
         # make figures for each channel
         data_path = pathlib.Path(data_path)
         data_folder = data_path.parent
-        channel_path = data_folder / channel_name
-        output_path = data_folder
-        if data.ndim > 2:
-            output_path = channel_path
-            channel_path.mkdir()
         file_name = data_path.stem
         file_extension = data_path.suffix
         # make all images
         for channel_name in channels:
+            channel_path = data_folder / channel_name
+            output_path = data_folder
+            if data.ndim > 2:
+                output_path = channel_path
+                channel_path.mkdir()
             channel_index = data.channel_names.index(channel_name)
             image_fname = channel_name
             if data.ndim == 1:
-                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, output_folder=output_folder,
+                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, save_directory=output_path,
                             fname=image_fname, verbose=False)
             else:
-                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, output_folder=output_folder,
+                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, save_directory=output_path,
                             fname=image_fname, verbose=False)
             if channel_name == main_channel:
                 outputs = outs
@@ -293,9 +293,9 @@ class GUI(acquisition.GUI):
         for axis_index, axis_name in enumerate(axis_names):
             units = aqn.read(axis_name, 'units')
             units_kind = None
-            for d in wt.units.dicts:
+            for kind, d in wt.units.dicts.items():
                 if units in d.keys():
-                    units_kind = d['kind']
+                    units_kind = kind
             axis = Axis(units_kind, axis_index)
             axis.start.write(aqn.read(axis_name, 'start'))
             axis.stop.write(aqn.read(axis_name, 'stop'))

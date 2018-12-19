@@ -6,6 +6,7 @@ import collections
 import numpy as np
 
 import WrightTools as wt
+import attune
 
 import project.classes as pc
 import project.widgets as pw

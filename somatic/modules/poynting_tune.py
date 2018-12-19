@@ -15,6 +15,7 @@ matplotlib.pyplot.ioff()
 
 from PyQt4 import QtCore, QtGui
 import WrightTools as wt
+import attune
 
 import project.project_globals as g
 import project.classes as pc

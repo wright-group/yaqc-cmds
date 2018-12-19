@@ -12,6 +12,7 @@ import ctypes
 from ctypes import *
 
 import WrightTools as wt
+import attune
 
 import project
 import project.classes as pc
@@ -22,7 +23,7 @@ from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 from hardware.opas.opas import AutoTune as BaseAutoTune
 from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
-from WrightTools.tuning.curve import TOPAS_interaction_by_kind
+from attune.curve.topas import TOPAS_interaction_by_kind
                                  
 # --- define --------------------------------------------------------------------------------------
 

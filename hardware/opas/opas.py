@@ -11,6 +11,7 @@ import numpy as np
 from PyQt4 import QtGui
 
 import WrightTools as wt
+import attune
 
 import project.project_globals as g
 import project.widgets as pw
@@ -319,7 +320,6 @@ class GUI(hw.GUI):
         self.plot_motor.updated.connect(self.update_plot)
         input_table.add('Motor', self.plot_motor)
         allowed_values = list(wt.units.energy.keys())
-        allowed_values.remove('kind')
         self.plot_units = pc.Combo(initial_value=self.driver.native_units, allowed_values=allowed_values)
         self.plot_units.updated.connect(self.update_plot)
         input_table.add('Units', self.plot_units)

@@ -476,10 +476,10 @@ class Number(PyCMDS_Object):
         # units
         self.units = units
         self.units_kind = None
-        for dic in wt_units.dicts:
+        for kind, dic in wt_units.dicts.items():
             if self.units in dic.keys():
                 self.units_dic = dic
-                self.units_kind = dic['kind']
+                self.units_kind = kind
         # limits
         self.limits = limits
         if self.limits is None:
@@ -594,7 +594,6 @@ class Number(PyCMDS_Object):
         self.units_widget = units_combo_widget
         # add items
         unit_types = list(self.units_dic.keys())
-        unit_types.remove('kind')
         self.units_widget.addItems(unit_types)
         # set current item
         self.units_widget.setCurrentIndex(unit_types.index(self.units))

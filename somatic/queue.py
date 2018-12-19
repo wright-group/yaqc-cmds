@@ -1164,12 +1164,11 @@ class GUI(QtCore.QObject):
 
     def save_aqn(self, folder):
         # all aqn files are first created using this method
-        now = time.time()
         # get filepath
         module_name = self.module_combobox.read()
         name = self.acquisition_name.read()
-        timestamp = wt.kit.get_timestamp(style='short', at=now)
-        aqn_name = ' '.join([timestamp, module_name, name]).rstrip() + '.aqn'
+        timestamp = wt.kit.TimeStamp()
+        aqn_name = ' '.join([timestamp.path, module_name, name]).rstrip() + '.aqn'
         p = os.path.join(folder, aqn_name)
         # create file
         with open(p, 'a'):
@@ -1178,7 +1177,7 @@ class GUI(QtCore.QObject):
         ini = wt.kit.INI(p)
         ini.add_section('info')
         ini.write('info', 'PyCMDS version', g.version.read())
-        ini.write('info', 'created', wt.kit.get_timestamp(at=now))
+        ini.write('info', 'created', timestamp.RFC3339)
         ini.write('info', 'module', module_name)
         ini.write('info', 'name', name)
         ini.write('info', 'info', self.acquisition_info.read())
