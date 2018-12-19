@@ -293,7 +293,7 @@ class GUI(acquisition.GUI):
         for axis_index, axis_name in enumerate(axis_names):
             units = aqn.read(axis_name, 'units')
             units_kind = None
-            for d in wt.units.unit_dicts:
+            for d in wt.units.dicts:
                 if units in d.keys():
                     units_kind = d['kind']
             axis = Axis(units_kind, axis_index)

@@ -476,7 +476,7 @@ class Number(PyCMDS_Object):
         # units
         self.units = units
         self.units_kind = None
-        for dic in wt_units.unit_dicts:
+        for dic in wt_units.dicts:
             if self.units in dic.keys():
                 self.units_dic = dic
                 self.units_kind = dic['kind']
