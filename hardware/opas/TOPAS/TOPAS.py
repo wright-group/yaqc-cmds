@@ -173,6 +173,9 @@ class AutoTune(BaseAutoTune):
             curve = self.opa.curve
             channel = worker.aqn.read('BBO', 'channel')
             old_curve_filepath = curve_path.read()
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
             attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
@@ -208,6 +211,9 @@ class AutoTune(BaseAutoTune):
             curve = self.opa.curve
             channel = worker.aqn.read('Mixer', 'channel')
             old_curve_filepath = self.opa.curve_path.read()
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
             attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
@@ -240,6 +246,9 @@ class AutoTune(BaseAutoTune):
             data = wt.data.from_PyCMDS(p)
             curve = self.opa.curve
             channel = worker.aqn.read('Test', 'channel')
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
             attune.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]

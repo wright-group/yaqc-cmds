@@ -114,6 +114,9 @@ class AutoTune(BaseAutoTune):
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
             channel = worker.aqn.read('BBO', 'channel')
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
             attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
@@ -146,6 +149,9 @@ class AutoTune(BaseAutoTune):
             # process
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
             channel = worker.aqn.read('Mixer', 'channel')
             attune.workup.intensity(data, curve, channel, save_directory=scan_folder)
             # apply new curve
@@ -178,6 +184,9 @@ class AutoTune(BaseAutoTune):
             p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(p)
             channel = worker.aqn.read('Test', 'channel')
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
             attune.workup.tune_test(data, curve, channel, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
