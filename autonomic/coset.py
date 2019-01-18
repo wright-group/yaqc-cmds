@@ -152,7 +152,6 @@ class CoSetHW:
         label.setMargin(3)
         self.table.setCellWidget(new_row_index, 0, label)
         # path
-        _, name, _ = wt.kit.filename_parse(corr.path)
         name = pathlib.Path(corr.path).stem
         label = pw.Label(name)
         label.setMargin(3)
