@@ -23,7 +23,7 @@ from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 from hardware.opas.opas import AutoTune as BaseAutoTune
 from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
-from attune.curve.topas import TOPAS_interaction_by_kind
+from attune.curve._topas import TOPAS_interaction_by_kind
                                  
 # --- define --------------------------------------------------------------------------------------
 
@@ -422,7 +422,7 @@ class Driver(BaseDriver):
         need = [x for x in range(4) if x+1 not in used]        
         for i in need:
             crv_paths.insert(i,None)
-        self.curve = attune.curve.topas.read(crv_paths, self.kind, interaction)
+        self.curve = attune.curve.read_topas(crv_paths, self.kind, interaction)
         return self.curve
        
     def _set_motors(self, motor_indexes, motor_destinations):
