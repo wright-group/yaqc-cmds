@@ -208,6 +208,7 @@ class Worker(acquisition.Worker):
                 kwargs = {'centers': curve.colors}
             else:
                 center = self.aqn.read('spectrometer', 'center')
+                center = wt.units.convert(center, self.aqn.read('spectrometer', 'center units'), 'wn')
                 identity = name
                 kwargs = {}
             points = np.linspace(center-width, center+width, npts)
@@ -218,9 +219,13 @@ class Worker(acquisition.Worker):
                 # already handled above
                 pass
             else:
-                spectrometers.hardwares[0].set_position(self.aqn.read('spectrometer', 'center'), 'wn')
+                center = self.aqn.read('spectrometer', 'center')
+                center = wt.units.convert(center, self.aqn.read('spectrometer', 'center units'), 'wn')              
+                spectrometers.hardwares[0].set_position(center, 'wn')
         elif self.aqn.read('spectrometer', 'method') == 'Static':
-            spectrometers.hardwares[0].set_position(self.aqn.read('spectrometer', 'center'), 'wn')
+            center = self.aqn.read('spectrometer', 'center')
+            center = wt.units.convert(center, self.aqn.read('spectrometer', 'center units'), 'wn')
+            spectrometers.hardwares[0].set_position(center, 'wn')
         # handle centers
         for axis_index, axis in enumerate(axes):
             centers_shape = [a.points.size for i, a in enumerate(axes) if not i == axis_index]
@@ -262,7 +267,6 @@ class GUI(acquisition.GUI):
         self.mono_method_combo = pc.Combo(allowed, disable_under_module_control=True)
         self.mono_method_combo.updated.connect(self.update_mono_settings)
         self.mono_center = pc.Number(initial_value=7000, units='wn', disable_under_module_control=True)
-        self.mono_center.set_disabled_units(True)
         self.mono_width = pc.Number(initial_value=500, units='wn', disable_under_module_control=True)
         self.mono_width.set_disabled_units(True)
         self.mono_npts = pc.Number(initial_value=51, decimals=0, disable_under_module_control=True)
@@ -338,6 +342,7 @@ class GUI(acquisition.GUI):
         aqn.add_section('spectrometer')
         aqn.write('spectrometer', 'method', self.mono_method_combo.read())
         aqn.write('spectrometer', 'center', self.mono_center.read())
+        aqn.write('spectrometer', 'center units', self.mono_center.units)
         aqn.write('spectrometer', 'width', self.mono_width.read())
         aqn.write('spectrometer', 'number', self.mono_npts.read())
         # processing
