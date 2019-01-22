@@ -193,6 +193,7 @@ class Driver(hw.Driver):
         if self.poynting_correction:
             p = self.curve_paths['Poynting'].read()
             self.curve = attune.curve.read(p, subcurve=curve)
+            self.curve.kind = "poynting"
             self.hardware_ini.write(self.name, 'poynting_curve_path', p)
         self.curve.convert(self.native_units)
         # update limits

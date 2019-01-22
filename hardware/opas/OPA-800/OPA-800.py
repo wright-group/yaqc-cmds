@@ -256,6 +256,7 @@ class Driver(BaseDriver):
         when loading externally, write to curve_path object directly
         '''
         self.curve = attune.curve.read(self.curve_paths['Curve'].read())
+        self.curve.kind = "opa800"
         return self.curve
 
     def _set_motors(self, motor_indexes, motor_destinations):
