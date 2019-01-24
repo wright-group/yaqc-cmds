@@ -168,6 +168,9 @@ class Control:
     def interrupt(self, text, channel):
         self.send_message(':confounded: sorry, that feature hasn\'t been implemented')        
 
+    def run_queue(self):
+        g.main_window.read().queue_gui.queue.run()
+
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
         print(text)
@@ -281,6 +284,8 @@ class Control:
                 self.append(text, channel)
             elif 'interrupt' in text.lower():
                 self.interrupt(text, channel)
+            elif 'run' in text.lower():
+                self.run_queue()
             elif 'help' in text.lower():
                 self.send_help(channel)
             else:
