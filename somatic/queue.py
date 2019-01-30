@@ -452,7 +452,7 @@ class Queue():
         string = ':'.join([str(int(h)).zfill(3), str(int(m)).zfill(2), str(int(s)).zfill(2)])
         return string
 
-    def interrupt(self, message='Please choose how to proceed.'):
+    def interrupt(self, option=None, message='Please choose how to proceed.'):
         self.gui.queue_control.set_style('WAITING', 'stop')
         # pause
         self.status.pause.write(True)
@@ -461,7 +461,10 @@ class Queue():
         # ask user how to proceed
         options = ['RESUME', 'SKIP', 'STOP']
         self.gui.interrupt_choice_window.set_text(message)
-        index_chosen = self.gui.interrupt_choice_window.show()
+        if option is None:
+            index_chosen = self.gui.interrupt_choice_window.show()
+        else:
+            index_chosen = wt.kit.get_index(options, option)
         chosen = options[index_chosen]
         # proceed
         if chosen == 'RESUME':

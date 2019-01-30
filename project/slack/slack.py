@@ -166,10 +166,33 @@ class Control:
         print(i)
 
     def interrupt(self, text, channel):
-        self.send_message(':confounded: sorry, that feature hasn\'t been implemented')        
+        subcommand = text.strip().upper()
+        if subcommand == "":
+            subcommand = "PAUSE"
+        messages = {
+                "PAUSE": ":double_vertical_bar: Queue Paused, use `interrupt resume` to continue",
+                "RESUME": ":arrow_forward: Queue resumed",
+                "STOP": ":octagonal_sign: Queue stopped, use `run` to continue with next item",
+                "SKIP": ":black_right_pointing_double_triangle_with_vertical_bar: Item skipped, continuing queue",
+            }
+        message = messages.get(subcommand, ":confounded: I do not understand the command")
+        if subcommand == "PAUSE":
+            g.main_window.read().queue_gui.queue.status.pause.write(True)
+        elif subcommand in messages.keys():
+            if g.main_window.read().queue_gui.queue.status.going.read():
+                g.main_window.read().queue_gui.queue.interrupt(option=subcommand)
+            elif subcommand == "STOP":
+                g.main_window.read().queue_gui.queue.status.go.write(False)
+        self.send_message(message)
+        g.main_window.read().queue_gui.update_ui()
 
     def run_queue(self):
-        g.main_window.read().queue_gui.queue.run()
+        g.main_window.read().queue_gui.queue.status.go.write(True)
+        try:
+            g.main_window.read().queue_gui.queue.run()
+        except IndexError:  # Queue full
+            pass
+        g.main_window.read().queue_gui.update_ui()
 
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
@@ -283,6 +306,10 @@ class Control:
             elif 'append' in text.lower():
                 self.append(text, channel)
             elif 'interrupt' in text.lower():
+                try:
+                    text = text.split(' ', 1)[1]
+                except IndexError:
+                    text = ""
                 self.interrupt(text, channel)
             elif 'run' in text.lower():
                 self.run_queue()
