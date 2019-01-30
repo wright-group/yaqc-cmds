@@ -61,7 +61,7 @@ class PyCMDS_bot(object):
             if 'type' in i:
                 if i['type']=='message':
                     pm = i["channel"].startswith('D')
-                    if i["text"].startswith('<@U0EALA010>'):
+                    if i.get("text", "").startswith('<@U0EALA010>'):
                         i["text"] = i["text"].split('>',1)[1]
                         mess.append(i)
                     elif pm:

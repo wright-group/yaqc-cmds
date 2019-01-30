@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import tempfile
 import glob
 import datetime
 
@@ -194,6 +195,13 @@ class Control:
             pass
         g.main_window.read().queue_gui.update_ui()
 
+    def screenshot(self, channel):
+        p = QtGui.QPixmap.grabWindow(g.main_window.read().winId())
+        with tempfile.NamedTemporaryFile(suffix=".png") as tf:
+            p.save(tf.name, "png")
+            self.upload_file(tf.name, ":camera:", channel=channel)
+            time.sleep(1)
+
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
         print(text)
@@ -313,6 +321,8 @@ class Control:
                 self.interrupt(text, channel)
             elif 'run' in text.lower():
                 self.run_queue()
+            elif 'screenshot' in text.lower():
+                self.screenshot(channel)
             elif 'help' in text.lower():
                 self.send_help(channel)
             else:
