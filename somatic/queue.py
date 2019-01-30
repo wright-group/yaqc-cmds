@@ -878,7 +878,7 @@ class GUI(QtCore.QObject):
         layout.addWidget(input_table)
         return frame
     
-    def get_status(self):
+    def get_status(self, full=False):
         # called by slack
         make_field = g.slack_control.read().make_field
         make_attachment = g.slack_control.read().make_attachment
@@ -904,6 +904,8 @@ class GUI(QtCore.QObject):
             attachments.append(make_attachment('', fields=fields, color='#00FFFF'))
             # queue items 
             for item_index, item in enumerate(self.queue.items):
+                if not full and item.status != "RUNNING":
+                    continue
                 name = ' - '.join([str(item_index).zfill(3), item.type, item.description])
                 fields = []
                 if item.started is not None:

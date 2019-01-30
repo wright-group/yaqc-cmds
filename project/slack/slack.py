@@ -346,7 +346,7 @@ class Control:
         self.q.push('send_message', [text, channel, attachments])
         
     def status(self, text, channel):
-        text, attachments = g.main_window.read().get_status()
+        text, attachments = g.main_window.read().get_status("full" in text.lower())
         self.send_message(text, channel, attachments)
         
     def upload_file(self, file_path, title=None, first_comment=None, channel=None):

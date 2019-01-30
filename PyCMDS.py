@@ -287,9 +287,9 @@ class MainWindow(QtGui.QMainWindow):
         size = self.geometry() 
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
         
-    def get_status(self):
+    def get_status(self, full=False):
         # called by slack
-        return self.queue_gui.get_status()
+        return self.queue_gui.get_status(full)
 
 def main():
     global MainWindow
