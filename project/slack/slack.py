@@ -333,12 +333,14 @@ class Control:
 
     def send_help(self, channel):
         command_fields = []
-        command_fields.append(self.make_field('status', 'Get the current status of PyCMDS.'))
-        command_fields.append(self.make_field('get i', 'Get more information about the ith item in the queue.'))
-        command_fields.append(self.make_field('remove i', 'Remove the ith item from the queue.'))
-        command_fields.append(self.make_field('move i to j', 'Move item i to position j. All other items retain their order.'))
-        command_fields.append(self.make_field('append [name] [info]', 'Append a file to the queue. Must be made as a comment of an attached file.'))
-        command_fields.append(self.make_field('interrupt', 'Interrupt the queue.'))
+        command_fields.append(self.make_field('status [--full]', 'Get the current status of PyCMDS.'))
+        #command_fields.append(self.make_field('remove i', 'Remove the ith item from the queue.'))
+        #command_fields.append(self.make_field('move i to j', 'Move item i to position j. All other items retain their order.'))
+        #command_fields.append(self.make_field('append [name] [info]', 'Append a file to the queue. Must be made as a comment of an attached file.'))
+        command_fields.append(self.make_field('run', 'Run the queue.'))
+        command_fields.append(self.make_field('interrupt [pause|resume|skip|stop]', 'Interrupt the queue or resume from pause. Default is pause.'))
+        command_fields.append(self.make_field('screenshot', 'Take a screenshot of the current window and post to slack.'))
+        command_fields.append(self.make_field('help', 'Show this help message.'))
         attachment = self.make_attachment('', fields=command_fields)
         self.send_message(':robot_face: here are my commands', channel, [attachment])
 
