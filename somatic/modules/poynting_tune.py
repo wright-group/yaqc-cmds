@@ -66,7 +66,7 @@ class Worker(acquisition.Worker):
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
 
-        axis = acquisition.Axis(curve.colors, 'wn', opa_name, opa_name)
+        axis = acquisition.Axis(curve.setpoints, 'wn', opa_name, opa_name)
         possible_axes[opa_name] = axis
 
         self.do_2D = self.aqn.read('processing', 'do_2D_scans')

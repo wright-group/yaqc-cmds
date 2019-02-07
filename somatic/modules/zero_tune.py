@@ -74,7 +74,7 @@ class Worker(acquisition.Worker):
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
-        axis = acquisition.Axis(curve.colors, 'wn', opa_friendly_name, opa_friendly_name)
+        axis = acquisition.Axis(curve.setpoints, 'wn', opa_friendly_name, opa_friendly_name)
         axes.append(axis)
         # delay
         axis_name = 'delay'

@@ -161,11 +161,11 @@ class Worker(acquisition.Worker):
                 identity = opa_friendly_name + '=wm'
                 hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]],
                                  'wm': [spectrometers.hardwares[0], 'set_position', None]}
-                axis = acquisition.Axis(curve.colors, curve.units, opa_friendly_name, identity, hardware_dict)
+                axis = acquisition.Axis(curve.setpoints, curve.units, opa_friendly_name, identity, hardware_dict)
                 axes.append(axis)
             else:
                 hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]]}
-                axis = acquisition.Axis(curve.colors, curve.units, opa_friendly_name, opa_friendly_name, hardware_dict)
+                axis = acquisition.Axis(curve.setpoints, curve.units, opa_friendly_name, opa_friendly_name, hardware_dict)
                 axes.append(axis)
         # motor
         for motor_index, motor_name in enumerate(motor_names):
@@ -177,8 +177,7 @@ class Worker(acquisition.Worker):
                 if self.aqn.read('motortune', 'use tune points'):
                     center = 0.
                     identity = 'D'+name
-                    curve_motor_index = curve.get_motor_names(full=False).index(motor_name)
-                    motor_positions = curve.motors[curve_motor_index].positions
+                    motor_positions = curve[motor_name][:]
                     kwargs = {'centers': motor_positions}
                 else:
                     center = self.aqn.read(motor_name, 'center')
@@ -204,8 +203,8 @@ class Worker(acquisition.Worker):
                 curve = curve.copy()
                 curve.convert('wn')
                 #centers_shape = [a.points.size for a in axes]
-                #centers = np.transpose(curve.colors * np.ones(centers_shape).T)
-                kwargs = {'centers': curve.colors}
+                #centers = np.transpose(curve.setpoints * np.ones(centers_shape).T)
+                kwargs = {'centers': curve.setpoints}
             else:
                 center = self.aqn.read('spectrometer', 'center')
                 center = wt.units.convert(center, self.aqn.read('spectrometer', 'center units'), 'wn')

@@ -149,7 +149,7 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('BBO', 'do'):
             axes = []
             # tune points
-            points = curve.colors
+            points = curve.setpoints
             units = curve.units
             name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
@@ -187,7 +187,7 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Mixer', 'do'):
             axes = []
             # tune points
-            points = curve.colors
+            points = curve.setpoints
             units = curve.units
             name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
@@ -225,7 +225,7 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Test', 'do'):
             axes = []
             # tune points
-            points = curve.colors
+            points = curve.setpoints
             units = curve.units
             name = identity = self.opa.hardware.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
@@ -236,7 +236,7 @@ class AutoTune(BaseAutoTune):
             width = worker.aqn.read('Test', 'width') 
             npts = int(worker.aqn.read('Test', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            kwargs = {'centers': curve.colors}
+            kwargs = {'centers': curve.setpoints}
             axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
             axes.append(axis)
             # do scan
@@ -431,7 +431,7 @@ class Driver(BaseDriver):
         need = [x for x in range(4) if x+1 not in used]        
         for i in need:
             crv_paths.insert(i,None)
-        self.curve = attune.curve.read_topas(crv_paths, self.kind, interaction)
+        self.curve = attune.TopasCurve(crv_paths, self.kind, interaction)
         return self.curve
        
     def _set_motors(self, motor_indexes, motor_destinations):

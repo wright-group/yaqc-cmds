@@ -92,7 +92,7 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('BBO', 'do'):
             axes = []
             # tune points
-            points = curve.colors
+            points = curve.setpoints
             units = curve.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
@@ -128,7 +128,7 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Mixer', 'do'):
             axes = []
             # tune points
-            points = curve.colors
+            points = curve.setpoints
             units = curve.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
@@ -164,7 +164,7 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Test', 'do'):
             axes = []
             # tune points
-            points = curve.colors
+            points = curve.setpoints
             units = curve.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
@@ -175,7 +175,7 @@ class AutoTune(BaseAutoTune):
             width = worker.aqn.read('Test', 'width')
             npts = int(worker.aqn.read('Test', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            kwargs = {'centers': curve.colors}
+            kwargs = {'centers': curve.setpoints}
             axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
             axes.append(axis)
             # do scan
@@ -255,7 +255,7 @@ class Driver(BaseDriver):
         '''
         when loading externally, write to curve_path object directly
         '''
-        self.curve = attune.curve.read(self.curve_paths['Curve'].read())
+        self.curve = attune.Curve.read(self.curve_paths['Curve'].read())
         self.curve.kind = "opa800"
         return self.curve
 
