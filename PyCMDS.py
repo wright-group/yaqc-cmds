@@ -28,7 +28,6 @@ for folder in folders:
 
 
 import sys
-import imp
 import copy
 import glob
 import inspect

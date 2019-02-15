@@ -102,7 +102,6 @@ class Driver(hw.Driver):
     def _load_curve(self, interaction):
         if self.model == 'Virtual':
             colors = np.linspace(400, 10000, 17)
-            units = 'nm'
             motors = []
             motors.append(attune.Dependent(((colors-500)/1e4)**2, 'Delay'))
             motors.append(attune.Dependent(-(colors-90)**0.25, 'Crystal'))
@@ -110,16 +109,16 @@ class Driver(hw.Driver):
             name = 'curve'
             interaction = 'sig'
             kind = 'Virtual'
-            self.curve = attune.Curve(colors, units, motors, name, interaction, kind)
+            colors = attune.Setpoints(colors, "Colors", units="nm")
+            self.curve = attune.Curve(colors, motors, name, interaction, kind)
             self.curve.convert(self.native_units)
         else:
             raise NotImplementedError
 
-    def _set_motors(self, motor_indexes, motor_destinations):
+    def _set_motors(self, motor_destinations):
         #Virtual hardware, just set the position directly
-        for i, d in zip(motor_indexes, motor_destinations):
-            print("HELLOOO", i, d)
-            self.motor_positions[self.curve.dependent_names[i]].write(d)
+        for k, v in motor_destinations.items():
+            self.motor_positions[k].write(v)
 
     def _update_api(self, interaction):
         pass
@@ -211,22 +210,18 @@ class Driver(hw.Driver):
             if motor_name in self.poynting_correction.motor_names:
                 self.poynting_correction.set_motor(motor_name, destination)
                 return
-        motor_index = self.motor_names.index(motor_name)
-        self._set_motors([motor_index], [destination])
+        self._set_motors({motor_name: destination})
         if wait:
             self.wait_until_still()
 
-    def set_motors(self, motor_indexes, motor_positions, wait=True):
-        print('set motors', motor_indexes, motor_positions)
+    def set_motors(self, motor_names, motor_positions, wait=True):
+        destinations = {n: p for n,p in zip(motor_names, motor_positions)}
         if self.poynting_correction:
-            for i, pos in zip(motor_indexes, motor_positions):
-                if self.motor_names[i] in self.poynting_correction.motor_names:
-                    self.poynting_correction.set_motor(self.motor_names[i], pos)
-                    # remove from lists
-                    index = motor_indexes.index(i)
-                    motor_indexes = motor_indexes[:index]+motor_indexes[index+1:]
-                    motor_positions = motor_positions[:index]+motor_positions[index+1:]
-        self._set_motors(motor_indexes, motor_positions)
+            for name, pos in zip(motor_names, motor_positions):
+                if name in self.poynting_correction.motor_names:
+                    self.poynting_correction.set_motor(name, pos)
+                    destinations.pop(name)
+        self._set_motors(destinations)
         if wait:
             self.wait_until_still()
 
@@ -234,8 +229,7 @@ class Driver(hw.Driver):
         # coerce destination to be within current tune range
         destination = np.clip(destination, *self.curve.get_limits())
         # get destinations from curve
-        motor_names = self.curve.dependent_names
-        motor_destinations = list(self.curve(destination, self.native_units))
+        motor_destinations = self.curve(destination, self.native_units)
         # poynting
         if self.poynting_correction:
             for _ in range(2):
@@ -243,8 +237,7 @@ class Driver(hw.Driver):
                 destination = motor_destinations.pop(-1)
                 self.poynting_correction.set_motor(name, destination)
         # OPA
-        motor_indexes = [self.motor_names.index(n) for n in motor_names]
-        self._set_motors(motor_indexes, motor_destinations)
+        self._set_motors(motor_destinations)
         # finish
         self.wait_until_still()
         self.get_position()
@@ -259,19 +252,15 @@ class Driver(hw.Driver):
         self.hardware.destination.write(destination, self.native_units)
         self.position.write(destination, self.native_units)
         motor_destinations = self.curve(destination, self.native_units)
-        motor_indexes = []
-        motor_positions = []
-        for i in [self.motor_names.index(n) for n in self.curve.dependent_names]:
-            if i not in exceptions:
-                motor_indexes.append(i)
-                motor_positions.append(motor_destinations[i])
-        self.set_motors(motor_indexes, motor_positions, wait=False)
+        for e in exceptions:
+            motor_destinations.pop(e, None)
+        self._set_motors(motor_destinations, wait=False)
         if self.poynting_correction and False:
             poynting_curve_names = self.poynting_correction.curve.dependent_names
             destinations = self.poynting_correction.curve(destination,self.poynting_correction.native_units)
             for name in self.poynting_correction.motor_names:
                 if self.motor_names.index(name) not in exceptions:
-                    self.poynting_correction.set_motor(name, destinations[poynting_curve_names.index(name)])
+                    self.poynting_correction.set_motor(name, destinations[name])
 
     def wait_until_still(self):
         self._wait_until_still()
@@ -396,13 +385,12 @@ class GUI(hw.GUI):
         # units
         units = self.plot_units.read()
         # xi
-        colors = self.driver.curve.setpoints
-        xi = wt.units.converter(colors, self.driver.curve.units, units)
+        colors = self.driver.curve.setpoints[:]
+        xi = wt.units.converter(colors, self.driver.curve.setpoints.units, units)
         # yi
         self.plot_motor.set_allowed_values(self.driver.curve.dependent_names)  # can be done on initialization?
         motor_name = self.plot_motor.read()
-        motor_index = self.driver.curve.dependent_names.index(motor_name)
-        yi = self.driver.curve(xi, units)[motor_index]
+        yi = self.driver.curve[motor_name](xi, units)
         self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
         self.plot_curve.clear()
         self.plot_curve.setData(xi, yi)
@@ -514,7 +502,7 @@ class Hardware(hw.Hardware):
     def get_tune_points(self, units='native'):
         if units == 'native':
             units = self.native_units
-        return wt.units.converter(self.curve.setpoints, self.curve.units, units)
+        return wt.units.converter(self.curve.setpoints[:], self.curve.setpoints.units, units)
 
     def home_motor(self, motor):
         """

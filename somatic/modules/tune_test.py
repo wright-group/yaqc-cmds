@@ -57,7 +57,7 @@ class Worker(acquisition.Worker):
         transform = list(data.axis_names)
         transform[-1] = transform[-1] + "_points"
         data.transform(*transform)
-        attune.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
+        attune.workup.tune_test(data, channel_name, curve, save_directory=scan_folder)
         # upload
         self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
     

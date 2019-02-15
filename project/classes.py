@@ -565,6 +565,7 @@ class Number(PyCMDS_Object):
 
     def set_widget(self):
         # special value text is displayed when widget is at minimum
+        print(self.value.read(), "SET_WIDGGET")
         if np.isnan(self.value.read()):
             self.widget.setSpecialValueText('nan')
             self.widget.setValue(self.widget.minimum())
