@@ -12,6 +12,7 @@ import scipy
 from PyQt4 import QtGui, QtCore
 
 import WrightTools as wt
+import attune
 
 import project
 import project.classes as pc
@@ -49,70 +50,6 @@ for section in all_hardware_names:
 
 ### objects ###################################################################
 
-
-class Corr:
-
-    def __init__(self, path):
-        self.path = path
-        # headers
-        self.headers = collections.OrderedDict()
-        for line in open(self.path):
-            if line[0] == '#':
-                split = line.split(':')
-                key = split[0][2:]
-                item = split[1].split('\t')
-                if item[0] == '':
-                    item = [item[1]]
-                item = [i.strip() for i in item]  # remove dumb things
-                item = [ast.literal_eval(i) for i in item]
-                if len(item) == 1:
-                    item = item[0]
-                self.headers[key] = item
-            else:
-                # all header lines are at the beginning
-                break
-        self.offset_name = self.headers['offset']
-        self.offset_units = self.headers['offset units']
-        self.control_name = self.headers['control']
-        self.control_units = self.headers['control units']
-        # control hardware object
-        self.control_hardware = [hw for hw in all_hardwares if hw.name == self.control_name][0]
-        # array
-        arr = np.genfromtxt(self.path).T
-        self.control_points = arr[0]
-        self.offset_points = arr[1]
-        # initial offset
-        change = float(ini.read(self.offset_name, self.control_name + ' offset'))
-        self.offset_points -= change
-        self.interpolate()
-
-    def evaluate(self):
-        '''
-        Get the current corrections.
-        '''
-        control_position = self.control_hardware.get_destination(self.control_units)
-        # coerce control position to be within control_points array
-        control_position = np.clip(
-            control_position, self.control_points.min(), self.control_points.max())
-        out = self.function(control_position)
-        return out
-
-    def interpolate(self):
-        '''
-        Generate interpolation function.
-        '''
-        self.function = scipy.interpolate.interp1d(self.control_points, self.offset_points)
-
-    def zero(self):
-        '''
-        Zero based on current positions.
-        '''
-        change = self.evaluate()
-        self.offset_points -= change
-        self.interpolate()
-        return change
-
-
 class CoSetHW:
 
     def __init__(self, hardware):
@@ -121,6 +58,7 @@ class CoSetHW:
         stored_offset = float(ini.read(self.hardware.name, 'offset'))
         self.hardware.offset.write(stored_offset)
         self.corrs = []
+        self.control_hardware = []
         # make own widget
         self.widget = QtGui.QWidget()
         self.box = QtGui.QHBoxLayout()
@@ -143,12 +81,16 @@ class CoSetHW:
         self.update_display()
         self.update_use_bool()
 
+    @property
+    def control_position(self):
+        return [np.clip(hw.get_destination(corr.setpoints.units), *corr.get_limits()) for hw, corr in zip(self.control_hardware, self.corrs)]
+
     def add_table_row(self, corr):
         # insert into table
         new_row_index = self.table.rowCount()
         self.table.insertRow(new_row_index)
         # hardware
-        label = pw.Label(corr.headers['control'])
+        label = pw.Label(corr.setpoints.name)
         label.setMargin(3)
         self.table.setCellWidget(new_row_index, 0, label)
         # path
@@ -224,7 +166,7 @@ class CoSetHW:
         '''
         if self.use_bool.read():
             corr_results = [wt.units.converter(
-                corr.evaluate(), corr.offset_units, self.hardware.native_units) for corr in self.corrs]
+                list(corr(self.control_position[i]).values())[0], list(corr.dependents.values())[0].units, self.hardware.native_units) for i, corr in enumerate(self.corrs)]
             new_offset = np.sum(corr_results)
             if g.hardware_initialized.read():
                 self.hardware.set_offset(new_offset, self.hardware.native_units)
@@ -234,8 +176,10 @@ class CoSetHW:
         '''
         Load a file.
         '''
-        corr = Corr(path)
+        corr = attune.Curve.read(path)
+        setattr(corr, "path", path)
         self.corrs.append(corr)
+        self.control_hardware.append(next(hw for hw in all_hardwares if hw.name == corr.setpoints.name))
         self.add_table_row(corr)
         self.update_combobox()
         self.update_use_bool()
@@ -248,22 +192,23 @@ class CoSetHW:
         # get filepath
         caption = 'Import a coset file'
         directory = os.path.join(g.main_dir.read(), 'coset', 'files')
-        options = 'COSET (*.coset);;All Files (*.*)'
+        options = 'COSET (*.curve);;All Files (*.*)'
         path = project.file_dialog_handler.open_dialog(caption, directory, options)
         if not os.path.isfile(path):  # presumably user canceled
             return
-        corr = Corr(path)  # this object is throwaway
-        if not corr.offset_name == self.hardware.name:
-            print('incorrect hardware')
+        corr = attune.Curve.read(path)  # this object is throwaway
+        setattr(corr, "path", path)
+        if not list(corr.dependents.keys())[0] == self.hardware.name:
+            warnings.warn('incorrect hardware')
             return
         for i, loaded_corr in enumerate(self.corrs):
-            if loaded_corr.control_name == corr.control_name:  # will not allow two of same control
+            if loaded_corr.setpoints.name == corr.setpoints.name:  # will not allow two of same control
                 self.unload_file(i)  # unload old one
                 break  # should only be one
         # load in
         self.load_file(path)
-        ini.write(self.hardware.name, corr.control_name, corr.path, with_apostrophe=True)
-        self.display_combobox.write(corr.control_name)
+        ini.write(self.hardware.name, corr.setpoints.name, corr.path, with_apostrophe=True)
+        self.display_combobox.write(corr.setpoints.name)
 
     def on_remove_file(self, row):
         '''
@@ -287,8 +232,9 @@ class CoSetHW:
 
     def unload_file(self, index):
         removed_corr = self.corrs.pop(index)
-        ini.write(self.hardware.name, removed_corr.headers['control'], None)
-        ini.write(self.hardware.name, removed_corr.control_name + ' offset', 0.)
+        self.control_hardware.pop(index)
+        ini.write(self.hardware.name, removed_corr.setpoints.name, None)
+        ini.write(self.hardware.name, list(removed_corr.dependents.keys())[0] + ' offset', 0.)
         # clear table
         for i in range(self.table.rowCount()):
             self.table.removeRow(0)
@@ -302,7 +248,7 @@ class CoSetHW:
         if len(self.corrs) == 0:
             allowed_values = [None]
         else:
-            allowed_values = [corr.headers['control'] for corr in self.corrs]
+            allowed_values = [corr.setpoints.name for corr in self.corrs]
         self.display_combobox.set_allowed_values(allowed_values)
         self.update_display()
 
@@ -316,10 +262,10 @@ class CoSetHW:
     def update_display(self):
         if len(self.corrs) > 0:
             corr = self.corrs[self.display_combobox.read_index()]
-            xi = corr.control_points
-            yi = corr.offset_points
-            x_label = corr.control_name + ' (' + corr.control_units + ')'
-            y_label = corr.offset_name + ' (' + corr.offset_units + ')'
+            xi = corr.setpoints[:]
+            yi = list(corr.dependents.values())[0][:]
+            x_label = corr.setpoints.name + ' (' + corr.setpoints.units + ')'
+            y_label = list(corr.dependents.keys())[0] + ' (' + list(corr.dependents.values())[0].units + ')'
             self.plot_widget.set_labels(x_label, y_label)
             self.plot_scatter.clear()
             self.plot_scatter.setData(xi, yi)
@@ -335,12 +281,8 @@ class CoSetHW:
         '''
         Offsets to zero for all corrs based on current positions.
         '''
-        for corr in self.corrs:
-            change = corr.zero()
-            # record the total change in ini file
-            old_change = float(ini.read(self.hardware.name, corr.control_name + ' offset'))
-            new_change = old_change + change
-            ini.write(self.hardware.name, corr.control_name + ' offset', new_change)
+        for i, corr in enumerate(self.corrs):
+            corr.offset_to(list(corr.dependents.keys())[:], 0, self.control_position[i])
         self.launch()
         self.update_display()
 

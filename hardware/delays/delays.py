@@ -43,6 +43,7 @@ class Driver(hw.Driver):
         self.zero_position = self.hardware.zero_position
         self.zero_position.write(kwargs['zero_position'])
         self.recorded['_'.join([self.name, 'zero'])] = [self.zero_position, 'mm', 0.001, self.name[-1], True]
+        self.native_per_mm = 1
         
     def save_status(self):
         self.hardware_ini.write(self.name, 'zero_position', self.zero_position.read(self.motor_units))
@@ -68,6 +69,10 @@ class Driver(hw.Driver):
         self.recorded['d' + str(self.index)] = [self.position, self.native_units, 1., self.label.read(), False]
         self.recorded['d' + str(self.index) + '_position'] = [self.motor_position, 'mm', 1., self.label.read(), False]
         self.recorded['d' + str(self.index) + '_zero'] = [self.zero_position, 'mm', 1., self.label.read(), False] 
+
+    def set_zero(self, new_zero):
+        pass
+
 
 
 # --- gui -----------------------------------------------------------------------------------------
