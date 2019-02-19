@@ -81,9 +81,8 @@ class Worker(acquisition.Worker):
                         width = self.aqn.read(section,'width')
                         npts = int(self.aqn.read(section,'number'))
                         points = np.linspace(-width/2.,width/2., npts)
-                        motor_positions = curve.motors[curve.motor_names.index(section)].positions
+                        motor_positions = curve[section][:]
                         kwargs = {'centers': motor_positions}
-                        print(opa_hardware.driver.motor_names)
                         hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
                         axis = acquisition.Axis(points, None, opa_name+'_'+section, 'D'+opa_name, hardware_dict, **kwargs)
                         possible_axes[section] = axis
@@ -231,7 +230,7 @@ class OPA_GUI():
         self.hardware = hardware
         print(hardware.__class__)
         curve = self.hardware.curve
-        motor_names = curve.motor_names
+        motor_names = curve.dependent_names
         self.motors = []
         for name in motor_names:
             motor = MotorGUI(name,1000,31)

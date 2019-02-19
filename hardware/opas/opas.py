@@ -233,9 +233,9 @@ class Driver(hw.Driver):
         # poynting
         if self.poynting_correction:
             for _ in range(2):
-                name = motor_names.pop(-1)
-                destination = motor_destinations.pop(-1)
-                self.poynting_correction.set_motor(name, destination)
+                self.poynting_correction.set_position(destination)
+                motor_destinations.pop("Phi", None)
+                motor_destinations.pop("Theta", None)
         # OPA
         self._set_motors(motor_destinations)
         # finish
