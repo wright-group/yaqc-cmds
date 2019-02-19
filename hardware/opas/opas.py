@@ -69,8 +69,7 @@ class Driver(hw.Driver):
         self.hardware_ini = ini
         self.index = kwargs['index']
         self.motor_positions = collections.OrderedDict()
-        self.homeable = [False]  # TODO:
-        self.homeables = []  # TODO:
+        self.homeable = {}  # TODO:
         self.poynting_type = kwargs.pop('poynting_type')
         self.poynting_correction  = None
         self.poynting_curve_path = kwargs.pop('poynting_curve_path')
@@ -96,7 +95,7 @@ class Driver(hw.Driver):
         if self.model == 'Virtual':
             self.load_curve()
 
-    def _home_motors(self, motor_indexes):
+    def _home_motors(self, motor_names):
         raise NotImplementedError
 
     def _load_curve(self, interaction):
@@ -116,9 +115,12 @@ class Driver(hw.Driver):
             raise NotImplementedError
 
     def _set_motors(self, motor_destinations):
-        #Virtual hardware, just set the position directly
-        for k, v in motor_destinations.items():
-            self.motor_positions[k].write(v)
+        if self.model == 'Virtual':
+            #Virtual hardware, just set the position directly
+            for k, v in motor_destinations.items():
+                self.motor_positions[k].write(v)
+        else:
+            raise NotImplementedError
 
     def _update_api(self, interaction):
         pass
@@ -138,12 +140,12 @@ class Driver(hw.Driver):
         pass
 
     def home_all(self, inputs=[]):
-        indexes = range(len(self.motor_names))
-        indexes = [i for i in indexes if self.homeable[i%len(self.homeable)] ]
+        names = [i for i in self.motor_names if self.homeable.get(i)) ]
         if self.poynting_correction:
             self.poynting_correction.home()
-            indexes = [i for i in indexes if self.motor_names[i] not in self.poynting_correction.motor_names]
-        self._home_motors(indexes)
+            for n in self.poynting_correction.motor_names:
+                names.pop(n, None)
+        self._home_motors(names)
 
     def home_motor(self, inputs):
         # TODO: clean up for new inputs behavior
@@ -152,9 +154,8 @@ class Driver(hw.Driver):
             if motor_name in self.poynting_correction.motor_names:
                 self.poynting_correction.home(motor_name)
                 return
-        motor_index = self.motor_names.index(motor_name)
-        if self.homeable[motor_index % len(self.homeable)]:
-            self._home_motors([motor_index])
+        if self.homeable.get(motor_name):
+            self._home_motors([motor_name])
 
     def initialize(self):
         # virtual stuff
@@ -166,17 +167,11 @@ class Driver(hw.Driver):
         if self.poynting_correction:
              # initialize
             self.poynting_correction.initialize(self)  
-            # add
-            num_motors = len(self.motor_names)
-            if len(self.homeable) < num_motors:
-                n = len(self.homeable)
-                self.homeable = [self.homeable[i%n] for i in range(len(self.homeable))]
-            self.homeable += [True]*len(self.poynting_correction.motor_names)
             for name in self.poynting_correction.motor_names:
+                self.homeable[name] = True
                 number = self.poynting_correction.motor_positions[name]
                 self.motor_positions[name] = number
                 self.recorded[self.name + '_' + name] = [number, None, 1., name]
-            #self.position.write(800., 'nm')
         # get position
         self.load_curve()
         self.get_motor_positions()
@@ -232,10 +227,8 @@ class Driver(hw.Driver):
         motor_destinations = self.curve(destination, self.native_units)
         # poynting
         if self.poynting_correction:
-            for _ in range(2):
-                self.poynting_correction.set_position(destination)
-                motor_destinations.pop("Phi", None)
-                motor_destinations.pop("Theta", None)
+            for m in self.poynting_correction.motor_names:
+                self.poynting_correction.set_motor(m, motor_destinations.pop(m))
         # OPA
         self._set_motors(motor_destinations)
         # finish
@@ -248,19 +241,16 @@ class Driver(hw.Driver):
         
         does not wait until still...
         '''
-        print('set position except', destination, exceptions)
         self.hardware.destination.write(destination, self.native_units)
         self.position.write(destination, self.native_units)
         motor_destinations = self.curve(destination, self.native_units)
         for e in exceptions:
             motor_destinations.pop(e, None)
+        if self.poynting_correction:
+            for m in self.poynting_correction.motor_names:
+                if m in motor_destinations:
+                    self.poynting_correction.set_motor(m, motor_destinations.pop(m))
         self._set_motors(motor_destinations, wait=False)
-        if self.poynting_correction and False:
-            poynting_curve_names = self.poynting_correction.curve.dependent_names
-            destinations = self.poynting_correction.curve(destination,self.poynting_correction.native_units)
-            for name in self.poynting_correction.motor_names:
-                if self.motor_names.index(name) not in exceptions:
-                    self.poynting_correction.set_motor(name, destinations[name])
 
     def wait_until_still(self):
         self._wait_until_still()
@@ -434,8 +424,6 @@ class MotorControlGUI(QtGui.QWidget):
         self.layout.addWidget(input_table)
         # buttons
         home_button, set_button = self.add_buttons(self.layout, 'HOME', 'advanced', 'SET', 'set')
-        #homeable = driver.homeable[driver.motor_names.index(motor_name)%len(driver.homeable)]
-        #home_button.set_disabled(homeable)
         home_button.clicked.connect(self.on_home)
         set_button.clicked.connect(self.on_set)
         g.queue_control.disable_when_true(home_button)
@@ -522,9 +510,6 @@ class Hardware(hw.Hardware):
         self.driver.auto_tune.run(worker)
     
     def set_motor(self, motor, destination):
-        """
-        Motor may be index or name.
-        """
         self.q.push('set_motor', motor, destination)
 
 

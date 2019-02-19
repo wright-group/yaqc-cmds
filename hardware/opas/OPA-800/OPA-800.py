@@ -235,7 +235,6 @@ class Driver(BaseDriver):
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.auto_tune = AutoTune(self)
         self.motors = {}
-        self.homeable = [False]
         self.curve_paths = collections.OrderedDict()
         # TODO: Determine if pico_opa needs to have interaction string combo
         allowed_values = ['SHS']
@@ -248,7 +247,6 @@ class Driver(BaseDriver):
         self.curve_path.updated.connect(lambda: self.load_curve())
 
         self.curve_paths['Curve'] = self.curve_path
-        print(self.curve_paths)
         self.load_curve()
 
     def _load_curve(self, interaction):

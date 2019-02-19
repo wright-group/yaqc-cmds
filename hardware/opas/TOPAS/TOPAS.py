@@ -330,10 +330,21 @@ class Driver(BaseDriver):
         self.load_curve(update = False)
 
     def _get_motor_index(self, name):
-        return 0
+        for m in motor_names:
+            if m in c.dependents:
+                return c[m].index
+        raise KeyError(name)
 
-    def _home_motors(self, motor_indexes):
-        motor_indexes = list(motor_indexes)
+    def _home_motors(self, motor_names):
+        motor_indexes = []
+        c = self.curve
+        while len(motor_names):
+            for m in motor_names:
+                if m in c.dependents:
+                    motor_indexes.append(c[m].index)
+                    motor_names.pop(name)
+            c = c.subcurve
+
         section = 'OPA' + str(self.index)
         # close shutter
         if self.has_shutter:
@@ -430,8 +441,8 @@ class Driver(BaseDriver):
         return self.curve
        
     def _set_motors(self, motor_destinations):
-        for motor_name, destination in motor_destinations.items:
-            motor_index = self.get_motor_index(motor_name)
+        for motor_name, destination in motor_destinations.items():
+            motor_index = self._get_motor_index(motor_name)
             error, destination_steps = self.api.convert_position_to_steps(motor_index, destination)
             self.api.start_motor_motion(motor_index, destination_steps)
 
