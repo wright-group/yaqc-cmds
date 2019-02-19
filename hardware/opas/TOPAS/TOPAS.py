@@ -330,9 +330,11 @@ class Driver(BaseDriver):
         self.load_curve(update = False)
 
     def _get_motor_index(self, name):
-        for m in motor_names:
-            if m in c.dependents:
-                return c[m].index
+        c = self.curve
+        while c is not None:
+            if name in c.dependents:
+                return c[name].index
+            c = c.subcurve
         raise KeyError(name)
 
     def _home_motors(self, motor_names):

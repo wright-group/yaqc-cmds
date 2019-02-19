@@ -140,7 +140,7 @@ class Driver(hw.Driver):
         pass
 
     def home_all(self, inputs=[]):
-        names = [i for i in self.motor_names if self.homeable.get(i)) ]
+        names = [i for i in self.motor_names if self.homeable.get(i) ]
         if self.poynting_correction:
             self.poynting_correction.home()
             for n in self.poynting_correction.motor_names:
