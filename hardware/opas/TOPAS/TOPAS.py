@@ -300,8 +300,6 @@ class Driver(BaseDriver):
         self.has_shutter = kwargs['has_shutter']
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
-        allowed_values = list(TOPAS_interaction_by_kind[self.kind].keys())
-        self.interaction_string_combo = pc.Combo(allowed_values = allowed_values)
         BaseDriver.__init__(self, *args, **kwargs)  
         if self.has_shutter:
             self.exposed += [self.shutter_position]
@@ -319,13 +317,10 @@ class Driver(BaseDriver):
             curve_filepath.updated.connect(self.load_curve)
             self.curve_paths[curve_type] = curve_filepath
         # interaction string
-        allowed_values = []
-        for curve_path_mutex in self.curve_paths.values():
-            with open(curve_path_mutex.read()) as crv:
-                crv_lines = crv.readlines()
-            for line in crv_lines:
-                if 'NON' in line:
-                    allowed_values.append(line.rstrip())
+        paths.pop("Poynting Curve", None)
+        paths = paths.values()
+        all_crvs = attune.TopasCuve.read_all(paths)
+        allowed_values = list(all_crvs.keys())
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
         current_value = self.ini.read('OPA%i'%self.index, 'current interaction string')
         self.interaction_string_combo.write(current_value)
@@ -425,16 +420,12 @@ class Driver(BaseDriver):
     def _load_curve(self, interaction):
         interaction = self.interaction_string_combo.read()
         curve_paths_copy = self.curve_paths.copy()
-        print(curve_paths_copy)
         if 'Poynting' in curve_paths_copy.keys():
             del curve_paths_copy['Poynting']
-        print(self.curve_paths)
         crv_paths = [m.read() for m in curve_paths_copy.values()]
-        used = list(self.curve_indices.values())
-        need = [x for x in range(4) if x+1 not in used]        
-        for i in need:
-            crv_paths.insert(i,None)
-        self.curve = attune.TopasCurve(crv_paths, self.kind, interaction)
+        all_curves = attune.TopasCurve.read_all(crv_paths)
+        self.interaction_string_combo.set_allowed_values(list(all_curves.keys()))
+        self.curve = all_curves[interaction]
         return self.curve
        
     def _set_motors(self, motor_destinations):
