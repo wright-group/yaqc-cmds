@@ -317,9 +317,10 @@ class Driver(BaseDriver):
             curve_filepath.updated.connect(self.load_curve)
             self.curve_paths[curve_type] = curve_filepath
         # interaction string
-        paths.pop("Poynting Curve", None)
-        paths = paths.values()
-        all_crvs = attune.TopasCuve.read_all(paths)
+        paths = self.curve_paths.copy()
+        paths.pop("Poynting", None)
+        paths = [v.read() for v in paths.values()]
+        all_crvs = attune.TopasCurve.read_all(paths)
         allowed_values = list(all_crvs.keys())
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
         current_value = self.ini.read('OPA%i'%self.index, 'current interaction string')
