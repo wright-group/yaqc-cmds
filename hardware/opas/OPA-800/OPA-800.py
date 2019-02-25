@@ -98,12 +98,12 @@ class AutoTune(BaseAutoTune):
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.name, curve.motor_names[1]])
+            name = '_'.join([self.driver.name, "BBO"])
             identity = 'D' + name
             width = worker.aqn.read('BBO', 'width')
             npts = int(worker.aqn.read('BBO', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = curve.motors[1].positions
+            motor_positions = curve["BBO"].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.driver.hardware, 'set_motor', ['BBO', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
@@ -134,12 +134,12 @@ class AutoTune(BaseAutoTune):
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.name, curve.motor_names[2]])
+            name = '_'.join([self.driver.name, "Mixer"])
             identity = 'D' + name
             width = worker.aqn.read('Mixer', 'width')
             npts = int(worker.aqn.read('Mixer', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = curve.motors[2].positions
+            motor_positions = curve["Mixer"].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.driver.hardware, 'set_motor', ['Mixer', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)

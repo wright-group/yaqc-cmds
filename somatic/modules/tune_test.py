@@ -59,7 +59,7 @@ class Worker(acquisition.Worker):
         data.transform(*transform)
         attune.workup.tune_test(data, channel_name, curve, save_directory=scan_folder)
         # upload
-        self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
+        self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune_test.png'))
     
     def run(self):
         axes = []
@@ -71,12 +71,12 @@ class Worker(acquisition.Worker):
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
-        axis = acquisition.Axis(curve.setpoints, 'wn', opa_friendly_name, opa_friendly_name)
+        axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_friendly_name, opa_friendly_name)
         axes.append(axis)
         # mono
         name = 'wm'
         identity = 'Dwm'
-        kwargs = {'centers': curve.setpoints}
+        kwargs = {'centers': curve.setpoints[:]}
         width = self.aqn.read('spectrometer', 'width')/2.
         npts = self.aqn.read('spectrometer', 'number')
         points = np.linspace(-width, width, npts)
