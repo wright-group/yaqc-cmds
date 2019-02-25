@@ -118,7 +118,7 @@ class Worker(acquisition.Worker):
                     channel = self.aqn.read('processing', 'channel')
                     transform = list(data.axis_names)
                     dep = transform[-1]
-                    transform[-1] = transform[-1] + "_points"
+                    transform[-1] = f"{transform[0]}_{dep}_points"
                     data.transform(*transform)
                     attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, cutoff_factor=1e-3)
 
