@@ -154,9 +154,9 @@ class Worker(acquisition.Worker):
         # tune points        
         if self.aqn.read('motortune', 'use tune points'):
             motors_excepted = []  # list of indicies  
-            for motor_index, motor_name in enumerate(motor_names):
+            for motor_name in motor_names:
                 if not self.aqn.read(motor_name, 'method') == 'Set':
-                    motors_excepted.append(motor_index)
+                    motors_excepted.append(motor_name)
             if self.aqn.read('spectrometer', 'method') == 'Set':
                 identity = opa_friendly_name + '=wm'
                 hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]],
@@ -168,7 +168,7 @@ class Worker(acquisition.Worker):
                 axis = acquisition.Axis(curve.setpoints[:], curve.setpoints.units, opa_friendly_name, opa_friendly_name, hardware_dict)
                 axes.append(axis)
         # motor
-        for motor_index, motor_name in enumerate(motor_names):
+        for motor_name in motor_names:
             if self.aqn.read(motor_name, 'method') == 'Scan':
                 motor_units = None
                 name = '_'.join([opa_friendly_name, motor_name])
