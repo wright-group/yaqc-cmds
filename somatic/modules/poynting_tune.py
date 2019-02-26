@@ -108,8 +108,6 @@ class Worker(acquisition.Worker):
                     axes.append(possible_axes[opa_name])
                     axes.append(axis)
                     
-                    print("POYNTING TUNE SCAN", axis.centers)
-
                     scan_folder = self.scan(axes)
 
                     #process
@@ -117,7 +115,7 @@ class Worker(acquisition.Worker):
                     data = wt.data.from_PyCMDS(p)
                     channel = self.aqn.read('processing', 'channel')
                     transform = list(data.axis_names)
-                    dep = transform[-1]
+                    dep = name
                     transform[-1] = f"{transform[0]}_{dep}_points"
                     data.transform(*transform)
                     attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, cutoff_factor=1e-3)
