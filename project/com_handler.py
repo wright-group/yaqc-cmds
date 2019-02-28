@@ -9,7 +9,7 @@ PyCMDS thread safe wrapper for serial communication.
 import time
 import sys
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 
 import serial
 

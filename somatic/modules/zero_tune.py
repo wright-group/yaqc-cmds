@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib
 matplotlib.pyplot.ioff()
 
-from PyQt4 import QtCore, QtGui
+from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 import attune
 
@@ -129,8 +129,8 @@ class GUI(acquisition.GUI):
         self.constants = []
         input_table.add('Constants', None)
         self.layout.addWidget(input_table)
-        self.constants_container_widget = QtGui.QWidget()
-        self.constants_container_widget.setLayout(QtGui.QVBoxLayout())
+        self.constants_container_widget = QtWidgets.QWidget()
+        self.constants_container_widget.setLayout(QtWidgets.QVBoxLayout())
         self.constants_container_widget.layout().setMargin(0)
         self.layout.addWidget(self.constants_container_widget)
         add_constant_button, remove_constant_button = self.add_buttons()
@@ -152,18 +152,18 @@ class GUI(acquisition.GUI):
     def add_buttons(self):
         colors = g.colors_dict.read()
         # layout
-        button_container = QtGui.QWidget()
-        button_container.setLayout(QtGui.QHBoxLayout())
+        button_container = QtWidgets.QWidget()
+        button_container.setLayout(QtWidgets.QHBoxLayout())
         button_container.layout().setMargin(0)
         # remove
-        remove_button = QtGui.QPushButton()
+        remove_button = QtWidgets.QPushButton()
         remove_button.setText('REMOVE')
         remove_button.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['stop'])
         remove_button.setStyleSheet(StyleSheet)
         button_container.layout().addWidget(remove_button)
         # add
-        add_button = QtGui.QPushButton()
+        add_button = QtWidgets.QPushButton()
         add_button.setText('ADD')
         add_button.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['set'])

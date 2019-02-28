@@ -3,7 +3,7 @@
 import os
 import time
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 from mcapi import Mcapi, MCFILTEREX
 
 import project.project_globals as g

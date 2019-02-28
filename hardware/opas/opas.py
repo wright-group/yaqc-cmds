@@ -8,7 +8,7 @@ import collections
 
 import numpy as np
 
-from PyQt4 import QtGui
+from PySide2 import QtWidgets
 
 import WrightTools as wt
 import attune
@@ -34,12 +34,12 @@ ini = ini.opas
 ### autotune ##################################################################
 
 
-class AutoTune(QtGui.QWidget):
+class AutoTune(QtWidgets.QWidget):
 
     def __init__(self, driver):
-        QtGui.QWidget.__init__(self)
+        QtWidgets.QWidget.__init__(self)
         self.driver = driver
-        self.setLayout(QtGui.QVBoxLayout())
+        self.setLayout(QtWidgets.QVBoxLayout())
         self.layout = self.layout()
         self.layout.setMargin(0)
         self.initialized = pc.Bool()
@@ -267,8 +267,8 @@ class GUI(hw.GUI):
     def initialize(self):
         #self.hardware.driver.initialize()
         # container widget
-        display_container_widget = QtGui.QWidget()
-        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_container_widget = QtWidgets.QWidget()
+        display_container_widget.setLayout(QtWidgets.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         self.layout.addWidget(display_container_widget)
@@ -283,12 +283,12 @@ class GUI(hw.GUI):
         line = pw.line('V')
         self.layout.addWidget(line)
         # container widget / scroll area
-        settings_container_widget = QtGui.QWidget()
+        settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area()
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
@@ -407,14 +407,14 @@ class GUI(hw.GUI):
             self.driver.poynting_correction.port.setMode('computer')
 
 
-class MotorControlGUI(QtGui.QWidget):
+class MotorControlGUI(QtWidgets.QWidget):
     
     def __init__(self, motor_name, motor_mutex, driver):
-        QtGui.QWidget.__init__(self)
+        QtWidgets.QWidget.__init__(self)
         self.motor_name = motor_name
         self.driver = driver
         self.hardware = driver.hardware
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QtWidgets.QVBoxLayout()
         self.layout.setMargin(0)
         # table
         input_table = pw.InputTable()
@@ -434,11 +434,11 @@ class MotorControlGUI(QtGui.QWidget):
     def add_buttons(self, layout, button1_text, button1_color, button2_text, button2_color):
         colors = g.colors_dict.read()
         # layout
-        button_container = QtGui.QWidget()
-        button_container.setLayout(QtGui.QHBoxLayout())
+        button_container = QtWidgets.QWidget()
+        button_container.setLayout(QtWidgets.QHBoxLayout())
         button_container.layout().setMargin(0)
         # button1
-        button1 = QtGui.QPushButton()
+        button1 = QtWidgets.QPushButton()
         button1.setText(button1_text)
         button1.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[button1_color])
@@ -446,7 +446,7 @@ class MotorControlGUI(QtGui.QWidget):
         button_container.layout().addWidget(button1)
         g.queue_control.disable_when_true(button1)
         # button2
-        button2 = QtGui.QPushButton()
+        button2 = QtWidgets.QPushButton()
         button2.setText(button2_text)
         button2.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[button2_color])

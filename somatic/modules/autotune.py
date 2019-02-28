@@ -14,7 +14,7 @@ import numpy as np
 import matplotlib
 matplotlib.pyplot.ioff()
 
-from PyQt4 import QtCore, QtGui
+from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 
 import project.project_globals as g

@@ -8,7 +8,7 @@ import time
 
 import numpy as np
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 
 from project import project_globals as g
 
@@ -146,7 +146,7 @@ class Value(QtCore.QMutex):
 
 
 class PyCMDS_Object(QtCore.QObject):
-    updated = QtCore.pyqtSignal()
+    updated = QtCore.Signal()
     disabled = False
 
     def __init__(self, initial_value=None,
@@ -462,7 +462,7 @@ class NumberLimits(PyCMDS_Object):
 
 
 class Number(PyCMDS_Object):
-    units_updated = QtCore.pyqtSignal()
+    units_updated = QtCore.Signal()
 
     def __init__(self, initial_value=np.nan, single_step=1., decimals=3, 
                  limits=None, units=None, *args, **kwargs):
@@ -643,8 +643,8 @@ class String(PyCMDS_Object):
 
 
 class Driver(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    queue_emptied = QtCore.Signal()
     initialized = Bool()
     
     def check_busy(self):
@@ -663,7 +663,7 @@ class Driver(QtCore.QObject):
             self.busy.write(False)
             self.update_ui.emit()
     
-    @QtCore.pyqtSlot(str, list)
+    @QtCore.Slot(str, list)
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
@@ -711,8 +711,8 @@ class Enqueued(QtCore.QMutex):
 
 
 class Hardware(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    initialized_signal = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    initialized_signal = QtCore.Signal()
 
     def __init__(self, driver_class, driver_arguments, gui_class,
                  name, model, serial=None):
@@ -782,20 +782,26 @@ class Hardware(QtCore.QObject):
             self.busy.wait_for_update()
 
 
-class Q:
+class Q(QtCore.QObject):
+    signal = QtCore.Signal(str, list)
 
     def __init__(self, enqueued, busy, driver):
         self.enqueued = enqueued
         self.busy = busy
         self.driver = driver
-        self.queue = QtCore.QMetaObject()
+        super(Q, self).__init__()
+        #self.queue = QtCore.QMetaObject()
+        self.signal.connect(self.driver.dequeue)
 
     def push(self, method, *args, **kwargs):
         self.enqueued.push([method, time.time()])
         self.busy.write(True)
         # send Qt SIGNAL to address thread
+        self.signal.emit(method, [args, kwargs])
+        """
         self.queue.invokeMethod(self.driver,
                                 'dequeue',
                                 QtCore.Qt.QueuedConnection,
-                                QtCore.Q_ARG(str, method),
-                                QtCore.Q_ARG(list, [args, kwargs]))
+                                QtCore.Q_ARG('str', method),
+                                QtCore.Q_ARG('list', [args, kwargs]))
+        """

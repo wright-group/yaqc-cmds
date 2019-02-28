@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 from project import project_globals as g
 
 #see http://www.google.com/design/spec/style/color.html#color-color-palette
@@ -53,8 +53,8 @@ def set_style():
     '''
     MainWindow = g.main_window.read()
     
-    palette = QtGui.QPalette(MainWindow.palette())
-    palette.setColor(MainWindow.backgroundRole(), QtGui.QColor(colors['background']))
+    palette = QtWidgets.QPalette(MainWindow.palette())
+    palette.setColor(MainWindow.backgroundRole(), QtWidgets.QColor(colors['background']))
     #MainWindow.setPalette(palette)
 
     '''
@@ -64,6 +64,6 @@ def set_style():
     #app.setStyle('windowsxp')
     
 def set_background_role(obj):
-    palette = QtGui.QPalette(obj.palette())
-    palette.setColor(obj.backgroundRole(), QtGui.QColor(colors['background']))
+    palette = QtWidgets.QPalette(obj.palette())
+    palette.setColor(obj.backgroundRole(), QtWidgets.QColor(colors['background']))
     obj.setPalette(palette)

@@ -16,7 +16,7 @@ import scipy
 
 import h5py
 
-from PyQt4 import QtCore, QtGui
+from PySide2 import QtCore, QtWidgets
 import pyqtgraph as pg
 
 import WrightTools as wt
@@ -61,8 +61,8 @@ ms_wait = pc.Number(ini=ini, section='settings', option='ms wait', decimals=0,
                 
 
 class CurrentSlice(QtCore.QObject):
-    indexed = QtCore.pyqtSignal()
-    appended = QtCore.pyqtSignal()
+    indexed = QtCore.Signal()
+    appended = QtCore.Signal()
     
     def __init__(self):
         QtCore.QObject.__init__(self)
@@ -203,10 +203,10 @@ shot_path = pc.Mutex()
 
 
 class FileAddress(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    queue_emptied = QtCore.Signal()
     
-    @QtCore.pyqtSlot(str, list)
+    @QtCore.Slot(str, list)
     def dequeue(self, method, inputs):
         '''
         accepts queued signals from 'queue' (address using q method)
@@ -317,7 +317,7 @@ def q(method, inputs = []):
 
 
 class Device(pc.Hardware):
-    settings_updated = QtCore.pyqtSignal()
+    settings_updated = QtCore.Signal()
     
     def __init__(self, *args, **kwargs):
         self.freerun = pc.Bool(initial_value=False)
@@ -400,7 +400,7 @@ class Device(pc.Hardware):
 
 
 class Driver(pc.Driver):
-    settings_updated = QtCore.pyqtSignal()
+    settings_updated = QtCore.Signal()
     running = False
     
     def __init__(self, device):
@@ -443,11 +443,11 @@ class Driver(pc.Driver):
 # --- gui -----------------------------------------------------------------------------------------
 
 
-class Widget(QtGui.QWidget):
+class Widget(QtWidgets.QWidget):
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
-        layout = QtGui.QVBoxLayout()
+        QtWidgets.QWidget.__init__(self)
+        layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
         input_table = pw.InputTable()
@@ -477,7 +477,7 @@ class DeviceGUI(QtCore.QObject):
 
     def create_frame(self, parent_widget):
         # get layout
-        parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.setLayout(QtWidgets.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         self.layout = parent_widget.layout()
 
@@ -489,7 +489,7 @@ class Control(QtCore.QObject):
     """
     Only one instance in the entire program.
     """
-    settings_updated = QtCore.pyqtSignal()    
+    settings_updated = QtCore.Signal()    
     
     def __init__(self):
         QtCore.QObject.__init__(self)
@@ -829,10 +829,10 @@ class Control(QtCore.QObject):
 # --- gui -----------------------------------------------------------------------------------------
 
 
-class DeviceWidget(QtGui.QWidget):
+class DeviceWidget(QtWidgets.QWidget):
     
     def __init__(self):
-        QtGui.QWidget.__init__(self)
+        QtWidgets.QWidget.__init__(self)
     
     def load(self, aqn_path):
         # TODO:
@@ -845,11 +845,11 @@ class DeviceWidget(QtGui.QWidget):
         ini.write('Virtual', 'use', True)
 
 
-class Widget(QtGui.QWidget):
+class Widget(QtWidgets.QWidget):
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
-        layout = QtGui.QVBoxLayout()
+        QtWidgets.QWidget.__init__(self)
+        layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
         # daq settings
@@ -883,7 +883,7 @@ class Widget(QtGui.QWidget):
         
         
 class DisplaySettings(QtCore.QObject):
-    updated = QtCore.pyqtSignal()
+    updated = QtCore.Signal()
     
     def __init__(self, device):
         '''
@@ -940,16 +940,16 @@ class GUI(QtCore.QObject):
         # device widgets
         # get parent widget
         parent_widget = g.daq_widget.read()
-        parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.setLayout(QtWidgets.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         self.parent_widget = parent_widget
         layout = parent_widget.layout()
         # create tab structure
-        self.tabs = QtGui.QTabWidget()
+        self.tabs = QtWidgets.QTabWidget()
         # create tabs for each device
         self.device_widgets = []
         for device in self.control.devices:
-            widget = QtGui.QWidget()
+            widget = QtWidgets.QWidget()
             self.tabs.addTab(widget, device.name)
             self.device_widgets.append(widget)
             device.give_widget(widget)
@@ -967,19 +967,19 @@ class GUI(QtCore.QObject):
         self.main_tab_created = True
         # create main daq tab
         main_widget = self.main_widget
-        layout = QtGui.QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 10, 0, 0)
         main_widget.setLayout(layout)
         # display -------------------------------------------------------------
         # container widget
         display_container_widget = pw.ExpandingWidget()
-        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_container_widget.setLayout(QtWidgets.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
         # big number
-        big_number_container_widget = QtGui.QWidget()
-        big_number_container_widget.setLayout(QtGui.QHBoxLayout())
+        big_number_container_widget = QtWidgets.QWidget()
+        big_number_container_widget.setLayout(QtWidgets.QHBoxLayout())
         big_number_container_layout = big_number_container_widget.layout()
         big_number_container_layout.setMargin(0)
         big_number_container_layout.addStretch(1)
@@ -996,12 +996,12 @@ class GUI(QtCore.QObject):
         layout.addWidget(line)
         # settings ------------------------------------------------------------
         # container widget / scroll area
-        settings_container_widget = QtGui.QWidget()
+        settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area()
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)

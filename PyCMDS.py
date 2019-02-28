@@ -36,10 +36,10 @@ import subprocess
 import matplotlib
 matplotlib.use('ps')  # important - images will be generated in worker threads
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 import project.project_globals as g
-app = QtGui.QApplication(sys.argv)
+app = QtWidgets.QApplication(sys.argv)
 g.app.write(app)
 g.logger.load()
 import project.ini_handler as ini
@@ -84,12 +84,12 @@ g.version.write(__version__)
 ### main window ###############################################################
 
 
-class MainWindow(QtGui.QMainWindow):
-    shutdown = QtCore.pyqtSignal()
-    queue_control = QtCore.pyqtSignal()
+class MainWindow(QtWidgets.QMainWindow):
+    shutdown = QtCore.Signal()
+    queue_control = QtCore.Signal()
     
     def __init__(self):
-        QtGui.QMainWindow.__init__(self, parent=None)
+        QtWidgets.QMainWindow.__init__(self, parent=None)
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
         self.setWindowTitle('PyCMDS %s'%__version__)
@@ -125,10 +125,10 @@ class MainWindow(QtGui.QMainWindow):
         
     
     def _create_main_frame(self):
-        self.main_frame = QtGui.QWidget()
-        hbox = QtGui.QHBoxLayout()  
+        self.main_frame = QtWidgets.QWidget()
+        hbox = QtWidgets.QHBoxLayout()  
         # hardware ------------------------------------------------------------
-        hardware_box = QtGui.QVBoxLayout()
+        hardware_box = QtWidgets.QVBoxLayout()
         # exit button
         exit_button = pw.Shutdown_button()
         exit_button.setMinimumWidth(300)
@@ -137,7 +137,7 @@ class MainWindow(QtGui.QMainWindow):
         hardware_box.addWidget(exit_button)
         g.queue_control.disable_when_true(exit_button)
         # hardware container widget
-        hardware_widget = QtGui.QWidget()
+        hardware_widget = QtWidgets.QWidget()
         g.hardware_widget.write(hardware_widget)
         # hardware scroll area
         hardware_scroll_area = pw.scroll_area()
@@ -145,18 +145,18 @@ class MainWindow(QtGui.QMainWindow):
         hardware_box.addWidget(hardware_scroll_area)
         hbox.addLayout(hardware_box)
         # box -----------------------------------------------------------------
-        box = QtGui.QVBoxLayout()
+        box = QtWidgets.QVBoxLayout()
         box.setMargin(0)
         # module progress bar
-        progress_bar = QtGui.QProgressBar()
+        progress_bar = QtWidgets.QProgressBar()
         progress_bar.setTextVisible(False)
         g.progress_bar.write(progress_bar)
         box.addWidget(progress_bar)
         # time elapsed/remaining, queue message
-        progress_bar.setLayout(QtGui.QHBoxLayout())
-        time_elapsed = QtGui.QLabel('00:00:00')
-        self.queue_message = QtGui.QLabel('NO QUEUE')
-        time_remaining = QtGui.QLabel('00:00:00')
+        progress_bar.setLayout(QtWidgets.QHBoxLayout())
+        time_elapsed = QtWidgets.QLabel('00:00:00')
+        self.queue_message = QtWidgets.QLabel('NO QUEUE')
+        time_remaining = QtWidgets.QLabel('00:00:00')
         StyleSheet = 'QLabel{color: custom_color; font: bold 14px}'.replace('custom_color', g.colors_dict.read()['text_light'])
         time_elapsed.setStyleSheet(StyleSheet)
         self.queue_message.setStyleSheet(StyleSheet)
@@ -168,33 +168,33 @@ class MainWindow(QtGui.QMainWindow):
         progress_bar.layout().addWidget(time_remaining)
         g.progress_bar.give_time_display_elements(time_elapsed, time_remaining)
         # program box
-        program_widget = QtGui.QWidget()
+        program_widget = QtWidgets.QWidget()
         # hardware box
-        hardware_advanced_widget = QtGui.QWidget()
-        hardware_advanced_box = QtGui.QVBoxLayout()
+        hardware_advanced_widget = QtWidgets.QWidget()
+        hardware_advanced_box = QtWidgets.QVBoxLayout()
         hardware_advanced_box.setContentsMargins(0, 10, 0, 0)
         hardware_advanced_widget.setLayout(hardware_advanced_box)
         g.hardware_advanced_box.write(hardware_advanced_box)
         # device box
-        device_widget = QtGui.QWidget()
+        device_widget = QtWidgets.QWidget()
         g.daq_widget.write(device_widget)
         # autonomic box
-        coset_widget = QtGui.QWidget()
+        coset_widget = QtWidgets.QWidget()
         g.coset_widget.write(coset_widget)
         # sonomic box
-        somatic_widget = QtGui.QWidget()
-        layout = QtGui.QHBoxLayout()
+        somatic_widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 10, 0, 0)
         somatic_widget.setLayout(layout)
         somatic_tabs = pw.TabWidget()
-        self.queue_widget = QtGui.QWidget()
+        self.queue_widget = QtWidgets.QWidget()
         somatic_tabs.addTab(self.queue_widget, 'Queue')
-        self.scan_widget = QtGui.QWidget()
+        self.scan_widget = QtWidgets.QWidget()
         somatic_tabs.addTab(self.scan_widget, 'Scan')
         somatic_tabs.setContentsMargins(0., 0., 0., 0.)
         layout.addWidget(somatic_tabs)
         # plot box
-        plot_widget = QtGui.QWidget()
+        plot_widget = QtWidgets.QWidget()
         g.daq_plot_widget.write(plot_widget)
         # tab widget
         self.tabs = pw.TabWidget()
@@ -282,7 +282,7 @@ class MainWindow(QtGui.QMainWindow):
         
     def _center(self):
         # a function which ensures that the window appears in the center of the screen at startup
-        screen = QtGui.QDesktopWidget().screenGeometry() 
+        screen = QtWidgets.QDesktopWidget().screenGeometry() 
         size = self.geometry() 
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
         

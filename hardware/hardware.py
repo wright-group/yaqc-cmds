@@ -11,8 +11,8 @@ import imp
 import time
 import collections
 
-from PyQt4 import QtCore
-from PyQt4 import QtGui
+from PySide2 import QtCore
+from PySide2 import QtWidgets
 
 import WrightTools as wt
 
@@ -25,7 +25,7 @@ import project.project_globals as g
 
 
 class Driver(pc.Driver):
-    initialized_signal = QtCore.pyqtSignal()
+    initialized_signal = QtCore.Signal()
 
     def __init__(self, hardware, **kwargs):
         pc.Driver.__init__(self)
@@ -66,6 +66,7 @@ class Driver(pc.Driver):
         self.initialized.write(True)
         self.initialized_signal.emit()
         
+    @QtCore.Slot()
     def on_label_updated(self):
         self.recorded[self.name] = [self.position, self.native_units, 1., self.label.read(), False] 
 
@@ -115,12 +116,12 @@ class GUI(QtCore.QObject):
         layout.setMargin(5)
         self.layout = layout
         # scroll area
-        scroll_container_widget = QtGui.QWidget()
+        scroll_container_widget = QtWidgets.QWidget()
         self.scroll_area = pw.scroll_area(show_bar=False)
         self.scroll_area.setWidget(scroll_container_widget)
         self.scroll_area.setMinimumWidth(300)
         self.scroll_area.setMaximumWidth(300)
-        scroll_container_widget.setLayout(QtGui.QVBoxLayout())
+        scroll_container_widget.setLayout(QtWidgets.QVBoxLayout())
         self.scroll_layout = scroll_container_widget.layout()
         self.scroll_layout.setMargin(5)
         # attributes table

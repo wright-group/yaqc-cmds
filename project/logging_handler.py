@@ -6,7 +6,7 @@ import logging
 import inspect
 import threading
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 
 #import packages.psutil as psutil #why doesn't this work!?!?!
 import psutil
@@ -49,7 +49,7 @@ cpu = cpu()
 
 class cpu_watcher(QtCore.QObject):      
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def get_cpu(self):
         pass
         busy.write(True)

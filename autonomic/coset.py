@@ -9,7 +9,7 @@ import numpy as np
 
 import scipy
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 import WrightTools as wt
 import attune
@@ -60,8 +60,8 @@ class CoSetHW:
         self.corrs = []
         self.control_hardware = []
         # make own widget
-        self.widget = QtGui.QWidget()
-        self.box = QtGui.QHBoxLayout()
+        self.widget = QtWidgets.QWidget()
+        self.box = QtWidgets.QHBoxLayout()
         self.box.setContentsMargins(0, 10, 0, 0)
         self.widget.setLayout(self.box)
         self.create_frame(self.box)
@@ -108,8 +108,8 @@ class CoSetHW:
 
     def create_frame(self, layout):
         # container widget
-        display_container_widget = QtGui.QWidget()
-        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_container_widget = QtWidgets.QWidget()
+        display_container_widget.setLayout(QtWidgets.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
@@ -121,12 +121,12 @@ class CoSetHW:
         line = pw.line('V')
         layout.addWidget(line)
         # settings area
-        settings_container_widget = QtGui.QWidget()
+        settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area(130)
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
@@ -339,11 +339,11 @@ class GUI(QtCore.QObject):
     def create_frame(self):
         # get parent layout
         parent_widget = g.coset_widget.read()
-        parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.setLayout(QtWidgets.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         parent_layout = parent_widget.layout()
         # create own layout
-        self.tabs = QtGui.QTabWidget()
+        self.tabs = QtWidgets.QTabWidget()
         # OPAs
         if len(opas.hardwares) > 0:
             self.create_hardware_frame('OPAs', opas.hardwares)
@@ -359,8 +359,8 @@ class GUI(QtCore.QObject):
         parent_layout.addWidget(self.tabs)
 
     def create_hardware_frame(self, name, hardwares):
-        container_widget = QtGui.QWidget()
-        container_box = QtGui.QHBoxLayout()
+        container_widget = QtWidgets.QWidget()
+        container_box = QtWidgets.QHBoxLayout()
         container_box.setContentsMargins(0, 10, 0, 0)
         container_widget.setLayout(container_box)
         self.tabs.addTab(container_widget, name)

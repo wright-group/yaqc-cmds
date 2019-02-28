@@ -5,7 +5,7 @@ import os
 import collections
 import time
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 import project
 import project.classes as pc

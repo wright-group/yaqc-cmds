@@ -28,7 +28,7 @@ import numpy as np
 
 import numexpr
 
-from PyQt4 import QtCore, QtGui
+from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 
@@ -123,9 +123,9 @@ for name in config.options('load'):
 
 
 class Worker(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    scan_complete = QtCore.pyqtSignal()
-    done = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    scan_complete = QtCore.Signal()
+    done = QtCore.Signal()
     
     def __init__(self, aqn_path, queue_worker, finished):
         # do not overload this method
@@ -393,7 +393,7 @@ class GUI(QtCore.QObject):
         self.module_name = module_name
         self.wait_window = pw.MessageWindow(title=self.module_name, text='Please wait.')
         # create frame
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QtWidgets.QVBoxLayout()
         self.layout.setMargin(0)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.create_frame()  # add module-specific widgets to out layout
@@ -401,20 +401,20 @@ class GUI(QtCore.QObject):
         self.device_widget = devices.Widget()
         self.layout.addWidget(self.device_widget)
         # finish
-        self.frame = QtGui.QWidget()
+        self.frame = QtWidgets.QWidget()
         self.frame.setLayout(self.layout)
         # signals and slots
         devices.control.settings_updated.connect(self.on_device_settings_updated)
         
 
     def create_frame(self):
-        layout = QtGui.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.setMargin(5)
         # scan widget
         layout.addWidget(self.scan.widget)
         # finish
         layout.addStretch(1)
-        self.frame = QtGui.QWidget()
+        self.frame = QtWidgets.QWidget()
         self.frame.setLayout(layout)
         g.module_widget.add_child(self.frame)
         g.module_combobox.add_module(module_name, self.show_frame)

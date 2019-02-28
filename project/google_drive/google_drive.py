@@ -12,7 +12,7 @@ import time
 import shutil
 from distutils.dir_util import copy_tree
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 from . import _google_drive
 
@@ -46,8 +46,8 @@ if not os.path.isdir(temp_directory):
 
 
 class Address(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    queue_emptied = QtCore.Signal()
     
     def __init__(self, busy, enqueued, system_name):
         QtCore.QObject.__init__(self)
@@ -73,7 +73,7 @@ class Address(QtCore.QObject):
             self.busy.write(False)
             self.update_ui.emit()
 
-    @QtCore.pyqtSlot(str, list)
+    @QtCore.Slot(str, list)
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.

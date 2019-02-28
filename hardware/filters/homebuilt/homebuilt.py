@@ -12,7 +12,7 @@ import time
 
 import numpy as np
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 from serial import SerialException
 
 import WrightTools as wt
