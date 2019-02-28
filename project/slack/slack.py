@@ -197,10 +197,12 @@ class Control:
 
     def screenshot(self, channel):
         p = QtGui.QPixmap.grabWindow(g.main_window.read().winId())
-        with tempfile.NamedTemporaryFile(suffix=".png") as tf:
-            p.save(tf.name, "png")
-            self.upload_file(tf.name, ":camera:", channel=channel)
-            time.sleep(1)
+        tf = tempfile.mkstemp()
+        p.save(tf[1], "png")
+        self.upload_file(tf[1], ":camera:", channel=channel)
+        time.sleep(1)
+        os.unlink(tf[1])
+        
 
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
