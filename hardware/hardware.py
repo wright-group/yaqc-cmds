@@ -37,7 +37,6 @@ class Driver(pc.Driver):
         self.model = self.hardware.model
         self.serial = self.hardware.serial
         self.label = pc.String(kwargs['label'])
-        self.label.updated.connect(self.on_label_updated)
         self.native_units = kwargs['native_units']
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
@@ -63,6 +62,7 @@ class Driver(pc.Driver):
         """
         May not accept arguments.
         """
+        self.label.updated.connect(self.on_label_updated)
         self.initialized.write(True)
         self.initialized_signal.emit()
         
@@ -183,6 +183,7 @@ class Hardware(pc.Hardware):
 
     def __init__(self, *args, **kwargs):
         pc.Hardware.__init__(self, *args, **kwargs)
+        self.driver.initialized_signal.connect(self.on_address_initialized)
         self.exposed = self.driver.exposed
         for obj in self.exposed:
             obj.updated.connect(self.update)
@@ -193,7 +194,6 @@ class Hardware(pc.Hardware):
         self.destination = pc.Number(units=self.native_units, display=True)
         self.destination.write(self.position.read(self.native_units), self.native_units)
         self.limits = self.driver.limits
-        self.driver.initialized_signal.connect(self.on_address_initialized)
         hardwares.append(self)
 
     def close(self):

@@ -1,6 +1,12 @@
 #! /usr/bin/env python
 ### ensure folders exist ######################################################
 
+import matplotlib
+matplotlib.use('ps')  # important - images will be generated in worker threads
+
+import sys
+from PySide2 import QtWidgets, QtCore
+app = QtWidgets.QApplication(sys.argv)
 
 import os
 
@@ -27,19 +33,12 @@ for folder in folders:
 #BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
 
-import sys
 import copy
 import glob
 import inspect
 import subprocess
 
-import matplotlib
-matplotlib.use('ps')  # important - images will be generated in worker threads
-
-from PySide2 import QtWidgets, QtCore
-
 import project.project_globals as g
-app = QtWidgets.QApplication(sys.argv)
 g.app.write(app)
 g.logger.load()
 import project.ini_handler as ini
@@ -102,7 +101,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.window_verti_size = 600
         self.window_horiz_size = 1000
         self.setGeometry(0,0, self.window_horiz_size, self.window_verti_size)
-        self._center()
+        #self._center()
         self.resize(self.window_horiz_size, self.window_verti_size)
         self._create_main_frame()
         # initialize program
@@ -125,7 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
     
     def _create_main_frame(self):
-        self.main_frame = QtWidgets.QWidget()
+        self.main_frame = QtWidgets.QWidget(parent=self)
         hbox = QtWidgets.QHBoxLayout()  
         # hardware ------------------------------------------------------------
         hardware_box = QtWidgets.QVBoxLayout()
@@ -137,7 +136,7 @@ class MainWindow(QtWidgets.QMainWindow):
         hardware_box.addWidget(exit_button)
         g.queue_control.disable_when_true(exit_button)
         # hardware container widget
-        hardware_widget = QtWidgets.QWidget()
+        hardware_widget = QtWidgets.QWidget(parent=self.main_frame)
         g.hardware_widget.write(hardware_widget)
         # hardware scroll area
         hardware_scroll_area = pw.scroll_area()
@@ -168,38 +167,39 @@ class MainWindow(QtWidgets.QMainWindow):
         progress_bar.layout().addWidget(time_remaining)
         g.progress_bar.give_time_display_elements(time_elapsed, time_remaining)
         # program box
-        program_widget = QtWidgets.QWidget()
+        program_widget = QtWidgets.QWidget(parent=self.main_frame)
         # hardware box
-        hardware_advanced_widget = QtWidgets.QWidget()
+        hardware_advanced_widget = QtWidgets.QWidget(parent=self.main_frame)
         hardware_advanced_box = QtWidgets.QVBoxLayout()
         hardware_advanced_box.setContentsMargins(0, 10, 0, 0)
         hardware_advanced_widget.setLayout(hardware_advanced_box)
         g.hardware_advanced_box.write(hardware_advanced_box)
+        self.hardware_advanced_box = hardware_advanced_box
         # device box
-        device_widget = QtWidgets.QWidget()
+        device_widget = QtWidgets.QWidget(parent=self.main_frame)
         g.daq_widget.write(device_widget)
         # autonomic box
-        coset_widget = QtWidgets.QWidget()
+        coset_widget = QtWidgets.QWidget(parent=self.main_frame)
         g.coset_widget.write(coset_widget)
         # sonomic box
-        somatic_widget = QtWidgets.QWidget()
+        somatic_widget = QtWidgets.QWidget(parent=self.main_frame)
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 10, 0, 0)
         somatic_widget.setLayout(layout)
         somatic_tabs = pw.TabWidget()
-        self.queue_widget = QtWidgets.QWidget()
+        self.queue_widget = QtWidgets.QWidget(parent=self.main_frame)
         somatic_tabs.addTab(self.queue_widget, 'Queue')
-        self.scan_widget = QtWidgets.QWidget()
+        self.scan_widget = QtWidgets.QWidget(parent=self.main_frame)
         somatic_tabs.addTab(self.scan_widget, 'Scan')
         somatic_tabs.setContentsMargins(0., 0., 0., 0.)
         layout.addWidget(somatic_tabs)
         # plot box
-        plot_widget = QtWidgets.QWidget()
+        plot_widget = QtWidgets.QWidget(parent=self.main_frame)
         g.daq_plot_widget.write(plot_widget)
         # tab widget
         self.tabs = pw.TabWidget()
         self.tabs.addTab(program_widget, 'Program')
-        self.tabs.addTab(hardware_advanced_widget, 'Hardware')
+        #self.tabs.addTab(hardware_advanced_widget, 'Hardware')
         self.tabs.addTab(device_widget, 'Devices')
         self.tabs.addTab(coset_widget, 'Autonomic')
         self.tabs.addTab(somatic_widget, 'Somatic')
