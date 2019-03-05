@@ -282,7 +282,12 @@ class CoSetHW:
         Offsets to zero for all corrs based on current positions.
         '''
         for i, corr in enumerate(self.corrs):
-            corr.offset_to(list(corr.dependents.keys())[:], 0, self.control_position[i])
+            corr.offset_to(list(corr.dependents.keys())[0], 0, self.control_position[i])
+            corr.name += " offset"
+            path = corr.save(save_directory=pathlib.Path(g.main_dir.read()) / "autonomic" / "files")
+            self.load_file(path)
+            ini.write(self.hardware.name, corr.setpoints.name, corr.path, with_apostrophe=True)
+
         self.launch()
         self.update_display()
 
