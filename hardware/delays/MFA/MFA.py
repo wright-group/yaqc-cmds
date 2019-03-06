@@ -81,11 +81,11 @@ status_dict = {value: key for key, value in controller_states.items()}
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
-        self.index = kwargs.pop('index')
-        self.axis = kwargs.pop('axis')
-        self.native_per_mm = 6000.671281903963041
-        self.status = pc.String(display=True)
         super(self.__class__, self).__init__(*args, **kwargs)
+        self.index = kwargs.pop('index')
+        self.native_per_mm = 6000.671281903963041
+        self.axis = kwargs.pop('axis')
+        self.status = pc.String(display=True)
         self.motor_limits = pc.NumberLimits(0, 25, 'mm')
         self.motor_position.decimals = 5
         self.zero_position.decimals = 5

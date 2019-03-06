@@ -29,10 +29,10 @@ main_dir = g.main_dir.read()
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
+        BaseDriver.__init__(self, *args, **kwargs)
         kwargs['native_units'] = 'ps'
         self.index = kwargs.pop('index')
         self.native_per_mm = 6.671281903963041
-        BaseDriver.__init__(self, *args, **kwargs)
 
     def close(self):
         self.motor.close()
