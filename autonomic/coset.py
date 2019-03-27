@@ -97,7 +97,7 @@ class CoSetHW:
         name = pathlib.Path(corr.path).stem
         label = pw.Label(name)
         label.setMargin(3)
-        label.setToolTip(corr.path)
+        label.setToolTip(str(corr.path))
         self.table.setCellWidget(new_row_index, 1, label)
         # button
         button = pw.SetButton('REMOVE', color='stop')
@@ -207,7 +207,7 @@ class CoSetHW:
                 break  # should only be one
         # load in
         self.load_file(path)
-        ini.write(self.hardware.name, corr.setpoints.name, corr.path, with_apostrophe=True)
+        ini.write(self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True)
         self.display_combobox.write(corr.setpoints.name)
 
     def on_remove_file(self, row):
@@ -281,14 +281,20 @@ class CoSetHW:
         '''
         Offsets to zero for all corrs based on current positions.
         '''
+        use = self.use_bool.read()
+        paths = []
         for i, corr in enumerate(self.corrs):
             corr.offset_to(list(corr.dependents.keys())[0], 0, self.control_position[i])
-            corr.name += " offset"
-            path = corr.save(save_directory=pathlib.Path(g.main_dir.read()) / "autonomic" / "files")
-            self.load_file(path)
-            ini.write(self.hardware.name, corr.setpoints.name, corr.path, with_apostrophe=True)
+            corr.name = f"{next(iter(corr.dependents))}_{corr.setpoints.name} offset"
+            paths.append(corr.save(save_directory=pathlib.Path(g.main_dir.read()) / "autonomic" / "files"))
+        for i in range(len(self.corrs)):
+            self.unload_file(0)
+        for path in paths:
+            corr = self.load_file(path)
+            ini.write(self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True)
 
         self.launch()
+        use = self.use_bool.write(use)
         self.update_display()
 
 

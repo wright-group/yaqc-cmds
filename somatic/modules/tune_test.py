@@ -55,7 +55,7 @@ class Worker(acquisition.Worker):
             curve = curve.subcurve
         channel_name = self.aqn.read('processing', 'channel')
         transform = list(data.axis_names)
-        transform[-1] = transform[-1] + f"_points__d__{self.aqn.read('spectrometer', 'order')}"
+        transform[-1] = transform[-1] + f"_points/{int(self.aqn.read('spectrometer', 'order'))}"
         data.transform(*transform)
         attune.workup.tune_test(data, channel_name, curve, save_directory=scan_folder)
         # upload
