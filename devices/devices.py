@@ -303,14 +303,23 @@ data_obj.moveToThread(data_thread)
 data_thread.start()
 
 #create queue to communiate with address thread
-data_queue = QtCore.QMetaObject()
+class DataQueue(QtCore.QObject):
+    signal = QtCore.Signal(str, list)
+
+    def __init__(self):
+        super(DataQueue, self).__init__()
+
+data_queue = DataQueue()
+data_queue.signal.connect(data_obj.dequeue, type=QtCore.Qt.QueuedConnection)
+
 def q(method, inputs = []):
     #add to friendly queue list 
     enqueued_data.push([method, time.time()])
     #busy
     data_busy.write(True)
     #send Qt SIGNAL to address thread
-    data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
+    data_queue.signal.emit(method, inputs)
+    #data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
 
 # --- device --------------------------------------------------------------------------------------

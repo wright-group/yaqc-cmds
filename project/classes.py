@@ -791,7 +791,7 @@ class Q(QtCore.QObject):
         self.driver = driver
         super(Q, self).__init__()
         #self.queue = QtCore.QMetaObject()
-        self.signal.connect(self.driver.dequeue)
+        self.signal.connect(self.driver.dequeue, type=QtCore.Qt.QueuedConnection)
 
     def push(self, method, *args, **kwargs):
         self.enqueued.push([method, time.time()])
@@ -804,4 +804,4 @@ class Q(QtCore.QObject):
                                 QtCore.Qt.QueuedConnection,
                                 QtCore.Q_ARG('str', method),
                                 QtCore.Q_ARG('list', [args, kwargs]))
-        """
+                                """
