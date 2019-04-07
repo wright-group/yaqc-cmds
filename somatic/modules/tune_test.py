@@ -54,8 +54,15 @@ class Worker(acquisition.Worker):
         if curve.kind == 'poynting':
             curve = curve.subcurve
         channel_name = self.aqn.read('processing', 'channel')
+        try:
+            order = int(self.aqn.read('spectrometer', 'order'))
+        except KeyError:
+            order = 1
         transform = list(data.axis_names)
-        transform[-1] = transform[-1] + f"_points/{int(self.aqn.read('spectrometer', 'order'))}"
+        if order > 0
+            transform[-1] = f"{transform[-1]}_points/{order}"
+        else:
+            transform[-1] = f"{transform[-1]}_points*{abs(order)}"
         data.transform(*transform)
         attune.workup.tune_test(data, channel_name, curve, save_directory=scan_folder)
         # upload
@@ -76,7 +83,16 @@ class Worker(acquisition.Worker):
         # mono
         name = 'wm'
         identity = 'Dwm'
-        kwargs = {'centers': curve.setpoints[:] * self.aqn.read('spectrometer', 'order')}
+        try:
+            order = self.aqn.read('spectrometer', 'order')
+        except KeyError:
+            order = 1
+        if order == 0:
+            raise ValueError("Spectrometer order cannot be 0")
+        elif order > 0
+            kwargs = {'centers': curve.setpoints[:] * self.aqn.read('spectrometer', 'order')}
+        else:
+            kwargs = {'centers': curve.setpoints[:] / abs(self.aqn.read('spectrometer', 'order'))}
         width = self.aqn.read('spectrometer', 'width')/2.
         npts = self.aqn.read('spectrometer', 'number')
         points = np.linspace(-width, width, npts)
