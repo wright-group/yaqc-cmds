@@ -68,13 +68,15 @@ class Worker(acquisition.Worker):
         axes = []
         # OPA
         opa_name = self.aqn.read('opa', 'opa')
+        npts = self.aqn.read('opa', 'npts')
         opa_names = [opa.name for opa in opas.hardwares]
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
-        axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_friendly_name, opa_friendly_name)
+        pts = np.linspace(curve.setpoints[:].min(), curve.setpoints[:].max(), npts)
+        axis = acquisition.Axis(pts, 'wn', opa_friendly_name, opa_friendly_name)
         axes.append(axis)
         # delay
         axis_name = 'delay'
@@ -118,6 +120,8 @@ class GUI(acquisition.GUI):
         self.opa_combo = pc.Combo(allowed)
         input_table.add('OPA', None)
         input_table.add('OPA', self.opa_combo)
+        self.npts_opa = pc.Number(decimals=0, initial_value=21)
+        input_table.add("npts", self.npts_opa)
         # delay
         self.delay = ScanAxisGUI('delay', "")
         self.delay.start.write(-3)
@@ -182,6 +186,7 @@ class GUI(acquisition.GUI):
         self.constants = []
         aqn = wt.kit.INI(aqn_path)
         self.opa_combo.write(aqn.read('opa', 'opa'))
+        self.npts_opa.write(aqn.read('opa', 'npts'))
         self.mono_width.write(aqn.read('spectrometer', 'width'))
         self.mono_npts.write(aqn.read('spectrometer', 'number'))
         self.channel_combo.write(aqn.read('processing', 'channel'))
@@ -211,6 +216,7 @@ class GUI(acquisition.GUI):
         aqn = wt.kit.INI(aqn_path)
         aqn.add_section('opa')
         aqn.write('opa', 'opa', self.opa_combo.read())
+        aqn.write('opa', 'npts', self.npts_opa.read())
         aqn.add_section('delay')
         aqn.write('delay', 'start', self.delay.start.read())
         aqn.write('delay', 'stop', self.delay.stop.read())
