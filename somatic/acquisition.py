@@ -8,6 +8,7 @@ Acquisition infrastructure shared by all modules.
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import re
 import os
 import sys
 import imp
@@ -66,8 +67,9 @@ class Axis:
         self.hardware_dict = hardware_dict.copy()
         self.__dict__.update(kwargs)
         # fill hardware dictionary with defaults
-        names, operators = wt.kit.parse_identity(self.identity)
-        if 'F' in operators:  # last name should be a 'following' in this case
+        names = re.split("[=F]+", self.identity)
+        # KFS 2018-12-07: Is this still used at all? replacing wt2 kit.parse_identity
+        if 'F' in self.identity:  # last name should be a 'following' in this case
             names.pop(-1)
         for name in names:
             if name[0] == 'D':
@@ -167,34 +169,25 @@ class Worker(QtCore.QObject):
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
         data.save(data_path.replace('.data', '.p'), verbose=False)
-        # chop data if over 2D
-        if len(data.shape) > 2:
-            chopped_datas = data.chop(0, 1, verbose=False)
         # make figures for each channel
-        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        data_path = pathlib.Path(data_path)
+        data_folder = data_path.parent
+        file_name = data_path.stem
+        file_extension = data_path.suffix
         # chop data if over 2D
         for channel_index, channel_name in enumerate(data.channel_names):
+            output_folder = data_folder if data.ndim <= 2 else data_folder / channel_name
+            output_folder.mkdir(exist_ok=True)
             image_fname = channel_name + ' ' + file_name
             if len(data.shape) == 1:
-                artist = wt.artists.mpl_1D(data, verbose=False)
-                artist.plot(channel_index, autosave=True, output_folder=data_folder,
-                            fname=image_fname, verbose=False)
-            elif len(data.shape) == 2:
-                artist = wt.artists.mpl_2D(data, verbose=False)
-                artist.plot(channel_index, autosave=True, output_folder=data_folder,
+                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, output_folder=output_folder,
                             fname=image_fname, verbose=False)
             else:
-                channel_folder = os.path.join(data_folder, channel_name)
-                os.mkdir(channel_folder)
-                for index, chopped_data in enumerate(chopped_datas):
-                    this_image_fname = image_fname + str(index).zfill(3)
-                    artist = wt.artists.mpl_2D(chopped_data, verbose=False)
-                    artist.plot(channel_index, autosave=True, output_folder=channel_folder,
-                                fname=this_image_fname, verbose=False)
-                    g.app.read().processEvents()  # gui should not hang...
+                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, output_folder=output_folder,
+                            fname=image_fname, verbose=False)
             # hack in a way to get the first image written
             if channel_index == 0:
-                output_image_path = os.path.join(data_folder, image_fname + ' 000.png')
+                output_image_path = outs[0]
         # upload
         self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
 

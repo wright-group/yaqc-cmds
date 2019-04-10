@@ -6,6 +6,7 @@ import collections
 import numpy as np
 
 import WrightTools as wt
+import attune
 
 import project.classes as pc
 import project.widgets as pw
@@ -91,18 +92,18 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('BBO', 'do'):
             axes = []
             # tune points
-            points = curve.colors
-            units = curve.units
+            points = curve.setpoints[:]
+            units = curve.setpoints.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.name, curve.motor_names[1]])
+            name = '_'.join([self.driver.name, "BBO"])
             identity = 'D' + name
             width = worker.aqn.read('BBO', 'width')
             npts = int(worker.aqn.read('BBO', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = curve.motors[1].positions
+            motor_positions = curve["BBO"].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.driver.hardware, 'set_motor', ['BBO', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
@@ -113,7 +114,10 @@ class AutoTune(BaseAutoTune):
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
             channel = worker.aqn.read('BBO', 'channel')
-            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
+            attune.workup.intensity(data, channel, "BBO",curve, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.driver.curve_path.write(p)
@@ -124,18 +128,18 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Mixer', 'do'):
             axes = []
             # tune points
-            points = curve.colors
-            units = curve.units
+            points = curve.setpoints[:]
+            units = curve.setpoints.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
             # motor
-            name = '_'.join([self.driver.name, curve.motor_names[2]])
+            name = '_'.join([self.driver.name, "Mixer"])
             identity = 'D' + name
             width = worker.aqn.read('Mixer', 'width')
             npts = int(worker.aqn.read('Mixer', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            motor_positions = curve.motors[2].positions
+            motor_positions = curve["Mixer"].positions
             kwargs = {'centers': motor_positions}
             hardware_dict = {name: [self.driver.hardware, 'set_motor', ['Mixer', 'destination']]}
             axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
@@ -145,8 +149,11 @@ class AutoTune(BaseAutoTune):
             # process
             p = os.path.join(scan_folder, '000.data')
             data = wt.data.from_PyCMDS(p)
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
             channel = worker.aqn.read('Mixer', 'channel')
-            wt.tuning.workup.intensity(data, curve, channel, save_directory=scan_folder)
+            attune.workup.intensity(data, channel, "Mixer", curve, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.driver.curve_path.write(p)
@@ -157,8 +164,8 @@ class AutoTune(BaseAutoTune):
         if worker.aqn.read('Test', 'do'):
             axes = []
             # tune points
-            points = curve.colors
-            units = curve.units
+            points = curve.setpoints[:]
+            units = curve.setpoints.units
             name = identity = self.driver.name
             axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
             axes.append(axis)
@@ -168,7 +175,7 @@ class AutoTune(BaseAutoTune):
             width = worker.aqn.read('Test', 'width')
             npts = int(worker.aqn.read('Test', 'number'))
             points = np.linspace(-width/2., width/2., npts)
-            kwargs = {'centers': curve.colors}
+            kwargs = {'centers': curve.setpoints[:]}
             axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
             axes.append(axis)
             # do scan
@@ -177,7 +184,10 @@ class AutoTune(BaseAutoTune):
             p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(p)
             channel = worker.aqn.read('Test', 'channel')
-            wt.tuning.workup.tune_test(data, curve, channel, save_directory=scan_folder)
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
+            attune.workup.tune_test(data, channel, curve, save_directory=scan_folder)
             # apply new curve
             p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
             self.driver.curve_path.write(p)
@@ -224,8 +234,7 @@ class Driver(BaseDriver):
     def __init__(self, *args, **kwargs):
         self.motor_names = ['Grating', 'BBO', 'Mixer']
         self.auto_tune = AutoTune(self)
-        self.motors = []
-        self.homeable = [False]
+        self.motors = {}
         self.curve_paths = collections.OrderedDict()
         # TODO: Determine if pico_opa needs to have interaction string combo
         allowed_values = ['SHS']
@@ -238,39 +247,34 @@ class Driver(BaseDriver):
         self.curve_path.updated.connect(lambda: self.load_curve())
 
         self.curve_paths['Curve'] = self.curve_path
-        print(self.curve_paths)
         self.load_curve()
 
     def _load_curve(self, interaction):
         '''
         when loading externally, write to curve_path object directly
         '''
-        self.curve = wt.tuning.curve.from_800_curve(self.curve_paths['Curve'].read())
+        self.curve = attune.Curve.read(self.curve_paths['Curve'].read())
+        self.curve.kind = "opa800"
         return self.curve
 
-    def _set_motors(self, motor_indexes, motor_destinations):
-        for axis, dest in zip(motor_indexes, motor_destinations):
-            if axis < 3:
-                if dest >= 0 and dest <= 50:
-                    self.motors[axis].move_absolute(dest)
-                else:
-                    print('That is not a valid axis '+str(axis)+' motor positon. Nice try, bucko.')
-            else:
-                print('Unrecognized axis '+str(axis))
+    def _set_motors(self, motor_destinations):
+        for axis, dest in motor_destinations.items():
+            if dest >= 0 and dest <= 50:
+                self.motors[axis].move_absolute(dest)
 
     def _wait_until_still(self):
-        for motor in self.motors:
+        for motor in self.motors.values():
             motor.wait_until_still(method=self.get_position)
 
     def close(self):
-        for motor in self.motors:
+        for motor in self.motors.values():
             motor.close()
         BaseDriver.close(self)
 
     def get_motor_positions(self):
-        for i in range(len(self.motors)):
+        for i in self.motors:
             val = self.motors[i].current_position_mm
-            list(self.motor_positions.values())[i].write(val)
+            self.motor_positions[i].write(val)
         if self.poynting_correction:
             self.poynting_correction.get_motor_positions()
 
@@ -285,8 +289,8 @@ class Driver(BaseDriver):
             number = pc.Number(name=motor_name, initial_value=25.,
                                decimals=6, limits=motor_limits, display=True)
             self.motor_positions[motor_name] = number
-            self.motors.append(pm_motors.Motor(
-                pm_motors.identity['OPA%d %s' % (self.index, motor_name)]))
+            self.motors.update({ motor_name: pm_motors.Motor(
+                pm_motors.identity['OPA%d %s' % (self.index, motor_name)])})
             self.recorded['w%d_%s' % (self.index, motor_name)] = [
                 number, None, 0.001, motor_name.lower()]
         # self.get_motor_positions()
@@ -298,7 +302,7 @@ class Driver(BaseDriver):
         BaseDriver.initialize(self)
 
     def is_busy(self):
-        for motor in self.motors:
+        for motor in self.motors.values():
             if not motor.is_stopped():
                 self.get_position()
                 return True

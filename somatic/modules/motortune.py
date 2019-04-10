@@ -4,6 +4,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import pathlib
 import sys
 import time
 import numexpr as ne
@@ -112,37 +113,30 @@ class Worker(acquisition.Worker):
         data_path = devices.data_path.read() 
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
-        # chop data if over 2D
-        if len(data.shape) > 2:
-            chopped_datas = data.chop(0, 1, verbose=False)
-        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        data_path = pathlib.Path(data_path)
+        data_folder = data_path.parent
+        ouput_folder = data_folder
+        channel_path = data_folder / channel
+        if data.ndim > 2:
+            output_folder = channel_path
+            channel_path.mkdir()
+        file_name = data_path.stem
+        file_extension = data_path.suffix
         # make all images
         channel = self.aqn.read('processing', 'channel')
         image_fname = channel
-        if len(data.shape) == 1:
-            artist = wt.artists.mpl_1D(data, verbose=False)
-            artist.plot(channel, autosave=True, output_folder=data_folder,
-                        fname=image_fname, verbose=False)
-        elif len(data.shape) == 2:
-            artist = wt.artists.mpl_2D(data, verbose=False)
-            artist.plot(channel, autosave=True, output_folder=data_folder,
+        if data.ndim == 1:
+            filepaths = wt.artists.quick1D(data, channel=channel, autosave=True, save_directory=output_folder,
                         fname=image_fname, verbose=False)
         else:
-            channel_folder = os.path.join(data_folder, channel)
-            os.mkdir(channel_folder)
-            for index, chopped_data in enumerate(chopped_datas):
-                this_image_fname = image_fname + ' ' + str(index).zfill(3)
-                artist = wt.artists.mpl_2D(chopped_data, verbose=False)
-                artist.plot(channel, autosave=True, output_folder=channel_folder,
-                            fname=this_image_fname, verbose=False)
+            filepaths = wt.artists.quick2D(data, -1, -2, channel=channel, autosave=True, save_directory=output_folder,
+                        fname=image_fname, verbose=False)
         # get output image
-        if len(data.shape) <= 2:
-            output_image_path = os.path.join(data_folder, '%s 000.png'%channel)
+        if len(filepaths) == 1:
+            output_image_path = filepaths[0]
         else:
-            output_folder = os.path.join(data_folder, channel)
-            output_image_path = os.path.join(output_folder, 'animation.gif')
-            images = wt.kit.glob_handler('.png', folder=output_folder)
-            wt.artists.stitch_to_animation(images=images, outpath=output_image_path)
+            output_image_path = str(output_folder / 'animation.gif')
+            wt.artists.stitch_to_animation(images=filepaths, outpath=output_image_path)
         # upload
         self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)    
     
@@ -160,21 +154,21 @@ class Worker(acquisition.Worker):
         # tune points        
         if self.aqn.read('motortune', 'use tune points'):
             motors_excepted = []  # list of indicies  
-            for motor_index, motor_name in enumerate(motor_names):
+            for motor_name in motor_names:
                 if not self.aqn.read(motor_name, 'method') == 'Set':
-                    motors_excepted.append(motor_index)
+                    motors_excepted.append(motor_name)
             if self.aqn.read('spectrometer', 'method') == 'Set':
                 identity = opa_friendly_name + '=wm'
                 hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]],
                                  'wm': [spectrometers.hardwares[0], 'set_position', None]}
-                axis = acquisition.Axis(curve.colors, curve.units, opa_friendly_name, identity, hardware_dict)
+                axis = acquisition.Axis(curve.setpoints[:], curve.setpoints.units, opa_friendly_name, identity, hardware_dict)
                 axes.append(axis)
             else:
                 hardware_dict = {opa_friendly_name: [opa_hardware, 'set_position_except', ['destination', motors_excepted]]}
-                axis = acquisition.Axis(curve.colors, curve.units, opa_friendly_name, opa_friendly_name, hardware_dict)
+                axis = acquisition.Axis(curve.setpoints[:], curve.setpoints.units, opa_friendly_name, opa_friendly_name, hardware_dict)
                 axes.append(axis)
         # motor
-        for motor_index, motor_name in enumerate(motor_names):
+        for motor_name in motor_names:
             if self.aqn.read(motor_name, 'method') == 'Scan':
                 motor_units = None
                 name = '_'.join([opa_friendly_name, motor_name])
@@ -183,8 +177,7 @@ class Worker(acquisition.Worker):
                 if self.aqn.read('motortune', 'use tune points'):
                     center = 0.
                     identity = 'D'+name
-                    curve_motor_index = curve.get_motor_names(full=False).index(motor_name)
-                    motor_positions = curve.motors[curve_motor_index].positions
+                    motor_positions = curve[motor_name][:]
                     kwargs = {'centers': motor_positions}
                 else:
                     center = self.aqn.read(motor_name, 'center')
@@ -210,10 +203,11 @@ class Worker(acquisition.Worker):
                 curve = curve.copy()
                 curve.convert('wn')
                 #centers_shape = [a.points.size for a in axes]
-                #centers = np.transpose(curve.colors * np.ones(centers_shape).T)
-                kwargs = {'centers': curve.colors}
+                #centers = np.transpose(curve.setpoints[:] * np.ones(centers_shape).T)
+                kwargs = {'centers': curve.setpoints[:]}
             else:
                 center = self.aqn.read('spectrometer', 'center')
+                center = wt.units.convert(center, self.aqn.read('spectrometer', 'center units'), 'wn')
                 identity = name
                 kwargs = {}
             points = np.linspace(center-width, center+width, npts)
@@ -224,9 +218,13 @@ class Worker(acquisition.Worker):
                 # already handled above
                 pass
             else:
-                spectrometers.hardwares[0].set_position(self.aqn.read('spectrometer', 'center'), 'wn')
+                center = self.aqn.read('spectrometer', 'center')
+                center = wt.units.convert(center, self.aqn.read('spectrometer', 'center units'), 'wn')              
+                spectrometers.hardwares[0].set_position(center, 'wn')
         elif self.aqn.read('spectrometer', 'method') == 'Static':
-            spectrometers.hardwares[0].set_position(self.aqn.read('spectrometer', 'center'), 'wn')
+            center = self.aqn.read('spectrometer', 'center')
+            center = wt.units.convert(center, self.aqn.read('spectrometer', 'center units'), 'wn')
+            spectrometers.hardwares[0].set_position(center, 'wn')
         # handle centers
         for axis_index, axis in enumerate(axes):
             centers_shape = [a.points.size for i, a in enumerate(axes) if not i == axis_index]
@@ -268,7 +266,6 @@ class GUI(acquisition.GUI):
         self.mono_method_combo = pc.Combo(allowed, disable_under_module_control=True)
         self.mono_method_combo.updated.connect(self.update_mono_settings)
         self.mono_center = pc.Number(initial_value=7000, units='wn', disable_under_module_control=True)
-        self.mono_center.set_disabled_units(True)
         self.mono_width = pc.Number(initial_value=500, units='wn', disable_under_module_control=True)
         self.mono_width.set_disabled_units(True)
         self.mono_npts = pc.Number(initial_value=51, decimals=0, disable_under_module_control=True)
@@ -344,6 +341,7 @@ class GUI(acquisition.GUI):
         aqn.add_section('spectrometer')
         aqn.write('spectrometer', 'method', self.mono_method_combo.read())
         aqn.write('spectrometer', 'center', self.mono_center.read())
+        aqn.write('spectrometer', 'center units', self.mono_center.units)
         aqn.write('spectrometer', 'width', self.mono_width.read())
         aqn.write('spectrometer', 'number', self.mono_npts.read())
         # processing

@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import tempfile
 import glob
 import datetime
 
@@ -166,7 +167,42 @@ class Control:
         print(i)
 
     def interrupt(self, text, channel):
-        self.send_message(':confounded: sorry, that feature hasn\'t been implemented')        
+        subcommand = text.strip().upper()
+        if subcommand == "":
+            subcommand = "PAUSE"
+        messages = {
+                "PAUSE": ":double_vertical_bar: Queue Paused, use `interrupt resume` to continue",
+                "RESUME": ":arrow_forward: Queue resumed",
+                "STOP": ":octagonal_sign: Queue stopped, use `run` to continue with next item",
+                "SKIP": ":black_right_pointing_double_triangle_with_vertical_bar: Item skipped, continuing queue",
+            }
+        message = messages.get(subcommand, ":confounded: I do not understand the command")
+        if subcommand == "PAUSE":
+            g.main_window.read().queue_gui.queue.status.pause.write(True)
+        elif subcommand in messages.keys():
+            if g.main_window.read().queue_gui.queue.status.going.read():
+                g.main_window.read().queue_gui.queue.interrupt(option=subcommand)
+            elif subcommand == "STOP":
+                g.main_window.read().queue_gui.queue.status.go.write(False)
+        self.send_message(message)
+        g.main_window.read().queue_gui.update_ui()
+
+    def run_queue(self):
+        g.main_window.read().queue_gui.queue.status.go.write(True)
+        try:
+            g.main_window.read().queue_gui.queue.run()
+        except IndexError:  # Queue full
+            pass
+        g.main_window.read().queue_gui.update_ui()
+
+    def screenshot(self, channel):
+        p = QtGui.QPixmap.grabWindow(g.main_window.read().winId())
+        tf = tempfile.mkstemp()
+        p.save(tf[1], "png")
+        self.upload_file(tf[1], ":camera:", channel=channel)
+        time.sleep(1)
+        os.unlink(tf[1])
+        
 
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
@@ -280,7 +316,15 @@ class Control:
             elif 'append' in text.lower():
                 self.append(text, channel)
             elif 'interrupt' in text.lower():
+                try:
+                    text = text.split(' ', 1)[1]
+                except IndexError:
+                    text = ""
                 self.interrupt(text, channel)
+            elif 'run' in text.lower():
+                self.run_queue()
+            elif 'screenshot' in text.lower():
+                self.screenshot(channel)
             elif 'help' in text.lower():
                 self.send_help(channel)
             else:
@@ -291,12 +335,14 @@ class Control:
 
     def send_help(self, channel):
         command_fields = []
-        command_fields.append(self.make_field('status', 'Get the current status of PyCMDS.'))
-        command_fields.append(self.make_field('get i', 'Get more information about the ith item in the queue.'))
-        command_fields.append(self.make_field('remove i', 'Remove the ith item from the queue.'))
-        command_fields.append(self.make_field('move i to j', 'Move item i to position j. All other items retain their order.'))
-        command_fields.append(self.make_field('append [name] [info]', 'Append a file to the queue. Must be made as a comment of an attached file.'))
-        command_fields.append(self.make_field('interrupt', 'Interrupt the queue.'))
+        command_fields.append(self.make_field('status [--full]', 'Get the current status of PyCMDS.'))
+        #command_fields.append(self.make_field('remove i', 'Remove the ith item from the queue.'))
+        #command_fields.append(self.make_field('move i to j', 'Move item i to position j. All other items retain their order.'))
+        #command_fields.append(self.make_field('append [name] [info]', 'Append a file to the queue. Must be made as a comment of an attached file.'))
+        command_fields.append(self.make_field('run', 'Run the queue.'))
+        command_fields.append(self.make_field('interrupt [pause|resume|skip|stop]', 'Interrupt the queue or resume from pause. Default is pause.'))
+        command_fields.append(self.make_field('screenshot', 'Take a screenshot of the current window and post to slack.'))
+        command_fields.append(self.make_field('help', 'Show this help message.'))
         attachment = self.make_attachment('', fields=command_fields)
         self.send_message(':robot_face: here are my commands', channel, [attachment])
 
@@ -304,7 +350,7 @@ class Control:
         self.q.push('send_message', [text, channel, attachments])
         
     def status(self, text, channel):
-        text, attachments = g.main_window.read().get_status()
+        text, attachments = g.main_window.read().get_status("full" in text.lower())
         self.send_message(text, channel, attachments)
         
     def upload_file(self, file_path, title=None, first_comment=None, channel=None):

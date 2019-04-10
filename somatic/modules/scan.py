@@ -4,6 +4,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import pathlib
 import sys
 import time
 import numexpr as ne
@@ -126,46 +127,41 @@ class Worker(acquisition.Worker):
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
         # decide which channels to make plots for
+        main_channel = self.aqn.read('processing', 'main channel')
         if self.aqn.read('processing', 'process all channels'):
             channels = data.channel_names
         else:
-            channels = [self.aqn.read('processing', 'main channel')]
-        # chop data if over 2D
-        if len(data.shape) > 2:
-            chopped_datas = data.chop(0, 1, verbose=False)
+            channels = [main_channel]
         # make figures for each channel
-        data_folder, file_name, file_extension = wt.kit.filename_parse(data_path)
+        data_path = pathlib.Path(data_path)
+        data_folder = data_path.parent
+        file_name = data_path.stem
+        file_extension = data_path.suffix
         # make all images
         for channel_name in channels:
+            channel_path = data_folder / channel_name
+            output_path = data_folder
+            if data.ndim > 2:
+                output_path = channel_path
+                channel_path.mkdir()
             channel_index = data.channel_names.index(channel_name)
             image_fname = channel_name
-            if len(data.shape) == 1:
-                artist = wt.artists.mpl_1D(data, verbose=False)
-                artist.plot(channel_index, autosave=True, output_folder=data_folder,
-                            fname=image_fname, verbose=False)
-            elif len(data.shape) == 2:
-                artist = wt.artists.mpl_2D(data, verbose=False)
-                artist.plot(channel_index, autosave=True, output_folder=data_folder,
+            if data.ndim == 1:
+                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, save_directory=output_path,
                             fname=image_fname, verbose=False)
             else:
-                channel_folder = os.path.join(data_folder, channel_name)
-                os.mkdir(channel_folder)
-                for index, chopped_data in enumerate(chopped_datas):
-                    this_image_fname = image_fname + ' ' + str(index).zfill(3)
-                    artist = wt.artists.mpl_2D(chopped_data, verbose=False)
-                    artist.plot(channel_index, autosave=True, output_folder=channel_folder,
-                                fname=this_image_fname, verbose=False)
+                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, save_directory=output_path,
+                            fname=image_fname, verbose=False)
+            if channel_name == main_channel:
+                outputs = outs
         # get output image
-        main_channel = self.aqn.read('processing', 'main channel')
-        if len(data.shape) <= 2:
-            output_image_path = os.path.join(scan_folder, main_channel + ' 000.png')
+        if len(outputs) == 1:
+            output_image_path = outputs[0]
         else:
-            output_folder = os.path.join(data_folder, main_channel)
-            output_image_path = os.path.join(output_folder, 'animation.gif')
-            images = wt.kit.glob_handler('.png', folder=output_folder)
-            wt.artists.stitch_to_animation(images=images, outpath=output_image_path)
+            output_image_path = output_path / 'animation.gif'
+            wt.artists.stitch_to_animation(images=outputs, outpath=output_image_path)
         # upload
-        self.upload(scan_folder, reference_image=output_image_path)
+        self.upload(scan_folder, reference_image=str(output_image_path))
     
     def run(self):
         # axes
@@ -297,9 +293,9 @@ class GUI(acquisition.GUI):
         for axis_index, axis_name in enumerate(axis_names):
             units = aqn.read(axis_name, 'units')
             units_kind = None
-            for d in wt.units.unit_dicts:
+            for kind, d in wt.units.dicts.items():
                 if units in d.keys():
-                    units_kind = d['kind']
+                    units_kind = kind
             axis = Axis(units_kind, axis_index)
             axis.start.write(aqn.read(axis_name, 'start'))
             axis.stop.write(aqn.read(axis_name, 'stop'))

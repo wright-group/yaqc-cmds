@@ -28,7 +28,6 @@ for folder in folders:
 
 
 import sys
-import imp
 import copy
 import glob
 import inspect
@@ -67,7 +66,7 @@ directory = os.path.abspath(os.path.dirname(__file__))
 
 # MAJOR.MINOR.PATCH (semantic versioning)
 # major version changes may break backwards compatibility
-__version__ = '0.9.0'
+__version__ = '0.10.0'
 
 # add git branch, if appropriate
 p = os.path.join(directory, '.git', 'HEAD')
@@ -287,9 +286,9 @@ class MainWindow(QtGui.QMainWindow):
         size = self.geometry() 
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
         
-    def get_status(self):
+    def get_status(self, full=False):
         # called by slack
-        return self.queue_gui.get_status()
+        return self.queue_gui.get_status(full)
 
 def main():
     global MainWindow

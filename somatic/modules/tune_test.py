@@ -15,6 +15,7 @@ matplotlib.pyplot.ioff()
 
 from PyQt4 import QtCore, QtGui
 import WrightTools as wt
+import attune
 
 import project.project_globals as g
 import project.classes as pc
@@ -53,9 +54,19 @@ class Worker(acquisition.Worker):
         if curve.kind == 'poynting':
             curve = curve.subcurve
         channel_name = self.aqn.read('processing', 'channel')
-        wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
+        try:
+            order = int(self.aqn.read('spectrometer', 'order'))
+        except KeyError:
+            order = 1
+        transform = list(data.axis_names)
+        if order > 0
+            transform[-1] = f"{transform[-1]}_points/{order}"
+        else:
+            transform[-1] = f"{transform[-1]}_points*{abs(order)}"
+        data.transform(*transform)
+        attune.workup.tune_test(data, channel_name, curve, save_directory=scan_folder)
         # upload
-        self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
+        self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune_test.png'))
     
     def run(self):
         axes = []
@@ -67,12 +78,21 @@ class Worker(acquisition.Worker):
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
-        axis = acquisition.Axis(curve.colors, 'wn', opa_friendly_name, opa_friendly_name)
+        axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_friendly_name, opa_friendly_name)
         axes.append(axis)
         # mono
         name = 'wm'
         identity = 'Dwm'
-        kwargs = {'centers': curve.colors}
+        try:
+            order = self.aqn.read('spectrometer', 'order')
+        except KeyError:
+            order = 1
+        if order == 0:
+            raise ValueError("Spectrometer order cannot be 0")
+        elif order > 0
+            kwargs = {'centers': curve.setpoints[:] * self.aqn.read('spectrometer', 'order')}
+        else:
+            kwargs = {'centers': curve.setpoints[:] / abs(self.aqn.read('spectrometer', 'order'))}
         width = self.aqn.read('spectrometer', 'width')/2.
         npts = self.aqn.read('spectrometer', 'number')
         points = np.linspace(-width, width, npts)
@@ -106,6 +126,8 @@ class GUI(acquisition.GUI):
         input_table.add('Width', self.mono_width)
         self.mono_npts = pc.Number(initial_value=51, decimals=0)
         input_table.add('Number', self.mono_npts)
+        self.mono_order = pc.Number(initial_value=1, decimals=0)
+        input_table.add('Order', self.mono_order)
         # processing
         input_table.add('Processing', None)
         self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
@@ -118,6 +140,10 @@ class GUI(acquisition.GUI):
         self.opa_combo.write(aqn.read('opa', 'opa'))
         self.mono_width.write(aqn.read('spectrometer', 'width'))
         self.mono_npts.write(aqn.read('spectrometer', 'number'))
+        if aqn.has_option('spectrometer', 'order'):
+            self.mono_order.write(aqn.read('spectrometer', 'order'))
+        else:
+            self.mono_order.write(1)
         self.channel_combo.write(aqn.read('processing', 'channel'))
         # allow devices to load settings
         self.device_widget.load(aqn_path)
@@ -133,6 +159,7 @@ class GUI(acquisition.GUI):
         aqn.add_section('spectrometer')
         aqn.write('spectrometer', 'width', self.mono_width.read())
         aqn.write('spectrometer', 'number', self.mono_npts.read())
+        aqn.write('spectrometer', 'order', self.mono_order.read())
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
         # allow devices to write settings

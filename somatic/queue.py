@@ -452,7 +452,7 @@ class Queue():
         string = ':'.join([str(int(h)).zfill(3), str(int(m)).zfill(2), str(int(s)).zfill(2)])
         return string
 
-    def interrupt(self, message='Please choose how to proceed.'):
+    def interrupt(self, option=None, message='Please choose how to proceed.'):
         self.gui.queue_control.set_style('WAITING', 'stop')
         # pause
         self.status.pause.write(True)
@@ -461,7 +461,10 @@ class Queue():
         # ask user how to proceed
         options = ['RESUME', 'SKIP', 'STOP']
         self.gui.interrupt_choice_window.set_text(message)
-        index_chosen = self.gui.interrupt_choice_window.show()
+        if option is None:
+            index_chosen = self.gui.interrupt_choice_window.show()
+        else:
+            index_chosen = wt.kit.get_index(options, option)
         chosen = options[index_chosen]
         # proceed
         if chosen == 'RESUME':
@@ -875,7 +878,7 @@ class GUI(QtCore.QObject):
         layout.addWidget(input_table)
         return frame
     
-    def get_status(self):
+    def get_status(self, full=False):
         # called by slack
         make_field = g.slack_control.read().make_field
         make_attachment = g.slack_control.read().make_attachment
@@ -901,6 +904,8 @@ class GUI(QtCore.QObject):
             attachments.append(make_attachment('', fields=fields, color='#00FFFF'))
             # queue items 
             for item_index, item in enumerate(self.queue.items):
+                if not full and item.status != "RUNNING":
+                    continue
                 name = ' - '.join([str(item_index).zfill(3), item.type, item.description])
                 fields = []
                 if item.started is not None:
@@ -1164,12 +1169,11 @@ class GUI(QtCore.QObject):
 
     def save_aqn(self, folder):
         # all aqn files are first created using this method
-        now = time.time()
         # get filepath
         module_name = self.module_combobox.read()
         name = self.acquisition_name.read()
-        timestamp = wt.kit.get_timestamp(style='short', at=now)
-        aqn_name = ' '.join([timestamp, module_name, name]).rstrip() + '.aqn'
+        timestamp = wt.kit.TimeStamp()
+        aqn_name = ' '.join([timestamp.path, module_name, name]).rstrip() + '.aqn'
         p = os.path.join(folder, aqn_name)
         # create file
         with open(p, 'a'):
@@ -1178,7 +1182,7 @@ class GUI(QtCore.QObject):
         ini = wt.kit.INI(p)
         ini.add_section('info')
         ini.write('info', 'PyCMDS version', g.version.read())
-        ini.write('info', 'created', wt.kit.get_timestamp(at=now))
+        ini.write('info', 'created', timestamp.RFC3339)
         ini.write('info', 'module', module_name)
         ini.write('info', 'name', name)
         ini.write('info', 'info', self.acquisition_info.read())

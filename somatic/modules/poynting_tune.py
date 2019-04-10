@@ -15,6 +15,7 @@ matplotlib.pyplot.ioff()
 
 from PyQt4 import QtCore, QtGui
 import WrightTools as wt
+import attune
 
 import project.project_globals as g
 import project.classes as pc
@@ -46,7 +47,10 @@ class Worker(acquisition.Worker):
             data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
             data = wt.data.from_PyCMDS(data_path)
             channel_name = self.aqn.read('processing', 'channel')
-            wt.tuning.workup.tune_test(data, curve, channel_name, save_directory=scan_folder)
+            transform = list(data.axis_names)
+            transform[-1] = transform[-1] + "_points"
+            data.transform(*transform)
+            attune.workup.tune_test(data, channel_name, save_directory=scan_folder)
             # upload
             self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune test.png'))
     
@@ -62,7 +66,7 @@ class Worker(acquisition.Worker):
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
 
-        axis = acquisition.Axis(curve.colors, 'wn', opa_name, opa_name)
+        axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_name, opa_name)
         possible_axes[opa_name] = axis
 
         self.do_2D = self.aqn.read('processing', 'do_2D_scans')
@@ -77,9 +81,8 @@ class Worker(acquisition.Worker):
                         width = self.aqn.read(section,'width')
                         npts = int(self.aqn.read(section,'number'))
                         points = np.linspace(-width/2.,width/2., npts)
-                        motor_positions = curve.motors[curve.motor_names.index(section)].positions
+                        motor_positions = curve[section][:]
                         kwargs = {'centers': motor_positions}
-                        print(opa_hardware.driver.motor_names)
                         hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
                         axis = acquisition.Axis(points, None, opa_name+'_'+section, 'D'+opa_name, hardware_dict, **kwargs)
                         possible_axes[section] = axis
@@ -105,15 +108,17 @@ class Worker(acquisition.Worker):
                     axes.append(possible_axes[opa_name])
                     axes.append(axis)
                     
-                    print("POYNTING TUNE SCAN", axis.centers)
-
                     scan_folder = self.scan(axes)
 
                     #process
                     p = os.path.join(scan_folder, '000.data')
                     data = wt.data.from_PyCMDS(p)
                     channel = self.aqn.read('processing', 'channel')
-                    wt.tuning.workup.intensity(data, curve, channel, save_directory = scan_folder, cutoff_factor=1e-3)
+                    transform = list(data.axis_names)
+                    dep = name
+                    transform[-1] = f"{transform[0]}_{dep}_points"
+                    data.transform(*transform)
+                    attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, cutoff_factor=1e-3)
 
                     p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
                     opa_hardware.driver.curve_paths['Poynting'].write(p)
@@ -223,7 +228,7 @@ class OPA_GUI():
         self.hardware = hardware
         print(hardware.__class__)
         curve = self.hardware.curve
-        motor_names = curve.motor_names
+        motor_names = curve.dependent_names
         self.motors = []
         for name in motor_names:
             motor = MotorGUI(name,1000,31)
