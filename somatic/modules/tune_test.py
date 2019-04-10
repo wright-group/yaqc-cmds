@@ -59,7 +59,7 @@ class Worker(acquisition.Worker):
         except KeyError:
             order = 1
         transform = list(data.axis_names)
-        if order > 0
+        if order > 0:
             transform[-1] = f"{transform[-1]}_points/{order}"
         else:
             transform[-1] = f"{transform[-1]}_points*{abs(order)}"
@@ -89,7 +89,7 @@ class Worker(acquisition.Worker):
             order = 1
         if order == 0:
             raise ValueError("Spectrometer order cannot be 0")
-        elif order > 0
+        elif order > 0:
             kwargs = {'centers': curve.setpoints[:] * self.aqn.read('spectrometer', 'order')}
         else:
             kwargs = {'centers': curve.setpoints[:] / abs(self.aqn.read('spectrometer', 'order'))}
