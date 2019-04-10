@@ -124,9 +124,11 @@ class GUI(acquisition.GUI):
         self.delay.stop.write(3)
         self.delay.number.write(21)
         input_table.add('Delay', None)
+        self.layout.addWidget(input_table)
         self.layout.addWidget(self.delay.widget)
         # constants
         self.constants = []
+        input_table = pw.InputTable()
         input_table.add('Constants', None)
         self.layout.addWidget(input_table)
         self.constants_container_widget = QtGui.QWidget()
@@ -137,6 +139,7 @@ class GUI(acquisition.GUI):
         add_constant_button.clicked.connect(self.add_constant)
         remove_constant_button.clicked.connect(self.remove_constant)
         # processing
+        input_table = pw.InputTable()
         input_table.add('Processing', None)
         self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
         input_table.add('Channel', self.channel_combo)
