@@ -507,7 +507,6 @@ class Control(QtCore.QObject):
                     if option in ['enable', 'model', 'serial', 'path', '__name__']:
                         continue
                     else:
-                        print(section, option)
                         kwargs[option] = ini.read(section, option)            
                 model = ini.read(section, 'model')
                 # import
@@ -522,7 +521,6 @@ class Control(QtCore.QObject):
                     gui = getattr(mod, 'GUI')
                     widget_cls = getattr(mod, 'Widget')
                     serial = ini.read(section, 'serial')
-                    print(cls, kwargs, gui, model, serial)
                     device = device_cls(cls, kwargs, gui, Widget=widget_cls, name=section, model=model, serial=serial)
                 self.devices.append(device)   
         # gui
@@ -545,7 +543,6 @@ class Control(QtCore.QObject):
                 self.channel_names.append(channel_name)
         # finish
         self.settings_updated.emit()
-        print('DEVICE CONTROL INITIALIZE COMPLETE', self.channel_names)
  
     def acquire(self, save=False, index=None):
         # loop time
@@ -707,7 +704,6 @@ class Control(QtCore.QObject):
             for channel_name in device.data.cols:
                 self.channel_names.append(channel_name)
         self.settings_updated.emit()
-        print('channel names', self.channel_names)
 
     def queue_control_update(self):
         if g.queue_control.read():
@@ -867,7 +863,6 @@ class Widget(QtGui.QWidget):
             self.device_widgets.append(widget)
 
     def load(self, aqn_path):
-        print('load_device_settings')
         ini = wt.kit.INI(aqn_path)
         self.ms_wait.write(ini.read('device settings', 'ms wait'))
         for device_widget in self.device_widgets:
@@ -961,8 +956,6 @@ class GUI(QtCore.QObject):
             return
         for device in self.control.devices:
             if len(device.data.read_properties()[1]) == 0:
-                #print(device.data.read_properties())
-                #print('next time')
                 return
         self.main_tab_created = True
         # create main daq tab

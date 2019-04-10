@@ -90,7 +90,6 @@ class Driver(BaseDriver):
 
     def set_position(self, destination):
         destination_mm = self.zero_position.read() + destination/(self.native_per_mm * self.factor.read())
-        print('destination mm', destination_mm)
         self.set_motor_position(destination_mm)
 
     def set_motor_position(self, motor_position):

@@ -365,7 +365,6 @@ class GUI(hw.GUI):
         # TODO: 
         # update plot lines
         motor_name = self.plot_motor.read()
-        print(self.hardware.name, motor_name)
         motor_position = self.driver.motor_positions[motor_name].read()
         self.plot_h_line.setValue(motor_position)
         units = self.plot_units.read()

@@ -81,7 +81,6 @@ class OPA_GUI():
     def __init__(self, hardware, layout, use_tune_points):
         self.hardware = hardware
         motor_names = self.hardware.motor_names
-        print('MOTORTUNE', self.hardware.name, motor_names)
         self.motors = []
         for name in motor_names:
             motor = MotorGUI(name, 30, 1, 11, use_tune_points)
@@ -232,7 +231,6 @@ class Worker(acquisition.Worker):
             if hasattr(axis, 'centers'):
                 # arrays always follow
                 axis.centers = np.transpose(axis.centers * ones.T)
-                print(axis.centers.shape, axis.name)
         # launch
         pre_wait_methods = [lambda: opa_hardware.q.push('wait_until_still'),
                             lambda: opa_hardware.q.push('get_motor_positions'),

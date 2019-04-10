@@ -207,7 +207,6 @@ class Motor():
         return out
 
     def move_absolute(self, destination, input_units='mm', wait=False):
-        print('move absolute', destination)
         self.moving = True
         go = True
         if input_units == 'counts':
