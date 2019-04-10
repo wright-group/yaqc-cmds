@@ -163,7 +163,6 @@ class GUI(acquisition.GUI):
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
         # allow devices to write settings
-        print(self.device_widget)
         self.device_widget.save(aqn_path)
         
 def load():

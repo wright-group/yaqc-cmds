@@ -105,7 +105,6 @@ class Hardware(Item):
         self.units = units
     
     def execute(self):
-        print('hardware excecute')
         for hw in self.hardwares:
             hw.set_position(self.value, self.units)
         g.hardware_waits.wait()
@@ -381,7 +380,6 @@ class Queue():
             g.slack_control.read().send_message(message)
         
     def _start_next_action(self):
-        print('this is start next action', self.index.read())
         self.status.pause.write(False)
         self.status.paused.write(False)
         self.status.stop.write(False)

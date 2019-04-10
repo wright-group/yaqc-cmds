@@ -824,5 +824,4 @@ class MessageWindow(QtGui.QWidget):
     
         
 if __name__ == '__main__':
-    print('hello world')
     plt = Plot1D()

@@ -241,7 +241,6 @@ seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals
 class Device(BaseDevice):
 
     def __init__(self, *args, **kwargs):
-        print('DEVICE INIT')
         self.initialized = False
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
@@ -261,7 +260,6 @@ class Device(BaseDevice):
         choppers : list of Chopper objects
             The proposed chopper settings.
         '''
-        print('UPDATE SAMPLE CORRESPONDANCES')
         # sections is a list of lists: [correspondance, start index, stop index]
         sections = []
         for i in range(len(proposed_channels)):
@@ -813,7 +811,6 @@ class GUI(BaseGUI):
         new_chopper.active.write(True)
         new_choppers = copy.copy(choppers.read())
         new_choppers[new_chopper_index] = new_chopper
-        print(new_chopper.name.read())
         self.hardware.update_sample_correspondances(channels.read(), new_choppers)
         self.update_samples_tab()
         

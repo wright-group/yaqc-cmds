@@ -25,7 +25,6 @@ main_dir = g.main_dir.read()
 class PoyntingCorrectionDevice(object):
 
     def __init__(self, native_units='wn'):
-        print(self, native_units)
         self.native_units = native_units
         self.limits = pc.NumberLimits(units = self.native_units)
         self.offset = pc.Number(initial_value = 0, units = self.native_units, display = True)

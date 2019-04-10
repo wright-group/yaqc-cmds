@@ -18,9 +18,7 @@ class ZaberCorrectionDevice(PoyntingCorrectionDevice):
     
     def __init__ (self, port, indexes, native_units = 'wn'):
         self.portStg = str(port)
-        print("HEIIDSLKDFJLKJASLK, ", indexes)
         self.indexes = list(indexes[0])
-        print(self.indexes)
         PoyntingCorrectionDevice.__init__(self, native_units)
 
     def _get_motor_position(self, index):
@@ -33,7 +31,6 @@ class ZaberCorrectionDevice(PoyntingCorrectionDevice):
     
     def _initialize(self):
         self.port = zb.BinarySerial(self.portStg)
-        print(self.indexes)
         for i in self.indexes:
             self.motors.append(zb.BinaryDevice(self.port, i))    
 
