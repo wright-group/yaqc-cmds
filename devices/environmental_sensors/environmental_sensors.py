@@ -1,24 +1,9 @@
-# --- import --------------------------------------------------------------------------------------
-
-
-from __future__ import print_function
-
-
 import os
-import sys
-import imp
-import time
-import copy
-import threading
-
-import collections
-
-import numpy as np
 
 import scipy
 import serial
 
-from PyQt4 import QtCore, QtGui
+from PyQt4 import QtGui
 import pyqtgraph as pg
 
 import WrightTools as wt
@@ -88,8 +73,8 @@ class Driver(BaseDriver):
         self.running = True
         with self.timer:
             line = b""
+            self.serial_port.write(b'r')
             while not line:
-                self.serial_port.write(b'r')
                 line = self.serial_port.readline()
             temp, rel_hum, press = [float(b.strip(b',')) for b in line.split()]
         self.data.write_properties((1,), ['temperature', 'relative_humidity', 'pressure'], [temp, rel_hum, press])
