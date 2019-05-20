@@ -74,16 +74,16 @@ class Worker(acquisition.Worker):
             
 
         for section in self.aqn.sections:
-            if section not in ['opa','processing','device settings', 'Virtual', 'info', 'PCI-6251']:
-                    if self.aqn.read(section, 'do'):
-                        width = self.aqn.read(section,'width')
-                        npts = int(self.aqn.read(section,'number'))
-                        points = np.linspace(-width/2.,width/2., npts)
-                        motor_positions = curve[section][:]
-                        kwargs = {'centers': motor_positions}
-                        hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
-                        axis = acquisition.Axis(points, None, opa_name+'_'+section, 'D'+opa_name, hardware_dict, **kwargs)
-                        possible_axes[section] = axis
+            if section not in ['opa','processing','device settings', 'info']:
+                if self.aqn.has_option(section, 'do') and self.aqn.read(section, 'do'):
+                    width = self.aqn.read(section,'width')
+                    npts = int(self.aqn.read(section,'number'))
+                    points = np.linspace(-width/2.,width/2., npts)
+                    motor_positions = curve[section][:]
+                    kwargs = {'centers': motor_positions}
+                    hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
+                    axis = acquisition.Axis(points, None, opa_name+'_'+section, 'D'+opa_name, hardware_dict, **kwargs)
+                    possible_axes[section] = axis
                     
                 
 
