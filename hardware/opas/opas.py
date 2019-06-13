@@ -250,7 +250,7 @@ class Driver(hw.Driver):
             for m in self.poynting_correction.motor_names:
                 if m in motor_destinations:
                     self.poynting_correction.set_motor(m, motor_destinations.pop(m))
-        self._set_motors(motor_destinations, wait=False)
+        self._set_motors(motor_destinations)
 
     def wait_until_still(self):
         self._wait_until_still()
