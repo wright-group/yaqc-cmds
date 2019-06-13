@@ -116,7 +116,7 @@ class Worker(acquisition.Worker):
                     dep = name
                     transform[-1] = f"{transform[0]}_{dep}_points"
                     data.transform(*transform)
-                    attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, cutoff_factor=1e-3)
+                    attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, gtol=1e-3)
 
                     p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
                     opa_hardware.driver.curve_paths['Poynting'].write(p)

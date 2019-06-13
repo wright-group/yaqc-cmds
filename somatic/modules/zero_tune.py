@@ -58,7 +58,7 @@ class Worker(acquisition.Worker):
         color_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'energy'][0]
         delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'delay'][0]
         for delay in delays: 
-            attune.workup.intensity(data, channel_name, delay, cutoff_factor=0, save_directory=scan_folder)
+            attune.workup.intensity(data, channel_name, delay, gtol=0, save_directory=scan_folder)
         # upload
         self.upload(scan_folder)
     
