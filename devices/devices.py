@@ -975,8 +975,10 @@ class GUI(QtCore.QObject):
         big_number_container_widget.setLayout(QtGui.QHBoxLayout())
         big_number_container_layout = big_number_container_widget.layout()
         big_number_container_layout.setMargin(0)
-        big_number_container_layout.addStretch(1)
         self.big_display = pw.SpinboxAsDisplay(font_size=100)
+        self.big_channel = pw.Label("channel", font_size=72)
+        big_number_container_layout.addWidget(self.big_channel)
+        big_number_container_layout.addStretch(1)
         big_number_container_layout.addWidget(self.big_display)
         display_layout.addWidget(big_number_container_widget)
         # plot
@@ -1090,6 +1092,8 @@ class GUI(QtCore.QObject):
             big_number = device.data.read()[channel_index]
         else:
             big_number = device.data.read()[channel_index][map_index]
+        if len(self.control.channel_names) > channel_index:
+            self.big_channel.setText(self.control.channel_names[channel_index])    
         self.big_display.setValue(big_number)    
 
     def stop(self):
