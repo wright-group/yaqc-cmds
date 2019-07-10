@@ -650,8 +650,7 @@ class ChoiceWindow(QtWidgets.QMessageBox):
         QtWidgets.QMessageBox.__init__(self)
         self.setWindowTitle(title)
         for label in button_labels:
-            my_button = QtWidgets.QPushButton(label)
-            self.addButton(my_button, QtWidgets.QMessageBox.YesRole)
+            self.addButton(label, QtWidgets.QMessageBox.YesRole)
         self.setIcon(self.NoIcon)
 
     def set_informative_text(self, text):
