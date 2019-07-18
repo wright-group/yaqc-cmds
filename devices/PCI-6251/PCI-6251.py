@@ -448,11 +448,12 @@ class Driver(BaseDriver):
             return
         start_time = time.time()
         # collect samples array -----------------------------------------------
-        try:
-            self.thread 
-            self.read = int32()
-            if True:
-                DAQmxStartTask(self.task_handle)
+        # Exponential backoff for retrying measurement
+        for wait in np.geomspace(0.01, 60, 10):
+            try:
+                self.thread
+                self.read = int32()
+                    DAQmxStartTask(self.task_handle)
                 DAQmxReadAnalogF64(self.task_handle,             # task handle
                                    int(self.shots),              # number of samples per channel
                                    10.0,                         # timeout (seconds) for each read operation
@@ -462,12 +463,14 @@ class Driver(BaseDriver):
                                    byref(self.read),             # reference of thread
                                    None)                         # reserved by NI, pass NULL (?)
                 DAQmxStopTask(self.task_handle)                       
+            except DAQError as err:
+                print("DAQmx Error: %s"%err)
+                g.logger.log('error', 'Error in timing definition', err)
+                DAQmxStopTask(self.task_handle)
+                time.sleep(wait)
             else:
-                self.samples = np.random.normal(size=self.samples_len)
-        except DAQError as err:
-            print("DAQmx Error: %s"%err)
-            g.logger.log('error', 'Error in timing definition', err)
-            DAQmxStopTask(self.task_handle)
+                break
+        else:
             DAQmxClearTask(self.task_handle)
         # export samples
         samples.write(self.samples)
