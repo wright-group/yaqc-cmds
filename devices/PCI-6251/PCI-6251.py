@@ -453,7 +453,7 @@ class Driver(BaseDriver):
             try:
                 self.thread
                 self.read = int32()
-                    DAQmxStartTask(self.task_handle)
+                DAQmxStartTask(self.task_handle)
                 DAQmxReadAnalogF64(self.task_handle,             # task handle
                                    int(self.shots),              # number of samples per channel
                                    10.0,                         # timeout (seconds) for each read operation
