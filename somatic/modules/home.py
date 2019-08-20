@@ -1,8 +1,5 @@
 ### import ####################################################################
 
-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
 import sys
 import time
@@ -54,7 +51,6 @@ class OPA_GUI():
     def __init__(self, hardware, layout):
         self.hardware = hardware
         motor_names = self.hardware.motor_names
-        print('HOME', self.hardware.name, motor_names)
         self.motors = []
         for name in motor_names:
             motor = MotorGUI(name, False)

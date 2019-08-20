@@ -97,7 +97,6 @@ class Path:
                 plt.text(0,-2,"Max Overhead percentage: " + str(round(100*(l)/(.5*len(path)+l),1)) + "%")
             except TypeError:
                 plt.title("Given length: " + str(l))
-                print "l not a number"
         else:
             plt.title('Length not given')
 
@@ -350,10 +349,7 @@ if testing:
 
         for i in range(axis_pts[0]):
             for j in range(axis_pts[1]):
-                try:
-                    new_grid[i,j] = np.insert(grid[i][j],2,12500+grid[i][j][0]-grid[i][j][1])
-                except IndexError:
-                    print "Index Error in scan setup"
+                new_grid[i,j] = np.insert(grid[i][j],2,12500+grid[i][j][0]-grid[i][j][1])
 
     ### Using the Snake class #################################################
     answer = Snake(new_grid,hardwares,u)

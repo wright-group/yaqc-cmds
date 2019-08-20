@@ -503,11 +503,6 @@ class Driver(BaseDriver):
             number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
             self.motor_positions[motor_name] = number
             self.recorded['w%d_'%self.index + motor_name] = [number, None, 1., motor_name]
-        #self.get_motor_positions()
-        # set position
-        position = self.ini.read('OPA%i'%self.index, 'position (nm)')
-        self.hardware.destination.write(position, self.native_units)
-        #self.set_position(position) #TODO make sure set position is handled in the base class
         # finish
         BaseDriver.initialize(self)
 

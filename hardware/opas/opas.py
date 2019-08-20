@@ -250,7 +250,7 @@ class Driver(hw.Driver):
             for m in self.poynting_correction.motor_names:
                 if m in motor_destinations:
                     self.poynting_correction.set_motor(m, motor_destinations.pop(m))
-        self._set_motors(motor_destinations, wait=False)
+        self._set_motors(motor_destinations)
 
     def wait_until_still(self):
         self._wait_until_still()
@@ -365,7 +365,6 @@ class GUI(hw.GUI):
         # TODO: 
         # update plot lines
         motor_name = self.plot_motor.read()
-        print(self.hardware.name, motor_name)
         motor_position = self.driver.motor_positions[motor_name].read()
         self.plot_h_line.setValue(motor_position)
         units = self.plot_units.read()

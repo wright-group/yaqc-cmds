@@ -164,7 +164,6 @@ class Control:
         except:
             self.send_message(':interrobang: I couldn\'t find a number in your request')
             return
-        print(i)
 
     def interrupt(self, text, channel):
         subcommand = text.strip().upper()
@@ -206,9 +205,7 @@ class Control:
 
     def log(self, text, channel):
         log_filepath = logging_handler.filepath
-        print(text)
         if 'get' in text:
-            print(log_filepath)
             self.upload_file(log_filepath, channel=channel)
             return
         # extract numbers from text
@@ -282,7 +279,6 @@ class Control:
     def read_messages(self):
         messages = messages_mutex.read()
         for message in messages:
-            print('!!!', message)
             # only process messages
             if not 'type' in message.keys():
                 continue
@@ -294,12 +290,8 @@ class Control:
             # only process messages that are posted in the appropriate channel
             if not channel == ini.read('bots', 'channel'):
                 continue
-            # only process messages that start with '@witch'
-            if False: #not text.startswith('<@U0qEALA010>'):
-                continue
-            else:
-                text = text.split(' ', 1)[1]
-                print('message read from slack:', text)
+            text = text.split(' ', 1)[1]
+            print('message read from slack:', text)
             # process
             if 'echo ' in text.lower():
                 out = text.split('echo ', 1)[1]

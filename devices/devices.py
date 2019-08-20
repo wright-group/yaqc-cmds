@@ -516,7 +516,6 @@ class Control(QtCore.QObject):
                     if option in ['enable', 'model', 'serial', 'path', '__name__']:
                         continue
                     else:
-                        print(section, option)
                         kwargs[option] = ini.read(section, option)            
                 model = ini.read(section, 'model')
                 # import
@@ -531,7 +530,6 @@ class Control(QtCore.QObject):
                     gui = getattr(mod, 'GUI')
                     widget_cls = getattr(mod, 'Widget')
                     serial = ini.read(section, 'serial')
-                    print(cls, kwargs, gui, model, serial)
                     device = device_cls(cls, kwargs, gui, Widget=widget_cls, name=section, model=model, serial=serial)
                 self.devices.append(device)   
         # gui
@@ -554,7 +552,6 @@ class Control(QtCore.QObject):
                 self.channel_names.append(channel_name)
         # finish
         self.settings_updated.emit()
-        print('DEVICE CONTROL INITIALIZE COMPLETE', self.channel_names)
  
     def acquire(self, save=False, index=None):
         # loop time
@@ -716,7 +713,6 @@ class Control(QtCore.QObject):
             for channel_name in device.data.cols:
                 self.channel_names.append(channel_name)
         self.settings_updated.emit()
-        print('channel names', self.channel_names)
 
     def queue_control_update(self):
         if g.queue_control.read():
@@ -876,7 +872,6 @@ class Widget(QtWidgets.QWidget):
             self.device_widgets.append(widget)
 
     def load(self, aqn_path):
-        print('load_device_settings')
         ini = wt.kit.INI(aqn_path)
         self.ms_wait.write(ini.read('device settings', 'ms wait'))
         for device_widget in self.device_widgets:
@@ -970,8 +965,6 @@ class GUI(QtCore.QObject):
             return
         for device in self.control.devices:
             if len(device.data.read_properties()[1]) == 0:
-                #print(device.data.read_properties())
-                #print('next time')
                 return
         self.main_tab_created = True
         # create main daq tab
@@ -991,8 +984,10 @@ class GUI(QtCore.QObject):
         big_number_container_widget.setLayout(QtWidgets.QHBoxLayout())
         big_number_container_layout = big_number_container_widget.layout()
         big_number_container_layout.setMargin(0)
-        big_number_container_layout.addStretch(1)
         self.big_display = pw.SpinboxAsDisplay(font_size=100)
+        self.big_channel = pw.Label("channel", font_size=72)
+        big_number_container_layout.addWidget(self.big_channel)
+        big_number_container_layout.addStretch(1)
         big_number_container_layout.addWidget(self.big_display)
         display_layout.addWidget(big_number_container_widget)
         # plot
@@ -1106,6 +1101,8 @@ class GUI(QtCore.QObject):
             big_number = device.data.read()[channel_index]
         else:
             big_number = device.data.read()[channel_index][map_index]
+        if len(self.control.channel_names) > channel_index:
+            self.big_channel.setText(self.control.channel_names[channel_index])    
         self.big_display.setValue(big_number)    
 
     def stop(self):

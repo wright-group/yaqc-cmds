@@ -1,9 +1,6 @@
 # --- import --------------------------------------------------------------------------------------
 
 
-from __future__ import print_function
-
-
 import os
 import sys
 import imp
@@ -241,7 +238,6 @@ seconds_for_acquisition = pc.Number(initial_value=np.nan, display=True, decimals
 class Device(BaseDevice):
 
     def __init__(self, *args, **kwargs):
-        print('DEVICE INIT')
         self.initialized = False
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
@@ -261,7 +257,6 @@ class Device(BaseDevice):
         choppers : list of Chopper objects
             The proposed chopper settings.
         '''
-        print('UPDATE SAMPLE CORRESPONDANCES')
         # sections is a list of lists: [correspondance, start index, stop index]
         sections = []
         for i in range(len(proposed_channels)):
@@ -453,10 +448,11 @@ class Driver(BaseDriver):
             return
         start_time = time.time()
         # collect samples array -----------------------------------------------
-        try:
-            self.thread 
-            self.read = int32()
-            if True:
+        # Exponential backoff for retrying measurement
+        for wait in np.geomspace(0.01, 60, 10):
+            try:
+                self.thread
+                self.read = int32()
                 DAQmxStartTask(self.task_handle)
                 DAQmxReadAnalogF64(self.task_handle,             # task handle
                                    int(self.shots),              # number of samples per channel
@@ -467,12 +463,14 @@ class Driver(BaseDriver):
                                    byref(self.read),             # reference of thread
                                    None)                         # reserved by NI, pass NULL (?)
                 DAQmxStopTask(self.task_handle)                       
+            except DAQError as err:
+                print("DAQmx Error: %s"%err)
+                g.logger.log('error', 'Error in timing definition', err)
+                DAQmxStopTask(self.task_handle)
+                time.sleep(wait)
             else:
-                self.samples = np.random.normal(size=self.samples_len)
-        except DAQError as err:
-            print("DAQmx Error: %s"%err)
-            g.logger.log('error', 'Error in timing definition', err)
-            DAQmxStopTask(self.task_handle)
+                break
+        else:
             DAQmxClearTask(self.task_handle)
         # export samples
         samples.write(self.samples)
@@ -813,7 +811,6 @@ class GUI(BaseGUI):
         new_chopper.active.write(True)
         new_choppers = copy.copy(choppers.read())
         new_choppers[new_chopper_index] = new_chopper
-        print(new_chopper.name.read())
         self.hardware.update_sample_correspondances(channels.read(), new_choppers)
         self.update_samples_tab()
         

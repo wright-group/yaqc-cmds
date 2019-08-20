@@ -1,8 +1,6 @@
 ### import ####################################################################
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
 import sys
 import time
@@ -118,7 +116,7 @@ class Worker(acquisition.Worker):
                     dep = name
                     transform[-1] = f"{transform[0]}_{dep}_points"
                     data.transform(*transform)
-                    attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, cutoff_factor=1e-3)
+                    attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, gtol=1e-3)
 
                     p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
                     opa_hardware.driver.curve_paths['Poynting'].write(p)
@@ -220,13 +218,11 @@ class GUI(acquisition.GUI):
         aqn.write('processing', 'do_2D_scans', self.do_2D_scans.read())
         aqn.write('processing', 'channel', self.channel_combo.read())
         # allow devices to write settings
-        print(self.device_widget)
         self.device_widget.save(aqn_path)
 
 class OPA_GUI():
     def __init__(self,hardware,layout):
         self.hardware = hardware
-        print(hardware.__class__)
         curve = self.hardware.curve
         motor_names = curve.dependent_names
         self.motors = []

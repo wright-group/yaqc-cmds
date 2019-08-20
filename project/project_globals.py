@@ -284,7 +284,6 @@ class UseArray:
     def read(self):
         return self.value
     def write(self, value):
-        print('USE ARRAY UPDATED!!!!!!!!!!!!')
         self.value = value
 use_array = UseArray()
 

@@ -1,8 +1,5 @@
 ### import ####################################################################
 
-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
 import sys
 import time
@@ -59,7 +56,7 @@ class Worker(acquisition.Worker):
         except KeyError:
             order = 1
         transform = list(data.axis_names)
-        if order > 0
+        if order > 0:
             transform[-1] = f"{transform[-1]}_points/{order}"
         else:
             transform[-1] = f"{transform[-1]}_points*{abs(order)}"
@@ -89,7 +86,7 @@ class Worker(acquisition.Worker):
             order = 1
         if order == 0:
             raise ValueError("Spectrometer order cannot be 0")
-        elif order > 0
+        elif order > 0:
             kwargs = {'centers': curve.setpoints[:] * self.aqn.read('spectrometer', 'order')}
         else:
             kwargs = {'centers': curve.setpoints[:] / abs(self.aqn.read('spectrometer', 'order'))}
@@ -163,7 +160,6 @@ class GUI(acquisition.GUI):
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
         # allow devices to write settings
-        print(self.device_widget)
         self.device_widget.save(aqn_path)
         
 def load():

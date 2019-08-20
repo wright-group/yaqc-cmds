@@ -1,8 +1,6 @@
 ### import ####################################################################
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
 import sys
 import time
@@ -60,7 +58,7 @@ class Worker(acquisition.Worker):
         color_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'energy'][0]
         delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'delay'][0]
         for delay in delays: 
-            attune.workup.intensity(data, channel_name, delay, cutoff_factor=0, save_directory=scan_folder)
+            attune.workup.intensity(data, channel_name, delay, gtol=0, save_directory=scan_folder)
         # upload
         self.upload(scan_folder)
     
@@ -68,13 +66,15 @@ class Worker(acquisition.Worker):
         axes = []
         # OPA
         opa_name = self.aqn.read('opa', 'opa')
+        npts = self.aqn.read('opa', 'npts')
         opa_names = [opa.name for opa in opas.hardwares]
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve.copy()
         curve.convert('wn')
-        axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_friendly_name, opa_friendly_name)
+        pts = np.linspace(curve.setpoints[:].min(), curve.setpoints[:].max(), npts)
+        axis = acquisition.Axis(pts, 'wn', opa_friendly_name, opa_friendly_name)
         axes.append(axis)
         # delay
         axis_name = 'delay'
@@ -118,15 +118,19 @@ class GUI(acquisition.GUI):
         self.opa_combo = pc.Combo(allowed)
         input_table.add('OPA', None)
         input_table.add('OPA', self.opa_combo)
+        self.npts_opa = pc.Number(decimals=0, initial_value=21)
+        input_table.add("npts", self.npts_opa)
         # delay
         self.delay = ScanAxisGUI('delay', "")
         self.delay.start.write(-3)
         self.delay.stop.write(3)
         self.delay.number.write(21)
         input_table.add('Delay', None)
+        self.layout.addWidget(input_table)
         self.layout.addWidget(self.delay.widget)
         # constants
         self.constants = []
+        input_table = pw.InputTable()
         input_table.add('Constants', None)
         self.layout.addWidget(input_table)
         self.constants_container_widget = QtWidgets.QWidget()
@@ -137,6 +141,7 @@ class GUI(acquisition.GUI):
         add_constant_button.clicked.connect(self.add_constant)
         remove_constant_button.clicked.connect(self.remove_constant)
         # processing
+        input_table = pw.InputTable()
         input_table.add('Processing', None)
         self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
         input_table.add('Channel', self.channel_combo)
@@ -179,6 +184,7 @@ class GUI(acquisition.GUI):
         self.constants = []
         aqn = wt.kit.INI(aqn_path)
         self.opa_combo.write(aqn.read('opa', 'opa'))
+        self.npts_opa.write(aqn.read('opa', 'npts'))
         self.mono_width.write(aqn.read('spectrometer', 'width'))
         self.mono_npts.write(aqn.read('spectrometer', 'number'))
         self.channel_combo.write(aqn.read('processing', 'channel'))
@@ -208,6 +214,7 @@ class GUI(acquisition.GUI):
         aqn = wt.kit.INI(aqn_path)
         aqn.add_section('opa')
         aqn.write('opa', 'opa', self.opa_combo.read())
+        aqn.write('opa', 'npts', self.npts_opa.read())
         aqn.add_section('delay')
         aqn.write('delay', 'start', self.delay.start.read())
         aqn.write('delay', 'stop', self.delay.stop.read())
@@ -230,7 +237,6 @@ class GUI(acquisition.GUI):
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
         # allow devices to write settings
-        print(self.device_widget)
         self.device_widget.save(aqn_path)
         
 def load():

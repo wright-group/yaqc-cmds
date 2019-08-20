@@ -332,13 +332,13 @@ class InputTable(QtWidgets.QWidget):
         self.row_number += 1
         
 class Label(QtWidgets.QLabel):
-    def __init__(self, text, color='text_light', bold=False):
+    def __init__(self, text, color='text_light', bold=False, font_size=14):
         QtWidgets.QLabel.__init__(self, text)
         if bold:
             bold_status = 'bold'
         else:
             bold_status = ''
-        StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors[color]).replace('bold_status', bold_status)
+        StyleSheet = f'QLabel{{color: {colors[color]}; font: {font_size}px;}}'.replace('bold_status', bold_status)
         self.setStyleSheet(StyleSheet)
 
 class SetButton(QtWidgets.QPushButton):
@@ -824,5 +824,4 @@ class MessageWindow(QtWidgets.QWidget):
     
         
 if __name__ == '__main__':
-    print('hello world')
     plt = Plot1D()

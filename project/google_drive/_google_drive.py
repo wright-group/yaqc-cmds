@@ -131,7 +131,6 @@ class Drive:
             if 'folder' in fi['mimeType']:
                 continue
             if fi['title'] == title:
-                print(title, 'found in upload file')
                 f = fi
         if f is not None:
             remove = False
@@ -188,7 +187,6 @@ class Drive:
         import time
         t = time.time()
         self._authenticate()
-        print(time.time() - t, "Authenticate")
         t = time.time()
         # clean inputs
         if isinstance(name, str):
@@ -215,7 +213,6 @@ class Drive:
                                      "mimeType": "application/vnd.google-apps.folder"})
             f.Upload()
             parent = f['id']
-            print(time.time() - t, "created", n)
             t = time.time()
         return parent
 
@@ -341,7 +338,6 @@ class Drive:
             for tup in os.walk(path, topdown=False):
                 self._authenticate()
                 folder_path, _, file_names = tup
-                print(folder_path)
                 # create folder on google drive
                 name = folder_path.split(os.path.sep)[top_path_length - 1:]
                 folderid = self.create_folder(name, parentid)
