@@ -10,7 +10,7 @@ try:
 except ImportError:
     import ConfigParser as ConfigParser  # python 2
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 
 try:
     import project_globals as g

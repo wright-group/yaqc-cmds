@@ -1,7 +1,7 @@
 import sys
 import time
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 ### global classes ############################################################
 
@@ -55,7 +55,7 @@ class PollTimer:
     def write(self, value):
         self.value = value
     def connect_to_timeout(self, slot):
-        QtGui.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
+        QtWidgets.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
 poll_timer = PollTimer()
 slack_poll_timer = PollTimer()
 
@@ -150,7 +150,7 @@ class hardware_widget:
         return self.value
     def write(self, value):
         self.value = value
-        self.value.setLayout(QtGui.QVBoxLayout())
+        self.value.setLayout(QtWidgets.QVBoxLayout())
         self.value.layout().setMargin(5)
         self.value.layout().addStretch(1)
     def add_to(self, widget):
@@ -187,7 +187,7 @@ class module_advanced_widget:
     def write(self, value):
         self.value = value
     def add_child(self, widget):
-        self.value.setLayout(QtGui.QVBoxLayout())
+        self.value.setLayout(QtWidgets.QVBoxLayout())
         self.child = widget
         self.value.layout().setMargin(0)
         self.value.layout().addWidget(self.child)

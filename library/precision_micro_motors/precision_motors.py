@@ -3,7 +3,7 @@
 import os
 import time
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 from mcapi import Mcapi, MCFILTEREX
 
 import project.project_globals as g
@@ -87,10 +87,10 @@ class Busy(QtCore.QMutex):
         '''
         bool value
         '''
-        self.tryLock(10)  # wait at most 10 ms before moving forward
+        self.lock()
         self.value = value
-        self.unlock()
         self.WaitCondition.wakeAll()
+        self.unlock()
 
     def wait_for_update(self, timeout=5000):
         '''
@@ -98,7 +98,9 @@ class Busy(QtCore.QMutex):
         int timeout in milliseconds
         '''
         if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
+            self.lock()
+            self.WaitCondition.wait(self, timeout)
+            self.unlock()
 
 
 busy = Busy()

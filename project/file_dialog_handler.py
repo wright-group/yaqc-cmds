@@ -9,8 +9,8 @@ QFileDialog objects can only be run in the main thread.
 import os
 import time
 
-from PyQt4 import QtCore
-from PyQt4 import QtGui
+from PySide2 import QtCore
+from PySide2 import QtWidgets
 
 from project import project_globals as g
 from project import classes as pc
@@ -25,8 +25,8 @@ save_filepath = pc.Mutex()
 
 
 class FileDialog(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    queue_emptied = QtCore.Signal()
     
     def __init__(self, enqueued_object, busy_object):
         QtCore.QObject.__init__(self)
@@ -34,7 +34,7 @@ class FileDialog(QtCore.QObject):
         self.enqueued = enqueued_object
         self.busy = busy_object
     
-    @QtCore.pyqtSlot(str, list)
+    @QtCore.Slot(str, list)
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
@@ -76,18 +76,18 @@ class FileDialog(QtCore.QObject):
         
     def getExistingDirectory(self, inputs=[]):
         caption, directory, options = inputs
-        options = QtGui.QFileDialog.ShowDirsOnly
-        out = self.clean(QtGui.QFileDialog.getExistingDirectory(g.main_window.read(), caption, directory, options))
+        options = QtWidgets.QFileDialog.ShowDirsOnly
+        out = self.clean(QtWidgets.QFileDialog.getExistingDirectory(g.main_window.read(), caption, directory, options))
         directory_filepath.write(out)        
     
     def getOpenFileName(self, inputs=[]):
         caption, directory, options = inputs
-        out = self.clean(QtGui.QFileDialog.getOpenFileName(g.main_window.read(), caption, directory, options))
+        out = self.clean(QtWidgets.QFileDialog.getOpenFileName(g.main_window.read(), caption, directory, options))
         open_filepath.write(out)
         
     def getSaveFileName(self, inputs=[]):
         caption, directory, savefilter, selectedfilter, options = inputs
-        out = self.clean(QtGui.QFileDialog.getSaveFileName(g.main_window.read(), caption, directory, savefilter, selectedfilter, options))
+        out = self.clean(QtWidgets.QFileDialog.getSaveFileName(g.main_window.read(), caption, directory, savefilter, selectedfilter, options))
         save_filepath.write(out)
 
 

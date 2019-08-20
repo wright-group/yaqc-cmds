@@ -5,7 +5,7 @@ import time
 
 import numpy as np
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 import project.classes as pc
 import project.widgets as pw

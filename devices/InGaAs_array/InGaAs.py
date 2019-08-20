@@ -9,7 +9,7 @@ import codecs
 
 import numpy as np
 
-from PyQt4 import QtCore, QtGui
+from PySide2 import QtCore, QtWidgets
 
 import serial
 
@@ -200,19 +200,19 @@ class GUI(BaseGUI):
         
     def create_frame(self, parent_widget):
         #get parent widget-----------------------------------------------------
-        parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.setLayout(QtWidgets.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         layout = parent_widget.layout()
         #display area----------------------------------------------------------
         #container widget
         display_container_widget = pw.ExpandingWidget()
-        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_container_widget.setLayout(QtWidgets.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
         #big number
-        big_number_container_widget = QtGui.QWidget()
-        big_number_container_widget.setLayout(QtGui.QHBoxLayout())
+        big_number_container_widget = QtWidgets.QWidget()
+        big_number_container_widget.setLayout(QtWidgets.QHBoxLayout())
         big_number_container_layout = big_number_container_widget.layout()
         big_number_container_layout.setMargin(0)
         big_number_container_layout.addStretch(1)
@@ -231,12 +231,12 @@ class GUI(BaseGUI):
         layout.addWidget(line)
         # settings area -------------------------------------------------------
         # container widget / scroll area
-        settings_container_widget = QtGui.QWidget()
+        settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area(130)
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
@@ -278,8 +278,8 @@ class GUI(BaseGUI):
 class Widget(BaseWidget):
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
-        layout = QtGui.QVBoxLayout()
+        QtWidgets.QWidget.__init__(self)
+        layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
         input_table = pw.InputTable()

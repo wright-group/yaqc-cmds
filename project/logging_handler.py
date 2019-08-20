@@ -6,7 +6,7 @@ import logging
 import inspect
 import threading
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 
 #import packages.psutil as psutil #why doesn't this work!?!?!
 import psutil
@@ -28,7 +28,10 @@ class busy(QtCore.QMutex):
         self.WaitCondition.wakeAll()
         self.unlock()
     def wait_for_update(self):
-        if self.value: return self.WaitCondition.wait(self)
+        if self.value:
+            self.lock()
+            self.WaitCondition.wait(self)
+            self.unlock()
 busy = busy()
 
 class cpu(QtCore.QMutex):
@@ -44,12 +47,15 @@ class cpu(QtCore.QMutex):
         self.WaitCondition.wakeAll()
         self.unlock()
     def wait_for_update(self):
-        if self.value: return self.WaitCondition.wait(self)
+        if self.value:
+            self.lock()
+            self.WaitCondition.wait(self)
+            self.unlock()
 cpu = cpu()
 
 class cpu_watcher(QtCore.QObject):      
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def get_cpu(self):
         pass
         busy.write(True)

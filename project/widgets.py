@@ -5,11 +5,12 @@ import collections
 
 import numpy as np
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 from colorsys import rgb_to_hls, hls_to_rgb
-from PyQt4.QtGui import QApplication, QWidget, QPainter, QGridLayout, QSizePolicy, QStyleOption
-from PyQt4.QtCore import pyqtSignal, Qt, QSize, QTimer, QByteArray, QRectF, pyqtProperty
-from PyQt4.QtSvg import QSvgRenderer
+from PySide2.QtWidgets import QApplication, QWidget, QGridLayout, QSizePolicy, QStyleOption
+from PySide2.QtGui import QPainter
+from PySide2.QtCore import Signal, Qt, QSize, QTimer, QByteArray, QRectF, Property
+from PySide2.QtSvg import QSvgRenderer
 
 import pyqtgraph as pg
 from pyqtgraph import exporters
@@ -24,12 +25,12 @@ colors = g.colors_dict.read()
 ### basic elements ############################################################
 
 
-class ExpandingWidget(QtGui.QWidget):
+class ExpandingWidget(QtWidgets.QWidget):
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
-        self.setSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Maximum)
-        self.setLayout(QtGui.QVBoxLayout())
+        QtWidgets.QWidget.__init__(self)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+        self.setLayout(QtWidgets.QVBoxLayout())
         self.setMinimumHeight(0)
         self.setMinimumWidth(0)
         self.layout().setStretchFactor(self, 1)
@@ -42,25 +43,25 @@ class ExpandingWidget(QtGui.QWidget):
         layout.setStretchFactor(self, 16777215)
 
         
-class Line(QtGui.QFrame):
+class Line(QtWidgets.QFrame):
     '''
     direction: 'V' or 'H'
     '''
     def __init__(self, direction):
-        QtGui.QFrame.__init__(self)
+        QtWidgets.QFrame.__init__(self)
         if direction == 'V':
-            self.setFrameShape(QtGui.QFrame.VLine)
+            self.setFrameShape(QtWidgets.QFrame.VLine)
         else:
-            self.setFrameShape(QtGui.QFrame.HLine)
+            self.setFrameShape(QtWidgets.QFrame.HLine)
         StyleSheet = 'QFrame{border: 2px solid custom_color; border-radius: 0px; padding: 0px;}'.replace('custom_color', colors['widget_background'])
         self.setStyleSheet(StyleSheet)
 line = Line  # legacy
 
 
-class scroll_area(QtGui.QScrollArea):
+class scroll_area(QtWidgets.QScrollArea):
     def __init__(self, show_bar=True):
-        QtGui.QScrollArea.__init__(self)
-        self.setFrameShape(QtGui.QFrame.NoFrame)
+        QtWidgets.QScrollArea.__init__(self)
+        self.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.setWidgetResizable(True)
         if show_bar:
             self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
@@ -70,9 +71,9 @@ class scroll_area(QtGui.QScrollArea):
         self.setStyleSheet(StyleSheet)
 
 
-class Led(QtGui.QCheckBox):
+class Led(QtWidgets.QCheckBox):
     def __init__(self):
-        QtGui.QCheckBox.__init__(self)
+        QtWidgets.QCheckBox.__init__(self)
         self.setDisabled(True)
         StyleSheet = 'QCheckBox::indicator:checked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_checked.png);}'
         StyleSheet += 'QCheckBox::indicator:unchecked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_unchecked.png);}'
@@ -82,10 +83,10 @@ class Led(QtGui.QCheckBox):
 ### general ###################################################################
 
 
-class SpinboxAsDisplay(QtGui.QDoubleSpinBox):
+class SpinboxAsDisplay(QtWidgets.QDoubleSpinBox):
 
     def __init__(self, font_size=14, decimals=6, justify='right'):
-        QtGui.QDoubleSpinBox.__init__(self)
+        QtWidgets.QDoubleSpinBox.__init__(self)
         self.setValue(0.0)
         self.setDisabled(True)
         self.decimals_input = decimals
@@ -98,16 +99,16 @@ class SpinboxAsDisplay(QtGui.QDoubleSpinBox):
             self.setAlignment(QtCore.Qt.AlignLeft)
         self.setMinimumWidth(0)
         self.setMaximumWidth(600)
-        self.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
+        self.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         StyleSheet = 'QDoubleSpinBox{color: custom_color_1; font: bold font_sizepx; border: 0px solid #000000;}'.replace('custom_color_1', g.colors_dict.read()['text_light']).replace('font_size', str(int(font_size)))
         StyleSheet += 'QScrollArea, QWidget{background: custom_color;  border-color: black;}'.replace('custom_color', g.colors_dict.read()['background'])                
         self.setStyleSheet(StyleSheet)
 
 
-class Shutdown_button(QtGui.QPushButton):
-    shutdown_go = QtCore.pyqtSignal()
+class Shutdown_button(QtWidgets.QPushButton):
+    shutdown_go = QtCore.Signal()
     def __init__(self):
-        QtGui.QPushButton.__init__(self)
+        QtWidgets.QPushButton.__init__(self)
         self.clicked.connect(self.initiate_shutdown)
         self.setText('SHUT DOWN')
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['stop'])
@@ -118,7 +119,7 @@ class Shutdown_button(QtGui.QPushButton):
         self.shutdown_go.emit()
         
 
-class InputTable(QtGui.QWidget):
+class InputTable(QtWidgets.QWidget):
     
     def __getitem__(self, key):
         return self._dict[key]
@@ -127,9 +128,9 @@ class InputTable(QtGui.QWidget):
         '''
         width of 160 good for modules
         '''
-        QtGui.QWidget.__init__(self)
+        QtWidgets.QWidget.__init__(self)
         self.width_input = width
-        self.setLayout(QtGui.QGridLayout())
+        self.setLayout(QtWidgets.QGridLayout())
         self.layout().setColumnMinimumWidth(0, width)
         self.layout().setColumnMinimumWidth(1, width)
         self.layout().setMargin(0)
@@ -149,7 +150,7 @@ class InputTable(QtGui.QWidget):
 
     def busy(self, name, global_object):
         # heading
-        heading = QtGui.QLabel(name)
+        heading = QtWidgets.QLabel(name)
         if name in ['DAQ status', 'Status']:  # hardcoded exceptions
             StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         else:
@@ -157,7 +158,7 @@ class InputTable(QtGui.QWidget):
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         # control
-        control = QtGui.QCheckBox()
+        control = QtWidgets.QCheckBox()
         local_busy_display = BusyDisplay(global_object, global_object.update_signal)
         # finish
         self.layout().addWidget(local_busy_display, self.row_number, 1)
@@ -166,30 +167,30 @@ class InputTable(QtGui.QWidget):
 
     def heading(self, name, global_object):
         # heading
-        heading = QtGui.QLabel(name)
+        heading = QtWidgets.QLabel(name)
         StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
         heading.setStyleSheet(StyleSheet)
-        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self.layout().addWidget(heading, self.row_number, 0)
         self.controls.append(None)
         self.row_number += 1
 
     def number(self, name, global_object):
         # heading
-        heading = QtGui.QLabel(name)
+        heading = QtWidgets.QLabel(name)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
-        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self.layout().addWidget(heading, self.row_number, 0)
         #layout
-        container_widget = QtGui.QWidget()
-        container_widget.setLayout(QtGui.QHBoxLayout())
+        container_widget = QtWidgets.QWidget()
+        container_widget.setLayout(QtWidgets.QHBoxLayout())
         layout = container_widget.layout()
         layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
         #control
-        control = QtGui.QDoubleSpinBox()
+        control = QtWidgets.QDoubleSpinBox()
         if global_object.display:
             control.setDisabled(True)
             StyleSheet = 'QDoubleSpinBox{color: custom_color_1; font: bold font_sizepx; border: 0px solid #000000;}'.replace('custom_color_1', g.colors_dict.read()['text_light']).replace('font_size', str(int(14)))
@@ -199,14 +200,14 @@ class InputTable(QtGui.QWidget):
             StyleSheet += 'QScrollArea, QWidget{color: custom_color_1; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
             StyleSheet += 'QWidget:disabled{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_disabled']).replace('custom_color_2', colors['widget_background'])                
         control.setStyleSheet(StyleSheet) 
-        control.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
+        control.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         global_object.give_control(control)
         layout.addWidget(control)
         #units combobox
         if not global_object.units_kind == None:
             control.setMinimumWidth(self.width_input - 55)
             control.setMaximumWidth(self.width_input - 55)
-            units = QtGui.QComboBox()
+            units = QtWidgets.QComboBox()
             units.setMinimumWidth(50)
             units.setMaximumWidth(50)
             StyleSheet = 'QComboBox{color: custom_color_1; font: 14px; border: 1px solid custom_color_2; border-radius: 1px;}'.replace('custom_color_1', colors['text_light']).replace('custom_color_2', colors['widget_background'])
@@ -222,13 +223,13 @@ class InputTable(QtGui.QWidget):
 
     def string(self, name, global_object):
         #heading
-        heading = QtGui.QLabel(name)
-        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        heading = QtWidgets.QLabel(name)
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #control
-        control = QtGui.QLineEdit()
+        control = QtWidgets.QLineEdit()
         control.setMinimumWidth(self.width_input)
         control.setMaximumWidth(self.width_input)
         if global_object.display:
@@ -246,13 +247,13 @@ class InputTable(QtGui.QWidget):
 
     def combo(self, name, global_object):
         #heading
-        heading = QtGui.QLabel(name)
-        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        heading = QtWidgets.QLabel(name)
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #control
-        control = QtGui.QComboBox()
+        control = QtWidgets.QComboBox()
         control.setMinimumWidth(self.width_input)
         control.setMaximumWidth(self.width_input)
         if global_object.display:
@@ -274,8 +275,8 @@ class InputTable(QtGui.QWidget):
 
     def checkbox(self, name, global_object):
         #heading
-        heading = QtGui.QLabel(name)
-        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        heading = QtWidgets.QLabel(name)
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
@@ -283,7 +284,7 @@ class InputTable(QtGui.QWidget):
         if global_object.display:
             control = Led()
         else:
-            control = QtGui.QCheckBox()
+            control = QtWidgets.QCheckBox()
         global_object.give_control(control)
         #finish
         self.layout().addWidget(control, self.row_number, 1)
@@ -292,20 +293,20 @@ class InputTable(QtGui.QWidget):
 
     def filepath(self, name, global_object):
         #heading
-        heading = QtGui.QLabel(name)
-        heading.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        heading = QtWidgets.QLabel(name)
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = 'QLabel{color: custom_color; font: 14px;}'.replace('custom_color', colors['text_light'])
         heading.setStyleSheet(StyleSheet)
         self.layout().addWidget(heading, self.row_number, 0)
         #layout
-        container_widget = QtGui.QWidget()
-        container_widget.setLayout(QtGui.QHBoxLayout())
+        container_widget = QtWidgets.QWidget()
+        container_widget.setLayout(QtWidgets.QHBoxLayout())
         layout = container_widget.layout()
         layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
         #push button
-        load_button = QtGui.QPushButton('Load')
+        load_button = QtWidgets.QPushButton('Load')
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['go'])
         load_button.setStyleSheet(StyleSheet)
         load_button.setMinimumHeight(20)
@@ -315,7 +316,7 @@ class InputTable(QtGui.QWidget):
         layout.addWidget(load_button)
         global_object.give_button(load_button)
         #display
-        display = QtGui.QLineEdit()
+        display = QtWidgets.QLineEdit()
         #display.setDisabled(True)
         display.setReadOnly(True)
         display.setMinimumWidth(self.width_input - 45)
@@ -330,9 +331,9 @@ class InputTable(QtGui.QWidget):
         self.controls.append(container_widget)
         self.row_number += 1
         
-class Label(QtGui.QLabel):
+class Label(QtWidgets.QLabel):
     def __init__(self, text, color='text_light', bold=False, font_size=14):
-        QtGui.QLabel.__init__(self, text)
+        QtWidgets.QLabel.__init__(self, text)
         if bold:
             bold_status = 'bold'
         else:
@@ -340,32 +341,32 @@ class Label(QtGui.QLabel):
         StyleSheet = f'QLabel{{color: {colors[color]}; font: {font_size}px;}}'.replace('bold_status', bold_status)
         self.setStyleSheet(StyleSheet)
 
-class SetButton(QtGui.QPushButton):
+class SetButton(QtWidgets.QPushButton):
     def __init__(self, text, color='go'):
-        QtGui.QPushButton.__init__(self)
+        QtWidgets.QPushButton.__init__(self)
         self.setText(text)
         self.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors[color])
         self.setStyleSheet(StyleSheet)
 
-class TableWidget(QtGui.QTableWidget):
+class TableWidget(QtWidgets.QTableWidget):
     def __init__(self):
-        QtGui.QTableWidget.__init__(self)
+        QtWidgets.QTableWidget.__init__(self)
         StyleSheet = 'QTableWidget::item{padding: 0px}'
         StyleSheet += 'QHeaderView::section{background: background_color; color:white; font: bold 14px}'.replace('background_color', colors['background'])
         StyleSheet += 'QTableWidget{background-color: custom_color;}'.replace('custom_color', colors['background'])
         self.setStyleSheet(StyleSheet)
         
-class TabWidget(QtGui.QTabWidget):
+class TabWidget(QtWidgets.QTabWidget):
     def __init__(self):
-        QtGui.QTabWidget.__init__(self)
+        QtWidgets.QTabWidget.__init__(self)
         StyleSheet = 'QTabBar::tab{width: 130px;}'
         self.setStyleSheet(StyleSheet)
 
 ### hardware ##################################################################
 
 
-class BusyDisplay(QtGui.QPushButton):
+class BusyDisplay(QtWidgets.QPushButton):
     '''
     access value object to get state
     
@@ -374,7 +375,7 @@ class BusyDisplay(QtGui.QPushButton):
     pause methods are built in to this object
     '''
     def __init__(self, busy_object, update_signal):
-        QtGui.QPushButton.__init__(self)
+        QtWidgets.QPushButton.__init__(self)
         self.busy_object = busy_object
         update_signal.connect(self.update)        
         self.setText('READY')
@@ -394,11 +395,11 @@ class BusyDisplay(QtGui.QPushButton):
             self.setStyleSheet(StyleSheet)        
 
 
-class Hardware_control_table(QtGui.QWidget):
+class Hardware_control_table(QtWidgets.QWidget):
 
     def __init__(self, hardware_names, combobox=False, combobox_label=''):
-        QtGui.QWidget.__init__(self)
-        self.setLayout(QtGui.QGridLayout())
+        QtWidgets.QWidget.__init__(self)
+        self.setLayout(QtWidgets.QGridLayout())
         self.layout().setMargin(0)
         self.comboboxes = []
         self.current_position_displays = []
@@ -407,27 +408,27 @@ class Hardware_control_table(QtGui.QWidget):
         for i in range(len(hardware_names)):
             #names
             collumn = 0
-            label = QtGui.QLabel(hardware_names[i])
+            label = QtWidgets.QLabel(hardware_names[i])
             StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_0'])
             label.setStyleSheet(StyleSheet)
             self.layout().addWidget(label, i, collumn)
             #comboboxes
             if combobox:
                 collumn += 1
-                combobox_obj = QtGui.QComboBox()
+                combobox_obj = QtWidgets.QComboBox()
                 self.layout().addWidget(combobox_obj, i, collumn)
                 self.comboboxes.append(combobox_obj)
             #current
             collumn += 1
-            current_position = QtGui.QDoubleSpinBox()
-            current_position.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
+            current_position = QtWidgets.QDoubleSpinBox()
+            current_position.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
             current_position.setDisabled(True)
             self.layout().addWidget(current_position, i, collumn)
             self.current_position_displays.append(current_position)
             #new
             collumn += 1
-            new_position = QtGui.QDoubleSpinBox()
-            new_position.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
+            new_position = QtWidgets.QDoubleSpinBox()
+            new_position.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
             self.layout().addWidget(new_position, i, collumn)
             self.new_position_controls.append(new_position)
             self.set_allowed_values(i, 0, 10000, 2, 10)
@@ -441,19 +442,19 @@ class Hardware_control_table(QtGui.QWidget):
             control.setSingleStep(single_step)
 
 
-class HardwareLayoutWidget(QtGui.QGroupBox):
+class HardwareLayoutWidget(QtWidgets.QGroupBox):
 
     def __init__(self, name):
-        QtGui.QGroupBox.__init__(self)
+        QtWidgets.QGroupBox.__init__(self)
         # layout
-        self.setLayout(QtGui.QVBoxLayout())
+        self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setMargin(5)
         # container
-        heading_container = QtGui.QWidget()
-        heading_container.setLayout(QtGui.QHBoxLayout())
+        heading_container = QtWidgets.QWidget()
+        heading_container.setLayout(QtWidgets.QHBoxLayout())
         heading_container.layout().setMargin(0)
         # add heading
-        heading = QtGui.QLabel(name)
+        heading = QtWidgets.QLabel(name)
         StyleSheet = 'QLabel{color: custom_color; font: bold 14px;}'.replace('custom_color', colors['heading_1'])
         heading.setStyleSheet(StyleSheet)
         heading_container.layout().addWidget(heading)
@@ -461,11 +462,11 @@ class HardwareLayoutWidget(QtGui.QGroupBox):
         
     def add_buttons(self, set_method, advanced_method, hardwares=[]):
         # layout
-        button_container = QtGui.QWidget()
-        button_container.setLayout(QtGui.QHBoxLayout())
+        button_container = QtWidgets.QWidget()
+        button_container.setLayout(QtWidgets.QHBoxLayout())
         button_container.layout().setMargin(0)
         # advanced
-        advanced_button = QtGui.QPushButton()
+        advanced_button = QtWidgets.QPushButton()
         advanced_button.setText('ADVANCED')
         advanced_button.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['advanced'])
@@ -473,7 +474,7 @@ class HardwareLayoutWidget(QtGui.QGroupBox):
         button_container.layout().addWidget(advanced_button)
         advanced_button.clicked.connect(advanced_method)
         # set
-        set_button = QtGui.QPushButton()
+        set_button = QtWidgets.QPushButton()
         set_button.setText('SET')
         set_button.setMinimumHeight(25)
         StyleSheet = 'QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}'.replace('custom_color', colors['set'])
@@ -501,7 +502,7 @@ def set_button_decide(set_button, hardwares):
 
 
 class HardwareFrontPanel(QtCore.QObject):
-    advanced = QtCore.pyqtSignal()
+    advanced = QtCore.Signal()
 
     def __init__(self, hardwares, name='Hardware'):
         QtCore.QObject.__init__(self)
@@ -583,15 +584,15 @@ class HardwareAdvancedPanel(QtCore.QObject):
 
     def __init__(self, hardwares, advanced_button):
         QtCore.QObject.__init__(self)
-        self.tabs = QtGui.QTabWidget()
+        self.tabs = QtWidgets.QTabWidget()
         for hardware in hardwares:
-            widget = QtGui.QWidget()
-            box = QtGui.QHBoxLayout()
+            widget = QtWidgets.QWidget()
+            box = QtWidgets.QHBoxLayout()
             hardware.gui.create_frame(box)
             widget.setLayout(box)
             self.tabs.addTab(widget, hardware.name)
         # box
-        self.box = QtGui.QVBoxLayout()
+        self.box = QtWidgets.QVBoxLayout()
         hardware_advanced_box = g.hardware_advanced_box.read()
         hardware_advanced_box.addWidget(self.tabs)
         # link into advanced button press
@@ -617,21 +618,21 @@ class HardwareAdvancedPanel(QtCore.QObject):
         
 
 # TODO: remove
-class module_combobox(QtGui.QComboBox):
+class module_combobox(QtWidgets.QComboBox):
     # TODO: remove this legacy widget
-    shutdown_go = QtCore.pyqtSignal()
+    shutdown_go = QtCore.Signal()
     def __init__(self):
-        QtGui.QComboBox.__init__(self)
+        QtWidgets.QComboBox.__init__(self)
         StyleSheet = 'QComboBox{font: bold 14px}'#.replace('custom_color', colors['background'])
         self.setStyleSheet(StyleSheet)
 
       
-class QueueControl(QtGui.QPushButton):
-    launch_scan = QtCore.pyqtSignal()
-    stop_scan = QtCore.pyqtSignal()
+class QueueControl(QtWidgets.QPushButton):
+    launch_scan = QtCore.Signal()
+    stop_scan = QtCore.Signal()
 
     def __init__(self):
-        QtGui.QPushButton.__init__(self)
+        QtWidgets.QPushButton.__init__(self)
         self.clicked.connect(self.update)
         self.setMinimumHeight(25)
         self.set_style('RUN QUEUE', 'go')
@@ -643,14 +644,13 @@ class QueueControl(QtGui.QPushButton):
         self.setStyleSheet(StyleSheet)
 
 
-class ChoiceWindow(QtGui.QMessageBox):
+class ChoiceWindow(QtWidgets.QMessageBox):
 
     def __init__(self, title, button_labels):
-        QtGui.QMessageBox.__init__(self)
+        QtWidgets.QMessageBox.__init__(self)
         self.setWindowTitle(title)
         for label in button_labels:
-            my_button = QtGui.QPushButton(label)
-            self.addButton(my_button, QtGui.QMessageBox.YesRole)
+            self.addButton(label, QtWidgets.QMessageBox.YesRole)
         self.setIcon(self.NoIcon)
 
     def set_informative_text(self, text):
@@ -765,10 +765,10 @@ class Plot1D(pg.GraphicsView):
 ### pop-ups ###################################################################
 
 
-class choice_window(QtGui.QMessageBox):
+class choice_window(QtWidgets.QMessageBox):
 
     def __init__(self):
-        QtGui.QMessageBox.__init__(self)
+        QtWidgets.QMessageBox.__init__(self)
 
     def say(self, window_title, text, buttons, icon = 'NoIcon', informative_text=''):
         '''
@@ -781,17 +781,17 @@ class choice_window(QtGui.QMessageBox):
         self.setInformativeText(informative_text)
         self.setIcon(getattr(self, icon))
         for label in buttons:
-            my_button = QtGui.QPushButton(label)
-            self.addButton(my_button, QtGui.QMessageBox.YesRole)
+            my_button = QtWidgets.QPushButton(label)
+            self.addButton(my_button, QtWidgets.QMessageBox.YesRole)
         self.isActiveWindow()
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         return self.exec_()
 
 
-class MessageWindow(QtGui.QWidget):
+class MessageWindow(QtWidgets.QWidget):
 
     def __init__(self, text='Please wait.', title='Wait'):
-        QtGui.QWidget.__init__(self, parent=None)
+        QtWidgets.QWidget.__init__(self, parent=None)
         self.setWindowTitle(title)
         self.isActiveWindow()
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -804,9 +804,9 @@ class MessageWindow(QtGui.QWidget):
         self.setGeometry(0,0, self.window_horiz_size, self.window_verti_size)
         self._center()
         # add content
-        self.label = QtGui.QLabel(text)
+        self.label = QtWidgets.QLabel(text)
         self.label.setAlignment(QtCore.Qt.AlignCenter)
-        layout = QtGui.QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.label)
         self.setLayout(layout)
         # finish
@@ -815,7 +815,7 @@ class MessageWindow(QtGui.QWidget):
       
     def _center(self):
         # a function which ensures that the window appears in the center of the screen at startup
-        screen = QtGui.QDesktopWidget().screenGeometry() 
+        screen = QtWidgets.QDesktopWidget().screenGeometry() 
         size = self.geometry() 
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
 
