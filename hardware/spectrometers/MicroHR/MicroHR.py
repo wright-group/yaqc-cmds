@@ -14,9 +14,7 @@ import project.project_globals as g
 from hardware.spectrometers.spectrometers import Driver as BaseDriver
 from hardware.spectrometers.spectrometers import GUI as BaseGUI
 
-import hardware.spectrometers.MicroHR.gen_py.JYConfigBrowserComponent as JYConfigBrowserComponent
-import hardware.spectrometers.MicroHR.gen_py.JYMono as JYMono
-
+import yaqd_core
 
 ### define ####################################################################
 
@@ -30,66 +28,44 @@ main_dir = g.main_dir.read()
 class Driver(BaseDriver):
     
     def __init__(self, *args, **kwargs):
-        self.unique_id = kwargs.pop('unique_id')
+        self._yaqd_port = kwargs.pop("yaqd_port")
         BaseDriver.__init__(self, *args, **kwargs)
         self.grating_index = pc.Combo(name='Grating', allowed_values=[1, 2],
-                                      ini=self.hardware_ini, section=self.name,
+                                      section=self.name,
                                       option='grating_index',
-                                      import_from_ini=True, display=True,
+                                      display=True,
                                       set_method='set_turret')
         self.exposed.append(self.grating_index)
 
     def close(self):
-        self.ctrl.CloseCommunications()
-        self.hardware_ini.write(self.name, 'grating_index', self.grating_index.read())
+        self.ctrl.close()
         BaseDriver.close(self)
 
-    def get_grating_details(self):
-        """
-        grating density
-        blaze, description
-        """
-        return self.ctrl.GetCurrentGratingWithDetails()
-
     def get_position(self):
-        native_position = self.ctrl.GetCurrentWavelength()
+        native_position = self.ctrl.get_position()
         self.position.write(native_position, self.native_units)
         return self.position.read()
 
     def initialize(self, *args, **kwargs):
         # open control
-        self.ctrl = JYMono.Monochromator()
-        self.ctrl.Uniqueid = self.unique_id
-        self.ctrl.Load()
-        self.ctrl.OpenCommunications()
-        # initialize hardware
-        forceInit = True  # this toggles mono homing behavior
-        emulate = False
-        notThreaded = True  # no idea what this does...
-        self.ctrl.Initialize(forceInit, emulate, notThreaded)
+        self.ctrl = yaqd_core.Client(self._yaqd_port)
         # import some information from control
-        self.description = self.ctrl.Description
-        self.serial_number = self.ctrl.SerialNumber
-        self.position.write(self.ctrl.GetCurrentWavelength())
-        # import information from ini
-        init_position = self.hardware_ini.read(self.name, 'position')
-        init_grating_index = self.hardware_ini.read(self.name, 'grating_index')
+        id_dict = self.ctrl.id()
+        self.serial_number = id_dict["serial"]
+        self.position.write(self.ctrl.get_position())
         # recorded
         self.recorded['wm'] = [self.position, 'nm', 1., 'm', False]
-        # go to old position after initialization is done
         while self.is_busy():
             time.sleep(0.1)
-        self.set_turret(init_grating_index)
-        self.set_position(init_position)
         # finish
         self.initialized.write(True)
         self.initialized_signal.emit()
 
     def is_busy(self):
-        return self.ctrl.IsBusy()
+        return self.ctrl.busy()
     
     def set_position(self, destination):
-        self.ctrl.MovetoWavelength(destination)
+        self.ctrl.set_position(destination)
         while self.is_busy():
             time.sleep(0.01)
         self.get_position()
@@ -99,10 +75,13 @@ class Driver(BaseDriver):
             destination_index = destination_index[0]
         # turret index on ActiveX call starts from zero
         destination_index_zero_based = int(destination_index) - 1
-        self.ctrl.MovetoTurret(destination_index_zero_based)
+        self.ctrl.set_turret(destination_index_zero_based)
         self.grating_index.write(destination_index)
         while self.is_busy():
             time.sleep(0.01)
+
+
+        #TODO: move limit handling to daemon
         # update own limits
         max_limit = self.hardware_ini.read(self.name, 'grating_%i_maximum_wavelength'%self.grating_index.read())
         if self.grating_index.read() == 1:
