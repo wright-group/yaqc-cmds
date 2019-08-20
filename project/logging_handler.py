@@ -28,7 +28,10 @@ class busy(QtCore.QMutex):
         self.WaitCondition.wakeAll()
         self.unlock()
     def wait_for_update(self):
-        if self.value: return self.WaitCondition.wait(self)
+        if self.value:
+            self.lock()
+            self.WaitCondition.wait(self)
+            self.unlock()
 busy = busy()
 
 class cpu(QtCore.QMutex):
@@ -44,7 +47,10 @@ class cpu(QtCore.QMutex):
         self.WaitCondition.wakeAll()
         self.unlock()
     def wait_for_update(self):
-        if self.value: return self.WaitCondition.wait(self)
+        if self.value:
+            self.lock()
+            self.WaitCondition.wait(self)
+            self.unlock()
 cpu = cpu()
 
 class cpu_watcher(QtCore.QObject):      

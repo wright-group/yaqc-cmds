@@ -35,7 +35,9 @@ class Mutex(QtCore.QMutex):
         
     def wait_for_update(self, timeout=5000):
         if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
+            self.lock()
+            self.WaitCondition.wait(self, msecs=timeout)
+            self.unlock()
 
 class Busy(QtCore.QMutex):
 
@@ -57,10 +59,10 @@ class Busy(QtCore.QMutex):
         '''
         bool value
         '''
-        self.tryLock(10)  # wait at most 10 ms before moving forward
+        self.lock()
         self.value = value
-        self.unlock()
         self.WaitCondition.wakeAll()
+        self.unlock()
 
     def wait_for_update(self, timeout=5000):
         '''
@@ -68,7 +70,9 @@ class Busy(QtCore.QMutex):
         int timeout in milliseconds
         '''
         if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
+            self.lock()
+            self.WaitCondition.wait(self, msecs=timeout)
+            self.unlock()
 
 
 class Data(QtCore.QMutex):
@@ -119,7 +123,9 @@ class Data(QtCore.QMutex):
 
     def wait_for_update(self, timeout=5000):
         if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
+            self.lock()
+            self.WaitCondition.wait(self, msecs=timeout)
+            self.unlock()
 
 
 ### gui items #################################################################
