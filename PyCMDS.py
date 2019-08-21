@@ -199,7 +199,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # tab widget
         self.tabs = pw.TabWidget()
         self.tabs.addTab(program_widget, 'Program')
-        #self.tabs.addTab(hardware_advanced_widget, 'Hardware')
+        self.tabs.addTab(hardware_advanced_widget, 'Hardware')
         self.tabs.addTab(device_widget, 'Devices')
         self.tabs.addTab(coset_widget, 'Autonomic')
         self.tabs.addTab(somatic_widget, 'Somatic')

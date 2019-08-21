@@ -1,5 +1,5 @@
 ### import ####################################################################
-
+import time
 
 import project.classes as pc
 import project.project_globals as g
@@ -45,7 +45,8 @@ class Driver(BaseDriver):
         self.initialized_signal.emit()
 
     def is_busy(self):
-        return self.motor.busy()
+        self.busy.write(self.motor.busy())
+        return self.busy.read()
 
     def set_position(self, destination):
         destination_mm = self.zero_position.read() + destination/(self.native_per_mm * self.factor.read())
@@ -53,6 +54,7 @@ class Driver(BaseDriver):
     
     def set_motor_position(self, destination):
         self.motor.set_position(destination)
+        time.sleep(0.01)
         while self.is_busy():
             self.get_position()
         self.get_position()
