@@ -8,7 +8,7 @@ import tempfile
 import glob
 import datetime
 
-from PyQt4 import QtGui, QtCore
+from PySide2 import QtGui, QtCore
 
 import project.classes as pc
 import project.logging_handler as logging_handler
@@ -58,8 +58,8 @@ messages_mutex = Messages()
 
 
 class Address(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    queue_emptied = QtCore.Signal()
 
     def __init__(self, busy, enqueued):
         QtCore.QObject.__init__(self)
@@ -84,7 +84,7 @@ class Address(QtCore.QObject):
             self.busy.write(False)
             self.update_ui.emit()
 
-    @QtCore.pyqtSlot(str, list)
+    @QtCore.Slot(str, list)
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.

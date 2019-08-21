@@ -7,7 +7,7 @@ import collections
 
 import numpy as np
 
-from PyQt4 import QtGui
+from PySide2 import QtWidgets
 
 import WrightTools as wt
 

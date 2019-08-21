@@ -14,7 +14,7 @@ import numpy as np
 
 import scipy
 
-from PyQt4 import QtCore, QtGui
+from PySide2 import QtCore, QtWidgets
 import pyqtgraph as pg
 
 import WrightTools as wt
@@ -327,7 +327,7 @@ class Device(BaseDevice):
 
 
 class Driver(BaseDriver):
-    task_changed = QtCore.pyqtSignal()
+    task_changed = QtCore.Signal()
     task_created = False
 
     def initialize(self):
@@ -448,10 +448,11 @@ class Driver(BaseDriver):
             return
         start_time = time.time()
         # collect samples array -----------------------------------------------
-        try:
-            self.thread 
-            self.read = int32()
-            if True:
+        # Exponential backoff for retrying measurement
+        for wait in np.geomspace(0.01, 60, 10):
+            try:
+                self.thread
+                self.read = int32()
                 DAQmxStartTask(self.task_handle)
                 DAQmxReadAnalogF64(self.task_handle,             # task handle
                                    int(self.shots),              # number of samples per channel
@@ -462,12 +463,14 @@ class Driver(BaseDriver):
                                    byref(self.read),             # reference of thread
                                    None)                         # reserved by NI, pass NULL (?)
                 DAQmxStopTask(self.task_handle)                       
+            except DAQError as err:
+                print("DAQmx Error: %s"%err)
+                g.logger.log('error', 'Error in timing definition', err)
+                DAQmxStopTask(self.task_handle)
+                time.sleep(wait)
             else:
-                self.samples = np.random.normal(size=self.samples_len)
-        except DAQError as err:
-            print("DAQmx Error: %s"%err)
-            g.logger.log('error', 'Error in timing definition', err)
-            DAQmxStopTask(self.task_handle)
+                break
+        else:
             DAQmxClearTask(self.task_handle)
         # export samples
         samples.write(self.samples)
@@ -577,21 +580,21 @@ class GUI(BaseGUI):
 
     def create_frame(self, parent_widget):
         # get layout
-        parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.setLayout(QtWidgets.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         layout = parent_widget.layout()
         # create tab structure
-        self.tabs = QtGui.QTabWidget()
+        self.tabs = QtWidgets.QTabWidget()
         # samples tab
-        samples_widget = QtGui.QWidget()
-        samples_box = QtGui.QHBoxLayout()
+        samples_widget = QtWidgets.QWidget()
+        samples_box = QtWidgets.QHBoxLayout()
         samples_box.setContentsMargins(0, 10, 0, 0)
         samples_widget.setLayout(samples_box)
         self.tabs.addTab(samples_widget, 'Samples')
         self.create_samples_tab(samples_box)
         # shots tab
-        shots_widget = QtGui.QWidget()
-        shots_box = QtGui.QHBoxLayout()
+        shots_widget = QtWidgets.QWidget()
+        shots_box = QtWidgets.QHBoxLayout()
         shots_box.setContentsMargins(0, 10, 0, 0)
         shots_widget.setLayout(shots_box)
         self.tabs.addTab(shots_widget, 'Shots')
@@ -607,7 +610,7 @@ class GUI(BaseGUI):
         # display -------------------------------------------------------------
         # container widget
         display_container_widget = pw.ExpandingWidget()
-        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_container_widget.setLayout(QtWidgets.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)
@@ -646,12 +649,12 @@ class GUI(BaseGUI):
         layout.addWidget(line)        
         # settings area -------------------------------------------------------        
         # container widget / scroll area
-        settings_container_widget = QtGui.QWidget()
+        settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area(130)
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
@@ -737,7 +740,7 @@ class GUI(BaseGUI):
         # display -------------------------------------------------------------
         # container widget
         display_container_widget = pw.ExpandingWidget()
-        display_container_widget.setLayout(QtGui.QVBoxLayout())
+        display_container_widget.setLayout(QtWidgets.QVBoxLayout())
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
         layout.addWidget(display_container_widget)        
@@ -751,12 +754,12 @@ class GUI(BaseGUI):
         layout.addWidget(line)        
         # settings ------------------------------------------------------------
         # container widget / scroll area
-        settings_container_widget = QtGui.QWidget()
+        settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area()
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
@@ -985,7 +988,7 @@ class Widget(BaseWidget):
 
     def __init__(self):
         BaseWidget.__init__(self)
-        layout = QtGui.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
         input_table = pw.InputTable()

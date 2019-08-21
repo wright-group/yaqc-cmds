@@ -1,3 +1,0 @@
-Notes on how these files were generated:
-- Created by makepy.py through gui (C:\Python27\Lib\site-packages\win32com\client)
-- Edited with custom coclass to enable threading (CoInitialize call added to init)

@@ -15,7 +15,7 @@ try:
 except ImportError:
     import ConfigParser as configparser  # python 2
 
-from PyQt4 import QtCore, QtGui
+from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 
@@ -54,7 +54,7 @@ if not os.path.isdir(saved_folder):
 
 
 class Item(QtCore.QObject):
-    updated = QtCore.pyqtSignal()
+    updated = QtCore.Signal()
     
     def __init__(self, name='', info='', description=''):
         QtCore.QObject.__init__(self)
@@ -145,7 +145,7 @@ class Wait(Item):
 
 
 class Worker(QtCore.QObject):
-    action_complete = QtCore.pyqtSignal()
+    action_complete = QtCore.Signal()
 
     def __init__(self, enqueued, busy, queue_status, queue_url, queue_index, queue_folder):
         QtCore.QObject.__init__(self)
@@ -164,7 +164,7 @@ class Worker(QtCore.QObject):
         else:
             self.busy.write(False)   
         
-    @QtCore.pyqtSlot(str, list)
+    @QtCore.Slot(str, list)
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
@@ -581,7 +581,7 @@ class GUI(QtCore.QObject):
         self.progress_bar = g.progress_bar
         # frame, widgets
         self.message_widget = message_widget
-        parent_widget.setLayout(QtGui.QHBoxLayout())
+        parent_widget.setLayout(QtWidgets.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         self.layout = parent_widget.layout()
         self.create_frame()
@@ -602,12 +602,12 @@ class GUI(QtCore.QObject):
     def add_index_to_table(self, i, max_value):
         # for some reason, my lambda function does not work when called outside
         # of a dedicated method - Blaise 2016-09-14
-        index = QtGui.QDoubleSpinBox()
+        index = QtWidgets.QDoubleSpinBox()
         StyleSheet = 'QDoubleSpinBox{color: custom_color; font: 14px;}'.replace('custom_color', g.colors_dict.read()['text_light'])
         StyleSheet += 'QScrollArea, QWidget{background: custom_color;  border-color: black; border-radius: 0px;}'.replace('custom_color', g.colors_dict.read()['background'])
         StyleSheet += 'QWidget:disabled{color: custom_color_1; font: 14px; border: 0px solid black; border-radius: 0px;}'.replace('custom_color_1', g.colors_dict.read()['text_disabled']).replace('custom_color_2', g.colors_dict.read()['widget_background'])                
         index.setStyleSheet(StyleSheet)
-        index.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
+        index.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         index.setSingleStep(1)
         index.setDecimals(0)
         index.setMaximum(max_value)
@@ -619,8 +619,8 @@ class GUI(QtCore.QObject):
         return index    
     
     def create_acquisition_frame(self):
-        frame = QtGui.QWidget()
-        frame.setLayout(QtGui.QVBoxLayout())
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
         layout = frame.layout()
         layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -641,8 +641,8 @@ class GUI(QtCore.QObject):
         input_table.add('Info', self.acquisition_info)
         layout.addWidget(input_table)
         # module container widget
-        self.module_container_widget = QtGui.QWidget()
-        self.module_container_widget.setLayout(QtGui.QVBoxLayout())
+        self.module_container_widget = QtWidgets.QWidget()
+        self.module_container_widget.setLayout(QtWidgets.QVBoxLayout())
         module_layout = self.module_container_widget.layout()
         module_layout.setMargin(0)
         module_layout.setContentsMargins(0, 0, 0, 0)
@@ -654,8 +654,8 @@ class GUI(QtCore.QObject):
         return frame
 
     def create_device_frame(self):
-        frame = QtGui.QWidget()
-        frame.setLayout(QtGui.QVBoxLayout())
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
         layout = frame.layout()
         layout.setContentsMargins(0, 0, 0, 0)
         # name and info
@@ -666,7 +666,7 @@ class GUI(QtCore.QObject):
         input_table.add('Info', self.device_info)       
         layout.addWidget(input_table)        
         # not implemented message
-        label = QtGui.QLabel('device not currently implemented')
+        label = QtWidgets.QLabel('device not currently implemented')
         StyleSheet = 'QLabel{color: custom_color; font: bold 14px}'.replace('custom_color', g.colors_dict.read()['text_light'])
         label.setStyleSheet(StyleSheet)
         layout.addWidget(label)
@@ -697,7 +697,7 @@ class GUI(QtCore.QObject):
         labels[-1] = ''
         labels[-2] = ''
         self.table.setHorizontalHeaderLabels(labels)
-        self.table.horizontalHeader().setResizeMode(5, QtGui.QHeaderView.Stretch)
+        self.table.horizontalHeader().setResizeMode(5, QtWidgets.QHeaderView.Stretch)
         self.table.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         for i, width in enumerate(self.table_cols.values()):
             self.table.setColumnWidth(i, width)
@@ -706,12 +706,12 @@ class GUI(QtCore.QObject):
         line = pw.Line('V')
         self.layout.addWidget(line)
         # controls ------------------------------------------------------------
-        settings_container_widget = QtGui.QWidget()
+        settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area()
         settings_scroll_area.setWidget(settings_container_widget)
         settings_scroll_area.setMinimumWidth(300)
         settings_scroll_area.setMaximumWidth(300)
-        settings_container_widget.setLayout(QtGui.QVBoxLayout())
+        settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
@@ -791,8 +791,8 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
 
     def create_hardware_frame(self):
-        frame = QtGui.QWidget()
-        frame.setLayout(QtGui.QVBoxLayout())
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
         layout = frame.layout()
         layout.setContentsMargins(0, 0, 0, 0)
         # name and info
@@ -817,8 +817,8 @@ class GUI(QtCore.QObject):
 
     def create_interrupt_frame(self):
         # since there is no options to choose, return an empty frame
-        frame = QtGui.QWidget()
-        frame.setLayout(QtGui.QVBoxLayout())
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
         layout = frame.layout()
         layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -843,8 +843,8 @@ class GUI(QtCore.QObject):
         self.queue.update()  # will call self.update_ui
 
     def create_script_frame(self):
-        frame = QtGui.QWidget()
-        frame.setLayout(QtGui.QVBoxLayout())
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
         layout = frame.layout()
         layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -859,8 +859,8 @@ class GUI(QtCore.QObject):
         return frame
 
     def create_wait_frame(self):
-        frame = QtGui.QWidget()
-        frame.setLayout(QtGui.QVBoxLayout())
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
         layout = frame.layout()
         layout.setContentsMargins(0, 0, 0, 0)
         input_table = pw.InputTable()
