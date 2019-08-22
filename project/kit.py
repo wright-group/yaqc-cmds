@@ -6,12 +6,6 @@ a collection of small, general purpose objects and methods
 ### import ####################################################################
 
 
-import os
-import re
-import ast
-import collections
-from time import clock
-
 import numpy as np
 
 

@@ -2,11 +2,8 @@
 
 
 import os
-import sys
 import time
 import tempfile
-import glob
-import datetime
 
 from PySide2 import QtGui, QtCore
 
@@ -17,9 +14,6 @@ from project.ini_handler import Ini
 from . import bots
 main_dir = g.main_dir.read()
 ini = Ini(os.path.join(main_dir, 'project', 'slack', 'bots.ini'))
-#import daq.daq as daq
-
-import WrightTools as wt
 
 
 ### container objects #########################################################

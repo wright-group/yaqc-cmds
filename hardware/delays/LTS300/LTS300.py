@@ -3,14 +3,7 @@
 
 import time
 
-import numpy as np
-
-from PySide2 import QtWidgets, QtCore
-
-import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
-from project.ini_handler import Ini
 from hardware.delays.delays import Driver as BaseDriver
 from hardware.delays.delays import GUI as BaseGUI
 

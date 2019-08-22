@@ -2,16 +2,13 @@
 
 
 import os
-import sys
-import time
-import numexpr as ne
 
 import numpy as np
 
 import matplotlib
 matplotlib.pyplot.ioff()
 
-from PySide2 import QtCore, QtWidgets
+from PySide2 import QtWidgets
 import WrightTools as wt
 import attune
 

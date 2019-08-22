@@ -12,12 +12,11 @@ import time
 import shutil
 from distutils.dir_util import copy_tree
 
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtCore
 
 from . import _google_drive
 
 import project.classes as pc
-import project.logging_handler as logging_handler
 import project.project_globals as g
 from project.ini_handler import Ini
 

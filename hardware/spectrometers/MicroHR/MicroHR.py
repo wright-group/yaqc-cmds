@@ -1,15 +1,9 @@
 ### import ####################################################################
 
 
-import os
-import collections
 import time
 
-from PySide2 import QtWidgets, QtCore
-
-import project
 import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
 from hardware.spectrometers.spectrometers import Driver as BaseDriver
 from hardware.spectrometers.spectrometers import GUI as BaseGUI

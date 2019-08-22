@@ -1,16 +1,12 @@
 ### import ####################################################################
 
 import os
-import sys
-import time
-import numexpr as ne
 
 import numpy as np
 
 import matplotlib
 matplotlib.pyplot.ioff()
 
-from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 import attune
 
@@ -24,7 +20,6 @@ ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'tune_test.in
 app = g.app.read()
 
 import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
 import devices.devices as devices
 
  

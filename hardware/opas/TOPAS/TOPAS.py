@@ -8,7 +8,6 @@ import collections
 
 import numpy as np
 
-import ctypes
 from ctypes import *
 
 import WrightTools as wt
@@ -23,7 +22,6 @@ from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 from hardware.opas.opas import AutoTune as BaseAutoTune
 from hardware.opas.TOPAS.TOPAS_API import TOPAS_API
-from attune.curve._topas import TOPAS_interaction_by_kind
                                  
 # --- define --------------------------------------------------------------------------------------
 

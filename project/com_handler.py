@@ -6,7 +6,6 @@ PyCMDS thread safe wrapper for serial communication.
 ### import ####################################################################
 
 
-import time
 import sys
 
 from PySide2 import QtCore
