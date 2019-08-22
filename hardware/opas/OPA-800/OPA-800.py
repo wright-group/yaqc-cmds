@@ -264,11 +264,6 @@ class Driver(BaseDriver):
             if dest >= 0 and dest <= 50:
                 self.motors[axis].set_position(float(dest))
 
-    def _wait_until_still(self):
-        for motor in self.motors.values():
-            while motor.busy():
-                time.sleep(0.01)
-
     def close(self):
         for motor in self.motors.values():
             motor.close()
