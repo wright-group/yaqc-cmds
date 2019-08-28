@@ -82,12 +82,12 @@ class FileDialog(QtCore.QObject):
     
     def getOpenFileName(self, inputs=[]):
         caption, directory, options = inputs
-        out = self.clean(QtWidgets.QFileDialog.getOpenFileName(g.main_window.read(), caption, directory, options))
+        out = self.clean(QtWidgets.QFileDialog.getOpenFileName(g.main_window.read(), caption, directory, options)[0])
         open_filepath.write(out)
         
     def getSaveFileName(self, inputs=[]):
         caption, directory, savefilter, selectedfilter, options = inputs
-        out = self.clean(QtWidgets.QFileDialog.getSaveFileName(g.main_window.read(), caption, directory, savefilter, selectedfilter, options))
+        out = self.clean(QtWidgets.QFileDialog.getSaveFileName(g.main_window.read(), caption, directory, savefilter, selectedfilter, options)[0])
         save_filepath.write(out)
 
 

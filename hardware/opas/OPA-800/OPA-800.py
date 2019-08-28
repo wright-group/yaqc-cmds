@@ -7,6 +7,7 @@ import numpy as np
 
 import WrightTools as wt
 import attune
+import yaqd_core
 
 import project.classes as pc
 import project.widgets as pw
@@ -14,7 +15,7 @@ import project.project_globals as g
 from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 from hardware.opas.opas import AutoTune as BaseAutoTune
-import library.precision_micro_motors.precision_motors as pm_motors
+#import library.precision_micro_motors.precision_motors as pm_motors
 
 
 ### define ####################################################################
@@ -232,7 +233,8 @@ class AutoTune(BaseAutoTune):
 class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
-        self.motor_names = ['Grating', 'BBO', 'Mixer']
+        self.motor_names = kwargs.pop("motor_names", ['Grating', 'BBO', 'Mixer'])
+        self.motor_ports = kwargs.pop("motor_ports")
         self.auto_tune = AutoTune(self)
         self.motors = {}
         self.curve_paths = collections.OrderedDict()
@@ -260,11 +262,7 @@ class Driver(BaseDriver):
     def _set_motors(self, motor_destinations):
         for axis, dest in motor_destinations.items():
             if dest >= 0 and dest <= 50:
-                self.motors[axis].move_absolute(dest)
-
-    def _wait_until_still(self):
-        for motor in self.motors.values():
-            motor.wait_until_still(method=self.get_position)
+                self.motors[axis].set_position(float(dest))
 
     def close(self):
         for motor in self.motors.values():
@@ -273,7 +271,7 @@ class Driver(BaseDriver):
 
     def get_motor_positions(self):
         for i in self.motors:
-            val = self.motors[i].current_position_mm
+            val = self.motors[i].get_position()
             self.motor_positions[i].write(val)
         if self.poynting_correction:
             self.poynting_correction.get_motor_positions()
@@ -289,8 +287,7 @@ class Driver(BaseDriver):
             number = pc.Number(name=motor_name, initial_value=25.,
                                decimals=6, limits=motor_limits, display=True)
             self.motor_positions[motor_name] = number
-            self.motors.update({ motor_name: pm_motors.Motor(
-                pm_motors.identity['OPA%d %s' % (self.index, motor_name)])})
+            self.motors.update({ motor_name: yaqd_core.Client(self.motor_ports[motor_index])})
             self.recorded['w%d_%s' % (self.index, motor_name)] = [
                 number, None, 0.001, motor_name.lower()]
         # self.get_motor_positions()
@@ -303,7 +300,7 @@ class Driver(BaseDriver):
 
     def is_busy(self):
         for motor in self.motors.values():
-            if not motor.is_stopped():
+            if motor.busy():
                 self.get_position()
                 return True
         self.get_position()

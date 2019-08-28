@@ -12,6 +12,9 @@ import appdirs
 from glob import glob
 
 
+import logging
+
+logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 # --- define --------------------------------------------------------------------------------------
 
 
