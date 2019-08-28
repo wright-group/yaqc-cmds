@@ -455,7 +455,7 @@ class Queue():
         # pause
         self.status.pause.write(True)
         while not self.status.paused.read():
-            self.status.paused.wait_for_update()
+            time.sleep(0.01)
         # ask user how to proceed
         options = ['RESUME', 'SKIP', 'STOP']
         self.gui.interrupt_choice_window.set_text(message)
