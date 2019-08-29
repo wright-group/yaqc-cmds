@@ -37,10 +37,6 @@ class Driver(BaseDriver):
                                       set_method='set_turret')
         self.exposed.append(self.grating_index)
 
-    def close(self):
-        self.ctrl.close()
-        BaseDriver.close(self)
-
     def get_position(self):
         native_position = self.ctrl.get_position()
         self.position.write(native_position, self.native_units)

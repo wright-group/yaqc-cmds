@@ -264,11 +264,6 @@ class Driver(BaseDriver):
             if dest >= 0 and dest <= 50:
                 self.motors[axis].set_position(float(dest))
 
-    def close(self):
-        for motor in self.motors.values():
-            motor.close()
-        BaseDriver.close(self)
-
     def get_motor_positions(self):
         for i in self.motors:
             val = self.motors[i].get_position()
