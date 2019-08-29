@@ -477,7 +477,7 @@ class Queue():
         # wait for stop
         if chosen in ['SKIP', 'STOP']:
             while not self.status.stopped.read():
-                self.status.stopped.wait_for_update()
+                time.sleep(0.01)
         # finish
         self.status.stop.write(False)
         self.status.pause.write(False)
