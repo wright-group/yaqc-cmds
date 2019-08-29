@@ -178,10 +178,10 @@ class Worker(QtCore.QObject):
             output_folder.mkdir(exist_ok=True)
             image_fname = channel_name + ' ' + file_name
             if len(data.shape) == 1:
-                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, output_folder=output_folder,
+                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, save_directory=output_folder,
                             fname=image_fname, verbose=False)
             else:
-                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, output_folder=output_folder,
+                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, save_directory=output_folder,
                             fname=image_fname, verbose=False)
             # hack in a way to get the first image written
             if channel_index == 0:

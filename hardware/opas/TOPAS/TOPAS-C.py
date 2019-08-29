@@ -3,14 +3,6 @@
 
 from hardware.opas.TOPAS.TOPAS import Driver as BaseDriver
 from hardware.opas.TOPAS.TOPAS import GUI as BaseGUI
-from hardware.opas.TOPAS.TOPAS import AutoTune as BaseAutoTune
-
-
-# --- autotune ------------------------------------------------------------------------------------
-
-
-class AutoTune(BaseAutoTune):
-    pass
 
 
 # --- driver --------------------------------------------------------------------------------------
