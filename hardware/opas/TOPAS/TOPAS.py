@@ -11,12 +11,10 @@ import numpy as np
 import ctypes
 from ctypes import *
 
-import WrightTools as wt
 import attune
 
 import project
 import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
 from project.ini_handler import Ini
 from hardware.opas.opas import Driver as BaseDriver

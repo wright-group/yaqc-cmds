@@ -1,20 +1,16 @@
 ### import ####################################################################
 
-import os
 import collections
 
 import numpy as np
 
-import WrightTools as wt
 import attune
 import yaqd_core
 
 import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
 from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
-#import library.precision_micro_motors.precision_motors as pm_motors
 
 
 ### define ####################################################################
