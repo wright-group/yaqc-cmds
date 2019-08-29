@@ -195,7 +195,7 @@ class OPA_GUI():
         self.motors = []
         for name in motor_names:
             # TODO: per motor defaults
-            motor = MotorGUI(name,1000,31)
+            motor = MotorGUI(name,1,31)
             if layout is not None:
                 layout.addWidget(motor.input_table)
             self.motors.append(motor)
@@ -217,7 +217,7 @@ class MotorGUI():
         self.do = pc.Bool()
         self.input_table.add('Do', self.do)
 
-        self.width = pc.Number(initial_value = width, decimals = 0)
+        self.width = pc.Number(initial_value = width, decimals = 3)
         self.input_table.add('Width', self.width)
 
         self.number = pc.Number(initial_value = number, decimals = 0)
