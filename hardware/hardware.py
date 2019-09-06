@@ -194,6 +194,7 @@ class Hardware(pc.Hardware):
         self.destination = pc.Number(units=self.native_units, display=True)
         self.destination.write(self.position.read(self.native_units), self.native_units)
         self.limits = self.driver.limits
+        g.poll_timer.connect_to_timeout(self.poll)
         hardwares.append(self)
 
     def close(self):
