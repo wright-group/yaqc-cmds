@@ -206,7 +206,9 @@ class Worker(QtCore.QObject):
         # create acquisition folder on google drive
         folder_name = os.path.abspath(item.aqn_path)[:-4]
         if g.google_drive_enabled.read():
-            url = g.google_drive_control.read().create_folder(folder_name)
+            g.google_drive_control.read().reserve_id(folder_name)
+            url = g.google_drive_control.read().id_to_open_url(folder_name)
+            g.google_drive_control.read().create_folder(folder_name, self.folder.read(), folder_name)
             ini = wt.kit.INI(item.aqn_path)
             ini.write('info', 'url', url)
             item.url = url
@@ -219,7 +221,7 @@ class Worker(QtCore.QObject):
             traceback.print_exc()
         # upload aqn file
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(item.aqn_path)
+            g.google_drive_control.read().upload_file(item.aqn_path, id_=item.aqn_path)
         # send message on slack
         if g.slack_enabled.read():
             name = os.path.split(folder_name)[1]
@@ -359,7 +361,9 @@ class Queue():
         # create storage folder on google drive
         if url is None:
             if g.google_drive_enabled.read():
-                self.url = g.google_drive_control.read().create_folder(self.folder.read())
+                g.google_drive_control.read().reserve_id(self.folder.read())
+                self.url = g.google_drive_control.read().id_to_open_url(self.folder.read())
+                g.google_drive_control.read().create_folder(self.folder.read(), id_=self.folder.read())
             else:
                 self.url = None
         else:
@@ -499,7 +503,7 @@ class Queue():
             item.status = 'FAILED'
         # upload queue.ini to google drive
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(self.ini_path)
+            g.google_drive_control.read().update_file(self.ini_path, self.ini_path)
         # onto next item
         self.index.write(self.index.read() + 1)
         queue_done = len(self.items) == self.index.read()
@@ -561,7 +565,7 @@ class Queue():
         self.gui.update_ui()
         # upload ini
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(self.ini_path)
+            g.google_drive_control.read().update_file(self.ini_path, self.ini_path)
     
     def update_progress(self):
         # progress bar
