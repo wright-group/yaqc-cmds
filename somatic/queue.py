@@ -221,7 +221,8 @@ class Worker(QtCore.QObject):
             traceback.print_exc()
         # upload aqn file
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(item.aqn_path, id_=item.aqn_path)
+            g.google_drive_control.read().create_file(str(item.aqn_path), parent_id=self.folder.read(), id_=str(item.aqn_path))
+
         # send message on slack
         if g.slack_enabled.read():
             name = os.path.split(folder_name)[1]
@@ -364,6 +365,7 @@ class Queue():
                 g.google_drive_control.read().reserve_id(self.folder.read())
                 self.url = g.google_drive_control.read().id_to_open_url(self.folder.read())
                 g.google_drive_control.read().create_folder(self.folder.read(), id_=self.folder.read())
+                g.google_drive_control.read().create_file(self.ini_path, self.folder.read(), self.ini_path)
             else:
                 self.url = None
         else:
@@ -501,9 +503,6 @@ class Queue():
             item.status = 'COMPLETE'
         else:
             item.status = 'FAILED'
-        # upload queue.ini to google drive
-        if g.google_drive_enabled.read():
-            g.google_drive_control.read().update_file(self.ini_path, self.ini_path)
         # onto next item
         self.index.write(self.index.read() + 1)
         queue_done = len(self.items) == self.index.read()

@@ -368,7 +368,7 @@ class Worker(QtCore.QObject):
         # create folder on google drive, upload reference image
         if g.google_drive_enabled.read():
             folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
-            g.google_drive_control.read().upload_folder(scan_folder, parent=str(pathlib.Path(scan_folder).parent), id_=scan_folder)
+            g.google_drive_control.read().upload_folder(scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id_=scan_folder)
             image_url = None
             if reference_image is not None:
                 reference_id = f"{scan_folder} reference"
