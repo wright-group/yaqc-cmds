@@ -379,6 +379,10 @@ class Worker(QtCore.QObject):
             folder_url = image_url = None
         # send message on slack
         if g.slack_enabled.read():
+            if g.google_drive_enabled.read() and reference_image is not None:
+                start = time.time()
+                while time.time() - start < 10 and not g.google_drive_control.read().is_uploaded(reference_id):
+                    time.sleep(0.01)
             slack = g.slack_control.read()
             field = {}
             field['title'] = scan_folder.split(os.sep)[-1]
