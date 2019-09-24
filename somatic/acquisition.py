@@ -12,12 +12,10 @@ import imp
 import copy
 import shutil
 import pathlib
+import time
 import traceback
 
-try:
-    import configparser as ConfigParser  # python 3
-except ImportError:
-    import ConfigParser as ConfigParser  # python 2
+import configparser
 
 import numpy as np
 
@@ -104,7 +102,7 @@ class Order:
         self.process = self.module.process
 
 orderers = []
-config = ConfigParser.SafeConfigParser()
+config = configparser.SafeConfigParser()
 p = os.path.join(somatic_folder, 'order', 'order.ini')
 config.read(p)
 for name in config.options('load'):
