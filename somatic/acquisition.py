@@ -8,12 +8,9 @@ Acquisition infrastructure shared by all modules.
 
 import re
 import os
-import sys
 import imp
-import time
 import copy
 import shutil
-import collections
 import pathlib
 import traceback
 
@@ -31,7 +28,6 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 
 import project.project_globals as g
-import project.classes as pc
 import project.widgets as pw
 app = g.app.read()
 

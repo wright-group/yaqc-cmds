@@ -3,7 +3,6 @@
 
 import os
 import ast
-import time
 
 try:
     import configparser as ConfigParser  # python 3

@@ -3,11 +3,8 @@
 import os
 import pathlib
 import ast
-import collections
 
 import numpy as np
-
-import scipy
 
 from PySide2 import QtWidgets, QtCore
 

@@ -3,25 +3,14 @@
 
 ### import ####################################################################
 
-import os
-import collections
 import time
 
 import numpy as np
 
-from PySide2 import QtWidgets, QtCore
-from serial import SerialException
-
-import WrightTools as wt
-
-import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
-import hardware.hardware as hw
 from hardware.filters.filters import Driver as BaseDriver
 from hardware.filters.filters import GUI as BaseGUI
 import project.com_handler as com_handler
-from project.ini_handler import Ini
 main_dir = g.main_dir.read()
 
 

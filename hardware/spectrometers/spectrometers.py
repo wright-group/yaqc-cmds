@@ -2,21 +2,11 @@
 
 
 import os
-import time
-import collections
-
-import numpy as np
-
-from PySide2 import QtWidgets
-
-import WrightTools as wt
 
 import project
 import project.project_globals as g
 main_dir = g.main_dir.read()
 app = g.app.read()
-import project.widgets as pw
-import project.classes as pc
 import hardware.hardware as hw
 
 

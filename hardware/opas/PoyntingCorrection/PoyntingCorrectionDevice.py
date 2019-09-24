@@ -1,16 +1,11 @@
 ### import ####################################################################
 
 
-import os
 import time
 import collections
 
-import numpy as np
-import WrightTools as wt
-
 import project.classes as pc
 import project.project_globals as g
-from project.ini_handler import Ini
 
 
 ### define ####################################################################
