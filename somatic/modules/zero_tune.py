@@ -182,11 +182,15 @@ class GUI(acquisition.GUI):
         aqn = wt.kit.INI(aqn_path)
         self.opa_combo.write(aqn.read('opa', 'opa'))
         self.npts_opa.write(aqn.read('opa', 'npts'))
-        self.mono_width.write(aqn.read('spectrometer', 'width'))
-        self.mono_npts.write(aqn.read('spectrometer', 'number'))
         self.channel_combo.write(aqn.read('processing', 'channel'))
+        self.delay.start.write(aqn.read('delay', 'start'))
+        self.delay.stop.write(aqn.read('delay', 'stop'))
+        self.delay.number.write(aqn.read('delay', 'number'))
+        for key, mutex in self.delay.hardwares.items():
+            mutex.write(key in aqn.read('delay', 'delays'))
         # constants
         constant_names = aqn.read('scan', 'constant names')
+
         for constant_index, constant_name in enumerate(constant_names):
             constant = Constant()
             constant.hardware_name_combo.write(aqn.read(constant_name, 'hardware'))
