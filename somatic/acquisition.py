@@ -290,8 +290,8 @@ class Worker(QtCore.QObject):
         self.scan_folders.append(scan_folder)
         # create scan folder on google drive
         if g.google_drive_enabled.read():
-            scan_url = g.google_drive_control.read().create_folder(scan_folder)
-            self.scan_urls.append(scan_url)
+            scan_url = g.google_drive_control.read().reserve_id(scan_folder)
+            self.scan_urls.append(g.google_drive_control.read().id_to_open_url(scan_folder))
         else:
             self.scan_urls.append(None)
         # add urls to headers
@@ -367,11 +367,22 @@ class Worker(QtCore.QObject):
     def upload(self, scan_folder, message='scan complete', reference_image=None):
         # create folder on google drive, upload reference image
         if g.google_drive_enabled.read():
-            folder_url, image_url = g.google_drive_control.read().upload_scan(scan_folder, reference_image)
+            folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
+            g.google_drive_control.read().upload_folder(scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id_=scan_folder)
+            image_url = None
+            if reference_image is not None:
+                reference_id = f"{scan_folder} reference"
+                g.google_drive_control.read().reserve_id(reference_id)
+                image_url = g.google_drive_control.read().id_to_download_url(reference_id)
+                g.google_drive_control.read().create_file(reference_image, scan_folder, id_=reference_id)
         else:
             folder_url = image_url = None
         # send message on slack
         if g.slack_enabled.read():
+            if g.google_drive_enabled.read() and reference_image is not None:
+                start = time.time()
+                while time.time() - start < 10 and not g.google_drive_control.read().is_uploaded(reference_id):
+                    time.sleep(0.01)
             slack = g.slack_control.read()
             field = {}
             field['title'] = scan_folder.split(os.sep)[-1]
