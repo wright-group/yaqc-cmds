@@ -2,22 +2,17 @@
 
 
 import os
-import sys
 import imp
 import time
-import copy
-from distutils import util
 
 import collections
 
 import numpy as np
 
-import scipy
 
 import h5py
 
 from PySide2 import QtCore, QtWidgets
-import pyqtgraph as pg
 
 import WrightTools as wt
 import tidy_headers
@@ -25,7 +20,6 @@ import tidy_headers
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
-import project.ini_handler as ini_handler
 
 
 # --- define --------------------------------------------------------------------------------------

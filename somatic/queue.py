@@ -5,15 +5,11 @@ import os
 import traceback
 import imp
 import time
-import shutil
 import datetime
 import dateutil
 import collections
 
-try:
-    import configparser as configparser  # python 3
-except ImportError:
-    import ConfigParser as configparser  # python 2
+import configparser as configparser
 
 from PySide2 import QtCore, QtWidgets
 
@@ -22,7 +18,6 @@ import WrightTools as wt
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
-import project.ini_handler as ini_handler
 import project.file_dialog_handler as file_dialog_handler
 
 import hardware.spectrometers.spectrometers as spectrometers

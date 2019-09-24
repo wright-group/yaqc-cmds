@@ -1,30 +1,15 @@
 ### import ####################################################################
 
-import os
-import sys
-import time
-import numexpr as ne
-
-import numpy as np
-
-import matplotlib
-matplotlib.pyplot.ioff()
-
-from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 import somatic.acquisition as acquisition
-import project.ini_handler as ini_handler
 main_dir = g.main_dir.read()
-#ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'home.ini'))
 app = g.app.read()
 
 import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import devices.devices as devices
 
  
 ### define ####################################################################

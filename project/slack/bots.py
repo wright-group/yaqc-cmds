@@ -1,10 +1,8 @@
 #Slack implementation for pyCMDS
 
-import json
 import os
 import sys
 import time
-import logging
 
 import project.project_globals as g
 main_dir = g.main_dir.read()

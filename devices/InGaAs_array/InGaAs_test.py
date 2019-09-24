@@ -1,14 +1,7 @@
-import os
-
 #import------------------------------------------------------------------------
 
 import numpy as np
 import serial
-import struct
-
-import codecs
-
-import pyqtgraph as pg
 
 #initialize--------------------------------------------------------------------
 
@@ -57,6 +50,7 @@ out *= 0.0195
 import matplotlib
 matplotlib.pyplot.plot(out)
 
+#import pyqtgraph as pg
 #plt = pg.plot(out, title="Simplest possible plotting example")
 
 '''

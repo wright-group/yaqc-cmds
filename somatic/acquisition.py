@@ -8,19 +8,14 @@ Acquisition infrastructure shared by all modules.
 
 import re
 import os
-import sys
 import imp
-import time
 import copy
 import shutil
-import collections
 import pathlib
+import time
 import traceback
 
-try:
-    import configparser as ConfigParser  # python 3
-except ImportError:
-    import ConfigParser as ConfigParser  # python 2
+import configparser
 
 import numpy as np
 
@@ -31,7 +26,6 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 
 import project.project_globals as g
-import project.classes as pc
 import project.widgets as pw
 app = g.app.read()
 
@@ -108,7 +102,7 @@ class Order:
         self.process = self.module.process
 
 orderers = []
-config = ConfigParser.SafeConfigParser()
+config = configparser.SafeConfigParser()
 p = os.path.join(somatic_folder, 'order', 'order.ini')
 config.read(p)
 for name in config.options('load'):

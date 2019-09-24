@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets
 from project import project_globals as g
 
 #see http://www.google.com/design/spec/style/color.html#color-color-palette

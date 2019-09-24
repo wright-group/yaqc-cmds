@@ -1,14 +1,9 @@
 ### import ####################################################################
 
 
-import os
 import ast
-import time
-
-try:
-    import configparser as ConfigParser  # python 3
-except ImportError:
-    import ConfigParser as ConfigParser  # python 2
+import configparser
+import os
 
 from PySide2 import QtCore
 
@@ -27,7 +22,7 @@ class Ini(QtCore.QMutex):
     def __init__(self, filepath):
         QtCore.QMutex.__init__(self)
         self.filepath = filepath
-        self.config = ConfigParser.SafeConfigParser()
+        self.config = configparser.SafeConfigParser()
         self.return_raw = False
         
     def _do(self, operation, section, option, value, with_apostrophe):
