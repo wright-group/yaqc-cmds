@@ -110,11 +110,13 @@ class Hardware(Item):
         ini.write(section, 'hardwares', [hw.name for hw in self.hardwares])
 
 class Interrupt(Item):
-
-    def __init__(self, **kwargs):
+    def __init__(self, message, **kwargs):
         Item.__init__(self, **kwargs)
-        self.type = 'interrupt'
+        self.type = "interrupt"
+        self.message = message
 
+    def write_to_ini(self, ini, section):
+        ini.write(section, 'message', self.message)
 
 class Script(Item):
 
@@ -134,7 +136,6 @@ class Wait(Item):
     def write_to_ini(self, ini, section):
         ini.write(section, 'operation', self.operation)
         ini.write(section, 'amount', self.amount)
-
 
 ### worker ####################################################################
 
@@ -183,6 +184,8 @@ class Worker(QtCore.QObject):
             self.execute_hardware(item)
         elif item.type == 'wait':
             self.execute_wait(item)
+        elif item.type == 'interrupt':
+            self.execute_interrupt(item)
         item.exited = wt.kit.TimeStamp()
         self.fraction_complete.write(1.)
         self.queue_status.going.write(False)
@@ -292,6 +295,14 @@ class Worker(QtCore.QObject):
         
         item.finished.write(True)
 
+    def execute_interrupt(self, item):
+        if g.slack_enabled.read():
+            message = ':octagonal_sign: Interrupted - {0}\n{1}\nUse `run` command to continue'.format(item.description, item.message)
+            g.slack_control.read().send_message(message)
+        item.finished.write(True)
+
+
+
 
 ### queue class ###############################################################
 
@@ -388,6 +399,13 @@ class Queue():
         self.gui.progress_bar.begin_new_scan_timer()
         item = self.items[self.index.read()]
         item.status = 'RUNNING'
+        if isinstance(item, Interrupt):
+            self.status.go.write(False)
+            if item.message.strip():
+                options = ['OKAY']
+                choice_window = pw.ChoiceWindow(f"Interrupted - {item.description}", button_labels=options)
+                choice_window.set_informative_text(item.message)
+                choice_window.show()
         self.worker_q.push('excecute', item)
         self.gui.message_widget.setText(item.description.upper())
 
@@ -416,10 +434,6 @@ class Queue():
         if update:
             self.update()
 
-    def append_interrupt(self):
-        # TODO:
-        print('append_interrupt')
-
     def append_script(self):
         # TODO:
         print('append_script')
@@ -429,6 +443,13 @@ class Queue():
         wait = Wait(operation, amount, name=name, info=info, description=description)
         # append and update
         self.items.append(wait)
+        self.update()
+
+    def append_interrupt(self, message, name, info, description):
+        # create item
+        interrupt = Interrupt(message, name=name, info=info, description=description)
+        # append and update
+        self.items.append(interrupt)
         self.update()
     
     def change_index(self, current_index, new_index):
@@ -760,7 +781,6 @@ class GUI(QtCore.QObject):
         # type combobox
         input_table = pw.InputTable()
         allowed_values = ['Acquisition', 'Wait', 'Interrupt', 'Hardware', 'Device', 'Script']
-        allowed_values.remove('Interrupt')  # not ready yet
         allowed_values.remove('Device')  # not ready yet
         allowed_values.remove('Script')  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
@@ -813,22 +833,6 @@ class GUI(QtCore.QObject):
 
         return frame
 
-    def create_interrupt_frame(self):
-        # since there is no options to choose, return an empty frame
-        frame = QtWidgets.QWidget()
-        frame.setLayout(QtWidgets.QVBoxLayout())
-        layout = frame.layout()
-        layout.setMargin(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        # name and info
-        input_table = pw.InputTable()
-        self.interrupt_name = pc.String(max_length=10)
-        input_table.add('Name', self.interrupt_name)
-        self.interrupt_info = pc.String()
-        input_table.add('Info', self.interrupt_info)       
-        layout.addWidget(input_table)
-        return frame
-    
     def create_new_queue(self):
         # exit old queue
         if self.queue is not None:
@@ -874,6 +878,21 @@ class GUI(QtCore.QObject):
         layout.addWidget(input_table)
         return frame
     
+    def create_interrupt_frame(self):
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
+        layout = frame.layout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        input_table = pw.InputTable()
+        self.interrupt_name = pc.String(max_length=10)
+        input_table.add('Name', self.interrupt_name)
+        self.interrupt_info = pc.String()
+        input_table.add('Info', self.interrupt_info)  
+        self.interrupt_message = pc.String()
+        input_table.add('Message', self.interrupt_message)  
+        layout.addWidget(input_table)
+        return frame
+
     def get_status(self, full=False):
         # called by slack
         make_field = g.slack_control.read().make_field
@@ -958,8 +977,9 @@ class GUI(QtCore.QObject):
         elif current_type == 'Interrupt':
             name = self.interrupt_name.read()
             info = self.interrupt_info.read()
-            description = 'interrupt'
-            self.queue.append_interrupt(name=name, info=info, description=description)
+            description = f'INTERRUPT: {name}'
+            message = self.interrupt_message.read()
+            self.queue.append_interrupt(message, name=name, info=info, description=description)
         elif current_type == 'Hardware':
             name = self.hardware_name.read()
             info = self.hardware_info.read()
@@ -1047,7 +1067,10 @@ class GUI(QtCore.QObject):
                 else:
                     v.write(False)
         elif item.type == 'interrupt':
-            raise NotImplementedError()
+            self.type_combo.write('Wait')
+            self.interrupt_name.write(item.name)
+            self.interrupt_info.write(item.info)
+            self.inteurrupt_message.write(item.message)
         elif item.type == 'script':
             raise NotImplementedError()
         elif item.type == 'wait':
@@ -1113,7 +1136,11 @@ class GUI(QtCore.QObject):
                 units = ini.read(section, 'units')
                 self.queue.append_hardware(hardwares, value, units, name=name, info=info, description=description)
             elif item_type == 'interrupt':
-                raise NotImplementedError
+                name = ini.read(section, 'name')
+                info = ini.read(section, 'info')
+                message = ini.read(section, 'message')
+                description = ini.read(section, 'description')
+                self.queue.append_interrupt(message, name=name, info=info, description=description)
             elif item_type == 'script':
                 raise NotImplementedError
             elif item_type == 'wait':
@@ -1142,6 +1169,7 @@ class GUI(QtCore.QObject):
                         item.finished.write(True)                
             i += 1
         # manage queue index
+        index = -1
         for index, item in enumerate(self.queue.items):
             if item.status == 'ENQUEUED':
                 break
