@@ -636,9 +636,11 @@ class QueueControl(QtWidgets.QPushButton):
 
 class ChoiceWindow(QtWidgets.QMessageBox):
 
-    def __init__(self, title, button_labels):
+    def __init__(self, title, button_labels, block=True):
         QtWidgets.QMessageBox.__init__(self)
+        self.block = block
         self.setWindowTitle(title)
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         for label in button_labels:
             self.addButton(label, QtWidgets.QMessageBox.YesRole)
         self.setIcon(self.NoIcon)
@@ -654,7 +656,8 @@ class ChoiceWindow(QtWidgets.QMessageBox):
         Returns the index of the chosen button
         '''
         self.isActiveWindow()
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        if self.block:
+            self.setFocusPolicy(QtCore.Qt.StrongFocus)
         return self.exec_()
 
 
