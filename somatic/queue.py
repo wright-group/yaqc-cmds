@@ -296,6 +296,7 @@ class Worker(QtCore.QObject):
         item.finished.write(True)
 
     def execute_interrupt(self, item):
+        self.queue_status.go.write(False)
         if g.slack_enabled.read():
             message = ':octagonal_sign: Interrupted - {0}\n{1}\nUse `run` command to continue'.format(item.description, item.message)
             g.slack_control.read().send_message(message)
@@ -400,7 +401,7 @@ class Queue():
         item = self.items[self.index.read()]
         item.status = 'RUNNING'
         if isinstance(item, Interrupt):
-            self.status.go.write(False)
+            # This needs to run on the main thread to avoid Seg Fault
             if item.message.strip():
                 msg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.NoIcon, "Interrupt", item.message, QtWidgets.QMessageBox.Ok, parent=self.gui.parent_widget)
                 msg.setModal(False)
