@@ -3,21 +3,11 @@
 
 import collections
 
-import numpy as np
-
 from PySide2 import QtWidgets, QtCore
-from colorsys import rgb_to_hls, hls_to_rgb
-from PySide2.QtWidgets import QApplication, QWidget, QGridLayout, QSizePolicy, QStyleOption
-from PySide2.QtGui import QPainter
-from PySide2.QtCore import Signal, Qt, QSize, QTimer, QByteArray, QRectF, Property
-from PySide2.QtSvg import QSvgRenderer
 
 import pyqtgraph as pg
-from pyqtgraph import exporters
 
 from project import project_globals as g
-from project import classes as pc
-#import coset.coset as coset
 
 colors = g.colors_dict.read()
 

@@ -2,12 +2,6 @@
 
 
 import os
-import time
-import collections
-
-import numpy as np
-
-from PySide2 import QtWidgets
 
 import WrightTools as wt
 
@@ -137,6 +131,7 @@ class GUI(hw.GUI):
         name = self.hardware.name
         g.coset_control.read().zero(name)
         self.driver.get_position()
+        self.driver.save_status()
 
     def update(self):
         pass

@@ -2,14 +2,10 @@
 
 
 import os
-import sys
-import time
-import collections
-import codecs
 
 import numpy as np
 
-from PySide2 import QtCore, QtWidgets
+from PySide2 import QtWidgets
 
 import serial
 

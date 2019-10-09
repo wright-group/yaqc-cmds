@@ -1,15 +1,9 @@
 ### import ####################################################################
 
 
-import os
-import collections
 import time
 
-from PySide2 import QtWidgets, QtCore
-
-import project
 import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
 from hardware.spectrometers.spectrometers import Driver as BaseDriver
 from hardware.spectrometers.spectrometers import GUI as BaseGUI
@@ -36,10 +30,6 @@ class Driver(BaseDriver):
                                       display=True,
                                       set_method='set_turret')
         self.exposed.append(self.grating_index)
-
-    def close(self):
-        self.ctrl.close()
-        BaseDriver.close(self)
 
     def get_position(self):
         native_position = self.ctrl.get_position()

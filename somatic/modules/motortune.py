@@ -3,16 +3,12 @@
 
 import os
 import pathlib
-import sys
-import time
-import numexpr as ne
 
 import numpy as np
 
 import matplotlib
 matplotlib.pyplot.ioff()
 
-from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 
 import project.project_globals as g

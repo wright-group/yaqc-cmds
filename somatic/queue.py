@@ -5,15 +5,11 @@ import os
 import traceback
 import imp
 import time
-import shutil
 import datetime
 import dateutil
 import collections
 
-try:
-    import configparser as configparser  # python 3
-except ImportError:
-    import ConfigParser as configparser  # python 2
+import configparser as configparser
 
 from PySide2 import QtCore, QtWidgets
 
@@ -22,7 +18,6 @@ import WrightTools as wt
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
-import project.ini_handler as ini_handler
 import project.file_dialog_handler as file_dialog_handler
 
 import hardware.spectrometers.spectrometers as spectrometers
@@ -206,7 +201,9 @@ class Worker(QtCore.QObject):
         # create acquisition folder on google drive
         folder_name = os.path.abspath(item.aqn_path)[:-4]
         if g.google_drive_enabled.read():
-            url = g.google_drive_control.read().create_folder(folder_name)
+            g.google_drive_control.read().reserve_id(folder_name)
+            url = g.google_drive_control.read().id_to_open_url(folder_name)
+            g.google_drive_control.read().create_folder(folder_name, self.folder.read(), folder_name)
             ini = wt.kit.INI(item.aqn_path)
             ini.write('info', 'url', url)
             item.url = url
@@ -219,7 +216,8 @@ class Worker(QtCore.QObject):
             traceback.print_exc()
         # upload aqn file
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(item.aqn_path)
+            g.google_drive_control.read().create_file(str(item.aqn_path), parent_id=self.folder.read(), id_=str(item.aqn_path))
+
         # send message on slack
         if g.slack_enabled.read():
             name = os.path.split(folder_name)[1]
@@ -359,7 +357,10 @@ class Queue():
         # create storage folder on google drive
         if url is None:
             if g.google_drive_enabled.read():
-                self.url = g.google_drive_control.read().create_folder(self.folder.read())
+                g.google_drive_control.read().reserve_id(self.folder.read())
+                self.url = g.google_drive_control.read().id_to_open_url(self.folder.read())
+                g.google_drive_control.read().create_folder(self.folder.read(), id_=self.folder.read())
+                g.google_drive_control.read().create_file(self.ini_path, self.folder.read(), self.ini_path)
             else:
                 self.url = None
         else:
@@ -477,7 +478,7 @@ class Queue():
         # wait for stop
         if chosen in ['SKIP', 'STOP']:
             while not self.status.stopped.read():
-                self.status.stopped.wait_for_update()
+                time.sleep(0.01)
         # finish
         self.status.stop.write(False)
         self.status.pause.write(False)
@@ -497,9 +498,6 @@ class Queue():
             item.status = 'COMPLETE'
         else:
             item.status = 'FAILED'
-        # upload queue.ini to google drive
-        if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(self.ini_path)
         # onto next item
         self.index.write(self.index.read() + 1)
         queue_done = len(self.items) == self.index.read()
@@ -561,7 +559,7 @@ class Queue():
         self.gui.update_ui()
         # upload ini
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().upload_file(self.ini_path)
+            g.google_drive_control.read().update_file(self.ini_path, self.ini_path)
     
     def update_progress(self):
         # progress bar
