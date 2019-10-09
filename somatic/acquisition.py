@@ -394,7 +394,6 @@ class GUI(QtCore.QObject):
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
-        self.wait_window = pw.MessageWindow(title=self.module_name, text='Please wait.')
         # create frame
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setMargin(0)

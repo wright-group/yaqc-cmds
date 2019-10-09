@@ -607,16 +607,6 @@ class HardwareAdvancedPanel(QtCore.QObject):
 ### queue #####################################################################
         
 
-# TODO: remove
-class module_combobox(QtWidgets.QComboBox):
-    # TODO: remove this legacy widget
-    shutdown_go = QtCore.Signal()
-    def __init__(self):
-        QtWidgets.QComboBox.__init__(self)
-        StyleSheet = 'QComboBox{font: bold 14px}'#.replace('custom_color', colors['background'])
-        self.setStyleSheet(StyleSheet)
-
-      
 class QueueControl(QtWidgets.QPushButton):
     launch_scan = QtCore.Signal()
     stop_scan = QtCore.Signal()
@@ -636,9 +626,8 @@ class QueueControl(QtWidgets.QPushButton):
 
 class ChoiceWindow(QtWidgets.QMessageBox):
 
-    def __init__(self, title, button_labels, block=True):
+    def __init__(self, title, button_labels):
         QtWidgets.QMessageBox.__init__(self)
-        self.block = block
         self.setWindowTitle(title)
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         for label in button_labels:
@@ -656,8 +645,7 @@ class ChoiceWindow(QtWidgets.QMessageBox):
         Returns the index of the chosen button
         '''
         self.isActiveWindow()
-        if self.block:
-            self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
         return self.exec_()
 
 
@@ -753,68 +741,3 @@ class Plot1D(pg.GraphicsView):
             
     def clear(self):
         self.plot_object.clear()
-
-        
-### pop-ups ###################################################################
-
-
-class choice_window(QtWidgets.QMessageBox):
-
-    def __init__(self):
-        QtWidgets.QMessageBox.__init__(self)
-
-    def say(self, window_title, text, buttons, icon = 'NoIcon', informative_text=''):
-        '''
-        icon choices: NoIcon, Question, Information, Warning, Critical \n
-        returns index of button chosen as integer
-        '''
-        #self.size()
-        self.setWindowTitle(window_title)
-        self.setText(text)
-        self.setInformativeText(informative_text)
-        self.setIcon(getattr(self, icon))
-        for label in buttons:
-            my_button = QtWidgets.QPushButton(label)
-            self.addButton(my_button, QtWidgets.QMessageBox.YesRole)
-        self.isActiveWindow()
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        return self.exec_()
-
-
-class MessageWindow(QtWidgets.QWidget):
-
-    def __init__(self, text='Please wait.', title='Wait'):
-        QtWidgets.QWidget.__init__(self, parent=None)
-        self.setWindowTitle(title)
-        self.isActiveWindow()
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        #disable 'x'
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
-        # set geometry
-        self.window_verti_size = 50
-        self.window_horiz_size = 200
-        self.setGeometry(0,0, self.window_horiz_size, self.window_verti_size)
-        self._center()
-        # add content
-        self.label = QtWidgets.QLabel(text)
-        self.label.setAlignment(QtCore.Qt.AlignCenter)
-        layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(self.label)
-        self.setLayout(layout)
-        # finish
-        self.show()
-        self.hide()
-      
-    def _center(self):
-        # a function which ensures that the window appears in the center of the screen at startup
-        screen = QtWidgets.QDesktopWidget().screenGeometry() 
-        size = self.geometry() 
-        self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
-
-
-### testing ###################################################################
-    
-        
-if __name__ == '__main__':
-    plt = Plot1D()

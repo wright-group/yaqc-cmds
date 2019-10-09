@@ -402,10 +402,9 @@ class Queue():
         if isinstance(item, Interrupt):
             self.status.go.write(False)
             if item.message.strip():
-                options = ['OKAY']
-                choice_window = pw.ChoiceWindow(f"Interrupted - {item.description}", button_labels=options)
-                choice_window.set_informative_text(item.message)
-                choice_window.show()
+                msg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.NoIcon, "Interrupt", item.message, QtWidgets.QMessageBox.Ok, parent=self.gui.parent_widget)
+                msg.setModal(False)
+                msg.show()
         self.worker_q.push('excecute', item)
         self.gui.message_widget.setText(item.description.upper())
 
@@ -600,6 +599,7 @@ class GUI(QtCore.QObject):
         self.progress_bar = g.progress_bar
         # frame, widgets
         self.message_widget = message_widget
+        self.parent_widget = parent_widget
         parent_widget.setLayout(QtWidgets.QHBoxLayout())
         parent_widget.layout().setContentsMargins(0, 10, 0, 0)
         self.layout = parent_widget.layout()
