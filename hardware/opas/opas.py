@@ -350,7 +350,10 @@ class GUI(hw.GUI):
         yi = self.driver.curve(xi, units)[motor_name]
         self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
         self.plot_curve.clear()
-        self.plot_curve.setData(xi, yi)
+        try:
+            self.plot_curve.setData(xi, yi)
+        except ValueError:
+            pass
         self.plot_widget.graphics_layout.update()
         self.update()
         self.plot_motor.set_allowed_values(self.driver.curve.dependent_names)

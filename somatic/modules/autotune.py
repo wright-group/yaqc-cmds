@@ -35,81 +35,84 @@ module_name = 'AUTOTUNE'
 class Worker(acquisition.Worker):
 
     def process(self, scan_folder):
-        pass
-    
+        p = os.path.join(scan_folder, '000.data')
+        data = wt.data.from_PyCMDS(p)
+        curve = self.curve
+        channel = self.aqn.read("process", 'channel')
+        transform = list(data.axis_names)
+        dep = self.aqn.read("scan", "motor")
+        transform[-1] = f"{transform[0]}_{dep}_points"
+        data.transform(*transform)
+        data[channel].signed = False
+        attune.workup.intensity(
+            data,
+            channel,
+            dep,
+            curve,
+            save_directory=scan_folder,
+            level=self.aqn.read("process", "level"),
+            gtol=self.aqn.read("process", "gtol"),
+            ltol=self.aqn.read("process", "ltol"),
+        )
+
+        if not self.stopped.read() and self.aqn.read("process", "apply"):
+            p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
+            self.opa_hardware.driver.curve_paths[self.curve_id].write(p)
+
+        # upload
+        p = wt.kit.glob_handler('.png', folder = scan_folder)[0]
+        self.upload(scan_folder, reference_image = p)
+
     def run(self):
         axes = []
-        possible_axes = {}
         # OPA
         opa_name = self.aqn.read('opa', 'opa')
         opa_names = [opa.name for opa in opas.hardwares]
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
+        self.opa_hardware = opa_hardware
 
         # mono
         for spec in spectrometers.hardwares:
             spec.set_position(0)
             
-
-        for section in self.aqn.sections:
-            try:
-                if self.aqn.read(section, 'do'):
-                    curve = opa_hardware.curve.copy()
-                    while not section in curve.dependent_names:
-                        curve = curve.subcurve
-                    curve.convert("wn")
-                    width = self.aqn.read(section,'width')
-                    npts = int(self.aqn.read(section,'number'))
-                    points = np.linspace(-width/2.,width/2., npts)
-                    motor_positions = curve[section][:]
-                    kwargs = {'centers': motor_positions}
-                    hardware_dict = {opa_name: [opa_hardware, 'set_motor', [section, 'destination']]}
-                    axis = acquisition.Axis(points, None, opa_name+'_'+section, 'D'+opa_name, hardware_dict, **kwargs)
-                    possible_axes[section] = axis
-            except configparser.NoOptionError:
-                pass
+        section = "scan"
+        name = self.aqn.read(section, "motor")
+        curve = opa_hardware.curve.copy()
+        self.curve = curve
+        while not name in curve.dependent_names:
+            curve = curve.subcurve
+        curve.convert("wn")
+        width = self.aqn.read(section,'width')
+        npts = int(self.aqn.read(section,'number'))
+        points = np.linspace(-width/2.,width/2., npts)
+        motor_positions = curve[name][:]
+        kwargs = {'centers': motor_positions}
+        hardware_dict = {opa_name: [opa_hardware, 'set_motor', [name, 'destination']]}
+        axis = acquisition.Axis(points, None, opa_name+'_'+name, 'D'+opa_name, hardware_dict, **kwargs)
                 
 
-        for name, axis in possible_axes.items():
-            curve = opa_hardware.curve.copy()
-            curve_ids = list(opa_hardware.driver.curve_paths.keys())
-            while not name in curve.dependent_names:
-                curve = curve.subcurve
-                curve_ids = curve_ids[:-1]
-            curve_id = curve_ids[-1]
-            curve.convert('wn')                    
-            
-            axes = []
-            # Note: if the top level curve covers different ranges than the subcurves,
-            # This will behave quite poorly...
-            # It will need to be changed to accomodate more complex hierarchies, e.g. TOPAS
-            # It should handle top level curves, even for topas, though
-            # 2019-08-28 KFS
-            opa_axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_name, opa_name)
-            axes.append(opa_axis)
-            axes.append(axis)
-            
-            scan_folder = self.scan(axes)
+        curve_ids = list(opa_hardware.driver.curve_paths.keys())
+        while not name in curve.dependent_names:
+            curve = curve.subcurve
+            curve_ids = curve_ids[:-1]
+        self.curve_id = curve_ids[-1]
+        curve.convert('wn')                    
+        
+        axes = []
+        # Note: if the top level curve covers different ranges than the subcurves,
+        # This will behave quite poorly...
+        # It will need to be changed to accomodate more complex hierarchies, e.g. TOPAS
+        # It should handle top level curves, even for topas, though
+        # 2019-08-28 KFS
+        # Also, if the current interaction string is the one which defines the motor, should be fine
+        opa_axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_name, opa_name)
+        axes.append(opa_axis)
+        axes.append(axis)
+        
+        scan_folder = self.scan(axes)
 
-            #process
-            p = os.path.join(scan_folder, '000.data')
-            data = wt.data.from_PyCMDS(p)
-            channel = self.aqn.read(name, 'channel')
-            transform = list(data.axis_names)
-            dep = name
-            transform[-1] = f"{transform[0]}_{dep}_points"
-            data.transform(*transform)
-            attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, gtol=1e-3)
-
-            if not self.stopped.read():
-                p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
-                opa_hardware.driver.curve_paths[curve_id].write(p)
-
-            # upload
-            p = wt.kit.glob_handler('.png', folder = scan_folder)[0]
-            self.upload(scan_folder, reference_image = p)
-
-        # finish
+                    # finish
         if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull
 
@@ -143,11 +146,14 @@ class GUI(acquisition.GUI):
         aqn = wt.kit.INI(aqn_path)
         self.opa_combo.write(aqn.read('opa', 'opa'))
         opa_gui = self.opa_guis[self.opa_combo.read_index()]
-        for motor in opa_gui.motors:
-            motor.do.write(aqn.read(motor.name, 'do'))
-            motor.width.write(aqn.read(motor.name, 'width'))
-            motor.number.write(aqn.read(motor.name, 'number'))
-            motor.channel_combo.write(aqn.read(motor.name, 'channel'))
+        opa_gui.motor.write(aqn.read("scan", 'motor'))
+        opa_gui.width.write(aqn.read("scan", 'width'))
+        opa_gui.number.write(aqn.read("scan", 'number'))
+        opa_gui.channel_combo.write(aqn.read("process", 'channel'))
+        opa_gui.process_level.write(aqn.read("process", "level"))
+        opa_gui.process_gtol.write(aqn.read("process", "gtol"))
+        opa_gui.process_ltol.write(aqn.read("process", "ltol"))
+        opa_gui.process_apply.write(aqn.read("process", "apply"))
         # allow devices to load settings
         self.device_widget.load(aqn_path)
         
@@ -161,8 +167,7 @@ class GUI(acquisition.GUI):
 
     def on_device_settings_updated(self):
         for gui in self.opa_guis:
-            for motor in gui.motors:
-                motor.channel_combo.set_allowed_values(devices.control.channel_names)
+            gui.channel_combo.set_allowed_values(devices.control.channel_names)
         
     def save(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
@@ -171,12 +176,16 @@ class GUI(acquisition.GUI):
         aqn.write('opa', 'opa', self.opa_combo.read())
 
         opa_gui = self.opa_guis[self.opa_combo.read_index()]
-        for motor in opa_gui.motors:
-            aqn.add_section(motor.name)
-            aqn.write(motor.name, 'do', motor.do.read())
-            aqn.write(motor.name, 'width', motor.width.read())
-            aqn.write(motor.name, 'number', motor.number.read())
-            aqn.write(motor.name, 'channel', motor.channel_combo.read())
+        aqn.add_section("scan")
+        aqn.write("scan", 'motor', opa_gui.motor_gui.motor.read())
+        aqn.write("scan", 'width', opa_gui.motor_gui.width.read())
+        aqn.write("scan", 'number', opa_gui.motor_gui.number.read())
+        aqn.add_section("process")
+        aqn.write("process", 'channel', opa_gui.channel_combo.read())
+        aqn.write("process", 'level', opa_gui.process_level.read())
+        aqn.write("process", 'gtol', opa_gui.process_gtol.read())
+        aqn.write("process", 'ltol', opa_gui.process_ltol.read())
+        aqn.write("process", 'apply', opa_gui.process_apply.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
 
@@ -186,38 +195,46 @@ class OPA_GUI():
         curve = self.hardware.curve
         motor_names = curve.dependent_names
         self.motors = []
-        for name in motor_names:
-            # TODO: per motor defaults
-            motor = MotorGUI(name,1,31)
-            if layout is not None:
-                layout.addWidget(motor.input_table)
-            self.motors.append(motor)
+        self.motor_gui = MotorGUI(motor_names, 1,31)
+        layout.addWidget(self.motor_gui.input_table)
+        self.process_gui = pw.InputTable()
+
+        self.process_gui.add('Processing', None)
+        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names)
+        self.process_gui.add('Channel', self.channel_combo)
+
+        self.process_level = pc.Bool(initial_value=False)
+        self.process_gtol = pc.Number(initial_value=1e-3, decimals=5)
+        self.process_ltol = pc.Number(initial_value=1e-1, decimals=5)
+        self.process_apply = pc.Bool(initial_value=True)
+        self.process_gui.add('level', self.process_level)
+        self.process_gui.add('gtol', self.process_gtol)
+        self.process_gui.add('ltol', self.process_ltol)
+        self.process_gui.add('apply curve', self.process_apply)
+        layout.addWidget(self.process_gui)
+
+
         self.hide()
 
     def hide(self):
-        for motor in self.motors:
-            motor.input_table.hide()
+        self.motor_gui.input_table.hide()
+        self.process_gui.hide()
     def show(self):
-        for motor in self.motors:
-            motor.input_table.show()
+        self.motor_gui.input_table.show()
+        self.process_gui.show()
 
 class MotorGUI():
-    def __init__(self, name, width, number):
-        self.name = name
+    def __init__(self, motor_names, width, number):
         self.input_table = pw.InputTable()
 
-        self.input_table.add(name, None)
-        self.do = pc.Bool()
-        self.input_table.add('Do', self.do)
+        self.motor = pc.Combo(allowed_values=motor_names)
+        self.input_table.add('Motor', self.motor)
 
         self.width = pc.Number(initial_value = width, decimals = 3)
         self.input_table.add('Width', self.width)
 
         self.number = pc.Number(initial_value = number, decimals = 0)
         self.input_table.add('Number', self.number)
-
-        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names)
-        self.input_table.add('Channel', self.channel_combo)
         
         
 def load():

@@ -184,7 +184,7 @@ class Worker(QtCore.QObject):
         self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
 
     def scan(self, axes, constants=[], pre_wait_methods=[],
-             processing_method='process', module_reserved=''):
+             processing_method='process', module_reserved='', multiple_scans=False):
         # do not overload this method
         # scan index ----------------------------------------------------------
         if self.scan_index is None:
@@ -278,13 +278,18 @@ class Worker(QtCore.QObject):
         # create scan folder
         scan_index_str = str(self.scan_index).zfill(3)
         axis_names = str([str(a.name) for a in axes]).replace('\'', '')
-        scan_folder_name = ' '.join([scan_index_str, axis_names, module_reserved]).rstrip()
-        scan_folder = os.path.join(self.folder, scan_folder_name)
-        os.mkdir(scan_folder)
-        self.scan_folders.append(scan_folder)
+        if multiple_scans:
+            scan_folder_name = ' '.join([scan_index_str, axis_names, module_reserved]).rstrip()
+            scan_folder = os.path.join(self.folder, scan_folder_name)
+            os.mkdir(scan_folder)
+            self.scan_folders.append(scan_folder)
+        else:
+            scan_folder = self.folder
+            self.scan_folders.append(self.folder)
         # create scan folder on google drive
         if g.google_drive_enabled.read():
-            scan_url = g.google_drive_control.read().reserve_id(scan_folder)
+            if multiple_scans:
+                scan_url = g.google_drive_control.read().reserve_id(scan_folder)
             self.scan_urls.append(g.google_drive_control.read().id_to_open_url(scan_folder))
         else:
             self.scan_urls.append(None)
@@ -359,6 +364,7 @@ class Worker(QtCore.QObject):
         return scan_folder
     
     def upload(self, scan_folder, message='scan complete', reference_image=None):
+        scan_folder = pathlib.Path(scan_folder)
         # create folder on google drive, upload reference image
         if g.google_drive_enabled.read():
             folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
@@ -379,7 +385,7 @@ class Worker(QtCore.QObject):
                     time.sleep(0.01)
             slack = g.slack_control.read()
             field = {}
-            field['title'] = scan_folder.split(os.sep)[-1]
+            field['title'] = scan_folder.name
             field['title_link'] = folder_url
             field['image_url'] = image_url
             message = ':tada: scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text())
