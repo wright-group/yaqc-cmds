@@ -539,7 +539,7 @@ class Queue():
         return out
 
     def resume_queue(self, button):
-        if button.text() == "Resume Queue":
+        if not self.status.go.read() and button.text() == "Resume Queue":
             self.run()
     
     def run(self):
