@@ -110,13 +110,10 @@ class Hardware(Item):
         ini.write(section, 'hardwares', [hw.name for hw in self.hardwares])
 
 class Interrupt(Item):
-    def __init__(self, message, **kwargs):
+    def __init__(self, **kwargs):
         Item.__init__(self, **kwargs)
         self.type = "interrupt"
-        self.message = message
 
-    def write_to_ini(self, ini, section):
-        ini.write(section, 'message', self.message)
 
 class Script(Item):
 
@@ -298,7 +295,7 @@ class Worker(QtCore.QObject):
     def execute_interrupt(self, item):
         self.queue_status.go.write(False)
         if g.slack_enabled.read():
-            message = ':octagonal_sign: Interrupted - {0}\n{1}\nUse `run` command to continue'.format(item.description, item.message)
+            message = ':octagonal_sign: Interrupted - {0}\n{1}\nUse `run` command to continue'.format(item.description, item.info)
             g.slack_control.read().send_message(message)
         item.finished.write(True)
 
@@ -338,6 +335,8 @@ class QueueStatus(QtCore.QObject):
             now = datetime.datetime.now(self.tz)
             out += (now-self.last_started).total_seconds()
         return out
+
+
 
 
 class Queue():
@@ -402,9 +401,12 @@ class Queue():
         item.status = 'RUNNING'
         if isinstance(item, Interrupt):
             # This needs to run on the main thread to avoid Seg Fault
-            if item.message.strip():
-                msg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.NoIcon, "Interrupt", item.message, QtWidgets.QMessageBox.Ok, parent=self.gui.parent_widget)
+            if item.info.strip():
+                msg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.NoIcon, f"Interrupt: {item.name}", item.info, parent=self.gui.parent_widget)
+                msg.addButton("Resume Queue", QtWidgets.QMessageBox.ActionRole)
+                msg.addButton("Dismiss", QtWidgets.QMessageBox.AcceptRole)
                 msg.setModal(False)
+                msg.buttonClicked.connect(self.resume_queue)
                 msg.show()
         self.worker_q.push('excecute', item)
         self.gui.message_widget.setText(item.description.upper())
@@ -445,9 +447,9 @@ class Queue():
         self.items.append(wait)
         self.update()
 
-    def append_interrupt(self, message, name, info, description):
+    def append_interrupt(self, name, info, description):
         # create item
-        interrupt = Interrupt(message, name=name, info=info, description=description)
+        interrupt = Interrupt(name=name, info=info, description=description)
         # append and update
         self.items.append(interrupt)
         self.update()
@@ -536,6 +538,10 @@ class Queue():
         self.update()
         return out
 
+    def resume_queue(self, button):
+        if button.text() == "Resume Queue":
+            self.run()
+    
     def run(self):
         # status
         self.status.run_timer()
@@ -889,8 +895,6 @@ class GUI(QtCore.QObject):
         input_table.add('Name', self.interrupt_name)
         self.interrupt_info = pc.String()
         input_table.add('Info', self.interrupt_info)  
-        self.interrupt_message = pc.String()
-        input_table.add('Message', self.interrupt_message)  
         layout.addWidget(input_table)
         return frame
 
@@ -979,8 +983,7 @@ class GUI(QtCore.QObject):
             name = self.interrupt_name.read()
             info = self.interrupt_info.read()
             description = f'INTERRUPT: {name}'
-            message = self.interrupt_message.read()
-            self.queue.append_interrupt(message, name=name, info=info, description=description)
+            self.queue.append_interrupt(name=name, info=info, description=description)
         elif current_type == 'Hardware':
             name = self.hardware_name.read()
             info = self.hardware_info.read()
@@ -1139,9 +1142,8 @@ class GUI(QtCore.QObject):
             elif item_type == 'interrupt':
                 name = ini.read(section, 'name')
                 info = ini.read(section, 'info')
-                message = ini.read(section, 'message')
                 description = ini.read(section, 'description')
-                self.queue.append_interrupt(message, name=name, info=info, description=description)
+                self.queue.append_interrupt(name=name, info=info, description=description)
             elif item_type == 'script':
                 raise NotImplementedError
             elif item_type == 'wait':
