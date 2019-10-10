@@ -26,7 +26,6 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 
 import project.project_globals as g
-import project.widgets as pw
 app = g.app.read()
 
 import hardware.spectrometers.spectrometers as spectrometers
