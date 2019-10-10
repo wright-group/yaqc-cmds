@@ -35,7 +35,7 @@ module_name = 'TUNE TEST'
 class Worker(acquisition.Worker):
     
     def process(self, scan_folder):
-        data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
+        data_path = wt.kit.glob_handler('.data', folder=str(scan_folder))[0]
         data = wt.data.from_PyCMDS(data_path)
         # make tuning curve
         opa_name = self.aqn.read('opa', 'opa')

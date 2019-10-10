@@ -1,7 +1,6 @@
 ### import ####################################################################
 
 
-import configparser
 import os
 
 import numpy as np
@@ -13,10 +12,6 @@ import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 import somatic.acquisition as acquisition
-import project.ini_handler as ini_handler
-main_dir = g.main_dir.read()
-ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'tune_test.ini'))
-app = g.app.read()
 
 import hardware.opas.opas as opas
 import hardware.spectrometers.spectrometers as spectrometers
@@ -26,7 +21,7 @@ import devices.devices as devices
 ### define ####################################################################
 
 
-module_name = 'AUTOTUNE'
+module_name = 'TUNE INTENSITY'
  
  
 ### Worker ####################################################################
@@ -39,11 +34,18 @@ class Worker(acquisition.Worker):
         data = wt.data.from_PyCMDS(p)
         curve = self.curve
         channel = self.aqn.read("process", 'channel')
-        transform = list(data.axis_names)
-        dep = self.aqn.read("scan", "motor")
-        transform[-1] = f"{transform[0]}_{dep}_points"
-        data.transform(*transform)
         data[channel].signed = False
+        level = self.aqn.read("process", 'level')
+        transform = list(data.axis_expressions)
+        dep = self.aqn.read("scan", "motor")
+        transform = transform[:2]
+        for axis in data.axis_expressions:
+            if axis not in transform:
+                if level:
+                    data.level(axis, 0, 5)
+                data.moment(axis, channel)
+                channel = -1
+        transform[1] = f"{transform[1]}_points")
         attune.workup.intensity(
             data,
             channel,
@@ -56,11 +58,11 @@ class Worker(acquisition.Worker):
         )
 
         if not self.stopped.read() and self.aqn.read("process", "apply"):
-            p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
+            p = wt.kit.glob_handler('.curve', folder = str(scan_folder))[0]
             self.opa_hardware.driver.curve_paths[self.curve_id].write(p)
 
         # upload
-        p = wt.kit.glob_handler('.png', folder = scan_folder)[0]
+        p = wt.kit..aqn.read("process", "ltol"),glob_handler('.png', folder = str(scan_folder))[0]
         self.upload(scan_folder, reference_image = p)
 
     def run(self):
@@ -110,7 +112,7 @@ class Worker(acquisition.Worker):
         axes.append(opa_axis)
         axes.append(axis)
         
-        scan_folder = self.scan(axes)
+        self.scan(axes)
 
                     # finish
         if not self.stopped.read():
@@ -171,7 +173,7 @@ class GUI(acquisition.GUI):
         
     def save(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
-        aqn.write('info', 'description', '{} Auto Tune'.format(self.opa_combo.read()))
+        aqn.write('info', 'description', '{} Tune Intensity'.format(self.opa_combo.read()))
         aqn.add_section('opa')
         aqn.write('opa', 'opa', self.opa_combo.read())
 
