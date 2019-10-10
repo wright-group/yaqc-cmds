@@ -283,12 +283,11 @@ class Worker(QtCore.QObject):
             os.mkdir(scan_folder)
             self.scan_folders.append(scan_folder)
         else:
-            scan_folder = self.folder
+            scan_folder = str(self.folder)
             self.scan_folders.append(self.folder)
         # create scan folder on google drive
         if g.google_drive_enabled.read():
-            if multiple_scans:
-                scan_url = g.google_drive_control.read().reserve_id(scan_folder)
+            scan_url = g.google_drive_control.read().reserve_id(scan_folder)
             self.scan_urls.append(g.google_drive_control.read().id_to_open_url(scan_folder))
         else:
             self.scan_urls.append(None)
@@ -363,17 +362,16 @@ class Worker(QtCore.QObject):
         return scan_folder
     
     def upload(self, scan_folder, message='scan complete', reference_image=None):
-        scan_folder = pathlib.Path(scan_folder)
         # create folder on google drive, upload reference image
         if g.google_drive_enabled.read():
             folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
-            g.google_drive_control.read().upload_folder(scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id_=scan_folder)
+            g.google_drive_control.read().upload_folder(path=scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id_=scan_folder)
             image_url = None
             if reference_image is not None:
                 reference_id = f"{scan_folder} reference"
                 g.google_drive_control.read().reserve_id(reference_id)
                 image_url = g.google_drive_control.read().id_to_download_url(reference_id)
-                g.google_drive_control.read().create_file(reference_image, scan_folder, id_=reference_id)
+                g.google_drive_control.read().create_file(path=reference_image, parent_id=scan_folder, id_=reference_id)
         else:
             folder_url = image_url = None
         # send message on slack
@@ -384,7 +382,7 @@ class Worker(QtCore.QObject):
                     time.sleep(0.01)
             slack = g.slack_control.read()
             field = {}
-            field['title'] = scan_folder.name
+            field['title'] = pathlib.Path(scan_folder).name
             field['title_link'] = folder_url
             field['image_url'] = image_url
             message = ':tada: scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text())

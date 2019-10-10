@@ -45,7 +45,7 @@ class Worker(acquisition.Worker):
                     data.level(axis, 0, 5)
                 data.moment(axis, channel)
                 channel = -1
-        transform[1] = f"{transform[1]}_points")
+        transform[1] = f"{transform[1]}_points"
         attune.workup.intensity(
             data,
             channel,
@@ -62,7 +62,7 @@ class Worker(acquisition.Worker):
             self.opa_hardware.driver.curve_paths[self.curve_id].write(p)
 
         # upload
-        p = wt.kit..aqn.read("process", "ltol"),glob_handler('.png', folder = str(scan_folder))[0]
+        p = wt.kit.glob_handler('.png', folder = str(scan_folder))[0]
         self.upload(scan_folder, reference_image = p)
 
     def run(self):
