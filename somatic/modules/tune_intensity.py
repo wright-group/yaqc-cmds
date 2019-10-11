@@ -74,9 +74,15 @@ class Worker(acquisition.Worker):
         opa_hardware = opas.hardwares[opa_index]
         self.opa_hardware = opa_hardware
 
-        # mono
-        for spec in spectrometers.hardwares:
-            spec.set_position(0)
+        spec_name = self.aqn.read("spectrometer", "hardware")
+        spec_names = [spec.name for spec in spectrometers.hardwares]
+        spec_index = spec_names.index(spec_name)
+        spec_hardware = spectrometers.hardwares[spec_index]
+        self.spec_hardware = spec_hardware
+        spec_action = self.aqn.read("spectrometer", "action")
+
+        if spec_action == "Zero Order":
+            spec_hardware.set_position(0)
             
         section = "scan"
         name = self.aqn.read(section, "motor")
@@ -108,6 +114,8 @@ class Worker(acquisition.Worker):
         # It should handle top level curves, even for topas, though
         # 2019-08-28 KFS
         # Also, if the current interaction string is the one which defines the motor, should be fine
+        if spec_action == "Tracking":
+            opa_name += f"={spec_name}"
         opa_axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_name, opa_name)
         axes.append(opa_axis)
         axes.append(axis)
@@ -131,6 +139,7 @@ class GUI(acquisition.GUI):
             return
         self.opa_combo = pc.Combo(allowed)
         self.opa_combo.updated.connect(self.on_opa_combo_updated)
+        input_table.add('OPA', None)
         input_table.add('OPA', self.opa_combo)
 
         self.layout.addWidget(input_table)
@@ -140,9 +149,15 @@ class GUI(acquisition.GUI):
         self.opa_guis[0].show()
 
         input_table = pw.InputTable()
-
-        # finish
-        self.layout.addWidget(input_table)
+        input_table.add('Spectrometer', None)
+        allowed = [hardware.name for hardware in spectrometers.hardwares]
+        if allowed:
+            self.spec_action_combo = pc.Combo(["None", "Tracking", "Zero Order"])
+            self.spec_action_combo.updated.connect(self.on_spec_action_combo_updated)
+            input_table.add('Action', self.spec_action_combo)
+            self.spectrometer_combo = pc.Combo(allowed)
+            input_table.add('Spectrometer', self.spectrometer_combo)
+            self.layout.addWidget(input_table)
         
     def load(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
@@ -156,11 +171,17 @@ class GUI(acquisition.GUI):
         opa_gui.process_gtol.write(aqn.read("process", "gtol"))
         opa_gui.process_ltol.write(aqn.read("process", "ltol"))
         opa_gui.process_apply.write(aqn.read("process", "apply"))
+        self.spec_action_combo.write(aqn.read("spectrometer", "action"))
+        self.spectrometer_combo.write(aqn.read("spectrometer", "hardware"))
         # allow devices to load settings
         self.device_widget.load(aqn_path)
         
     def on_opa_combo_updated(self):
         self.show_opa_gui(self.opa_combo.read_index())
+
+    def on_spec_action_combo_updated(self):
+        print(self.spec_action_combo.read())
+        self.spectrometer_combo.set_disabled(self.spec_action_combo.read() == "None")
 
     def show_opa_gui(self, index):
         for gui in self.opa_guis:
@@ -188,6 +209,9 @@ class GUI(acquisition.GUI):
         aqn.write("process", 'gtol', opa_gui.process_gtol.read())
         aqn.write("process", 'ltol', opa_gui.process_ltol.read())
         aqn.write("process", 'apply', opa_gui.process_apply.read())
+        aqn.add_section("spectrometer")
+        aqn.write("spectrometer", 'action', self.spec_action_combo.read())
+        aqn.write("spectrometer", 'hardware', self.spectrometer_combo.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
 
@@ -207,15 +231,13 @@ class OPA_GUI():
 
         self.process_level = pc.Bool(initial_value=False)
         self.process_gtol = pc.Number(initial_value=1e-3, decimals=5)
-        self.process_ltol = pc.Number(initial_value=1e-1, decimals=5)
+        self.process_ltol = pc.Number(initial_value=1e-2, decimals=5)
         self.process_apply = pc.Bool(initial_value=True)
         self.process_gui.add('level', self.process_level)
         self.process_gui.add('gtol', self.process_gtol)
         self.process_gui.add('ltol', self.process_ltol)
-        self.process_gui.add('apply curve', self.process_apply)
+        self.process_gui.add('Apply curve', self.process_apply)
         layout.addWidget(self.process_gui)
-
-
         self.hide()
 
     def hide(self):
