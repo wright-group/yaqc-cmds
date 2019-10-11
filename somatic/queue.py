@@ -1074,7 +1074,7 @@ class GUI(QtCore.QObject):
             self.type_combo.write('Wait')
             self.interrupt_name.write(item.name)
             self.interrupt_info.write(item.info)
-            self.inteurrupt_message.write(item.message)
+            self.interrupt_message.write(item.message)
         elif item.type == 'script':
             raise NotImplementedError()
         elif item.type == 'wait':

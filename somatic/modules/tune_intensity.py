@@ -45,7 +45,8 @@ class Worker(acquisition.Worker):
                     data.level(axis, 0, 5)
                 data.moment(axis, channel)
                 channel = -1
-        transform[1] = f"{transform[1]}_points"
+        transform[1] = f"{transform[0]}_{dep}_points"
+        data.transform(*transform)
         attune.workup.intensity(
             data,
             channel,
