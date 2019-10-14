@@ -8,7 +8,6 @@ import numpy as np
 import WrightTools as wt
 import attune
 
-import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 import somatic.acquisition as acquisition
