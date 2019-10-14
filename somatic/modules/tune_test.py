@@ -144,7 +144,7 @@ class GUI(acquisition.GUI):
         input_table.add('level', self.level)
         input_table.add('gtol', self.gtol)
         input_table.add('ltol', self.ltol)
-        input_table.add('Apply Curve', self.ltol)
+        input_table.add('Apply Curve', self.apply_curve)
 
         # finish
         self.layout.addWidget(input_table)
