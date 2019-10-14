@@ -991,19 +991,20 @@ class Widget(BaseWidget):
         input_table.add('Use', self.use)
         self.shots = pc.Number(initial_value=100, decimals=0)
         input_table.add('Shots', self.shots)
-        self.save_shots = pc.Bool(initial_value=False)
-        input_table.add('Save Shots', self.save_shots)
+        #self.save_shots = pc.Bool(initial_value=False)
+        #self.save_shots.set_disabled(True)
+        #input_table.add('Save Shots', self.save_shots)
         layout.addWidget(input_table)
         
     def load(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
         self.use.write(ini.read('PCI-6251', 'use'))
         self.shots.write(ini.read('PCI-6251', 'shots'))
-        self.save_shots.write(ini.read('PCI-6251', 'save shots'))
+        # self.save_shots.write(ini.read('PCI-6251', 'save shots'))
 
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
         ini.add_section('PCI-6251')
         ini.write('PCI-6251', 'use', self.use.read())
         ini.write('PCI-6251', 'shots', self.shots.read())
-        ini.write('PCI-6251', 'save shots', self.save_shots.read())
+        # ini.write('PCI-6251', 'save shots', self.save_shots.read())
