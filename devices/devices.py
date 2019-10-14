@@ -242,7 +242,7 @@ class FileAddress(QtCore.QObject):
         # shots ---------------------------------------------------------------
         # TODO: this is hack
         if aqn.has_section('NI 6251'):
-            if aqn.read('NI 6251', 'save shots'):
+            if False and aqn.read('NI 6251', 'save shots'):
                 p = os.path.join(os.path.dirname(data_path.read()), 'NI 6251 shots.hdf5') 
                 f = h5py.File(p)
                 dictionary = headers.read(kind='shots')
