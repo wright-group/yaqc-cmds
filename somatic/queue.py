@@ -216,7 +216,7 @@ class Worker(QtCore.QObject):
             traceback.print_exc()
         # upload aqn file
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().create_file(str(item.aqn_path), parent_id=self.folder.read(), id_=str(item.aqn_path))
+            g.google_drive_control.read().create_file(path=str(item.aqn_path), parent_id=self.folder.read(), id_=str(item.aqn_path))
 
         # send message on slack
         if g.slack_enabled.read():
@@ -370,7 +370,7 @@ class Queue():
             if g.google_drive_enabled.read():
                 g.google_drive_control.read().reserve_id(self.folder.read())
                 self.url = g.google_drive_control.read().id_to_open_url(self.folder.read())
-                g.google_drive_control.read().create_folder(self.folder.read(), id_=self.folder.read())
+                g.google_drive_control.read().create_folder(path=self.folder.read(), id_=self.folder.read())
                 g.google_drive_control.read().create_file(self.ini_path, self.folder.read(), self.ini_path)
             else:
                 self.url = None
@@ -1074,7 +1074,7 @@ class GUI(QtCore.QObject):
             self.type_combo.write('Wait')
             self.interrupt_name.write(item.name)
             self.interrupt_info.write(item.info)
-            self.inteurrupt_message.write(item.message)
+            self.interrupt_message.write(item.message)
         elif item.type == 'script':
             raise NotImplementedError()
         elif item.type == 'wait':

@@ -171,10 +171,10 @@ class Worker(QtCore.QObject):
             output_folder.mkdir(exist_ok=True)
             image_fname = channel_name + ' ' + file_name
             if len(data.shape) == 1:
-                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, output_folder=output_folder,
+                outs = wt.artists.quick1D(data, channel=channel_index, autosave=True, save_directory=output_folder,
                             fname=image_fname, verbose=False)
             else:
-                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, output_folder=output_folder,
+                outs = wt.artists.quick2D(data, -1, -2, channel=channel_index, autosave=True, save_directory=output_folder,
                             fname=image_fname, verbose=False)
             # hack in a way to get the first image written
             if channel_index == 0:
@@ -183,7 +183,7 @@ class Worker(QtCore.QObject):
         self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
 
     def scan(self, axes, constants=[], pre_wait_methods=[],
-             processing_method='process', module_reserved=''):
+             processing_method='process', module_reserved='', multiple_scans=False):
         # do not overload this method
         # scan index ----------------------------------------------------------
         if self.scan_index is None:
@@ -277,10 +277,14 @@ class Worker(QtCore.QObject):
         # create scan folder
         scan_index_str = str(self.scan_index).zfill(3)
         axis_names = str([str(a.name) for a in axes]).replace('\'', '')
-        scan_folder_name = ' '.join([scan_index_str, axis_names, module_reserved]).rstrip()
-        scan_folder = os.path.join(self.folder, scan_folder_name)
-        os.mkdir(scan_folder)
-        self.scan_folders.append(scan_folder)
+        if multiple_scans:
+            scan_folder_name = ' '.join([scan_index_str, axis_names, module_reserved]).rstrip()
+            scan_folder = os.path.join(self.folder, scan_folder_name)
+            os.mkdir(scan_folder)
+            self.scan_folders.append(scan_folder)
+        else:
+            scan_folder = str(self.folder)
+            self.scan_folders.append(self.folder)
         # create scan folder on google drive
         if g.google_drive_enabled.read():
             scan_url = g.google_drive_control.read().reserve_id(scan_folder)
@@ -361,13 +365,13 @@ class Worker(QtCore.QObject):
         # create folder on google drive, upload reference image
         if g.google_drive_enabled.read():
             folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
-            g.google_drive_control.read().upload_folder(scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id_=scan_folder)
+            g.google_drive_control.read().upload_folder(path=scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id_=scan_folder)
             image_url = None
             if reference_image is not None:
                 reference_id = f"{scan_folder} reference"
                 g.google_drive_control.read().reserve_id(reference_id)
                 image_url = g.google_drive_control.read().id_to_download_url(reference_id)
-                g.google_drive_control.read().create_file(reference_image, scan_folder, id_=reference_id)
+                g.google_drive_control.read().create_file(path=reference_image, parent_id=scan_folder, id_=reference_id)
         else:
             folder_url = image_url = None
         # send message on slack
@@ -378,7 +382,7 @@ class Worker(QtCore.QObject):
                     time.sleep(0.01)
             slack = g.slack_control.read()
             field = {}
-            field['title'] = scan_folder.split(os.sep)[-1]
+            field['title'] = pathlib.Path(scan_folder).name
             field['title_link'] = folder_url
             field['image_url'] = image_url
             message = ':tada: scan complete - {} elapsed'.format(g.progress_bar.time_elapsed.text())

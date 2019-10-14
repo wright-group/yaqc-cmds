@@ -38,7 +38,7 @@ class Worker(acquisition.Worker):
     
     def process(self, scan_folder):
         if False:#self.do_2D:
-            data_path = wt.kit.glob_handler('.data', folder=scan_folder)[0]
+            data_path = wt.kit.glob_handler('.data', folder=str(scan_folder))[0]
             data = wt.data.from_PyCMDS(data_path)
             channel_name = self.aqn.read('processing', 'channel')
             transform = list(data.axis_names)
@@ -114,11 +114,11 @@ class Worker(acquisition.Worker):
                     data.transform(*transform)
                     attune.workup.intensity(data, channel, dep, curve, save_directory = scan_folder, gtol=1e-3)
 
-                    p = wt.kit.glob_handler('.curve', folder = scan_folder)[0]
+                    p = wt.kit.glob_handler('.curve', folder = str(scan_folder))[0]
                     opa_hardware.driver.curve_paths['Poynting'].write(p)
 
                     # upload
-                    p = wt.kit.glob_handler('.png', folder = scan_folder)[0]
+                    p = wt.kit.glob_handler('.png', folder = str(scan_folder))[0]
                     self.upload(scan_folder, reference_image = p)
 
         # finish

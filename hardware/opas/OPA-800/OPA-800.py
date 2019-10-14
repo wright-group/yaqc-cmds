@@ -1,230 +1,22 @@
 ### import ####################################################################
 
-import os
 import collections
 
 import numpy as np
 
-import WrightTools as wt
 import attune
 import yaqd_core
 
 import project.classes as pc
-import project.widgets as pw
 import project.project_globals as g
 from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
-from hardware.opas.opas import AutoTune as BaseAutoTune
-#import library.precision_micro_motors.precision_motors as pm_motors
 
 
 ### define ####################################################################
 
 
 main_dir = g.main_dir.read()
-
-
-### autotune ##################################################################
-
-
-class AutoTune(BaseAutoTune):
-
-    def initialize(self):
-        input_table = pw.InputTable()
-        # BBO
-        input_table.add('BBO', None)
-        self.do_BBO = pc.Bool(initial_value=True)
-        input_table.add('Do', self.do_BBO)
-        self.BBO_width = pc.Number(initial_value=0.75)
-        input_table.add('Width', self.BBO_width)
-        self.BBO_number = pc.Number(initial_value=25, decimals=0)
-        input_table.add('Number', self.BBO_number)
-        self.BBO_channel = pc.Combo()
-        input_table.add('Channel', self.BBO_channel)
-        # Mixer
-        input_table.add('Mixer', None)
-        self.do_Mixer = pc.Bool(initial_value=True)
-        input_table.add('Do', self.do_Mixer)
-        self.Mixer_width = pc.Number(initial_value=0.5)
-        input_table.add('Width', self.Mixer_width)
-        self.Mixer_number = pc.Number(initial_value=25, decimals=0)
-        input_table.add('Number', self.Mixer_number)
-        self.Mixer_channel = pc.Combo()
-        input_table.add('Channel', self.Mixer_channel)
-        # Tune test
-        input_table.add('Test', None)
-        self.do_test = pc.Bool(initial_value=True)
-        input_table.add('Do', self.do_test)
-        self.wm_width = pc.Number(initial_value=-200)
-        input_table.add('Width', self.wm_width)
-        self.wm_number = pc.Number(initial_value=41, decimals=0)
-        input_table.add('Number', self.wm_number)
-        self.test_channel = pc.Combo()
-        input_table.add('Channel', self.test_channel)
-        # repetitions
-        input_table.add('Repetitions', None)
-        self.repetition_count = pc.Number(initial_value=1, decimals=0)
-        input_table.add('Count', self.repetition_count)
-        # finish
-        self.layout.addWidget(input_table)
-        self.initialized.write(True)
-
-    def load(self, aqn_path):
-        # TODO: channels
-        aqn = wt.kit.INI(aqn_path)
-        self.do_BBO.write(aqn.read('BBO', 'do'))
-        self.BBO_width.write(aqn.read('BBO', 'width'))
-        self.BBO_number.write(aqn.read('BBO', 'number'))
-        self.do_Mixer.write(aqn.read('Mixer', 'do'))
-        self.Mixer_width.write(aqn.read('Mixer', 'width'))
-        self.Mixer_number.write(aqn.read('Mixer', 'number'))
-        self.do_test.write(aqn.read('Test', 'do'))
-        self.wm_width.write(aqn.read('Test', 'width'))
-        self.wm_number.write(aqn.read('Test', 'number'))
-        self.repetition_count.write(aqn.read('Repetitions', 'count'))
-
-    def run(self, worker):
-        import somatic.acquisition as acquisition
-        curve = self.driver.curve
-        while curve.kind != 'opa800':
-            curve = curve.subcurve
-
-        # BBO -----------------------------------------------------------------
-        if worker.aqn.read('BBO', 'do'):
-            axes = []
-            # tune points
-            points = curve.setpoints[:]
-            units = curve.setpoints.units
-            name = identity = self.driver.name
-            axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
-            axes.append(axis)
-            # motor
-            name = '_'.join([self.driver.name, "BBO"])
-            identity = 'D' + name
-            width = worker.aqn.read('BBO', 'width')
-            npts = int(worker.aqn.read('BBO', 'number'))
-            points = np.linspace(-width/2., width/2., npts)
-            motor_positions = curve["BBO"].positions
-            kwargs = {'centers': motor_positions}
-            hardware_dict = {name: [self.driver.hardware, 'set_motor', ['BBO', 'destination']]}
-            axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
-            axes.append(axis)
-            # do scan
-            scan_folder = worker.scan(axes)
-            # process
-            p = os.path.join(scan_folder, '000.data')
-            data = wt.data.from_PyCMDS(p)
-            channel = worker.aqn.read('BBO', 'channel')
-            transform = list(data.axis_names)
-            transform[-1] = transform[-1] + "_points"
-            data.transform(*transform)
-            attune.workup.intensity(data, channel, "BBO",curve, save_directory=scan_folder)
-            # apply new curve
-            p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
-            self.driver.curve_path.write(p)
-            # upload
-            p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
-            worker.upload(scan_folder, reference_image=p)
-        # Mixer ---------------------------------------------------------------
-        if worker.aqn.read('Mixer', 'do'):
-            axes = []
-            # tune points
-            points = curve.setpoints[:]
-            units = curve.setpoints.units
-            name = identity = self.driver.name
-            axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
-            axes.append(axis)
-            # motor
-            name = '_'.join([self.driver.name, "Mixer"])
-            identity = 'D' + name
-            width = worker.aqn.read('Mixer', 'width')
-            npts = int(worker.aqn.read('Mixer', 'number'))
-            points = np.linspace(-width/2., width/2., npts)
-            motor_positions = curve["Mixer"].positions
-            kwargs = {'centers': motor_positions}
-            hardware_dict = {name: [self.driver.hardware, 'set_motor', ['Mixer', 'destination']]}
-            axis = acquisition.Axis(points, None, name, identity, hardware_dict, **kwargs)
-            axes.append(axis)
-            # do scan
-            scan_folder = worker.scan(axes)
-            # process
-            p = os.path.join(scan_folder, '000.data')
-            data = wt.data.from_PyCMDS(p)
-            transform = list(data.axis_names)
-            transform[-1] = transform[-1] + "_points"
-            data.transform(*transform)
-            channel = worker.aqn.read('Mixer', 'channel')
-            attune.workup.intensity(data, channel, "Mixer", curve, save_directory=scan_folder)
-            # apply new curve
-            p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
-            self.driver.curve_path.write(p)
-            # upload
-            p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
-            worker.upload(scan_folder, reference_image=p)
-        # Tune Test -----------------------------------------------------------
-        if worker.aqn.read('Test', 'do'):
-            axes = []
-            # tune points
-            points = curve.setpoints[:]
-            units = curve.setpoints.units
-            name = identity = self.driver.name
-            axis = acquisition.Axis(points=points, units=units, name=name, identity=identity)
-            axes.append(axis)
-            # mono
-            name = 'wm'
-            identity = 'Dwm'
-            width = worker.aqn.read('Test', 'width')
-            npts = int(worker.aqn.read('Test', 'number'))
-            points = np.linspace(-width/2., width/2., npts)
-            kwargs = {'centers': curve.setpoints[:]}
-            axis = acquisition.Axis(points, 'wn', name, identity, **kwargs)
-            axes.append(axis)
-            # do scan
-            scan_folder = worker.scan(axes)
-            # process
-            p = wt.kit.glob_handler('.data', folder=scan_folder)[0]
-            data = wt.data.from_PyCMDS(p)
-            channel = worker.aqn.read('Test', 'channel')
-            transform = list(data.axis_names)
-            transform[-1] = transform[-1] + "_points"
-            data.transform(*transform)
-            attune.workup.tune_test(data, channel, curve, save_directory=scan_folder)
-            # apply new curve
-            p = wt.kit.glob_handler('.curve', folder=scan_folder)[0]
-            self.driver.curve_path.write(p)
-            # upload
-            p = wt.kit.glob_handler('.png', folder=scan_folder)[0]
-            worker.upload(scan_folder, reference_image=p)
-        # finish --------------------------------------------------------------
-        # return to old curve
-        # TODO:
-        if not worker.stopped.read():
-            worker.finished.write(True)  # only if acquisition successfull
-
-    def save(self, aqn_path):
-        aqn = wt.kit.INI(aqn_path)
-        aqn.add_section('BBO')
-        aqn.write('BBO', 'do', self.do_BBO.read())
-        aqn.write('BBO', 'width', self.BBO_width.read())
-        aqn.write('BBO', 'number', self.BBO_number.read())
-        aqn.write('BBO', 'channel', self.BBO_channel.read())
-        aqn.add_section('Mixer')
-        aqn.write('Mixer', 'do', self.do_Mixer.read())
-        aqn.write('Mixer', 'width', self.Mixer_width.read())
-        aqn.write('Mixer', 'number', self.Mixer_number.read())
-        aqn.write('Mixer', 'channel', self.Mixer_channel.read())
-        aqn.add_section('Test')
-        aqn.write('Test', 'do', self.do_test.read())
-        aqn.write('Test', 'width', self.wm_width.read())
-        aqn.write('Test', 'number', self.wm_number.read())
-        aqn.write('Test', 'channel', self.test_channel.read())
-        aqn.add_section('Repetitions')
-        aqn.write('Repetitions', 'count', self.repetition_count.read())
-
-    def update_channel_names(self, channel_names):
-        self.BBO_channel.set_allowed_values(channel_names)
-        self.Mixer_channel.set_allowed_values(channel_names)
-        self.test_channel.set_allowed_values(channel_names)
 
 
 ### driver ####################################################################
@@ -235,7 +27,6 @@ class Driver(BaseDriver):
     def __init__(self, *args, **kwargs):
         self.motor_names = kwargs.pop("motor_names", ['Grating', 'BBO', 'Mixer'])
         self.motor_ports = kwargs.pop("motor_ports")
-        self.auto_tune = AutoTune(self)
         self.motors = {}
         self.curve_paths = collections.OrderedDict()
         # TODO: Determine if pico_opa needs to have interaction string combo

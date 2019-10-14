@@ -31,35 +31,6 @@ app = g.app.read()
 ini = ini.opas
 
 
-### autotune ##################################################################
-
-
-class AutoTune(QtWidgets.QWidget):
-
-    def __init__(self, driver):
-        QtWidgets.QWidget.__init__(self)
-        self.driver = driver
-        self.setLayout(QtWidgets.QVBoxLayout())
-        self.layout = self.layout()
-        self.layout.setMargin(0)
-        self.initialized = pc.Bool()
-
-    def initialize(self):
-        pass
-
-    def load(self, aqn_path):
-        raise NotImplementedError
-
-    def run(self, worker):
-        raise NotImplementedError
-
-    def save(self, aqn_path):
-        raise NotImplementedError
-
-    def update_channel_names(self, channel_names):
-        raise NotImplementedError
-
-
 ### driver ####################################################################
 
 
@@ -163,7 +134,6 @@ class Driver(hw.Driver):
             self.motor_positions['Delay'] = pc.Number(0., display=True)
             self.motor_positions['Crystal'] = pc.Number(0., display=True)
             self.motor_positions['Mixer'] = pc.Number(0., display=True)
-            self.auto_tune = AutoTune(self)
         if self.poynting_correction:
              # initialize
             self.poynting_correction.initialize(self)  
@@ -348,8 +318,6 @@ class GUI(hw.GUI):
         self.update()
         self.update_plot()
         self.on_limits_updated()
-        # autotune
-        self.driver.auto_tune.initialize()
 
     def update(self):
         # set button disable
@@ -382,7 +350,10 @@ class GUI(hw.GUI):
         yi = self.driver.curve(xi, units)[motor_name]
         self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
         self.plot_curve.clear()
-        self.plot_curve.setData(xi, yi)
+        try:
+            self.plot_curve.setData(xi, yi)
+        except ValueError:
+            pass
         self.plot_widget.graphics_layout.update()
         self.update()
         self.plot_motor.set_allowed_values(self.driver.curve.dependent_names)
@@ -505,9 +476,6 @@ class Hardware(hw.Hardware):
         # TODO: a more thread-safe operation
         return self.driver.motor_names
         
-    def run_auto_tune(self, worker):
-        self.driver.auto_tune.run(worker)
-    
     def set_motor(self, motor, destination):
         self.q.push('set_motor', motor, destination)
 

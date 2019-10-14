@@ -181,11 +181,12 @@ class Control:
         g.main_window.read().queue_gui.update_ui()
 
     def run_queue(self):
-        g.main_window.read().queue_gui.queue.status.go.write(True)
-        try:
-            g.main_window.read().queue_gui.queue.run()
-        except IndexError:  # Queue full
-            pass
+        if not g.main_window.read().queue_gui.queue.status.go.read():
+            g.main_window.read().queue_gui.queue.status.go.write(True)
+            try:
+                g.main_window.read().queue_gui.queue.run()
+            except IndexError:  # Queue full
+                pass
         g.main_window.read().queue_gui.update_ui()
 
     def screenshot(self, channel):
