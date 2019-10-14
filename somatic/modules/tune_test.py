@@ -50,13 +50,24 @@ class Worker(acquisition.Worker):
             order = int(self.aqn.read('spectrometer', 'order'))
         except KeyError:
             order = 1
-        transform = list(data.axis_names)
+        transform = list(data.axis_names)[:2]
         if order > 0:
-            transform[-1] = f"{transform[-1]}_points/{order}"
+            transform[1] = f"{transform[-1]}_points/{order}"
         else:
-            transform[-1] = f"{transform[-1]}_points*{abs(order)}"
+            transform[1] = f"{transform[-1]}_points*{abs(order)}"
         data.transform(*transform)
-        attune.workup.tune_test(data, channel_name, curve, save_directory=scan_folder)
+        attune.workup.tune_test(
+            data,
+            channel_name,
+            curve,
+            save_directory=scan_folder,
+            level=self.aqn.read("processing", "level"),
+            gtol=self.aqn.read("processing", "gtol"),
+            ltol=self.aqn.read("processing", "ltol"),
+        )
+        if not self.stopped.read() and self.aqn.read("processing", "apply"):
+            p = wt.kit.glob_handler('.curve', folder = str(scan_folder))[0]
+            self.opa_hardware.driver.curve_paths[self.curve_id].write(p)
         # upload
         self.upload(scan_folder, reference_image=os.path.join(scan_folder, 'tune_test.png'))
     
@@ -69,6 +80,8 @@ class Worker(acquisition.Worker):
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve.copy()
+        if curve.kind == 'poynting':
+            curve = curve.subcurve
         curve.convert('wn')
         axis = acquisition.Axis(curve.setpoints[:], 'wn', opa_friendly_name, opa_friendly_name)
         axes.append(axis)
@@ -123,7 +136,16 @@ class GUI(acquisition.GUI):
         # processing
         input_table.add('Processing', None)
         self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
+        self.level = pc.Bool(initial_value=False)
+        self.gtol = pc.Number(initial_value=1e-3, decimals=5)
+        self.ltol = pc.Number(initial_value=1e-2, decimals=5)
+        self.apply_curve = pc.Bool(initial_value=False)
         input_table.add('Channel', self.channel_combo)
+        input_table.add('level', self.level)
+        input_table.add('gtol', self.gtol)
+        input_table.add('ltol', self.ltol)
+        input_table.add('Apply Curve', self.ltol)
+
         # finish
         self.layout.addWidget(input_table)
         
@@ -137,6 +159,10 @@ class GUI(acquisition.GUI):
         else:
             self.mono_order.write(1)
         self.channel_combo.write(aqn.read('processing', 'channel'))
+        self.level.write(aqn.read("processing", "level"))
+        self.ltol.write(aqn.read("processing", "ltol"))
+        self.gtol.write(aqn.read("processing", "gtol"))
+        self.apply_curve.write(aqn.read("processing", "apply_curve"))
         # allow devices to load settings
         self.device_widget.load(aqn_path)
         
@@ -154,6 +180,10 @@ class GUI(acquisition.GUI):
         aqn.write('spectrometer', 'order', self.mono_order.read())
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
+        aqn.write('processing', 'level', self.level.read())
+        aqn.write('processing', 'gtol', self.gtol.read())
+        aqn.write('processing', 'ltol', self.ltol.read())
+        aqn.write('processing', 'apply_curve', self.apply_curve.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
         
