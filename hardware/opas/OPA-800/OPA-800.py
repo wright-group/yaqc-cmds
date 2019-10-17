@@ -5,7 +5,7 @@ import collections
 import numpy as np
 
 import attune
-import yaqd_core
+import yaqc
 
 import project.classes as pc
 import project.project_globals as g
@@ -73,7 +73,7 @@ class Driver(BaseDriver):
             number = pc.Number(name=motor_name, initial_value=25.,
                                decimals=6, limits=motor_limits, display=True)
             self.motor_positions[motor_name] = number
-            self.motors.update({ motor_name: yaqd_core.Client(self.motor_ports[motor_index])})
+            self.motors.update({ motor_name: yaqc.Client(self.motor_ports[motor_index])})
             self.recorded['w%d_%s' % (self.index, motor_name)] = [
                 number, None, 0.001, motor_name.lower()]
         # self.get_motor_positions()

@@ -52,7 +52,7 @@ import project.file_dialog_handler
 from hardware.hardware import all_initialized
 
 import WrightTools as wt
-import yaqd_core
+import yaqc
 
 
 ### define ####################################################################
@@ -254,7 +254,7 @@ class MainWindow(QtWidgets.QMainWindow):
         google_drive_ini = ini.Ini(os.path.join(g.main_dir.read(), 'project', 'google_drive.ini'))
         g.google_drive_enabled.write(google_drive_ini.read('main', 'enable'))
         if g.google_drive_enabled.read():
-            g.google_drive_control.write(yaqd_core.Client(google_drive_ini.read('main', 'port')))
+            g.google_drive_control.write(yaqc.Client(google_drive_ini.read('main', 'port')))
             
                 
     def _load_witch(self):
