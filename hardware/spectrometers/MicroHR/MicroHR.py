@@ -8,7 +8,7 @@ import project.project_globals as g
 from hardware.spectrometers.spectrometers import Driver as BaseDriver
 from hardware.spectrometers.spectrometers import GUI as BaseGUI
 
-import yaqd_core
+import yaqc
 
 ### define ####################################################################
 
@@ -38,7 +38,7 @@ class Driver(BaseDriver):
 
     def initialize(self, *args, **kwargs):
         # open control
-        self.ctrl = yaqd_core.Client(self._yaqd_port)
+        self.ctrl = yaqc.Client(self._yaqd_port)
         # import some information from control
         id_dict = self.ctrl.id()
         self.serial_number = id_dict["serial"]

@@ -6,7 +6,7 @@ import project.project_globals as g
 from hardware.delays.delays import Driver as BaseDriver
 from hardware.delays.delays import GUI as BaseGUI
 #import library.precision_micro_motors.precision_motors as motors
-import yaqd_core
+import yaqc
 
 
 ### define ####################################################################
@@ -37,7 +37,7 @@ class Driver(BaseDriver):
         return delay
 
     def initialize(self):
-        self.motor = yaqd_core.Client(self.yaqd_port)
+        self.motor = yaqc.Client(self.yaqd_port)
         self.current_position_mm = pc.Number(units='mm', display=True, decimals=5)
         # finish
         self.get_position()
