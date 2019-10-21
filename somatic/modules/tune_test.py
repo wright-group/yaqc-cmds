@@ -48,16 +48,15 @@ class Worker(acquisition.Worker):
             curve = curve.subcurve
         channel_name = self.aqn.read('processing', 'channel')
         order = int(self.aqn.read('spectrometer', 'order'))
-        transform = list(data.axis_names)[:2]
         spectral_axis = self.aqn.read("processing", "spectral_axis")
         if self.aqn.read("spectrometer", "action") == "Scanned":
             spectral_axis = self.aqn.read("spectrometer", "spectrometer")
         transform = [opa_name, f"{spectral_axis}-{opa_name}"]
         if order != 1:
             if order > 0:
-                transform[1] = f"({transform[-1]})/{order}"
+                transform[1] = f"({transform[1]})/{order}"
             else:
-                transform[1] = f"({transform[-1]})*{abs(order)}"
+                transform[1] = f"({transform[1]})*{abs(order)}"
 
 
         data.transform(*transform)
