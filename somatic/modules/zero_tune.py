@@ -54,8 +54,24 @@ class Worker(acquisition.Worker):
         # This can be simplified, I guess, as it is known which will occur in what order
         color_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'energy'][0]
         delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == 'delay'][0]
+        transform = list(data.axis_expressions)[:2]
+        for axis in data.axis_expressions:
+            if axis not in transform:
+                if level:
+                    data.level(axis, 0, 5)
+                data.moment(axis, channel)
+                channel_name = -1
         for delay in delays: 
-            attune.workup.intensity(data, channel_name, delay, gtol=0, save_directory=scan_folder)
+            attune.workup.intensity(
+                data,
+                channel_name,
+                delay,
+                level=self.aqn.read("processing", "level"),
+                gtol=self.aqn.read("processing", "gtol"),
+                ltol=self.aqn.read("processing", "ltol"),
+                save_directory=scan_folder,
+            )
+
         # upload
         self.upload(scan_folder)
     
@@ -142,6 +158,12 @@ class GUI(acquisition.GUI):
         input_table.add('Processing', None)
         self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
         input_table.add('Channel', self.channel_combo)
+        self.process_level = pc.Bool(initial_value=False)
+        self.process_gtol = pc.Number(initial_value=0, decimals=5)
+        self.process_ltol = pc.Number(initial_value=1e-2, decimals=5)
+        input_table.add('level', self.process_level)
+        input_table.add('gtol', self.process_gtol)
+        input_table.add('ltol', self.process_ltol)
         # finish
         self.layout.addWidget(input_table)
     
@@ -183,6 +205,9 @@ class GUI(acquisition.GUI):
         self.opa_combo.write(aqn.read('opa', 'opa'))
         self.npts_opa.write(aqn.read('opa', 'npts'))
         self.channel_combo.write(aqn.read('processing', 'channel'))
+        self.process_level.write(aqn.read("process", "level"))
+        self.process_gtol.write(aqn.read("process", "gtol"))
+        self.process_ltol.write(aqn.read("process", "ltol"))
         self.delay.start.write(aqn.read('delay', 'start'))
         self.delay.stop.write(aqn.read('delay', 'stop'))
         self.delay.number.write(aqn.read('delay', 'number'))
@@ -237,6 +262,9 @@ class GUI(acquisition.GUI):
             aqn.write(name, 'expression', constant.expression.read())
         aqn.add_section('processing')
         aqn.write('processing', 'channel', self.channel_combo.read())
+        aqn.write("processing", 'level', self.process_level.read())
+        aqn.write("processing", 'gtol', self.process_gtol.read())
+        aqn.write("processing", 'ltol', self.process_ltol.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
         
