@@ -14,6 +14,7 @@ import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
 import somatic.acquisition as acquisition
+import somatic.modules.abstract_tuning as abstract_tuning
 import project.ini_handler as ini_handler
 main_dir = g.main_dir.read()
 ini = ini_handler.Ini(os.path.join(main_dir, 'somatic', 'modules', 'tune_test.ini'))
@@ -32,7 +33,7 @@ module_name = 'TUNE TEST'
 ### Worker ####################################################################
 
 
-class Worker(acquisition.Worker):
+class Worker(abstract_tuning.Worker):
     
     def process(self, scan_folder):
         data_path = wt.kit.glob_handler('.data', folder=str(scan_folder))[0]
@@ -100,63 +101,12 @@ class Worker(acquisition.Worker):
 ### GUI #######################################################################
 
 
-class GUI(acquisition.GUI):
+class GUI(abstract_tuning.GUI):
+    def __init__(self, module_name):
+        self.items = {}
+        self.items["Spectral Axis"] = abstract_tuning.SpectralAxisSectionWidget("Spectral Axis", self)
+        super().__init__(module_name)
 
-    def create_frame(self):
-        input_table = pw.InputTable()
-        # opa combo
-        allowed = [hardware.name for hardware in opas.hardwares]
-        self.opa_combo = pc.Combo(allowed)
-        input_table.add('OPA', None)
-        input_table.add('OPA', self.opa_combo)
-        # mono
-        input_table.add('Spectrometer', None)
-        self.mono_width = pc.Number(ini=ini, units='wn',
-                                    section='main', option='mono width (wn)',
-                                    import_from_ini=True, save_to_ini_at_shutdown=True)
-        self.mono_width.set_disabled_units(True)
-        input_table.add('Width', self.mono_width)
-        self.mono_npts = pc.Number(initial_value=51, decimals=0)
-        input_table.add('Number', self.mono_npts)
-        self.mono_order = pc.Number(initial_value=1, decimals=0)
-        input_table.add('Order', self.mono_order)
-        # processing
-        input_table.add('Processing', None)
-        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names, ini=ini, section='main', option='channel name')
-        input_table.add('Channel', self.channel_combo)
-        # finish
-        self.layout.addWidget(input_table)
-        
-    def load(self, aqn_path):
-        aqn = wt.kit.INI(aqn_path)
-        self.opa_combo.write(aqn.read('opa', 'opa'))
-        self.mono_width.write(aqn.read('spectrometer', 'width'))
-        self.mono_npts.write(aqn.read('spectrometer', 'number'))
-        if aqn.has_option('spectrometer', 'order'):
-            self.mono_order.write(aqn.read('spectrometer', 'order'))
-        else:
-            self.mono_order.write(1)
-        self.channel_combo.write(aqn.read('processing', 'channel'))
-        # allow devices to load settings
-        self.device_widget.load(aqn_path)
-        
-    def on_device_settings_updated(self):
-        self.channel_combo.set_allowed_values(devices.control.channel_names)
-        
-    def save(self, aqn_path):
-        aqn = wt.kit.INI(aqn_path)
-        aqn.write('info', 'description', '{} tune test'.format(self.opa_combo.read()))
-        aqn.add_section('opa')
-        aqn.write('opa', 'opa', self.opa_combo.read())
-        aqn.add_section('spectrometer')
-        aqn.write('spectrometer', 'width', self.mono_width.read())
-        aqn.write('spectrometer', 'number', self.mono_npts.read())
-        aqn.write('spectrometer', 'order', self.mono_order.read())
-        aqn.add_section('processing')
-        aqn.write('processing', 'channel', self.channel_combo.read())
-        # allow devices to write settings
-        self.device_widget.save(aqn_path)
-        
 def load():
     return True
 def mkGUI():        
