@@ -1,5 +1,7 @@
 import configparser
+import pathlib
 
+import numpy as np
 import WrightTools as wt
 
 import somatic.acquisition as acquisition
@@ -13,12 +15,101 @@ import devices.devices as devices
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        pass
+        config = self.config_dictionary
+        data_path = wt.kit.glob_handler('.data', folder=str(scan_folder))[0]
+        data = wt.data.from_PyCMDS(data_path)
+        kwargs = {k.lower(): v for k,v in config["Processing"].items()}
+        apply_ = kwargs.pop("apply")
+        curve = self._process(data, self.curve, config=config, scan_folder=scan_folder, **kwargs)
+        if apply_ and self.finished.read():
+            #TODO apply
+            pass
+        #TODO fix file name
+        self.upload(scan_folder, reference_image=str(pathlib.Path(scan_folder) / 'tune_test.png'))
+
+    def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
+        ...
+
+    @property
+    def config_dictionary(self):
+        out = {}
+        for section in self.aqn.sections:
+            out[section] = {k: self.aqn.read(section, k) for k in self.aqn.get_options(section)}
+        return out
 
     def run(self):
-        pass
+        axes = []
+
+        config = self.config_dictionary
+        opa_name = config["OPA"]["opa"]
+        opa_names = [opa.name for opa in opas.hardwares]
+        opa_index = opa_names.index(opa_name)
+        self.opa_hardware = opas.hardwares[opa_index]
+
+        self.curve = self.opa_hardware.curve.copy()
+        curve_ids = list(self.opa_hardware.driver.curve_paths.keys())
+        for section, conf in config.items():
+            if not section.startswith("Motor"):
+                continue
+            name = conf["motor"]
+            break
+        else:
+            # KFS 2019-10-28: Only applys to tune test in current tuning functions
+            # Do not want it using poynting in this case
+            if self.curve.kind == "poynting":
+                self.curve = self.curve.subcurve
+            name = self.curve.dependent_names[0]
+        while not name in self.curve.dependent_names:
+            self.curve = self.curve.subcurve
+            curve_ids = curve_ids[:-1]
+        self.curve_id = curve_ids[-1]
+        self.curve.convert("wn")
+
+        spec_name = config["Spectrometer"]["spectrometer"]
+        spec_action = config["Spectrometer"]["action"]
+        spec_names = [spec.name for spec in spectrometers.hardwares]
+        spec_index = spec_names.index(spec_name)
+        self.spec_hardware = spectrometers.hardwares[spec_index]
+
+        if spec_action == "Zero Order":
+            self.spec_hardware.set_position(0)
+
+        axis_identity = opa_name
+        if spec_action == "Tracking":
+            axis_identity = f"{opa_name}={spec_name}"
+        axes.append(acquisition.Axis(self.curve.setpoints[:], "wn", axis_identity, axis_identity))
+
+        for section, conf in config.items():
+            if not section.startswith("Motor"):
+                continue
+            name = conf["motor"]
+            width = conf["width"]
+            npts = int(conf["num"])
+            points = np.linspace(-width/2.,width/2., npts)
+            centers = self.curve[name][:]
+            hardware_dict = {opa_name: [self.opa_hardware, 'set_motor', [name, 'destination']]}
+            axes.append(acquisition.Axis(points, None, f"{opa_name}_{name}", f"D{opa_name}_{name}", hardware_dict, centers=centers))
+
+        if spec_action == "Scanned": 
+            for section, conf in config.items():
+                if not section.startswith("Spectral"):
+                    continue
+                name = conf["axis"]
+                width = conf["width"]
+                npts = int(conf["num"])
+                points = np.linspace(-width/2.,width/2., npts)
+                centers = self.curve.setpoints[:]
+                axes.append(acquisition.Axis(points, "wn", f"{name}", f"D{name}", centers=centers))
+
+        self.scan(axes)
+
+        if not self.stopped.read():
+            self.finished.write(True)
+
+
 
 class GUI(acquisition.GUI):
+
     def __init__(self, module_name):
         self.items.update({
             "OPA": OpaSectionWidget("OPA", self),
@@ -30,6 +121,7 @@ class GUI(acquisition.GUI):
             for i in item.items.values():
                 i.updated.connect(self.on_update)
         self.items["Device Settings"] = self.device_widget
+        self.on_update()
 
     def create_frame(self):
         self.layout.addWidget(self["OPA"].input_table)
@@ -133,9 +225,14 @@ class SpectralAxisSectionWidget(AqnSectionWidget):
         self.items["Num"] = pc.Number(initial_value=51, decimals=0)
     
     def on_update(self):
-        if self.parent["Spectrometer"]["Action"] == "Scanned":
-            allowed = [self.parent["Spectrometer"]["Spectrometer"]]
+        if self.parent["Spectrometer"]["Action"].read() == "Scanned":
+            allowed = [self.parent["Spectrometer"]["Spectrometer"].read()]
+            for value in self.items.values():
+                value.set_disabled(False)
+            self["Axis"].set_disabled(True)
         else:
+            for value in self.items.values():
+                value.set_disabled(True)
             allowed = []
             for dev in devices.control.devices:
                 if dev.has_map:
@@ -143,6 +240,7 @@ class SpectralAxisSectionWidget(AqnSectionWidget):
             if not allowed:
                 allowed = [""]
         self.items["Axis"].set_allowed_values(allowed)
+        self.items["Axis"].set_disabled(len(allowed) > 1)
         
 
 class MotorAxisSectionWidget(AqnSectionWidget):
