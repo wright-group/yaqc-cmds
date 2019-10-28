@@ -1,24 +1,8 @@
-### import ####################################################################
-
-
-import os
-
-import numpy as np
-
-import WrightTools as wt
 import attune
 
-import project.classes as pc
-import project.widgets as pw
-import somatic.acquisition as acquisition
 import somatic.modules.abstract_tuning as abstract_tuning
 
 
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import devices.devices as devices
-
- 
 ### define ####################################################################
 
 
@@ -30,11 +14,19 @@ module_name = 'TUNE HOLISTIC'
 
 class Worker(abstract_tuning.Worker):
 
-    def process(self, scan_folder):
-        pass
-
-    def run(self):
-        pass
+    def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
+        opa = config["OPA"]["opa"]
+        spec = config["Spectral Axis"]["axis"]
+        data.transform(motor0, motor1, spec)
+        return attune.workup.holistic(
+            data,
+            channel,
+            curve,
+            level=level,
+            gtol=gtol,
+            ltol=ltol,
+            save_directory=scan_folder,
+        )
 
  
 ### GUI #######################################################################

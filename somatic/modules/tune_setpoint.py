@@ -1,54 +1,42 @@
-### import ####################################################################
-
-
-import os
-
-import numpy as np
-
-import WrightTools as wt
 import attune
 
-import project.classes as pc
-import project.widgets as pw
-import somatic.acquisition as acquisition
 import somatic.modules.abstract_tuning as abstract_tuning
 
-
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import devices.devices as devices
-
- 
-### define ####################################################################
-
-
-module_name = 'TUNE SETPOINT'
- 
- 
-### Worker ####################################################################
+module_name = "TUNE SETPOINT"
 
 
 class Worker(abstract_tuning.Worker):
+    def process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
 
-    def process(self, scan_folder):
-        pass
+        opa = config["OPA"]["opa"]
+        spec = config["Spectral Axis"]["axis"]
+        #TODO transform then moment then transform
+        data.transform(opa, f"{opa}-{spec}")
+        return attune.workup.tune_test(
+            data,
+            channel,
+            curve,
+            level=level,
+            gtol=gtol,
+            ltol=ltol,
+            save_directory=scan_folder,
+        )
 
-    def run(self):
-        pass
-
- 
-### GUI #######################################################################
 
 class GUI(abstract_tuning.GUI):
     def __init__(self, module_name):
         self.items = {}
-        self.items["Spectral Axis"] = abstract_tuning.SpectralAxisSectionWidget("Spectral Axis", self)
+        self.items["Spectral Axis"] = abstract_tuning.SpectralAxisSectionWidget(
+            "Spectral Axis", self
+        )
         self.items["Motor"] = abstract_tuning.MotorAxisSectionWidget("Motor", self)
         super().__init__(module_name)
+
 
 def load():
     return True
 
-def mkGUI():        
+
+def mkGUI():
     global gui
     gui = GUI(module_name)
