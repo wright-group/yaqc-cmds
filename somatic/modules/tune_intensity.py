@@ -9,6 +9,7 @@ module_name = 'TUNE INTENSITY'
  
  
 class Worker(abstract_tuning.Worker):
+    reference_image = "intensity.png"
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
         dep = config["Motor"]["motor"]
@@ -39,6 +40,7 @@ class GUI(abstract_tuning.GUI):
         self.items = {}
         self.items["Motor"] = abstract_tuning.MotorAxisSectionWidget("Motor", self)
         super().__init__(module_name)
+        self.items["Spectrometer"]["Action"].set_allowed_values(self.items["Spectrometer"]["Action"].allowed_values[1:])
 
 def load():
     return True

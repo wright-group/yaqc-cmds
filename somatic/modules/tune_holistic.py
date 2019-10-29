@@ -1,6 +1,8 @@
 import attune
 
 import somatic.modules.abstract_tuning as abstract_tuning
+import project.classes as pc
+import hardware.opas.opas as opas
 
 
 ### define ####################################################################
@@ -13,18 +15,22 @@ module_name = 'TUNE HOLISTIC'
 
 
 class Worker(abstract_tuning.Worker):
+    reference_image = "holistic.png"
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
-        opa = config["OPA"]["opa"]
         spec = config["Spectral Axis"]["axis"]
-        data.transform(motor0, motor1, spec)
+        opa = config["OPA"]["opa"]
+        motor0 = config["Motor0"]["motor"]
+        motor1 = config["Motor1"]["motor"]
+        data.transform(f"{opa}_{motor0}", f"{opa}_{motor1}", spec)
         return attune.workup.holistic(
             data,
             channel,
+            [motor0, motor1],
             curve,
             level=level,
             gtol=gtol,
-            ltol=ltol,
+            #ltol=ltol,
             save_directory=scan_folder,
         )
 
@@ -35,9 +41,18 @@ class GUI(abstract_tuning.GUI):
     def __init__(self, module_name):
         self.items = {}
         self.items["Spectral Axis"] = abstract_tuning.SpectralAxisSectionWidget("Spectral Axis", self)
-        self.items["Motor0"] = abstract_tuning.MotorAxisSectionWidget("Motor0", self)
+        self.items["Motor0"] = ProxyMotorAxisSectionWidget("Motor0", self)
         self.items["Motor1"] = abstract_tuning.MotorAxisSectionWidget("Motor1", self)
         super().__init__(module_name)
+
+class ProxyMotorAxisSectionWidget(abstract_tuning.AqnSectionWidget):
+    def __init__(self, section_name, parent):
+        super().__init__(section_name, parent)
+        self.items["Motor"] = pc.Combo()
+
+    def on_update(self):
+        hardware = next(h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read())
+        self.items["Motor"].set_allowed_values(hardware.curve.dependent_names)
 
 def load():
     return True

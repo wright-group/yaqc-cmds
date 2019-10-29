@@ -20,12 +20,16 @@ class Worker(acquisition.Worker):
         data = wt.data.from_PyCMDS(data_path)
         kwargs = {k.lower(): v for k,v in config["Processing"].items()}
         apply_ = kwargs.pop("apply")
+        old_path = self.curve.save(scan_folder, plot=False)
+        old_path.rename(old_path.with_suffix(f".old{old_path.suffix}"))
         curve = self._process(data, self.curve, config=config, scan_folder=scan_folder, **kwargs)
-        if apply_ and self.finished.read():
-            #TODO apply
-            pass
-        #TODO fix file name
-        self.upload(scan_folder, reference_image=str(pathlib.Path(scan_folder) / 'tune_test.png'))
+        print(apply_, self.stopped.read())
+        if apply_ and not self.stopped.read():
+            print("CURVEID", self.curve_id)
+            print("CURVE PATH", self.opa_hardware.curve_paths[self.curve_id])
+            path = curve.save(pathlib.Path(self.opa_hardware.curve_paths[self.curve_id]).parent)
+            self.opa_hardware.curve_paths[self.curve_id].write(str(path))
+        self.upload(scan_folder, reference_image=str(pathlib.Path(scan_folder) / self.reference_image))
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
         ...
@@ -38,6 +42,7 @@ class Worker(acquisition.Worker):
         return out
 
     def run(self):
+        full_shape = []
         axes = []
 
         config = self.config_dictionary
@@ -78,17 +83,38 @@ class Worker(acquisition.Worker):
         if spec_action == "Tracking":
             axis_identity = f"{opa_name}={spec_name}"
         axes.append(acquisition.Axis(self.curve.setpoints[:], "wn", axis_identity, axis_identity))
+        full_shape.append(len(self.curve.setpoints))
+        for section, conf in config.items():
+            if not section.startswith("Motor"):
+                continue
+            if "num" not in conf:
+                continue
+            full_shape.append(int(conf["num"]))
+        if spec_action == "Scanned": 
+            for section, conf in config.items():
+                if not section.startswith("Spectral"):
+                    continue
+                full_shape.append(int(conf["num"]))
+        print(f"{full_shape}")
+        index = 1
 
         for section, conf in config.items():
             if not section.startswith("Motor"):
+                continue
+            if "num" not in conf:
                 continue
             name = conf["motor"]
             width = conf["width"]
             npts = int(conf["num"])
             points = np.linspace(-width/2.,width/2., npts)
-            centers = self.curve[name][:]
+            sh = [1] * (len(full_shape)-1)
+            sh[0] = len(self.curve[name])
+            centers = self.curve[name][:].reshape(sh)
+            print(f"{sh}")
+            centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index+1:])
             hardware_dict = {opa_name: [self.opa_hardware, 'set_motor', [name, 'destination']]}
-            axes.append(acquisition.Axis(points, None, f"{opa_name}_{name}", f"D{opa_name}_{name}", hardware_dict, centers=centers))
+            axes.append(acquisition.Axis(points, None, f"{opa_name}_{name}", f"D{opa_name}", hardware_dict, centers=centers))
+            index += 1
 
         if spec_action == "Scanned": 
             for section, conf in config.items():
@@ -98,8 +124,12 @@ class Worker(acquisition.Worker):
                 width = conf["width"]
                 npts = int(conf["num"])
                 points = np.linspace(-width/2.,width/2., npts)
-                centers = self.curve.setpoints[:]
+                sh = [1] * (len(full_shape)-1)
+                sh[0] = len(self.curve.setpoints)
+                centers = self.curve.setpoints[:].reshape(sh)
+                centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index+1:])
                 axes.append(acquisition.Axis(points, "wn", f"{name}", f"D{name}", centers=centers))
+                index += 1
 
         self.scan(axes)
 

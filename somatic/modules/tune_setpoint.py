@@ -1,4 +1,5 @@
 import attune
+import WrightTools as wt
 
 import somatic.modules.abstract_tuning as abstract_tuning
 
@@ -6,19 +7,29 @@ module_name = "TUNE SETPOINT"
 
 
 class Worker(abstract_tuning.Worker):
-    def process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
+    reference_image = "setpoint.png"
+
+    def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
 
         opa = config["OPA"]["opa"]
         spec = config["Spectral Axis"]["axis"]
-        #TODO transform then moment then transform
-        data.transform(opa, f"{opa}-{spec}")
-        return attune.workup.tune_test(
+        dep = config["Motor"]["motor"]
+        data.transform(opa, f"{opa}_{dep}_points", spec)
+        if level:
+            data.level(0, 2, 5)
+        data.moment(spec, moment=1, channel=channel, resultant=wt.kit.joint_shape(data[opa], data[f"{opa}_{dep}"]))
+        channel = -1
+        data.channels[-1].clip(data[opa].min()-1000, data[opa].max()+1000)
+        data.channels[-1].null = data.channels[-1].min()
+        data.transform(opa, f"{opa}_{dep}_points")
+        return attune.workup.setpoint(
             data,
             channel,
+            dep,
             curve,
-            level=level,
-            gtol=gtol,
-            ltol=ltol,
+            #level=level,
+            #gtol=gtol,
+            #ltol=ltol,
             save_directory=scan_folder,
         )
 

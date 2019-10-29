@@ -5,6 +5,7 @@ import somatic.modules.abstract_tuning as abstract_tuning
 module_name = 'TUNE TEST'
  
 class Worker(abstract_tuning.Worker):
+    reference_image = "tune_test.png"
     
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
         opa = config["OPA"]["opa"]
