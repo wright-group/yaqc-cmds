@@ -1,6 +1,5 @@
 import attune
 
-import somatic.acquisition as acquisition
 import somatic.modules.abstract_tuning as abstract_tuning
 
 

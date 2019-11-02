@@ -44,6 +44,7 @@ class GUI(abstract_tuning.GUI):
         self.items["Motor0"] = ProxyMotorAxisSectionWidget("Motor0", self)
         self.items["Motor1"] = abstract_tuning.MotorAxisSectionWidget("Motor1", self)
         super().__init__(module_name)
+        self.items["Processing"]["ltol"].set_disabled(True)
 
 class ProxyMotorAxisSectionWidget(abstract_tuning.AqnSectionWidget):
     def __init__(self, section_name, parent):

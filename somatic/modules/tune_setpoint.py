@@ -42,6 +42,9 @@ class GUI(abstract_tuning.GUI):
         )
         self.items["Motor"] = abstract_tuning.MotorAxisSectionWidget("Motor", self)
         super().__init__(module_name)
+        self.items["Processing"]["gtol"].set_disabled(True)
+        self.items["Processing"]["ltol"].set_disabled(True)
+        self.items["Processing"]["level"].set_disabled(True)
 
 
 def load():
