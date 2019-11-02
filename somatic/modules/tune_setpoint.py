@@ -44,7 +44,6 @@ class GUI(abstract_tuning.GUI):
         super().__init__(module_name)
         self.items["Processing"]["gtol"].set_disabled(True)
         self.items["Processing"]["ltol"].set_disabled(True)
-        self.items["Processing"]["level"].set_disabled(True)
 
 
 def load():
