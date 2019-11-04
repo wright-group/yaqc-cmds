@@ -23,12 +23,9 @@ class Worker(acquisition.Worker):
         old_path = self.curve.save(scan_folder, plot=False)
         old_path.rename(old_path.with_suffix(f".old{old_path.suffix}"))
         curve = self._process(data, self.curve, config=config, scan_folder=scan_folder, **kwargs)
-        print(apply_, self.stopped.read())
         if apply_ and not self.stopped.read():
-            print("CURVEID", self.curve_id)
-            print("CURVE PATH", self.opa_hardware.curve_paths[self.curve_id])
             path = curve.save(pathlib.Path(self.opa_hardware.curve_paths[self.curve_id]).parent)
-            self.opa_hardware.curve_paths[self.curve_id].write(str(path))
+            self.opa_hardware.driver.curve_paths[self.curve_id].write(str(path))
         self.upload(scan_folder, reference_image=str(pathlib.Path(scan_folder) / self.reference_image))
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
