@@ -86,7 +86,7 @@ class Driver(pc.Driver):
         self.offset.write(offset, self.native_units)
 
     def set_position(self, destination):
-        time.sleep(0.1)  # rate limiter for virtual hardware behavior
+        time.sleep(0.01)  # rate limiter for virtual hardware behavior
         self.position.write(destination, self.native_units)
         self.get_position()
         self.save_status()
