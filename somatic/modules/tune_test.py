@@ -10,7 +10,7 @@ class Worker(abstract_tuning.Worker):
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
         opa = config["OPA"]["opa"]
         spec = config["Spectral Axis"]["axis"]
-        data.transform(opa, f"{opa}-{spec}")
+        data.transform(opa, f"{spec}-{opa}")
         return attune.workup.tune_test(
             data,
             channel,
