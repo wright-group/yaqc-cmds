@@ -57,6 +57,7 @@ class Driver(BaseDriver):
 
     def get_motor_positions(self):
         for i in self.motors:
+            print(self.motors[i].id())
             val = self.motors[i].get_position()
             self.motor_positions[i].write(val)
         if self.poynting_correction:
