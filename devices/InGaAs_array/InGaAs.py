@@ -143,7 +143,7 @@ class Driver(BaseDriver):
         # initialize serial port
         self.serial_port = serial.Serial()
         self.serial_port.baudrate = 57600
-        self.serial_port.port = 'COM16'#'COM' + str(ini.read('main', 'serial port'))
+        self.serial_port.port = 'COM' + str(ini.read('main', 'serial port'))
         self.serial_port.timeout = 0.1  # might need to make this larger...
         self.serial_port.open()
         # initialize arrays for later use

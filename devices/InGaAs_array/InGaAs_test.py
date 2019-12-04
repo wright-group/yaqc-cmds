@@ -7,7 +7,7 @@ import serial
 
 ser = serial.Serial()
 ser.baudrate = 9600
-ser.port = 'COM16'
+ser.port = 'COM5'
 ser.timeout = 0.1
 
 #read--------------------------------------------------------------------------
@@ -47,8 +47,8 @@ out = out - (2060 + -0.0142 * np.arange(256))
 out *= 0.0195
 
 
-import matplotlib
-matplotlib.pyplot.plot(out)
+import matplotlib.pyplot as plt
+plt.plot(out)
 
 #import pyqtgraph as pg
 #plt = pg.plot(out, title="Simplest possible plotting example")
