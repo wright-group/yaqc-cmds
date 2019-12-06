@@ -2,6 +2,7 @@
 
 
 import collections
+import pathlib
 
 from PySide2 import QtWidgets, QtCore
 
@@ -10,6 +11,7 @@ import pyqtgraph as pg
 from project import project_globals as g
 
 colors = g.colors_dict.read()
+__here__ = pathlib.Path(__file__).parent
 
 
 ### basic elements ############################################################
@@ -65,8 +67,10 @@ class Led(QtWidgets.QCheckBox):
     def __init__(self):
         QtWidgets.QCheckBox.__init__(self)
         self.setDisabled(True)
-        StyleSheet = 'QCheckBox::indicator:checked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_checked.png);}'
-        StyleSheet += 'QCheckBox::indicator:unchecked {image: url(C:/Users/John/Desktop/PyCMDS/project/widget files/checkbox_unchecked.png);}'
+        path = str(__here__).replace("\\", "/")
+        StyleSheet = f'QCheckBox::indicator:checked {{image: url({path}/widget files/checkbox_checked.png);}}'
+        StyleSheet += f'QCheckBox::indicator:unchecked {{image: url({path}/widget files/checkbox_unchecked.png);}}'
+        print(StyleSheet)
         self.setStyleSheet(StyleSheet)
 
 
