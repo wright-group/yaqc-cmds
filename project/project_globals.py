@@ -139,6 +139,7 @@ class hardware_waits:
         if coset:
             self.coset_control.launch()
         for method in self.value:
+            print(method)
             method()
 hardware_waits = hardware_waits()
 

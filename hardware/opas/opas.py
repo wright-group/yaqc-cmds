@@ -98,6 +98,7 @@ class Driver(hw.Driver):
 
     def _wait_until_still(self, inputs=[]):
         while self.is_busy():
+            print("waiting", self.hardware.name)
             time.sleep(0.1)  # I've experienced hard crashes when wait set to 0.01 - Blaise 2015.12.30
             self.get_motor_positions()
         self.get_motor_positions()
@@ -201,6 +202,7 @@ class Driver(hw.Driver):
                 self.poynting_correction.set_motor(m, motor_destinations.pop(m))
         # OPA
         self._set_motors(motor_destinations)
+        time.sleep(0.01)
         # finish
         self.wait_until_still()
         self.get_position()
