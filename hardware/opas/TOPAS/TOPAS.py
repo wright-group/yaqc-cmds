@@ -40,10 +40,25 @@ class Driver(BaseDriver):
         if self.has_shutter:
             self.shutter_position = pc.Bool(name='Shutter', display=True, set_method='set_shutter')
         BaseDriver.__init__(self, *args, **kwargs)  
+        self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
+        # load api
+        self.api = yaqc.Client(self.yaq_port)
+        if self.has_shutter:
+            self.api.set_shutter(False)
+        
+        # motor positions
+        for motor_name in self.motor_names:
+            min_position, max_position = self.api.get_motor_range(motor_name)
+            limits = pc.NumberLimits(min_position, max_position)
+            number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
+            self.motor_positions[motor_name] = number
+            self.recorded['w%d_'%self.index + motor_name] = [number, None, 1., motor_name]
+        # finish
+
         if self.has_shutter:
             self.exposed += [self.shutter_position]
         # tuning curves
-        self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
+        self.serial_number = self.ini.read(f"OPA{self.index}", 'serial number')
         self.TOPAS_ini_filepath = os.path.join(g.main_dir.read(), 'hardware', 'opas', 'TOPAS', 'configuration', str(self.serial_number) + '.ini')
         self.TOPAS_ini = Ini(self.TOPAS_ini_filepath)
         self.TOPAS_ini.return_raw = True
@@ -67,6 +82,7 @@ class Driver(BaseDriver):
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
         self.load_curve(update = False)
+        self.homeable = {m: True for m in self.motor_names}
 
     def _get_motor_index(self, name):
         c = self.curve
@@ -88,12 +104,20 @@ class Driver(BaseDriver):
             del curve_paths_copy['Poynting']
         crv_paths = [m.read() for m in curve_paths_copy.values()]
         all_curves = attune.TopasCurve.read_all(crv_paths)
+        for curve in all_curves.values():
+            for dependent in curve.dependent_names:
+                if dependent not in self.motor_names:
+                    try:
+                        curve.rename_dependent(dependent, self.motor_names[int(dependent)])
+                    except:
+                        pass
         self.interaction_string_combo.set_allowed_values(list(all_curves.keys()))
         self.curve = all_curves[interaction]
         return self.curve
        
     def _set_motors(self, motor_destinations):
         for motor_name, destination in motor_destinations.items():
+            destination = float(destination)
             self.api.set_motor_position(motor_name, destination)
 
     def _update_api(self, interaction):
@@ -118,34 +142,14 @@ class Driver(BaseDriver):
         self.api.close()
 
     def get_motor_positions(self):
-        for m, motor_mutex in motor_positions.items():
+        for m, motor_mutex in self.motor_positions.items():
             position = self.api.get_motor_position(m)
             motor_mutex.write(position)
         if self.poynting_correction:
             self.poynting_correction.get_motor_positions()
     
-    def initialize(self):
-        self.serial_number = self.ini.read('OPA' + str(self.index), 'serial number')
-        # load api
-        self.api = yaqc.Client(self.yaq_port)
-        if self.has_shutter:
-            self.api.set_shutter(False)
-        
-        # motor positions
-        for motor_name in self.motor_names:
-            min_position, max_position = self.api.get_motor_range(motor_name)
-            limits = pc.NumberLimits(min_position, max_position)
-            number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
-            self.motor_positions[motor_name] = number
-            self.recorded['w%d_'%self.index + motor_name] = [number, None, 1., motor_name]
-        # finish
-        BaseDriver.initialize(self)
-
     def is_busy(self):
-        try:
-            return self.api.busy()
-        except Exception:
-            return False
+        return any(self.api.is_motor_busy(m) for m in self.motor_names)
     
     def set_shutter(self, inputs):
         shutter_state = inputs[0]
