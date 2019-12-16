@@ -1,4 +1,5 @@
 import attune
+import WrightTools as wt
 
 import somatic.modules.abstract_tuning as abstract_tuning
 
@@ -11,18 +12,17 @@ class Worker(abstract_tuning.Worker):
     reference_image = "intensity.png"
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
+        opa = config["OPA"]["opa"]
         dep = config["Motor"]["motor"]
         data[channel].signed = False
         transform = list(data.axis_expressions)
         transform = transform[:2]
-        for axis in data.axis_expressions:
-            if axis not in transform:
-                if level:
-                    data.level(axis, 0, 5)
-                data.moment(axis, channel)
-                channel = -1
-        transform[1] = f"{transform[0]}_{dep}_points"
-        data.transform(*transform)
+        if level:
+            data.level(channel, -1, 5)
+        for axis in data.axis_expressions[2:]:
+            data.moment(axis, channel, moment=0, resultant=wt.kit.joint_shape(data[opa], data[f"{opa}_{dep}_points"]))
+            channel = -1
+        data.transform(opa, f"{opa}_{dep}_points")
         return attune.workup.intensity(
             data,
             channel,

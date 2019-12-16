@@ -22,6 +22,7 @@ class Worker(abstract_tuning.Worker):
         opa = config["OPA"]["opa"]
         motor0 = config["Motor0"]["motor"]
         motor1 = config["Motor1"]["motor"]
+        data.transform()
         data.transform(f"{opa}_{motor0}", f"{opa}_{motor1}", spec)
         return attune.workup.holistic(
             data,
