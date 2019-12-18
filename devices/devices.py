@@ -398,6 +398,10 @@ class Device(pc.Hardware):
         self.on_freerun_updated()
         self.settings_updated.emit()  # TODO: should probably remove this
 
+    def wait_until_still(self):
+        while self.busy.read():
+            self.busy.wait_for_update()
+
 
 # --- driver --------------------------------------------------------------------------------------
 
