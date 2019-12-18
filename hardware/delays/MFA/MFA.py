@@ -25,9 +25,6 @@ ini = Ini(os.path.join(main_dir, 'hardware', 'delays',
 ### define ####################################################################
 
 
-# TODO: move com channel to .ini
-COM_channel = 4
-
 error_dict = {'0': None,
               '@': None,
               'A': 'Unknown message code or floating point controller address [A]',
@@ -82,7 +79,8 @@ class Driver(BaseDriver):
 
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
-        self.index = kwargs.pop('index')
+        self.index = kwargs.pop('index')        
+        self.com_channel = kwargs.pop('port')
         self.native_per_mm = 6671.281903963041
         self.axis = kwargs.pop('axis')
         self.status = pc.String(display=True)
@@ -141,7 +139,7 @@ class Driver(BaseDriver):
         self.set_position(self.hardware.destination.read())
 
     def initialize(self):
-        self.port = com_handler.get_com(COM_channel)   
+        self.port = com_handler.get_com(self.com_channel)   
         self.set_zero(self.zero_position.read())
         self.label.updated.connect(self.update_recorded)
         self.update_recorded()
