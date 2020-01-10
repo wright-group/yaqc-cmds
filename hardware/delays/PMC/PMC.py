@@ -45,8 +45,7 @@ class Driver(BaseDriver):
         self.initialized_signal.emit()
 
     def is_busy(self):
-        self.busy.write(self.motor.busy())
-        return self.busy.read()
+        return self.motor.busy()
 
     def set_position(self, destination):
         destination_mm = self.zero_position.read() + destination/(self.native_per_mm * self.factor.read())

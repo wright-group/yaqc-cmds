@@ -236,6 +236,7 @@ class Device(BaseDevice):
         shots_processing_module_path.updated.connect(self.update_task)
         self.update_sample_correspondances(channels.read(), choppers.read())
         BaseDevice.__init__(self, *args, **kwargs)
+        self.name = "PCI-6251"
         self.nshots = nshots
         self.nshots.updated.connect(self.update_task)
 

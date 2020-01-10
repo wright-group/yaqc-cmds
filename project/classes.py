@@ -656,12 +656,19 @@ class Driver(QtCore.QObject):
         Must always write to busy.
         """
         if self.is_busy():
+            if g.debug.read():
+                print(self.name, ' busy')
             time.sleep(0.01)  # don't loop like crazy
             self.busy.write(True)
         elif self.enqueued.read():
+            if g.debug.read():
+                print(self.name, ' not empty')
+                print(self.enqueued.value)
             time.sleep(0.1)  # don't loop like crazy
             self.busy.write(True)
         else:
+            if g.debug.read():
+                print(self.name, ' not busy')
             self.busy.write(False)
             self.update_ui.emit()
     
@@ -682,6 +689,8 @@ class Driver(QtCore.QObject):
         self.enqueued.pop()
         getattr(self, method)(*args, **kwargs) 
         if not self.enqueued.read(): 
+            if g.debug.read():
+                print(self.name, ' queue empty')
             self.queue_emptied.emit()
             self.check_busy()
             
@@ -781,6 +790,8 @@ class Hardware(QtCore.QObject):
 
     def wait_until_still(self):
         while self.busy.read():
+            if not self.q.enqueued.value:
+                self.q.push("check_busy")
             self.busy.wait_for_update()
 
 
