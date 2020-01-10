@@ -28,39 +28,40 @@ creating_com = pc.Busy()
 
 
 class COM(QtCore.QMutex):
-    
-    def __init__(self, port, baud_rate, timeout, write_termination='\r\n', data='ASCII', size=-1, **kwargs):
+    def __init__(
+        self, port, baud_rate, timeout, write_termination="\r\n", data="ASCII", size=-1, **kwargs
+    ):
         QtCore.QMutex.__init__(self)
         self.port_index = port
-        self.instrument = serial.Serial(port,baud_rate,timeout=timeout, **kwargs)
+        self.instrument = serial.Serial(port, baud_rate, timeout=timeout, **kwargs)
         self.external_lock_control = False
         self.data = data
         self.write_termination = write_termination
         self.size = size
         g.shutdown.add_method(self.close)
 
-    def _read(self,size=None):
-        if self.data == 'pass':
+    def _read(self, size=None):
+        if self.data == "pass":
             if size == None:
-                size=1
+                size = 1
             return self.instrument.read(size)
-        elif self.data == 'ASCII':
-            buf = b''
+        elif self.data == "ASCII":
+            buf = b""
             char = self.instrument.read()
-            while char != b'':
+            while char != b"":
                 buf = buf + char
                 if buf.endswith(self.write_termination.encode()):
                     buf = buf.rstrip(self.write_termination.encode())
-                    break;
+                    break
                 char = self.instrument.read()
-            return buf.decode('utf-8')
+            return buf.decode("utf-8")
         else:
             if self.size > 0:
                 return [ord(i) for i in self.instrument.read(self.size)]
             else:
-                buf = b''
+                buf = b""
                 char = self.instrument.read()
-                while char != b'':
+                while char != b"":
                     buf = buf + char
                     char = self.instrument.read()
                 return [ord(i) for i in buf]
@@ -70,54 +71,60 @@ class COM(QtCore.QMutex):
 
     def open(self):
         self.instrument.open()
-        
-    def flush(self, then_delay=0.):
-        if not self.external_lock_control: self.lock()
+
+    def flush(self, then_delay=0.0):
+        if not self.external_lock_control:
+            self.lock()
         self.instrument.flush()
-        if not self.external_lock_control: self.unlock()
-        
+        if not self.external_lock_control:
+            self.unlock()
+
     def is_open(self):
         return self.instrument.isOpen()
-    
+
     def read(self, size=None):
-        if not self.external_lock_control: self.lock()
+        if not self.external_lock_control:
+            self.lock()
         value = self._read(size)
-        if not self.external_lock_control: self.unlock()
+        if not self.external_lock_control:
+            self.unlock()
         return value
-        
+
     def write(self, data, then_read=False):
         if not self.external_lock_control:
             self.lock()
         version = int(sys.version[0])
-        if self.data == 'pass':
+        if self.data == "pass":
             value = self.instrument.write(data)
-        elif self.data == 'ASCII':
+        elif self.data == "ASCII":
             if version == 2:
                 data = str(data)  # just making sure
                 value = self.instrument.write(data)
                 if not data.endswith(self.write_termination.encode()):
-                    value+=self.instrument.write(self.write_termination)
+                    value += self.instrument.write(self.write_termination)
             else:
-                data = bytes(data, 'utf-8')
+                data = bytes(data, "utf-8")
                 value = self.instrument.write(data)
                 if not data.endswith(self.write_termination.encode()):
-                    value+=self.instrument.write(self.write_termination.encode())            
+                    value += self.instrument.write(self.write_termination.encode())
         else:
-            value = self.instrument.write(''.join([chr(i) for i in data]))# Python3: bytes(data))
+            value = self.instrument.write("".join([chr(i) for i in data]))  # Python3: bytes(data))
         if then_read:
             value = self._read()
-        if not self.external_lock_control: self.unlock()
+        if not self.external_lock_control:
+            self.unlock()
         return value
 
 
 ### helper methods ############################################################
 
- 
-def Serial(port,baud_rate=9600, timeout=1, **kwargs):
+
+def Serial(port, baud_rate=9600, timeout=1, **kwargs):
     """
     Convience method for pass_through serial communication.
     """
-    return get_com(port,baud_rate,timeout*1000,data='pass',**kwargs)
+    return get_com(port, baud_rate, timeout * 1000, data="pass", **kwargs)
+
 
 def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
     """
@@ -132,16 +139,16 @@ def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
         creating_com.wait_for_update()
     creating_com.write(True)
     # return open com if already open
-    if isinstance(port,int):
-        port = "COM%d"%port
+    if isinstance(port, int):
+        port = "COM%d" % port
     out = None
     for key in open_coms.keys():
         if key == port:
             out = open_coms[key]
     # otherwise open new com
     if not out:
-        out = COM(port, baud_rate, timeout/1000., **kwargs)
-        open_coms[port] = out 
+        out = COM(port, baud_rate, timeout / 1000.0, **kwargs)
+        open_coms[port] = out
     # finish
     creating_com.write(False)
     return out

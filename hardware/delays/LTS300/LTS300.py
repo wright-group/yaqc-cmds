@@ -20,11 +20,10 @@ main_dir = g.main_dir.read()
 
 
 class Driver(BaseDriver):
-
     def __init__(self, *args, **kwargs):
         BaseDriver.__init__(self, *args, **kwargs)
-        kwargs['native_units'] = 'ps'
-        self.index = kwargs.pop('index')
+        kwargs["native_units"] = "ps"
+        self.index = kwargs.pop("index")
         self.native_per_mm = 6.671281903963041
 
     def close(self):
@@ -49,7 +48,9 @@ class Driver(BaseDriver):
 
     def initialize(self):
         self.motor = APTMotor(serial_number=int(self.serial), hardware_type=42)
-        self.motor_limits.write(self.motor.minimum_position, self.motor.maximum_position, self.motor_units)
+        self.motor_limits.write(
+            self.motor.minimum_position, self.motor.maximum_position, self.motor_units
+        )
         self.update_recorded()
         self.set_zero(self.zero_position.read())
         self.get_position()
@@ -57,10 +58,12 @@ class Driver(BaseDriver):
         self.initialized_signal.emit()
 
     def is_busy(self):
-        return not 'stopped' in self.motor.status
+        return not "stopped" in self.motor.status
 
     def set_position(self, destination):
-        destination_mm = self.zero_position.read() + destination/(self.native_per_mm * self.factor.read())
+        destination_mm = self.zero_position.read() + destination / (
+            self.native_per_mm * self.factor.read()
+        )
         self.set_motor_position(destination_mm)
 
     def set_motor_position(self, motor_position):
@@ -79,7 +82,7 @@ class Driver(BaseDriver):
     def set_zero(self, zero):
         self.zero_position.write(zero)
         min_value = -self.zero_position.read() * self.native_per_mm * self.factor.read()
-        max_value = (300. - self.zero_position.read()) * self.native_per_mm * self.factor.read()
+        max_value = (300.0 - self.zero_position.read()) * self.native_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, self.native_units)
 
 

@@ -4,10 +4,9 @@ import WrightTools as wt
 import somatic.modules.abstract_tuning as abstract_tuning
 
 
- 
-module_name = 'TUNE INTENSITY'
- 
- 
+module_name = "TUNE INTENSITY"
+
+
 class Worker(abstract_tuning.Worker):
     reference_image = "intensity.png"
 
@@ -20,7 +19,12 @@ class Worker(abstract_tuning.Worker):
         if level:
             data.level(channel, -1, 5)
         for axis in data.axis_expressions[2:]:
-            data.moment(axis, channel, moment=0, resultant=wt.kit.joint_shape(data[opa], data[f"{opa}_{dep}_points"]))
+            data.moment(
+                axis,
+                channel,
+                moment=0,
+                resultant=wt.kit.joint_shape(data[opa], data[f"{opa}_{dep}_points"]),
+            )
             channel = -1
         data.transform(opa, f"{opa}_{dep}_points")
         return attune.workup.intensity(
@@ -34,16 +38,21 @@ class Worker(abstract_tuning.Worker):
             save_directory=scan_folder,
         )
 
+
 class GUI(abstract_tuning.GUI):
     def __init__(self, module_name):
         self.items = {}
         self.items["Motor"] = abstract_tuning.MotorAxisSectionWidget("Motor", self)
         super().__init__(module_name)
-        self.items["Spectrometer"]["Action"].set_allowed_values(self.items["Spectrometer"]["Action"].allowed_values[1:])
+        self.items["Spectrometer"]["Action"].set_allowed_values(
+            self.items["Spectrometer"]["Action"].allowed_values[1:]
+        )
+
 
 def load():
     return True
 
-def mkGUI():        
+
+def mkGUI():
     global gui
     gui = GUI(module_name)

@@ -2,23 +2,25 @@
 ### ensure folders exist ######################################################
 
 import matplotlib
-matplotlib.use('ps')  # important - images will be generated in worker threads
+
+matplotlib.use("ps")  # important - images will be generated in worker threads
 
 import sys
 from PySide2 import QtWidgets, QtCore
+
 app = QtWidgets.QApplication(sys.argv)
 
 import os
 
 folders = []
-folders.append(['data'])
-folders.append(['logs'])
-folders.append(['autonomic', 'files'])
-folders.append(['hardware', 'opas', 'OPA-800', 'OPA2 curves'])
-folders.append(['hardware', 'opas', 'OPA-800', 'OPA3 curves'])
-folders.append(['hardware', 'opas', 'TOPAS', 'OPA1 (10743) curves'])
-folders.append(['hardware', 'opas', 'TOPAS', 'OPA2 (10742) curves'])
-folders.append(['hardware', 'opas', 'TOPAS', 'configuration'])
+folders.append(["data"])
+folders.append(["logs"])
+folders.append(["autonomic", "files"])
+folders.append(["hardware", "opas", "OPA-800", "OPA2 curves"])
+folders.append(["hardware", "opas", "OPA-800", "OPA3 curves"])
+folders.append(["hardware", "opas", "TOPAS", "OPA1 (10743) curves"])
+folders.append(["hardware", "opas", "TOPAS", "OPA2 (10742) curves"])
+folders.append(["hardware", "opas", "TOPAS", "configuration"])
 
 for folder in folders:
     folder_path = os.path.join(os.getcwd(), *folder)
@@ -30,7 +32,7 @@ for folder in folders:
 
 
 #### import ###################################################################
-#BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
+# BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
 
 import copy
@@ -39,10 +41,12 @@ import inspect
 import subprocess
 
 import project.project_globals as g
+
 g.app.write(app)
 g.logger.load()
 import project.ini_handler as ini
-g.logger.log('info', 'Startup', 'PyCMDS is attempting startup')
+
+g.logger.log("info", "Startup", "PyCMDS is attempting startup")
 
 import project.style as style
 import project.widgets as pw
@@ -66,15 +70,15 @@ directory = os.path.abspath(os.path.dirname(__file__))
 
 # MAJOR.MINOR.PATCH (semantic versioning)
 # major version changes may break backwards compatibility
-__version__ = '0.10.0'
+__version__ = "0.10.0"
 
 # add git branch, if appropriate
-p = os.path.join(directory, '.git', 'HEAD')
+p = os.path.join(directory, ".git", "HEAD")
 if os.path.isfile(p):
     with open(p) as _f:
-        __branch__ = _f.readline().rstrip().split(r'/')[-1]
-    if __branch__ != 'master':
-        __version__ += '-' + __branch__
+        __branch__ = _f.readline().rstrip().split(r"/")[-1]
+    if __branch__ != "master":
+        __version__ += "-" + __branch__
 else:
     __branch__ = None
 
@@ -87,12 +91,12 @@ g.version.write(__version__)
 class MainWindow(QtWidgets.QMainWindow):
     shutdown = QtCore.Signal()
     queue_control = QtCore.Signal()
-    
+
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self, parent=None)
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
-        self.setWindowTitle('PyCMDS %s'%__version__)
+        self.setWindowTitle("PyCMDS %s" % __version__)
         # begin poll timer
         self._begin_poll_loop()
         # disable 'x'
@@ -101,8 +105,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # set size, position
         self.window_verti_size = 600
         self.window_horiz_size = 1000
-        self.setGeometry(0,0, self.window_horiz_size, self.window_verti_size)
-        #self._center()
+        self.setGeometry(0, 0, self.window_horiz_size, self.window_verti_size)
+        # self._center()
         self.resize(self.window_horiz_size, self.window_verti_size)
         self._create_main_frame()
         # initialize program
@@ -112,21 +116,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self._load_google_drive()
         self._load_witch()
         # populate self
-        self.data_folder = os.path.join(directory, 'data')
+        self.data_folder = os.path.join(directory, "data")
         # somatic system
         from somatic import queue
+
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
         self.queue_gui.load_modules()
         # log completion
         if g.debug.read():
-            print('PyCMDS_ui.MainWindow.__init__ complete')
-        g.logger.log('info', 'Startup', 'PyCMDS MainWindow __init__ finished')
+            print("PyCMDS_ui.MainWindow.__init__ complete")
+        g.logger.log("info", "Startup", "PyCMDS MainWindow __init__ finished")
         all_initialized()
-        
-    
+
     def _create_main_frame(self):
         self.main_frame = QtWidgets.QWidget(parent=self)
-        hbox = QtWidgets.QHBoxLayout()  
+        hbox = QtWidgets.QHBoxLayout()
         # hardware ------------------------------------------------------------
         hardware_box = QtWidgets.QVBoxLayout()
         # exit button
@@ -154,10 +158,12 @@ class MainWindow(QtWidgets.QMainWindow):
         box.addWidget(progress_bar)
         # time elapsed/remaining, queue message
         progress_bar.setLayout(QtWidgets.QHBoxLayout())
-        time_elapsed = QtWidgets.QLabel('00:00:00')
-        self.queue_message = QtWidgets.QLabel('NO QUEUE')
-        time_remaining = QtWidgets.QLabel('00:00:00')
-        StyleSheet = 'QLabel{color: custom_color; font: bold 14px}'.replace('custom_color', g.colors_dict.read()['text_light'])
+        time_elapsed = QtWidgets.QLabel("00:00:00")
+        self.queue_message = QtWidgets.QLabel("NO QUEUE")
+        time_remaining = QtWidgets.QLabel("00:00:00")
+        StyleSheet = "QLabel{color: custom_color; font: bold 14px}".replace(
+            "custom_color", g.colors_dict.read()["text_light"]
+        )
         time_elapsed.setStyleSheet(StyleSheet)
         self.queue_message.setStyleSheet(StyleSheet)
         time_remaining.setStyleSheet(StyleSheet)
@@ -189,25 +195,25 @@ class MainWindow(QtWidgets.QMainWindow):
         somatic_widget.setLayout(layout)
         somatic_tabs = pw.TabWidget()
         self.queue_widget = QtWidgets.QWidget(parent=self.main_frame)
-        somatic_tabs.addTab(self.queue_widget, 'Queue')
+        somatic_tabs.addTab(self.queue_widget, "Queue")
         self.scan_widget = QtWidgets.QWidget(parent=self.main_frame)
-        somatic_tabs.addTab(self.scan_widget, 'Scan')
-        somatic_tabs.setContentsMargins(0., 0., 0., 0.)
+        somatic_tabs.addTab(self.scan_widget, "Scan")
+        somatic_tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
         layout.addWidget(somatic_tabs)
         # plot box
         plot_widget = QtWidgets.QWidget(parent=self.main_frame)
         g.daq_plot_widget.write(plot_widget)
         # tab widget
         self.tabs = pw.TabWidget()
-        self.tabs.addTab(program_widget, 'Program')
-        self.tabs.addTab(hardware_advanced_widget, 'Hardware')
-        self.tabs.addTab(device_widget, 'Devices')
-        self.tabs.addTab(coset_widget, 'Autonomic')
-        self.tabs.addTab(somatic_widget, 'Somatic')
-        self.tabs.addTab(plot_widget, 'Plot')
+        self.tabs.addTab(program_widget, "Program")
+        self.tabs.addTab(hardware_advanced_widget, "Hardware")
+        self.tabs.addTab(device_widget, "Devices")
+        self.tabs.addTab(coset_widget, "Autonomic")
+        self.tabs.addTab(somatic_widget, "Somatic")
+        self.tabs.addTab(plot_widget, "Plot")
         self.tabs.setCurrentIndex(4)  # start on sonomic tab
-        self.tabs.setContentsMargins(0., 0., 0., 0.)
-        box.addWidget(self.tabs)    
+        self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
+        box.addWidget(self.tabs)
         # vertical stretch
         box.addStretch(1)
         hbox.addLayout(box)
@@ -227,15 +233,16 @@ class MainWindow(QtWidgets.QMainWindow):
         g.poll_timer.connect_to_timeout(self.poll)
         # now we can begin the CPU watcher (which is triggered by poll)
         import project.logging_handler as logging_handler
+
         logging_handler.begin_cpu_watcher()
-        
+
     def poll(self):
         pass
 
     def _initialize_hardware(self):
         g.offline.get_saved()
         if g.debug.read():
-            print('initialize hardware')
+            print("initialize hardware")
         # import
         import hardware
         import hardware.opas.opas
@@ -243,26 +250,26 @@ class MainWindow(QtWidgets.QMainWindow):
         import hardware.delays.delays
         import hardware.filters.filters
         import devices.devices
-    
+
     def _initialize_widgets(self):
         if g.debug.read():
-            print('initialize widgets')
+            print("initialize widgets")
         # import widgets
         import autonomic.coset
-                
+
     def _load_google_drive(self):
-        google_drive_ini = ini.Ini(os.path.join(g.main_dir.read(), 'project', 'google_drive.ini'))
-        g.google_drive_enabled.write(google_drive_ini.read('main', 'enable'))
+        google_drive_ini = ini.Ini(os.path.join(g.main_dir.read(), "project", "google_drive.ini"))
+        g.google_drive_enabled.write(google_drive_ini.read("main", "enable"))
         if g.google_drive_enabled.read():
-            g.google_drive_control.write(yaqc.Client(google_drive_ini.read('main', 'port')))
-            
-                
+            g.google_drive_control.write(yaqc.Client(google_drive_ini.read("main", "port")))
+
     def _load_witch(self):
         # check if witch is enabled
-        bots_ini = ini.Ini(os.path.join(g.main_dir.read(), 'project', 'slack', 'bots.ini'))
-        g.slack_enabled.write(bots_ini.read('bots', 'enable'))
+        bots_ini = ini.Ini(os.path.join(g.main_dir.read(), "project", "slack", "bots.ini"))
+        g.slack_enabled.write(bots_ini.read("bots", "enable"))
         if g.slack_enabled.read():
             import project.slack as slack
+
             # create witch
             self.witch = slack.control
             # begin poll timer
@@ -271,26 +278,27 @@ class MainWindow(QtWidgets.QMainWindow):
             self.shutdown.connect(timer.stop)
             g.slack_poll_timer.write(timer)
             g.slack_poll_timer.connect_to_timeout(self.witch.poll)
-        
+
     def _shutdown(self):
-        '''
+        """
         attempt a clean shutdown
-        '''
+        """
         if g.debug.read():
-            print('shutdown')
-        g.logger.log('info', 'Shutdown', 'PyCMDS is attempting shutdown')
+            print("shutdown")
+        g.logger.log("info", "Shutdown", "PyCMDS is attempting shutdown")
         self.shutdown.emit()
         g.shutdown.fire()
-        
+
     def _center(self):
         # a function which ensures that the window appears in the center of the screen at startup
-        screen = QtWidgets.QDesktopWidget().screenGeometry() 
-        size = self.geometry() 
-        self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
-        
+        screen = QtWidgets.QDesktopWidget().screenGeometry()
+        size = self.geometry()
+        self.move((screen.width() - size.width()) / 2, (screen.height() - size.height()) / 2)
+
     def get_status(self, full=False):
         # called by slack
         return self.queue_gui.get_status(full)
+
 
 def main():
     global MainWindow
@@ -300,4 +308,6 @@ def main():
     MainWindow.showMaximized()
     app.exec_()
     return MainWindow
+
+
 main_form = main()

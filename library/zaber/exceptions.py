@@ -2,14 +2,17 @@
 this library.
 """
 
+
 class TimeoutError(Exception):
     """Raised when a read operation exceeded its specified time limit."""
+
     pass
+
 
 class UnexpectedReplyError(Exception):
     """Raised when a reply was read from an unexpected device."""
-    
-    def __init__(self, message, reply = None):
+
+    def __init__(self, message, reply=None):
         """
         Args:
             message: The error message to display.
@@ -21,6 +24,5 @@ class UnexpectedReplyError(Exception):
             was thrown. You can access it through the *reply* attribute.
         """
         super(UnexpectedReplyError, self).__init__(message)
-        
-        self.reply = reply
 
+        self.reply = reply

@@ -20,15 +20,17 @@ main_dir = g.main_dir.read()
 
 
 class Driver(BaseDriver):
-    
     def __init__(self, *args, **kwargs):
         self._yaqd_port = kwargs.pop("yaqd_port")
         BaseDriver.__init__(self, *args, **kwargs)
-        self.grating_index = pc.Combo(name='Grating', allowed_values=[1, 2],
-                                      section=self.name,
-                                      option='grating_index',
-                                      display=True,
-                                      set_method='set_turret')
+        self.grating_index = pc.Combo(
+            name="Grating",
+            allowed_values=[1, 2],
+            section=self.name,
+            option="grating_index",
+            display=True,
+            set_method="set_turret",
+        )
         self.exposed.append(self.grating_index)
 
     def get_position(self):
@@ -44,7 +46,7 @@ class Driver(BaseDriver):
         self.serial_number = id_dict["serial"]
         self.position.write(self.ctrl.get_position())
         # recorded
-        self.recorded['wm'] = [self.position, 'nm', 1., 'm', False]
+        self.recorded["wm"] = [self.position, "nm", 1.0, "m", False]
         while self.is_busy():
             time.sleep(0.1)
         # finish
@@ -53,7 +55,7 @@ class Driver(BaseDriver):
 
     def is_busy(self):
         return self.ctrl.busy()
-    
+
     def set_position(self, destination):
         self.ctrl.set_position(destination)
         while self.is_busy():
@@ -70,14 +72,15 @@ class Driver(BaseDriver):
         while self.is_busy():
             time.sleep(0.01)
 
-
-        #TODO: move limit handling to daemon
+        # TODO: move limit handling to daemon
         # update own limits
-        max_limit = self.hardware_ini.read(self.name, 'grating_%i_maximum_wavelength'%self.grating_index.read())
+        max_limit = self.hardware_ini.read(
+            self.name, "grating_%i_maximum_wavelength" % self.grating_index.read()
+        )
         if self.grating_index.read() == 1:
-            self.limits.write(0, max_limit, 'nm')
+            self.limits.write(0, max_limit, "nm")
         elif self.grating_index.read() == 2:
-            self.limits.write(0, max_limit, 'nm')
+            self.limits.write(0, max_limit, "nm")
         # set position for new grating
         self.set_position(self.position.read(self.native_units))
 

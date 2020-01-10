@@ -13,12 +13,13 @@ import hardware.opas.opas as opas
 import hardware.spectrometers.spectrometers as spectrometers
 import devices.devices as devices
 
+
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
         config = self.config_dictionary
-        data_path = wt.kit.glob_handler('.data', folder=str(scan_folder))[0]
+        data_path = wt.kit.glob_handler(".data", folder=str(scan_folder))[0]
         data = wt.data.from_PyCMDS(data_path)
-        kwargs = {k.lower(): v for k,v in config["Processing"].items()}
+        kwargs = {k.lower(): v for k, v in config["Processing"].items()}
         apply_ = kwargs.pop("apply")
         old_path = self.curve.save(scan_folder, plot=False)
         old_path.rename(old_path.with_suffix(f".old{old_path.suffix}"))
@@ -26,7 +27,9 @@ class Worker(acquisition.Worker):
         if apply_ and not self.stopped.read():
             path = curve.save(pathlib.Path(self.opa_hardware.curve_paths[self.curve_id]).parent)
             self.opa_hardware.driver.curve_paths[self.curve_id].write(str(path))
-        self.upload(scan_folder, reference_image=str(pathlib.Path(scan_folder) / self.reference_image))
+        self.upload(
+            scan_folder, reference_image=str(pathlib.Path(scan_folder) / self.reference_image)
+        )
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
         ...
@@ -87,7 +90,7 @@ class Worker(acquisition.Worker):
             if "num" not in conf:
                 continue
             full_shape.append(int(conf["num"]))
-        if spec_action == "Scanned": 
+        if spec_action == "Scanned":
             for section, conf in config.items():
                 if not section.startswith("Spectral"):
                     continue
@@ -103,28 +106,37 @@ class Worker(acquisition.Worker):
             name = conf["motor"]
             width = conf["width"]
             npts = int(conf["num"])
-            points = np.linspace(-width/2.,width/2., npts)
-            sh = [1] * (len(full_shape)-1)
+            points = np.linspace(-width / 2.0, width / 2.0, npts)
+            sh = [1] * (len(full_shape) - 1)
             sh[0] = len(self.curve[name])
             centers = self.curve[name][:].reshape(sh)
             print(f"{sh}")
-            centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index+1:])
-            hardware_dict = {opa_name: [self.opa_hardware, 'set_motor', [name, 'destination']]}
-            axes.append(acquisition.Axis(points, None, f"{opa_name}_{name}", f"D{opa_name}", hardware_dict, centers=centers))
+            centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index + 1 :])
+            hardware_dict = {opa_name: [self.opa_hardware, "set_motor", [name, "destination"]]}
+            axes.append(
+                acquisition.Axis(
+                    points,
+                    None,
+                    f"{opa_name}_{name}",
+                    f"D{opa_name}",
+                    hardware_dict,
+                    centers=centers,
+                )
+            )
             index += 1
 
-        if spec_action == "Scanned": 
+        if spec_action == "Scanned":
             for section, conf in config.items():
                 if not section.startswith("Spectral"):
                     continue
                 name = conf["axis"]
                 width = conf["width"]
                 npts = int(conf["num"])
-                points = np.linspace(-width/2.,width/2., npts)
-                sh = [1] * (len(full_shape)-1)
+                points = np.linspace(-width / 2.0, width / 2.0, npts)
+                sh = [1] * (len(full_shape) - 1)
                 sh[0] = len(self.curve.setpoints)
                 centers = self.curve.setpoints[:].reshape(sh)
-                centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index+1:])
+                centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index + 1 :])
                 axes.append(acquisition.Axis(points, "wn", f"{name}", f"D{name}", centers=centers))
                 index += 1
 
@@ -134,15 +146,15 @@ class Worker(acquisition.Worker):
             self.finished.write(True)
 
 
-
 class GUI(acquisition.GUI):
-
     def __init__(self, module_name):
-        self.items.update({
-            "OPA": OpaSectionWidget("OPA", self),
-            "Spectrometer": SpectrometerSectionWidget("Spectrometer", self),
-            "Processing": ProcessingSectionWidget("Processing", self),
-        })
+        self.items.update(
+            {
+                "OPA": OpaSectionWidget("OPA", self),
+                "Spectrometer": SpectrometerSectionWidget("Spectrometer", self),
+                "Processing": ProcessingSectionWidget("Processing", self),
+            }
+        )
         super().__init__(module_name)
         for item in self.items.values():
             for i in item.items.values():
@@ -163,10 +175,9 @@ class GUI(acquisition.GUI):
         for item in self.items.values():
             item.load(aqn_path)
 
-    
     def save(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
-        aqn.write('info', 'description', f"{self['OPA']['OPA'].read()} {self.module_name}")
+        aqn.write("info", "description", f"{self['OPA']['OPA'].read()} {self.module_name}")
         for item in self.items.values():
             item.save(aqn_path)
 
@@ -180,6 +191,7 @@ class GUI(acquisition.GUI):
 
     def __getitem__(self, name):
         return self.items[name]
+
 
 class AqnSectionWidget:
     def __init__(self, section_name, parent):
@@ -215,22 +227,26 @@ class AqnSectionWidget:
     def __getitem__(self, name):
         return self.items[name]
 
-    
+
 class OpaSectionWidget(AqnSectionWidget):
     def __init__(self, section_name, parent):
         super().__init__(section_name, parent)
         allowed = [hardware.name for hardware in opas.hardwares]
         self.items["OPA"] = pc.Combo(allowed)
 
+
 class SpectrometerSectionWidget(AqnSectionWidget):
     def __init__(self, section_name, parent):
         super().__init__(section_name, parent)
         allowed = [hardware.name for hardware in spectrometers.hardwares]
-        self.items["Action"] = pc.Combo(["Scanned", "None", "Tracking", "Zero Order"], initial_value = "Scanned")
+        self.items["Action"] = pc.Combo(
+            ["Scanned", "None", "Tracking", "Zero Order"], initial_value="Scanned"
+        )
         self.items["Spectrometer"] = pc.Combo(allowed)
 
     def on_update(self):
         self.items["Spectrometer"].set_disabled(self.items["Action"].read() == "None")
+
 
 class ProcessingSectionWidget(AqnSectionWidget):
     def __init__(self, section_name, parent):
@@ -244,13 +260,14 @@ class ProcessingSectionWidget(AqnSectionWidget):
     def on_update(self):
         self.items["Channel"].set_allowed_values(devices.control.channel_names)
 
+
 class SpectralAxisSectionWidget(AqnSectionWidget):
     def __init__(self, section_name, parent):
         super().__init__(section_name, parent)
         self.items["Axis"] = pc.Combo()
         self.items["Width"] = pc.Number(initial_value=-250)
         self.items["Num"] = pc.Number(initial_value=51, decimals=0)
-    
+
     def on_update(self):
         if self.parent["Spectrometer"]["Action"].read() == "Scanned":
             allowed = [self.parent["Spectrometer"]["Spectrometer"].read()]
@@ -268,7 +285,7 @@ class SpectralAxisSectionWidget(AqnSectionWidget):
                 allowed = [""]
         self.items["Axis"].set_allowed_values(allowed)
         self.items["Axis"].set_disabled(len(allowed) > 1)
-        
+
 
 class MotorAxisSectionWidget(AqnSectionWidget):
     def __init__(self, section_name, parent):
@@ -280,8 +297,6 @@ class MotorAxisSectionWidget(AqnSectionWidget):
     def on_update(self):
         hardware = next(h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read())
         self.items["Motor"].set_allowed_values(hardware.curve.dependent_names)
-
-
 
 
 def load():

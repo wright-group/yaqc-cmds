@@ -23,30 +23,35 @@ main_dir = g.main_dir.read()
 
 
 class Driver(BaseDriver):
-
     def __init__(self, *args, **kwargs):
-        self.motor_names = kwargs.pop("motor_names", ['Grating', 'BBO', 'Mixer'])
+        self.motor_names = kwargs.pop("motor_names", ["Grating", "BBO", "Mixer"])
         self.motor_ports = kwargs.pop("motor_ports")
         self.motors = {}
         self.curve_paths = collections.OrderedDict()
         # TODO: Determine if pico_opa needs to have interaction string combo
-        allowed_values = ['SHS']
+        allowed_values = ["SHS"]
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
         BaseDriver.__init__(self, *args, **kwargs)
         # load curve
-        self.curve_path = pc.Filepath(ini=self.hardware_ini, section=self.name, option='curve_path',
-                                      import_from_ini=True, save_to_ini_at_shutdown=True, options=['Curve File (*.curve)'])
+        self.curve_path = pc.Filepath(
+            ini=self.hardware_ini,
+            section=self.name,
+            option="curve_path",
+            import_from_ini=True,
+            save_to_ini_at_shutdown=True,
+            options=["Curve File (*.curve)"],
+        )
         self.curve_path.updated.connect(self.curve_path.save)
         self.curve_path.updated.connect(lambda: self.load_curve())
 
-        self.curve_paths['Curve'] = self.curve_path
+        self.curve_paths["Curve"] = self.curve_path
         self.load_curve()
 
     def _load_curve(self, interaction):
-        '''
+        """
         when loading externally, write to curve_path object directly
-        '''
-        self.curve = attune.Curve.read(self.curve_paths['Curve'].read())
+        """
+        self.curve = attune.Curve.read(self.curve_paths["Curve"].read())
         self.curve.kind = "opa800"
         return self.curve
 
@@ -65,23 +70,33 @@ class Driver(BaseDriver):
 
     def initialize(self):
         self.serial_number = -1
-        self.recorded['w%d' % self.index] = [self.position, self.native_units, 1., str(self.index)]
+        self.recorded["w%d" % self.index] = [
+            self.position,
+            self.native_units,
+            1.0,
+            str(self.index),
+        ]
         # motor positions
         motor_limits = pc.NumberLimits(min_value=0, max_value=50)
         for motor_index, motor_name in enumerate(self.motor_names):
-            if motor_name in ['Phi', 'Theta']:
+            if motor_name in ["Phi", "Theta"]:
                 continue
-            number = pc.Number(name=motor_name, initial_value=25.,
-                               decimals=6, limits=motor_limits, display=True)
+            number = pc.Number(
+                name=motor_name, initial_value=25.0, decimals=6, limits=motor_limits, display=True
+            )
             self.motor_positions[motor_name] = number
-            self.motors.update({ motor_name: yaqc.Client(self.motor_ports[motor_index])})
-            self.recorded['w%d_%s' % (self.index, motor_name)] = [
-                number, None, 0.001, motor_name.lower()]
+            self.motors.update({motor_name: yaqc.Client(self.motor_ports[motor_index])})
+            self.recorded["w%d_%s" % (self.index, motor_name)] = [
+                number,
+                None,
+                0.001,
+                motor_name.lower(),
+            ]
         # self.get_motor_positions()
         # tuning
         self.best_points = {}
-        self.best_points['SHS'] = np.linspace(13500, 18200, 21)
-        self.best_points['DFG'] = np.linspace(1250, 2500, 11)
+        self.best_points["SHS"] = np.linspace(13500, 18200, 21)
+        self.best_points["DFG"] = np.linspace(1250, 2500, 11)
         # finish
         BaseDriver.initialize(self)
 

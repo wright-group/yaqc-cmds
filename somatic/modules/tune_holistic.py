@@ -8,9 +8,9 @@ import hardware.opas.opas as opas
 ### define ####################################################################
 
 
-module_name = 'TUNE HOLISTIC'
- 
- 
+module_name = "TUNE HOLISTIC"
+
+
 ### Worker ####################################################################
 
 
@@ -31,21 +31,25 @@ class Worker(abstract_tuning.Worker):
             curve,
             level=level,
             gtol=gtol,
-            #ltol=ltol,
+            # ltol=ltol,
             save_directory=scan_folder,
         )
 
- 
+
 ### GUI #######################################################################
+
 
 class GUI(abstract_tuning.GUI):
     def __init__(self, module_name):
         self.items = {}
-        self.items["Spectral Axis"] = abstract_tuning.SpectralAxisSectionWidget("Spectral Axis", self)
+        self.items["Spectral Axis"] = abstract_tuning.SpectralAxisSectionWidget(
+            "Spectral Axis", self
+        )
         self.items["Motor0"] = ProxyMotorAxisSectionWidget("Motor0", self)
         self.items["Motor1"] = abstract_tuning.MotorAxisSectionWidget("Motor1", self)
         super().__init__(module_name)
         self.items["Processing"]["ltol"].set_disabled(True)
+
 
 class ProxyMotorAxisSectionWidget(abstract_tuning.AqnSectionWidget):
     def __init__(self, section_name, parent):
@@ -56,9 +60,11 @@ class ProxyMotorAxisSectionWidget(abstract_tuning.AqnSectionWidget):
         hardware = next(h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read())
         self.items["Motor"].set_allowed_values(hardware.curve.dependent_names)
 
+
 def load():
     return True
 
-def mkGUI():        
+
+def mkGUI():
     global gui
     gui = GUI(module_name)
