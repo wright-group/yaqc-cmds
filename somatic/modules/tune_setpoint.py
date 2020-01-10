@@ -14,9 +14,11 @@ class Worker(abstract_tuning.Worker):
         opa = config["OPA"]["opa"]
         spec = config["Spectral Axis"]["axis"]
         dep = config["Motor"]["motor"]
+        data.transform()
         data.transform(opa, f"{opa}_{dep}_points", spec)
         if level:
-            data.level(0, 2, 5)
+            data.level(channel, -1, 5)
+        curve.convert(data[spec].units)
         data.moment(spec, moment=1, channel=channel, resultant=wt.kit.joint_shape(data[opa], data[f"{opa}_{dep}"]))
         channel = -1
         data.channels[-1].clip(data[opa].min()-1000, data[opa].max()+1000)

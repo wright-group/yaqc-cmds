@@ -98,7 +98,6 @@ class Driver(hw.Driver):
 
     def _wait_until_still(self, inputs=[]):
         while self.is_busy():
-            print("waiting", self.hardware.name)
             time.sleep(0.1)  # I've experienced hard crashes when wait set to 0.01 - Blaise 2015.12.30
             self.get_motor_positions()
         self.get_motor_positions()
@@ -335,8 +334,11 @@ class GUI(hw.GUI):
         # TODO: 
         # update plot lines
         motor_name = self.plot_motor.read()
-        motor_position = self.driver.motor_positions[motor_name].read()
-        self.plot_h_line.setValue(motor_position)
+        try:
+            motor_position = self.driver.motor_positions[motor_name].read()
+            self.plot_h_line.setValue(motor_position)
+        except:
+            pass
         units = self.plot_units.read()
         self.plot_v_line.setValue(self.driver.position.read(units))
 
