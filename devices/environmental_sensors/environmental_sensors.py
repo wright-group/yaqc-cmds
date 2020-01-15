@@ -1,17 +1,14 @@
 import os
 
-import scipy
 import serial
 
 from PyQt4 import QtGui
-import pyqtgraph as pg
 
 import WrightTools as wt
 
 import project.project_globals as g
 import project.classes as pc
 import project.widgets as pw
-import project.ini_handler as ini
 from project.ini_handler import Ini
 from devices.devices import Device as BaseDevice
 from devices.devices import Driver as BaseDriver
@@ -24,7 +21,6 @@ from devices.devices import DeviceWidget as BaseWidget
 
 app = g.app.read()
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, "devices", "environmental_sensors", "environmental_sensors.ini"))
 
 
 # --- data mutex objects --------------------------------------------------------------------------
@@ -57,6 +53,9 @@ class Device(BaseDevice):
 
 class Driver(BaseDriver):
     def initialize(self):
+        ini = Ini(
+            os.path.join(main_dir, "devices", "environmental_sensors", "environmental_sensors.ini")
+        )
         self.serial_port = serial.Serial(ini.read("main", "serial port"))
         self.serial_port.timeout = 1.0
         self.timer = wt.kit.Timer(verbose=False)
