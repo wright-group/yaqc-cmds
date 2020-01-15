@@ -6,11 +6,10 @@ import time
 
 import numpy as np
 
-from PyQt4 import QtCore
+from PySide2 import QtCore
 
 from project import project_globals as g
 
-import WrightTools as wt
 import WrightTools.units as wt_units
 
 
@@ -18,65 +17,67 @@ import WrightTools.units as wt_units
 
 
 class Mutex(QtCore.QMutex):
-    
     def __init__(self, initial_value=None):
         QtCore.QMutex.__init__(self)
         self.WaitCondition = QtCore.QWaitCondition()
         self.value = initial_value
-        
+
     def read(self):
         return self.value
-        
+
     def write(self, value):
         self.lock()
         self.value = value
         self.WaitCondition.wakeAll()
         self.unlock()
-        
+
     def wait_for_update(self, timeout=5000):
         if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
+            self.lock()
+            self.WaitCondition.wait(self, msecs=timeout)
+            self.unlock()
+
 
 class Busy(QtCore.QMutex):
-
     def __init__(self):
-        '''
+        """
         QMutex object to communicate between threads that need to wait \n
         while busy.read(): busy.wait_for_update()
-        '''
+        """
         QtCore.QMutex.__init__(self)
         self.WaitCondition = QtCore.QWaitCondition()
         self.value = False
-        self.type = 'busy'
+        self.type = "busy"
         self.update_signal = None
 
     def read(self):
         return self.value
 
     def write(self, value):
-        '''
+        """
         bool value
-        '''
-        self.tryLock(10)  # wait at most 10 ms before moving forward
+        """
+        self.lock()
         self.value = value
-        self.unlock()
         self.WaitCondition.wakeAll()
+        self.unlock()
 
     def wait_for_update(self, timeout=5000):
-        '''
+        """
         wait in calling thread for any thread to call 'write' method \n
         int timeout in milliseconds
-        '''
+        """
         if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
+            self.lock()
+            self.WaitCondition.wait(self, msecs=timeout)
+            self.unlock()
 
 
 class Data(QtCore.QMutex):
-    
     def __init__(self):
         QtCore.QMutex.__init__(self)
         self.WaitCondition = QtCore.QWaitCondition()
-        self.shape = (1, )
+        self.shape = (1,)
         self.size = 1
         self.channels = []
         self.cols = []
@@ -85,25 +86,25 @@ class Data(QtCore.QMutex):
 
     def read(self):
         return self.channels
-        
+
     def read_properties(self):
-        '''
+        """
         Returns
         -------
         tuple
             shape, cols, map
-        '''
+        """
         self.lock()
         outs = self.shape, self.cols, self.map
         self.unlock()
         return outs
-        
+
     def write(self, channels):
         self.lock()
         self.channels = channels
         self.WaitCondition.wakeAll()
         self.unlock()
-        
+
     def write_properties(self, shape, cols, channels, signed=False, map=None):
         self.lock()
         self.shape = shape
@@ -119,18 +120,19 @@ class Data(QtCore.QMutex):
 
     def wait_for_update(self, timeout=5000):
         if self.value:
-            return self.WaitCondition.wait(self, msecs=timeout)
+            self.lock()
+            self.WaitCondition.wait(self, msecs=timeout)
+            self.unlock()
 
 
 ### gui items #################################################################
 
 
 class Value(QtCore.QMutex):
-
     def __init__(self, initial_value=None):
-        '''
+        """
         Basic QMutex object to hold a single object in a thread-safe way.
-        '''
+        """
         QtCore.QMutex.__init__(self)
         self.value = initial_value
 
@@ -144,18 +146,28 @@ class Value(QtCore.QMutex):
 
 
 class PyCMDS_Object(QtCore.QObject):
-    updated = QtCore.pyqtSignal()
+    updated = QtCore.Signal()
     disabled = False
 
-    def __init__(self, initial_value=None,
-                 ini=None, section='', option='',
-                 import_from_ini=True, save_to_ini_at_shutdown=True,
-                 display=False, name='', label = '', set_method=None,
-                 disable_under_queue_control=False,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        initial_value=None,
+        ini=None,
+        section="",
+        option="",
+        import_from_ini=True,
+        save_to_ini_at_shutdown=True,
+        display=False,
+        name="",
+        label="",
+        set_method=None,
+        disable_under_queue_control=False,
+        *args,
+        **kwargs
+    ):
         QtCore.QObject.__init__(self)
         self.has_widget = False
-        self.tool_tip = ''
+        self.tool_tip = ""
         self.value = Value(initial_value)
         self.display = display
         self.set_method = set_method
@@ -177,25 +189,24 @@ class PyCMDS_Object(QtCore.QObject):
             g.shutdown.add_method(self.save)
         # name
         self.name = name
-        if not label == '':
+        if not label == "":
             pass
         else:
             self.label = self.name
         # disable under module control
         if disable_under_queue_control:
             g.main_window.read().queue_control.connect(self.on_queue_control)
-            
-    def associate(self, display=None, pre_name=''):
+
+    def associate(self, display=None, pre_name=""):
         # display
         if display is None:
             display = self.display
         # name
         name = pre_name + self.name
         # new object
-        new_obj = self.__class__(initial_value=self.read(), display=display,
-                                 name=name)
+        new_obj = self.__class__(initial_value=self.read(), display=display, name=name)
         return new_obj
-            
+
     def on_queue_control(self):
         if g.queue_control.read():
             if self.has_widget:
@@ -226,10 +237,10 @@ class PyCMDS_Object(QtCore.QObject):
         self.disabled = bool(disabled)
         if self.has_widget:
             self.widget.setDisabled(self.disabled)
-            
+
     def setDisabled(self, disabled):
         self.set_disabled(disabled)
-            
+
     def set_tool_tip(self, tool_tip):
         self.tool_tip = str(tool_tip)
         if self.has_widget:
@@ -237,17 +248,16 @@ class PyCMDS_Object(QtCore.QObject):
 
 
 class Bool(PyCMDS_Object):
-    '''
+    """
     holds 'value' (bool) - the state of the checkbox
 
     use read method to access
-    '''
+    """
 
     def __init__(self, initial_value=False, *args, **kwargs):
-        PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               *args, **kwargs)
-        self.type = 'checkbox'
-        
+        PyCMDS_Object.__init__(self, initial_value=initial_value, *args, **kwargs)
+        self.type = "checkbox"
+
     def give_control(self, control_widget):
         self.widget = control_widget
         # set
@@ -262,10 +272,9 @@ class Bool(PyCMDS_Object):
 
 
 class Combo(PyCMDS_Object):
-
-    def __init__(self, allowed_values=['None'], initial_value=None, *args, **kwargs):
+    def __init__(self, allowed_values=["None"], initial_value=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, *args, **kwargs)
-        self.type = 'combo'
+        self.type = "combo"
         self.allowed_values = list(allowed_values)
         self.data_type = type(self.allowed_values[0])
         if initial_value is None:
@@ -273,17 +282,21 @@ class Combo(PyCMDS_Object):
         else:
             self.write(initial_value)
 
-    def associate(self, display=None, pre_name=''):
+    def associate(self, display=None, pre_name=""):
         # display
         if display is None:
             display = self.display
         # name
         name = pre_name + self.name
         # new object
-        new_obj = Combo(initial_value=self.read(), display=display,
-                        allowed_values=self.allowed_values, name=name)
+        new_obj = Combo(
+            initial_value=self.read(),
+            display=display,
+            allowed_values=self.allowed_values,
+            name=name,
+        )
         return new_obj
-        
+
     def read_index(self):
         return self.allowed_values.index(self.read())
 
@@ -292,9 +305,9 @@ class Combo(PyCMDS_Object):
             self.value.write(value)
         if self.has_ini:
             self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
-            
+
     def set_allowed_values(self, allowed_values):
-        '''
+        """
         Set the allowed values of the Combo object. 
         
         Parameters
@@ -306,7 +319,7 @@ class Combo(PyCMDS_Object):
         ----------
         The value of the object is written to the first allowed value if the
         current value is not in the allowed values.
-        '''
+        """
         if allowed_values == self.allowed_values:
             return
         self.allowed_values = list(allowed_values)
@@ -322,7 +335,7 @@ class Combo(PyCMDS_Object):
             self.write(list(self.allowed_values)[0])
         else:
             self.write(self.read())
-            
+
     def set_widget(self):
         allowed_values_strings = [str(value) for value in self.allowed_values]
         index = allowed_values_strings.index(str(self.read()))
@@ -332,7 +345,7 @@ class Combo(PyCMDS_Object):
         # value will be maintained as original data type
         value = self.data_type(value)
         PyCMDS_Object.write(self, value)
-        
+
     def write_from_widget(self):
         # needs to be defined method so we can connect and disconnect
         self.write(self.widget.currentText())
@@ -343,7 +356,7 @@ class Combo(PyCMDS_Object):
         allowed_values_strings = [str(value) for value in self.allowed_values]
         self.widget.addItems(allowed_values_strings)
         if self.read() is not None:
-            self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))       
+            self.widget.setCurrentIndex(allowed_values_strings.index(str(self.read())))
         # connect signals and slots
         self.updated.connect(self.set_widget)
         self.widget.currentIndexChanged.connect(self.write_from_widget)
@@ -353,21 +366,19 @@ class Combo(PyCMDS_Object):
 
 
 class Filepath(PyCMDS_Object):
-
-    def __init__(self, caption='Open', directory=None, options=[], kind='file',
-                 *args, **kwargs):
-        '''
+    def __init__(self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs):
+        """
         holds the filepath as a string \n
         
         Kind one in {'file', 'directory'}
-        '''
+        """
         PyCMDS_Object.__init__(self, *args, **kwargs)
-        self.type = 'filepath'
+        self.type = "filepath"
         self.caption = caption
         self.directory = directory
         self.options = options
         self.kind = kind
-        
+
     def give_control(self, control_widget):
         self.widget = control_widget
         if self.read() is not None:
@@ -377,13 +388,14 @@ class Filepath(PyCMDS_Object):
         self.widget.setToolTip(str(self.read()))
         self.updated.connect(lambda: self.widget.setToolTip(self.read()))
         self.has_widget = True
-        
+
     def give_button(self, button_widget):
         self.button = button_widget
         self.button.clicked.connect(self.on_load)
-        
+
     def on_load(self):
         from project import file_dialog_handler
+
         # directory
         if self.directory is not None:
             directory_string = self.directory
@@ -393,14 +405,14 @@ class Filepath(PyCMDS_Object):
             else:
                 directory_string = g.main_dir.read()
         # filter
-        
-        if self.kind == 'file':
-            filter_string = ';;'.join(self.options + ['All Files (*.*)'])
+
+        if self.kind == "file":
+            filter_string = ";;".join(self.options + ["All Files (*.*)"])
             out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
             if os.path.isfile(out):
                 self.write(out)
-        elif self.kind == 'directory':
-            out = file_dialog_handler.dir_dialog(self.caption, directory_string, '')
+        elif self.kind == "directory":
+            out = file_dialog_handler.dir_dialog(self.caption, directory_string, "")
             if os.path.isdir(out):
                 self.write(out)
 
@@ -418,54 +430,58 @@ class Filepath(PyCMDS_Object):
         if value is not None:
             self.value.write(value)
         if self.has_ini:
-            out = str(self.value.read().replace('\\', '/'))
+            out = str(self.value.read().replace("\\", "/"))
             self.ini.write(self.section, self.option, out)
 
 
 class NumberLimits(PyCMDS_Object):
-
     def __init__(self, min_value=-1e6, max_value=1e6, units=None):
-        '''
+        """
         not appropriate for use as a gui element - only for backend use
         units must never change for this kind of object
-        '''
+        """
         PyCMDS_Object.__init__(self)
         PyCMDS_Object.write(self, [min_value, max_value])
         self.units = units
 
-    def read(self, output_units='same'):
+    def read(self, output_units="same"):
         min_value, max_value = PyCMDS_Object.read(self)
-        if output_units == 'same':
+        if output_units == "same":
             pass
         else:
             min_value = wt_units.converter(min_value, self.units, output_units)
             max_value = wt_units.converter(max_value, self.units, output_units)
         # ensure order
-        min_value, max_value = [min([min_value, max_value]),
-                                max([min_value, max_value])]
+        min_value, max_value = [min([min_value, max_value]), max([min_value, max_value])]
         return [min_value, max_value]
 
-    def write(self, min_value, max_value, input_units='same'):
-        if input_units == 'same':
+    def write(self, min_value, max_value, input_units="same"):
+        if input_units == "same":
             pass
         else:
             min_value = wt_units.converter(min_value, input_units, self.units)
             max_value = wt_units.converter(max_value, input_units, self.units)
         # ensure order
-        min_value, max_value = [min([min_value, max_value]),
-                                max([min_value, max_value])]
+        min_value, max_value = [min([min_value, max_value]), max([min_value, max_value])]
         PyCMDS_Object.write(self, [min_value, max_value])
         self.updated.emit()
 
 
 class Number(PyCMDS_Object):
-    units_updated = QtCore.pyqtSignal()
+    units_updated = QtCore.Signal()
 
-    def __init__(self, initial_value=np.nan, single_step=1., decimals=3, 
-                 limits=None, units=None, *args, **kwargs):
-        PyCMDS_Object.__init__(self, initial_value=initial_value,
-                               *args, **kwargs)
-        self.type = 'number'
+    def __init__(
+        self,
+        initial_value=np.nan,
+        single_step=1.0,
+        decimals=3,
+        limits=None,
+        units=None,
+        *args,
+        **kwargs
+    ):
+        PyCMDS_Object.__init__(self, initial_value=initial_value, *args, **kwargs)
+        self.type = "number"
         self.disabled_units = False
         self.single_step = single_step
         self.decimals = decimals
@@ -494,26 +510,29 @@ class Number(PyCMDS_Object):
         min_value = wt_units.converter(min_value, limits_units, self.units)
         max_value = wt_units.converter(max_value, limits_units, self.units)
         # ensure order
-        min_value, max_value = [min([min_value, max_value]),
-                                max([min_value, max_value])]
+        min_value, max_value = [min([min_value, max_value]), max([min_value, max_value])]
         if self.has_widget:
             self.widget.setMinimum(min_value)
             self.widget.setMaximum(max_value)
             if not self.display:
-                self.set_tool_tip('min: ' + str(min_value) + '\n' +
-                                  'max: ' + str(max_value))
+                self.set_tool_tip("min: " + str(min_value) + "\n" + "max: " + str(max_value))
 
-    def associate(self, display=None, pre_name=''):
+    def associate(self, display=None, pre_name=""):
         # display
         if display is None:
             display = self.display
         # name
         name = pre_name + self.name
         # new object
-        new_obj = Number(initial_value=self.read(), display=display,
-                         units=self.units, limits=self.limits,
-                         single_step=self.single_step,
-                         decimals=self.decimals, name=name)
+        new_obj = Number(
+            initial_value=self.read(),
+            display=display,
+            units=self.units,
+            limits=self.limits,
+            single_step=self.single_step,
+            decimals=self.decimals,
+            name=name,
+        )
         return new_obj
 
     def convert(self, destination_units):
@@ -529,9 +548,9 @@ class Number(PyCMDS_Object):
         self.units_updated.emit()
         self.updated.emit()
 
-    def read(self, output_units='same'):
+    def read(self, output_units="same"):
         value = PyCMDS_Object.read(self)
-        if output_units == 'same':
+        if output_units == "same":
             pass
         else:
             value = wt_units.converter(value, self.units, output_units)
@@ -540,13 +559,13 @@ class Number(PyCMDS_Object):
     def set_control_steps(self, single_step=None, decimals=None):
         limits = [self.single_step, self.decimals]
         inputs = [single_step, decimals]
-        widget_methods = ['setSingleStep', 'setDecimals']
+        widget_methods = ["setSingleStep", "setDecimals"]
         for i in range(len(limits)):
-                if not inputs[i] is None:
-                    limits[i] = inputs[i]
-                if self.has_widget:
-                    getattr(self.widget, widget_methods[i])(limits[i])
-                    
+            if not inputs[i] is None:
+                limits[i] = inputs[i]
+            if self.has_widget:
+                getattr(self.widget, widget_methods[i])(limits[i])
+
     def set_disabled_units(self, disabled):
         self.disabled_units = bool(disabled)
         if self.has_widget:
@@ -563,10 +582,10 @@ class Number(PyCMDS_Object):
     def set_widget(self):
         # special value text is displayed when widget is at minimum
         if np.isnan(self.value.read()):
-            self.widget.setSpecialValueText('nan')
+            self.widget.setSpecialValueText("nan")
             self.widget.setValue(self.widget.minimum())
         else:
-            self.widget.setSpecialValueText('')
+            self.widget.setSpecialValueText("")
             self.widget.setValue(self.value.read())
 
     def give_control(self, control_widget):
@@ -595,12 +614,14 @@ class Number(PyCMDS_Object):
         # set current item
         self.units_widget.setCurrentIndex(unit_types.index(self.units))
         # associate update with conversion
-        self.units_widget.currentIndexChanged.connect(lambda: self.convert(self.units_widget.currentText()))
+        self.units_widget.currentIndexChanged.connect(
+            lambda: self.convert(self.units_widget.currentText())
+        )
         # finish
         self.units_widget.setDisabled(self.disabled_units)
 
-    def write(self, value, input_units='same'):
-        if input_units == 'same':
+    def write(self, value, input_units="same"):
+        if input_units == "same":
             pass
         else:
             value = wt_units.converter(value, input_units, self.units)
@@ -608,10 +629,9 @@ class Number(PyCMDS_Object):
 
 
 class String(PyCMDS_Object):
-
-    def __init__(self, initial_value='', max_length=None, *args, **kwargs):
+    def __init__(self, initial_value="", max_length=None, *args, **kwargs):
         PyCMDS_Object.__init__(self, initial_value=initial_value, *args, **kwargs)
-        self.type = 'string'
+        self.type = "string"
         self.max_length = max_length
 
     def give_control(self, control_widget):
@@ -625,13 +645,13 @@ class String(PyCMDS_Object):
         self.widget.editingFinished.connect(lambda: self.write(str(self.widget.text())))
         self.widget.setToolTip(self.tool_tip)
         self.has_widget = True
-            
+
     def read(self):
         return str(PyCMDS_Object.read(self))
-    
+
     def write(self, value):
         if self.max_length is not None:
-            value = value[:self.max_length]
+            value = value[: self.max_length]
         self.value.write(value)
         self.updated.emit()
 
@@ -640,10 +660,10 @@ class String(PyCMDS_Object):
 
 
 class Driver(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    queue_emptied = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    queue_emptied = QtCore.Signal()
     initialized = Bool()
-    
+
     def check_busy(self):
         """
         Handles writing of busy to False.
@@ -651,16 +671,23 @@ class Driver(QtCore.QObject):
         Must always write to busy.
         """
         if self.is_busy():
+            if g.debug.read():
+                print(self.name, " busy")
             time.sleep(0.01)  # don't loop like crazy
             self.busy.write(True)
         elif self.enqueued.read():
+            if g.debug.read():
+                print(self.name, " not empty")
+                print(self.enqueued.value)
             time.sleep(0.1)  # don't loop like crazy
             self.busy.write(True)
         else:
+            if g.debug.read():
+                print(self.name, " not busy")
             self.busy.write(False)
             self.update_ui.emit()
-    
-    @QtCore.pyqtSlot(str, list)
+
+    @QtCore.Slot(str, list)
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
@@ -673,19 +700,20 @@ class Driver(QtCore.QObject):
         method = str(method)  # method passed as qstring
         args, kwargs = inputs
         if g.debug.read():
-            print(self.name, ' dequeue:', method, inputs, self.busy.read())
+            print(self.name, " dequeue:", method, inputs, self.busy.read())
         self.enqueued.pop()
-        getattr(self, method)(*args, **kwargs) 
-        if not self.enqueued.read(): 
+        getattr(self, method)(*args, **kwargs)
+        if not self.enqueued.read():
+            if g.debug.read():
+                print(self.name, " queue empty")
             self.queue_emptied.emit()
             self.check_busy()
-            
+
     def is_busy(self):
         return False
 
 
 class Enqueued(QtCore.QMutex):
-
     def __init__(self):
         """
         Holds list of enqueued options.
@@ -708,11 +736,10 @@ class Enqueued(QtCore.QMutex):
 
 
 class Hardware(QtCore.QObject):
-    update_ui = QtCore.pyqtSignal()
-    initialized_signal = QtCore.pyqtSignal()
+    update_ui = QtCore.Signal()
+    initialized_signal = QtCore.Signal()
 
-    def __init__(self, driver_class, driver_arguments, gui_class,
-                 name, model, serial=None):
+    def __init__(self, driver_class, driver_arguments, gui_class, name, model, serial=None):
         """
         Hardware representation object living in the main thread.
         
@@ -747,7 +774,7 @@ class Hardware(QtCore.QObject):
         self.driver.update_ui.connect(self.update)
         self.busy.update_signal = self.driver.update_ui
         # initialize drivers
-        self.q.push('initialize')
+        self.q.push("initialize")
         # integrate close into PyCMDS shutdown
         self.shutdown_timeout = 30  # seconds
         g.shutdown.add_method(self.close)
@@ -755,17 +782,15 @@ class Hardware(QtCore.QObject):
 
     def close(self):
         # begin driver shutdown
-        self.q.push('close')
+        self.q.push("close")
         # wait for driver shutdown to complete
         start_time = time.time()
-        self.q.push('check_busy')
+        self.q.push("check_busy")
         while self.busy.read():
-            if time.time()-start_time < self.shutdown_timeout:
+            if time.time() - start_time < self.shutdown_timeout:
                 self.busy.wait_for_update()
             else:
-                g.logger.log('warning',
-                             'Wait until done timed out',
-                             self.name)
+                g.logger.log("warning", "Wait until done timed out", self.name)
                 break
         # quit thread
         self.thread.exit()
@@ -776,23 +801,31 @@ class Hardware(QtCore.QObject):
 
     def wait_until_still(self):
         while self.busy.read():
+            if not self.q.enqueued.value:
+                self.q.push("check_busy")
             self.busy.wait_for_update()
 
 
-class Q:
+class Q(QtCore.QObject):
+    signal = QtCore.Signal(str, list)
 
     def __init__(self, enqueued, busy, driver):
         self.enqueued = enqueued
         self.busy = busy
         self.driver = driver
-        self.queue = QtCore.QMetaObject()
+        super(Q, self).__init__()
+        # self.queue = QtCore.QMetaObject()
+        self.signal.connect(self.driver.dequeue, type=QtCore.Qt.QueuedConnection)
 
     def push(self, method, *args, **kwargs):
         self.enqueued.push([method, time.time()])
         self.busy.write(True)
         # send Qt SIGNAL to address thread
+        self.signal.emit(method, [args, kwargs])
+        """
         self.queue.invokeMethod(self.driver,
                                 'dequeue',
                                 QtCore.Qt.QueuedConnection,
-                                QtCore.Q_ARG(str, method),
-                                QtCore.Q_ARG(list, [args, kwargs]))
+                                QtCore.Q_ARG('str', method),
+                                QtCore.Q_ARG('list', [args, kwargs]))
+                                """

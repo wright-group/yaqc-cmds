@@ -1,7 +1,8 @@
 import numpy as np
 
+
 def process(shots, names, kinds):
-    '''
+    """
     Mean of everything
     
     Parameters
@@ -17,6 +18,6 @@ def process(shots, names, kinds):
     -------
     list
         [ndarray (channels), list of channel names]
-    '''
+    """
     out = [np.mean(arr) for arr in shots]
     return [out, names]

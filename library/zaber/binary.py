@@ -2,7 +2,7 @@
 protocol.
 """
 
-#Changed from 'import serial' for PyCMDS
+# Changed from 'import serial' for PyCMDS
 import project.com_handler as serial
 import struct
 import logging
@@ -15,6 +15,7 @@ from library.zaber.exceptions import TimeoutError, UnexpectedReplyError
 # for-a-library for info on why we have these two lines here.
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+
 
 class BinaryCommand(object):
     """Models a single command in Zaber's Binary protocol.
@@ -36,8 +37,8 @@ class BinaryCommand(object):
     .. _message ID: http://www.zaber.com/wiki/Manuals/Binary_Protocol_Ma
         nual#Set_Message_Id_Mode_-_Cmd_102
     """
-    def __init__(self, device_number, command_number, data = 0, 
-            message_id = None):
+
+    def __init__(self, device_number, command_number, data=0, message_id=None):
         """
         Args:
             device_number: An integer specifying the number of the
@@ -55,8 +56,7 @@ class BinaryCommand(object):
             ValueError: An invalid value was passed.
         """
         if device_number < 0 or command_number < 0:
-            raise ValueError("Device and command number must be between 0 "
-                    "and 255.")
+            raise ValueError("Device and command number must be between 0 " "and 255.")
         self.device_number = device_number
         self.command_number = command_number
         self.data = data
@@ -71,15 +71,14 @@ class BinaryCommand(object):
             A byte string of length 6, formatted according to Zaber's
             `Binary Protocol Manual`_.
         """
-        packed = struct.pack("<2Bl",
-                self.device_number, self.command_number, self.data)
+        packed = struct.pack("<2Bl", self.device_number, self.command_number, self.data)
         if self.message_id is not None:
             packed = packed[:5] + struct.pack("B", self.message_id)
         return packed
 
     def __str__(self):
-        return "[{:d}, {:d}, {:d}]".format(self.device_number,
-                self.command_number, self.data)
+        return "[{:d}, {:d}, {:d}]".format(self.device_number, self.command_number, self.data)
+
 
 class BinaryDevice(object):
     """A class to represent a Zaber device in the Binary protocol.
@@ -89,6 +88,7 @@ class BinaryDevice(object):
             this device is connected.
         number: The integer number of this device. 1-255.
     """
+
     def __init__(self, port, number):
         """
         Args:
@@ -147,16 +147,18 @@ class BinaryDevice(object):
 
         command.device_number = self.number
 
-        #self.port._ser.external_lock_control = True
+        # self.port._ser.external_lock_control = True
         self.port._ser.lock()
         self.port.write(command)
         reply = self.port.read(command.message_id is not None)
         self.port._ser.unlock()
-        #self.port._ser.external_lock_control = False
+        # self.port._ser.external_lock_control = False
         if reply.device_number != self.number:
-            raise UnexpectedReplyError("Received an unexpected reply from "
-                    "device number {0:d}".format(reply.device_number),
-                    reply)
+            raise UnexpectedReplyError(
+                "Received an unexpected reply from "
+                "device number {0:d}".format(reply.device_number),
+                reply,
+            )
         return reply
 
     def home(self):
@@ -226,7 +228,7 @@ class BinaryDevice(object):
             ol_Manual#Return_Status_-_Cmd_54
         """
         return self.send(54).data
-    
+
     ### Methods not included in Zaber provided Code
     def get_position(self):
         """Sends the "Return Current Position" command (60), and returns the 
@@ -241,8 +243,6 @@ class BinaryDevice(object):
         return self.send(60).data
 
 
-
-
 class BinaryReply(object):
     """Models a single reply in Zaber's Binary protocol.
 
@@ -254,7 +254,8 @@ class BinaryReply(object):
         data: The data value associated with the reply.
         message_id: The message ID number, if present, otherwise None.
     """
-    def __init__(self, reply, message_id = False):
+
+    def __init__(self, reply, message_id=False):
         """
         Args:
             reply: A byte string of length 6 containing a binary reply
@@ -275,32 +276,33 @@ class BinaryReply(object):
                 binary (ascii) string.
         """
         if isinstance(reply, bytes):
-            self.device_number, self.command_number, self.data = \
-                    struct.unpack("<2Bl", reply)
-            if (message_id):
+            self.device_number, self.command_number, self.data = struct.unpack("<2Bl", reply)
+            if message_id:
                 # Use bitmasks to extract the message ID.
                 self.message_id = (self.data & 0xFF000000) >> 24
-                self.data = self.data & 0x00FFFFFF 
-  
+                self.data = self.data & 0x00FFFFFF
+
                 # Sign extend 24 to 32 bits in the message ID case.
                 # If the data is more than 24 bits it will still be wrong,
                 # but now negative smaller values will be right.
                 if 0 != (self.data & 0x00800000):
                     self.data = (int)((self.data | 0xFF000000) - (1 << 32))
-            else: 
+            else:
                 self.message_id = None
 
         elif isinstance(reply, list):
             # Assume a 4th element is a message ID.
-            if len(reply) > 3: message_id = True
+            if len(reply) > 3:
+                message_id = True
             self.device_number = reply[0]
             self.command_number = reply[1]
             self.data = reply[2]
             self.message_id = reply[3] if message_id else None
 
         else:
-            raise TypeError("BinaryReply must be passed a byte string "
-                    "('bytes' type) or a list.")
+            raise TypeError(
+                "BinaryReply must be passed a byte string " "('bytes' type) or a list."
+            )
 
     def encode(self):
         """Returns the reply as a binary string, in the form in which it
@@ -310,12 +312,11 @@ class BinaryReply(object):
             A byte string of length 6 formatted according to the Binary
             Protocol Manual.
         """
-        return struct.pack("<2Bl", self.device_number,
-                self.command_number, self.data)
+        return struct.pack("<2Bl", self.device_number, self.command_number, self.data)
 
     def __str__(self):
-        return "[{:d}, {:d}, {:d}]".format(self.device_number, 
-                self.command_number, self.data)
+        return "[{:d}, {:d}, {:d}]".format(self.device_number, self.command_number, self.data)
+
 
 class BinarySerial(object):
     """A class for interacting with Zaber devices using the Binary protocol.
@@ -324,7 +325,7 @@ class BinarySerial(object):
     from a device connected over the serial port.
     """
 
-    def __init__(self, port, baud = 9600, timeout = 5, inter_char_timeout = 0.1):
+    def __init__(self, port, baud=9600, timeout=5, inter_char_timeout=0.1):
         """Creates a new instance of the BinarySerial class.
 
         Args:
@@ -359,7 +360,9 @@ class BinarySerial(object):
             self._ser.open()
         except AttributeError:
             # serial_for_url not supported; use fallback
-            self._ser = serial.Serial(port, baud, timeout = timeout*1000, interCharTimeout = inter_char_timeout)
+            self._ser = serial.Serial(
+                port, baud, timeout=timeout * 1000, interCharTimeout=inter_char_timeout
+            )
             self._ser.external_lock_control = True
 
     def write(self, *args):
@@ -403,8 +406,10 @@ class BinarySerial(object):
         elif 1 < len(args) < 5:
             message = BinaryCommand(*args)
         else:
-            raise TypeError("write() takes at least 1 and no more than 4 "
-                    "arguments ({0:d} given)".format(len(args)))
+            raise TypeError(
+                "write() takes at least 1 and no more than 4 "
+                "arguments ({0:d} given)".format(len(args))
+            )
 
         if isinstance(message, str):
             logger.debug("> %s", message)
@@ -413,21 +418,22 @@ class BinarySerial(object):
 
             # pyserial doesn't handle hex strings.
             if sys.version_info > (3, 0):
-                data = bytes(message, "UTF-8") 
+                data = bytes(message, "UTF-8")
             else:
-                data = bytes(message) 
+                data = bytes(message)
 
         elif isinstance(message, BinaryCommand):
             data = message.encode()
             logger.debug("> %s", message)
 
         else:
-            raise TypeError("write must be passed several integers, or a "
-                    "string, list, or BinaryCommand.")
+            raise TypeError(
+                "write must be passed several integers, or a " "string, list, or BinaryCommand."
+            )
 
         self._ser.write(data)
 
-    def read(self, message_id = False):
+    def read(self, message_id=False):
         """Reads six bytes from the port and returns a BinaryReply.
 
         Args:
@@ -499,20 +505,23 @@ class BinarySerial(object):
     @baudrate.setter
     def baudrate(self, b):
         if b not in (115200, 57600, 38400, 19200, 9600):
-            raise ValueError("Invalid baud rate: {:d}. Valid baud rates are "
-                    "115200, 57600, 38400, 19200, and 9600.".format(b))
+            raise ValueError(
+                "Invalid baud rate: {:d}. Valid baud rates are "
+                "115200, 57600, 38400, 19200, and 9600.".format(b)
+            )
         self._ser.baudrate = b
-        
 
     ### Additional Methods not in Zaber library
 
     def setMode(self, mode, device=0):
-        if isinstance(mode,str):
-            if mode=='computer':
-                mode=0x482e
-            elif mode=='manual':
-                mode=0x0827
+        if isinstance(mode, str):
+            if mode == "computer":
+                mode = 0x482E
+            elif mode == "manual":
+                mode = 0x0827
             else:
-                raise ValueError("Unkown mode string: {:s}. Valid strings are "
-                        "'computer', 'manual'. Or input an integer".format(mode))
-        self.write(device,40,mode)
+                raise ValueError(
+                    "Unkown mode string: {:s}. Valid strings are "
+                    "'computer', 'manual'. Or input an integer".format(mode)
+                )
+        self.write(device, 40, mode)
