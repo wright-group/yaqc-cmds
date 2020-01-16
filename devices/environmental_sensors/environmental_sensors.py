@@ -2,7 +2,7 @@ import os
 
 import serial
 
-from PyQt4 import QtGui
+from PySide2 import QtGui
 
 import WrightTools as wt
 
