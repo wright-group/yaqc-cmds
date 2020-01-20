@@ -38,6 +38,8 @@ all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + fi
 
 import devices.devices as devices
 
+from . import constant_resolver
+
 
 ### define ####################################################################
 
@@ -241,7 +243,11 @@ class Worker(QtCore.QObject):
                 passed_args = axis.hardware_dict[key][2]
                 destinations = Destinations(arr, axis.units, hardware, method, passed_args)
                 destinations_list.append(destinations)
-        for constant in constants:  # must follow axes
+        constant_dict = {c.name: c for c in constants}
+        for constant in constant_resolver.const_order(
+            **{c.name: c.expression for c in constants}
+        ):  # must follow axes
+            constant = constant_dict[constant]
             if constant.static:
                 pass
             else:

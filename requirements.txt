@@ -7,4 +7,5 @@ pyqtgraph
 pyserial
 slackclient
 slacker
+sympy
 tidy_headers>=1.0.0
