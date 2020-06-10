@@ -23,19 +23,32 @@ def initialize_hardwares():
     for id_ in config["delays"]:
         hw = Delay(**config[id_])
         delays[id_] = hw
-        haredwares[id_] = hw
+        hardwares[id_] = hw
+    gui = pw.HardwareFrontPanel(delays, name="Delays")
+    pw.HardwareAdvancedPanel(delays, gui.advanced_button)
+
     for id_ in config["spectrometers"]:
         hw = Spectrometer(**config[id_])
         spectrometers[id_] = hw
-        haredwares[id_] = hw
+        hardwares[id_] = hw
+    gui = pw.HardwareFrontPanel(spectrometers, name="Spectrometers")
+    pw.HardwareAdvancedPanel(spectrometers, gui.advanced_button)
+
     for id_ in config["opas"]:
         hw = OPA(**config[id_])
         opas[id_] = hw
-        haredwares[id_] = hw
+        hardwares[id_] = hw
+    gui = pw.HardwareFrontPanel(opas, name="OPAs")
+    pw.HardwareAdvancedPanel(opas, gui.advanced_button)
+
     for id_ in config["filters"]:
         hw = Filter(**config[id_])
         filters[id_] = hw
-        haredwares[id_] = hw
+        hardwares[id_] = hw
+    gui = pw.HardwareFrontPanel(filters, name="Filters")
+    pw.HardwareAdvancedPanel(filters, gui.advanced_button)
+
+
 
     
 
