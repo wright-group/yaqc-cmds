@@ -3,7 +3,6 @@
 
 import time
 
-import library.zaber.binary as zb
 import project.classes as pc
 from hardware.opas.PoyntingCorrection.PoyntingCorrectionDevice import PoyntingCorrectionDevice
 
