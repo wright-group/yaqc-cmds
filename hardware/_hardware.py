@@ -15,96 +15,11 @@ from PySide2 import QtCore
 from PySide2 import QtWidgets
 
 import WrightTools as wt
+import yaqc
 
 import project.classes as pc
 import project.widgets as pw
 import project.project_globals as g
-
-
-### driver ####################################################################
-
-
-class Driver(pc.Driver):
-    initialized_signal = QtCore.Signal()
-
-    def __init__(self, hardware, **kwargs):
-        pc.Driver.__init__(self)
-        # basic attributes
-        self.hardware = hardware
-        self.enqueued = self.hardware.enqueued
-        self.busy = self.hardware.busy
-        self.name = self.hardware.name
-        self.model = self.hardware.model
-        self.serial = self.hardware.serial
-        self.label = pc.String(kwargs["label"])
-        self.native_units = kwargs["native_units"]
-        # mutex attributes
-        self.limits = pc.NumberLimits(units=self.native_units)
-        self.position = pc.Number(
-            initial_value=kwargs["position"],
-            units=self.native_units,
-            name="Position",
-            display=True,
-            set_method="set_position",
-            limits=self.limits,
-        )
-        self.offset = pc.Number(units=self.native_units, name="Offset", display=True)
-        self.position.set_units(kwargs["display_units"])
-        # attributes for 'exposure'
-        self.exposed = [self.position]
-        self.recorded = collections.OrderedDict()
-        self.recorded[self.name] = [
-            self.position,
-            self.native_units,
-            1.0,
-            self.label.read(),
-            False,
-        ]
-
-    def close(self):
-        pass
-
-    def get_position(self):
-        self.update_ui.emit()
-
-    def initialize(self):
-        """
-        May not accept arguments.
-        """
-        self.label.updated.connect(self.on_label_updated)
-        self.initialized.write(True)
-        self.initialized_signal.emit()
-
-    @QtCore.Slot()
-    def on_label_updated(self):
-        self.recorded[self.name] = [
-            self.position,
-            self.native_units,
-            1.0,
-            self.label.read(),
-            False,
-        ]
-
-    def poll(self):
-        """
-        polling only gets enqueued by Hardware when not in module control
-        """
-        self.get_position()
-        self.is_busy()
-
-    def save_status(self):
-        self.hardware_ini.write(self.name, "position", self.position.read(self.native_units))
-        self.hardware_ini.write(self.name, "display_units", self.position.units)
-        self.hardware_ini.write(self.name, "label", self.label.read())
-
-    def set_offset(self, offset):
-        self.offset.write(offset, self.native_units)
-
-    def set_position(self, destination):
-        time.sleep(0.01)  # rate limiter for virtual hardware behavior
-        self.position.write(destination, self.native_units)
-        self.get_position()
-        self.save_status()
 
 
 ### gui #######################################################################
@@ -195,10 +110,9 @@ def all_initialized():
     g.hardware_initialized.write(True)
 
 
-class Hardware(pc.Hardware):
+class Hardware(yaqc.Client):
     def __init__(self, *args, **kwargs):
-        pc.Hardware.__init__(self, *args, **kwargs)
-        self.driver.initialized_signal.connect(self.on_address_initialized)
+        super().__init__(self, *args, **kwargs)
         self.exposed = self.driver.exposed
         for obj in self.exposed:
             obj.updated.connect(self.update)
@@ -211,39 +125,11 @@ class Hardware(pc.Hardware):
         self.limits = self.driver.limits
         hardwares.append(self)
 
-    def close(self):
-        self.q.push("save_status")
-        pc.Hardware.close(self)
-
     def get_destination(self, output_units="same"):
         return self.destination.read(output_units=output_units)
 
     def get_position(self, output_units="same"):
         return self.position.read(output_units=output_units)
-
-    def is_valid(self, destination, input_units=None):
-        if input_units is None:
-            pass
-        else:
-            destination = wt.units.converter(destination, input_units, self.native_units)
-        min_value, max_value = self.limits.read(self.native_units)
-        if min_value <= destination <= max_value:
-            return True
-        else:
-            return False
-
-    def on_address_initialized(self):
-        self.destination.write(self.get_position(), self.native_units)
-        # all_initialized()
-        self.initialized_signal.emit()
-
-    def poll(self, force=False):
-        if force:
-            self.q.push("poll")
-            self.get_position()
-        elif not g.queue_control.read():
-            self.q.push("poll")
-            self.get_position()
 
     def set_offset(self, offset, input_units=None):
         if input_units is None:
@@ -253,9 +139,8 @@ class Hardware(pc.Hardware):
         # do nothing if new offset is same as current offset
         if offset == self.offset.read(self.native_units):
             return
-        self.q.push("set_offset", offset)
 
-    def set_position(self, destination, input_units=None, force_send=False):
+    def set_position(self, destination, input_units=None):
         if input_units is None:
             pass
         else:
@@ -265,40 +150,8 @@ class Hardware(pc.Hardware):
             if not force_send:
                 return
         self.destination.write(destination, self.native_units)
-        self.q.push("set_position", destination)
 
     @property
     def units(self):
         return self.position.units
 
-
-### import method #############################################################
-
-
-def import_hardwares(ini_path, name, Driver, GUI, Hardware):
-    ini = wt.kit.INI(ini_path)
-    hardwares = []
-    for section in ini.sections:
-        if ini.read(section, "enable"):
-            # initialization arguments
-            kwargs = collections.OrderedDict()
-            for option in ini.get_options(section):
-                if option in ["__name__", "enable", "model", "serial", "path"]:
-                    continue
-                else:
-                    kwargs[option] = ini.read(section, option)
-            model = ini.read(section, "model")
-            if model == "Virtual":
-                hardware = Hardware(Driver, kwargs, GUI, name=section, model="Virtual")
-            else:
-                path = os.path.abspath(ini.read(section, "path"))
-                fname = os.path.basename(path).split(".")[0]
-                mod = imp.load_source(fname, path)
-                cls = getattr(mod, "Driver")
-                gui = getattr(mod, "GUI")
-                serial = ini.read(section, "serial")
-                hardware = Hardware(cls, kwargs, gui, name=section, model=model, serial=serial)
-            hardwares.append(hardware)
-    gui = pw.HardwareFrontPanel(hardwares, name=name)
-    advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
-    return hardwares, gui, advanced_gui
