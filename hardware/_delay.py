@@ -1,4 +1,4 @@
-from .hardware import Hardware, GUI
+from ._hardware import Hardware, GUI
 
 class Delay(Hardware):
     ...

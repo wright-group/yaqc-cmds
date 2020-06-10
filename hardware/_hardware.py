@@ -32,7 +32,6 @@ class GUI(QtCore.QObject):
         """
         QtCore.QObject.__init__(self)
         self.hardware = hardware
-        self.driver = hardware.driver
 
     def close(self):
         pass
@@ -64,7 +63,7 @@ class GUI(QtCore.QObject):
         self.attributes_table.add("Serial", serial)
         self.position = self.hardware.position.associate()
         self.hardware.position.updated.connect(self.on_position_updated)
-        self.attributes_table.add("Label", self.hardware.driver.label)
+        self.attributes_table.add("Label", self.hardware.label)
         self.attributes_table.add("Position", self.position)
         self.offset = self.hardware.offset.associate()
         self.hardware.offset.updated.connect(self.on_offset_updated)
@@ -111,19 +110,32 @@ def all_initialized():
 
 
 class Hardware(yaqc.Client):
-    def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
-        self.exposed = self.driver.exposed
-        for obj in self.exposed:
-            obj.updated.connect(self.update)
-        self.recorded = self.driver.recorded
-        self.offset = self.driver.offset
-        self.position = self.exposed[0]
-        self.native_units = self.driver.native_units
-        self.destination = pc.Number(units=self.native_units, display=True)
-        self.destination.write(self.position.read(self.native_units), self.native_units)
-        self.limits = self.driver.limits
-        hardwares.append(self)
+    def __init__(self, name: str, port: int, host: str="localhost"):
+        super().__init__(port=port, host=host)
+        self.name = name
+        self.native_units: str = self.get_units()
+        # mutex attributes
+        self.limits = pc.NumberLimits(units=self.native_units)
+        self.position = pc.Number(
+            initial_value=self.send("get_position"),
+            units=self.native_units,
+            name="Position",
+            display=True,
+            set_method="set_position",
+            limits=self.limits,
+        )
+        self.offset = pc.Number(units=self.native_units, name="Offset", display=True)
+        # attributes for 'exposure'
+        self.exposed = [self.position]
+        self.recorded = collections.OrderedDict()
+        self.recorded[self.name] = [
+            self.position,
+            self.native_units,
+            1.0,
+            self.name,
+        ]
+
+
 
     def get_destination(self, output_units="same"):
         return self.destination.read(output_units=output_units)

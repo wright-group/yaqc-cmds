@@ -616,7 +616,7 @@ class HardwareLayoutWidget(QtWidgets.QGroupBox):
         set_button.clicked.connect(set_method)
         for hardware in hardwares:
             set_button.setDisabled(hardware.busy.read())  # first time
-            hardware.update_ui.connect(lambda: set_button_decide(set_button, hardwares))
+            # hardware.update_ui.connect(lambda: set_button_decide(set_button, hardwares))
         return [advanced_button, set_button]
 
 
@@ -638,8 +638,6 @@ class HardwareFrontPanel(QtCore.QObject):
         self.name = name
         # link hardware object signals
         self.hardwares = hardwares
-        for hardware in self.hardwares:
-            hardware.update_ui.connect(self.update)
         # create gui
         self.create_frame()
 
@@ -681,9 +679,6 @@ class HardwareFrontPanel(QtCore.QObject):
                 ):
                     position = current_object.read()
                     destination_object.write(position)
-
-    def update(self):
-        pass
 
     def show_advanced(self):
         self.advanced.emit()

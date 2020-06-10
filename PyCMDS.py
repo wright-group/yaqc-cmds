@@ -16,11 +16,6 @@ folders = []
 folders.append(["data"])
 folders.append(["logs"])
 folders.append(["autonomic", "files"])
-folders.append(["hardware", "opas", "OPA-800", "OPA2 curves"])
-folders.append(["hardware", "opas", "OPA-800", "OPA3 curves"])
-folders.append(["hardware", "opas", "TOPAS", "OPA1 (10743) curves"])
-folders.append(["hardware", "opas", "TOPAS", "OPA2 (10742) curves"])
-folders.append(["hardware", "opas", "TOPAS", "configuration"])
 
 for folder in folders:
     folder_path = os.path.join(os.getcwd(), *folder)
@@ -53,7 +48,7 @@ import project.widgets as pw
 import project.classes as pc
 import project.file_dialog_handler
 
-from hardware.hardware import all_initialized
+from hardware import initialize_hardwares
 
 import WrightTools as wt
 import yaqc
@@ -126,7 +121,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if g.debug.read():
             print("PyCMDS_ui.MainWindow.__init__ complete")
         g.logger.log("info", "Startup", "PyCMDS MainWindow __init__ finished")
-        all_initialized()
 
     def _create_main_frame(self):
         self.main_frame = QtWidgets.QWidget(parent=self)
@@ -244,11 +238,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if g.debug.read():
             print("initialize hardware")
         # import
-        import hardware
-        import hardware.opas.opas
-        import hardware.spectrometers.spectrometers
-        import hardware.delays.delays
-        import hardware.filters.filters
+        initialize_hardwares()
         import devices.devices
 
     def _initialize_widgets(self):
