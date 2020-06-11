@@ -163,8 +163,7 @@ class Worker(QtCore.QObject):
         Method passed as qstring, inputs as list of [args, kwargs].
         """
         args, kwargs = inputs
-        if g.debug.read():
-            print("worker dequeue:", method, inputs)
+        print("worker dequeue:", method, inputs)
         # the queue should only be adding items to execute
         item = args[0]
         g.queue_control.write(True)
@@ -986,8 +985,7 @@ class GUI(QtCore.QObject):
     def load_modules(self):
         # called by MainWindow.__init__
         g.queue_control.write(False)
-        if g.debug.read():
-            print("load modules")
+        print("load modules")
         # create acquisition thread
         acquisition_thread = QtCore.QThread()
         g.scan_thread.write(acquisition_thread)

@@ -46,8 +46,7 @@ class FileDialog(QtCore.QObject):
         self.update_ui.emit()
         method = str(method)  # method passed as qstring
         args, kwargs = inputs
-        if g.debug.read():
-            print(self.name, " dequeue:", method, inputs, self.busy.read())
+        print(self.name, " dequeue:", method, inputs, self.busy.read())
         self.enqueued.pop()
         getattr(self, method)(*args, **kwargs)
         if not self.enqueued.read():

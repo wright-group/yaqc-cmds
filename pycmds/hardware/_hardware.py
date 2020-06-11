@@ -134,6 +134,10 @@ class Hardware(yaqc.Client):
             1.0,
             self.name,
         ]
+        for key,value in self.id().items():
+            setattr(self, key, str(value))
+        self._busy_obj = pc.Busy()
+        setattr(self, "busy", property(self.busy_obj))
 
 
 
@@ -166,4 +170,10 @@ class Hardware(yaqc.Client):
     @property
     def units(self):
         return self.position.units
+
+    def busy_obj(self):
+        self._busy = self.send("busy")
+        self._busy_obj.write(self._busy)
+        return self._busy_obj
+
 

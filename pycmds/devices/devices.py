@@ -225,8 +225,7 @@ class FileAddress(QtCore.QObject):
         accepts queued signals from 'queue' (address using q method)
         method must be string, inputs must be list
         """
-        if g.debug.read():
-            print("data dequeue:", method)
+        print("data dequeue:", method)
         getattr(self, str(method))(inputs)  # method passed as qstring
         enqueued_data.pop()
         if not enqueued_data.read():
@@ -379,11 +378,6 @@ class Device(pc.Hardware):
             # stop looping
             self.set_freerun(False)
             self.wait_until_done()
-            # TODO: log
-            if False:
-                if g.debug.read():
-                    print("daq shutting down")
-                g.logger.log("info", "DAQ shutdown")
             # shutdown driver
             q.push("shutdown")
             self.wait_until_done()

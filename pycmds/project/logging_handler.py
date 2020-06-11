@@ -117,8 +117,7 @@ formatter = logging.Formatter(
 )
 
 # set level
-if g.debug.read():
-    logger.setLevel(logging.DEBUG)  # default is info
+logger.setLevel(logging.DEBUG)  # default is info
 
 
 class ContextFilter(logging.Filter):

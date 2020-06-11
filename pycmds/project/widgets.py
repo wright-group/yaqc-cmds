@@ -647,7 +647,7 @@ class HardwareFrontPanel(QtCore.QObject):
         # layout table
         input_table = InputTable(130)
         self.front_panel_elements = []
-        for hardware in self.hardwares:
+        for hardware in self.hardwares.values():
             name = " ".join([hardware.name, "(" + hardware.model + ")"])
             input_table.add(name, hardware.busy)
             current_objects = hardware.exposed

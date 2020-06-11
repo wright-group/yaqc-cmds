@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 ### ensure folders exist ######################################################
+from .__version__ import __version__
 
 import matplotlib
 
@@ -10,20 +11,16 @@ from PySide2 import QtWidgets, QtCore
 
 app = QtWidgets.QApplication(sys.argv)
 
-import os
+import pathlib
 
 folders = []
-folders.append(["data"])
-folders.append(["logs"])
-folders.append(["autonomic", "files"])
+folders.append("data")
+folders.append("logs")
+folders.append("autonomic/files")
 
 for folder in folders:
-    folder_path = os.path.join(os.getcwd(), *folder)
-    if not os.path.isdir(folder_path):
-        os.mkdir(folder_path)
-
-
-# TODO: create config.ini if none exists
+    folder_path =  pathlib.Path.home() / "pycmds" / folder
+    folder_path.mkdir(exist_ok=True, parents=True)
 
 
 #### import ###################################################################
@@ -39,8 +36,6 @@ import project.project_globals as g
 
 g.app.write(app)
 g.logger.load()
-import project.ini_handler as ini
-
 g.logger.log("info", "Startup", "PyCMDS is attempting startup")
 
 import project.style as style
@@ -57,27 +52,7 @@ import yaqc
 ### define ####################################################################
 
 
-directory = os.path.abspath(os.path.dirname(__file__))
-
-
-### version information #######################################################
-
-
-# MAJOR.MINOR.PATCH (semantic versioning)
-# major version changes may break backwards compatibility
-__version__ = "0.10.0"
-
-# add git branch, if appropriate
-p = os.path.join(directory, ".git", "HEAD")
-if os.path.isfile(p):
-    with open(p) as _f:
-        __branch__ = _f.readline().rstrip().split(r"/")[-1]
-    if __branch__ != "master":
-        __version__ += "-" + __branch__
-else:
-    __branch__ = None
-
-g.version.write(__version__)
+directory = pathlib.Path(__file__).resolve().parent.parent
 
 
 ### main window ###############################################################
@@ -111,15 +86,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._load_google_drive()
         self._load_witch()
         # populate self
-        self.data_folder = os.path.join(directory, "data")
+        self.data_folder = pathlib.Path.home()/"pycmds"/ "data"
         # somatic system
         from somatic import queue
 
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
         self.queue_gui.load_modules()
         # log completion
-        if g.debug.read():
-            print("PyCMDS_ui.MainWindow.__init__ complete")
+        print("PyCMDS_ui.MainWindow.__init__ complete")
         g.logger.log("info", "Startup", "PyCMDS MainWindow __init__ finished")
 
     def _create_main_frame(self):
@@ -234,26 +208,25 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def _initialize_hardware(self):
-        g.offline.get_saved()
-        if g.debug.read():
-            print("initialize hardware")
+        print("initialize hardware")
         # import
         initialize_hardwares()
         import devices.devices
 
     def _initialize_widgets(self):
-        if g.debug.read():
-            print("initialize widgets")
+        print("initialize widgets")
         # import widgets
         import autonomic.coset
 
     def _load_google_drive(self):
-        google_drive_ini = ini.Ini(os.path.join(g.main_dir.read(), "project", "google_drive.ini"))
+        raise NotImplementedError
+        google_drive_config = toml.loads(appdirs.user_config_dir("pycmds", "pycmds") + "/config.toml").get()
         g.google_drive_enabled.write(google_drive_ini.read("main", "enable"))
         if g.google_drive_enabled.read():
             g.google_drive_control.write(yaqc.Client(google_drive_ini.read("main", "port")))
 
     def _load_witch(self):
+        raise NotImplementedError
         # check if witch is enabled
         bots_ini = ini.Ini(os.path.join(g.main_dir.read(), "project", "slack", "bots.ini"))
         g.slack_enabled.write(bots_ini.read("bots", "enable"))
@@ -273,8 +246,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         attempt a clean shutdown
         """
-        if g.debug.read():
-            print("shutdown")
+        print("shutdown")
         g.logger.log("info", "Shutdown", "PyCMDS is attempting shutdown")
         self.shutdown.emit()
         g.shutdown.fire()

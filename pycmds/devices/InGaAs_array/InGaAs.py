@@ -133,9 +133,7 @@ class Driver(BaseDriver):
         return line
 
     def initialize(self):
-        print("INGAAS INITIALIZE")
-        if g.debug.read():
-            print("InGaAs initializing")
+        print("InGaAs initializing")
         g.logger.log("info", "InGaAs initializing")
         # initialize serial port
         self.serial_port = serial.Serial()
