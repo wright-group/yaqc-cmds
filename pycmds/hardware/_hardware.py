@@ -6,8 +6,6 @@ Parent hardware class and associated.
 ### import ####################################################################
 
 
-import os
-import imp
 import time
 import collections
 
