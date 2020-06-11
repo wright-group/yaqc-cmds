@@ -639,18 +639,17 @@ class Control(QtCore.QObject):
             shots_arr[shots_i] = now
             shots_i += 1
             # hardware positions
-            for scan_hardware_module in scan_hardware_modules:
-                for scan_hardware in scan_hardware_module.hardwares:
-                    for key in scan_hardware.recorded:
-                        out_units = scan_hardware.recorded[key][1]
-                        if out_units is None:
-                            data_arr[data_i] = scan_hardware.recorded[key][0].read()
-                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read()
-                        else:
-                            data_arr[data_i] = scan_hardware.recorded[key][0].read(out_units)
-                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read(out_units)
-                        data_i += 1
-                        shots_i += 1
+            for scan_hardware in hardwares.values:
+                for key in scan_hardware.recorded:
+                    out_units = scan_hardware.recorded[key][1]
+                    if out_units is None:
+                        data_arr[data_i] = scan_hardware.recorded[key][0].read()
+                        shots_arr[shots_i] = scan_hardware.recorded[key][0].read()
+                    else:
+                        data_arr[data_i] = scan_hardware.recorded[key][0].read(out_units)
+                        shots_arr[shots_i] = scan_hardware.recorded[key][0].read(out_units)
+                    data_i += 1
+                    shots_i += 1
             # potentially multidimensional things -----------------------------
             # TODO: shots_arr should be a DICTIONARY of arrays for each device
             # acquisition maps
@@ -803,14 +802,13 @@ class Control(QtCore.QObject):
             label.append("lab")
             name.append("time")
             # scan hardware positions
-            for scan_hardware_module in scan_hardware_modules:
-                for scan_hardware in scan_hardware_module.hardwares:
-                    for key in scan_hardware.recorded:
-                        kind.append("hardware")
-                        tolerance.append(scan_hardware.recorded[key][2])
-                        units.append(scan_hardware.recorded[key][1])
-                        label.append(scan_hardware.recorded[key][3])
-                        name.append(key)
+            for scan_hardware in hardwares.values():
+                for key in scan_hardware.recorded:
+                    kind.append("hardware")
+                    tolerance.append(scan_hardware.recorded[key][2])
+                    units.append(scan_hardware.recorded[key][1])
+                    label.append(scan_hardware.recorded[key][3])
+                    name.append(key)
             # acquisition maps
             for device in self.devices:
                 if not aqn.has_section(device.name):
@@ -1152,9 +1150,4 @@ class GUI(QtCore.QObject):
 
 control = Control()
 
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.filters.filters as filters
-
-scan_hardware_modules = [opas, spectrometers, delays, filters]
+from pycmds.hardware import hardwares

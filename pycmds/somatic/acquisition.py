@@ -29,12 +29,8 @@ import project.project_globals as g
 
 app = g.app.read()
 
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.opas.opas as opas
-import hardware.filters.filters as filters
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+from ..hardware import hardwares as all_hardwares
 
 import devices.devices as devices
 
@@ -71,7 +67,7 @@ class Axis:
             else:
                 clean_name = name
             if clean_name not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.name == clean_name][0]
+                hardware_object = all_hardwares[clean_name]
                 self.hardware_dict[name] = [hardware_object, "set_position", None]
 
 
@@ -258,7 +254,7 @@ class Worker(QtCore.QObject):
                 units_kind = wt.units.kind(units)
                 vals = {}
                 # populate all hardwares not scanned here
-                for hardware in all_hardwares:
+                for hardware in all_hardwares.values():
                     if wt.units.kind(hardware.units) == units_kind:
                         vals[hardware.name] = hardware.get_position(units)
                 for idx in np.ndindex(arrs[0].shape):

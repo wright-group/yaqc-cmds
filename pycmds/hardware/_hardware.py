@@ -66,11 +66,6 @@ class GUI(QtCore.QObject):
         self.offset = self.hardware.offset.associate()
         self.hardware.offset.updated.connect(self.on_offset_updated)
         self.attributes_table.add("Offset", self.offset)
-        # initialization
-        if self.hardware.initialized.read():
-            self.initialize()
-        else:
-            self.hardware.initialized_signal.connect(self.initialize)
 
     def initialize(self):
         """
@@ -96,15 +91,6 @@ class GUI(QtCore.QObject):
 
 
 hardwares = []
-
-
-def all_initialized():
-    # fires any time a hardware is initialized
-    for hardware in hardwares:
-        while not hardware.initialized.read():
-            time.sleep(0.1)
-    # past here only runs when ALL hardwares are initialized
-    g.hardware_initialized.write(True)
 
 
 class Hardware(yaqc.Client):
@@ -135,7 +121,8 @@ class Hardware(yaqc.Client):
         for key,value in self.id().items():
             setattr(self, key, str(value))
         self._busy_obj = pc.Busy()
-        setattr(self, "busy", property(self.busy_obj))
+        self.gui = GUI(self)
+        self.label = pc.String(self.name)
 
 
 
@@ -169,6 +156,7 @@ class Hardware(yaqc.Client):
     def units(self):
         return self.position.units
 
+    @property
     def busy_obj(self):
         self._busy = self.send("busy")
         self._busy_obj.write(self._busy)

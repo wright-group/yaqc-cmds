@@ -20,12 +20,7 @@ import project.classes as pc
 import project.widgets as pw
 import project.file_dialog_handler as file_dialog_handler
 
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.opas.opas as opas
-import hardware.filters.filters as filters
-
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+from pycmds.hardware import hardwares as all_hardwares
 
 ### define ####################################################################
 
@@ -34,16 +29,15 @@ app = g.app.read()
 
 main_window = g.main_window.read()
 
-somatic_folder = os.path.dirname(__file__)
-saved_folder = os.path.join(somatic_folder, "saved")
+somatic_folder = g.main_dir.read() / "somatic"
+saved_folder = somatic_folder / "saved"
 data_folder = main_window.data_folder
 
 
 ### ensure folders exist ######################################################
 
 
-if not os.path.isdir(saved_folder):
-    os.mkdir(saved_folder)
+saved_folder.mkdir(parents=True, exist_ok=True)
 
 
 ### queue item classes ########################################################
@@ -93,7 +87,7 @@ class Hardware(Item):
     def __init__(self, hardwares, value, units, **kwargs):
         Item.__init__(self, **kwargs)
         self.type = "hardware"
-        self.hardwares = [ah for ah in all_hardwares if ah.name in hardwares]
+        self.hardwares = [ah for ah in all_hardwares.values if ah.name in hardwares]
         self.value = value
         self.units = units
 
@@ -863,7 +857,7 @@ class GUI(QtCore.QObject):
         input_table.add("Info", self.hardware_info)
         layout.addWidget(input_table)
         self.hardware_hardwares = {}
-        for hw in all_hardwares:
+        for hw in all_hardwares.values():
             checkbox = pc.Bool()
             input_table.add(hw.name, checkbox)
             self.hardware_hardwares[hw.name] = checkbox

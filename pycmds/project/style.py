@@ -19,7 +19,7 @@ colors = {
 g.colors_dict.write(colors)
 
 
-def set_style():
+def set_style(app):
 
     # Style Sheet----------------------------------------------------------------
 
@@ -62,7 +62,7 @@ def set_style():
     )
     StyleSheet += "QGroupBox::title{subcontrol-origin: margin; padding: 0 0px}"
 
-    app = g.app.read()
+    print("set_style", app)
     app.setStyleSheet(StyleSheet)
 
     # Palette--------------------------------------------------------------------

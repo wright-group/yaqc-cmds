@@ -16,12 +16,12 @@ import project.widgets as pw
 import project.project_globals as g
 import project.kit as kit
 from project.ini_handler import Ini
-import hardware.spectrometers.spectrometers as spectrometers
 from devices.devices import Device as BaseDevice
 from devices.devices import Driver as BaseDriver
 from devices.devices import DeviceGUI as BaseGUI
 from devices.devices import DeviceWidget as BaseWidget
 
+from ..hardware import spectrometers
 
 # --- define --------------------------------------------------------------------------------------
 
@@ -46,7 +46,7 @@ class Device(BaseDevice):
         self.map.write(np.arange(256))
         BaseDevice.__init__(self, *args, **kwargs)
         # get spec hardware
-        self.spectrometer_hardware = spectrometers.hardwares[0]
+        self.spectrometer_hardware = next(spectrometers.values())
         self.spectrometer_hardware.position.updated.connect(self.calculate_map)
 
     def calculate_map(self, mono_setpoint=None, write=True):

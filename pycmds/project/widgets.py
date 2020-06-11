@@ -487,7 +487,7 @@ class BusyDisplay(QtWidgets.QPushButton):
     def __init__(self, busy_object, update_signal):
         QtWidgets.QPushButton.__init__(self)
         self.busy_object = busy_object
-        update_signal.connect(self.update)
+        #update_signal.connect(self.update)
         self.setText("READY")
         self.setMinimumHeight(15)
         self.setMaximumHeight(15)
@@ -614,8 +614,8 @@ class HardwareLayoutWidget(QtWidgets.QGroupBox):
         g.queue_control.disable_when_true(set_button)
         button_container.layout().addWidget(set_button)
         set_button.clicked.connect(set_method)
-        for hardware in hardwares:
-            set_button.setDisabled(hardware.busy.read())  # first time
+        for hardware in hardwares.values():
+            set_button.setDisabled(hardware.busy_obj.read())  # first time
             # hardware.update_ui.connect(lambda: set_button_decide(set_button, hardwares))
         return [advanced_button, set_button]
 
@@ -625,9 +625,9 @@ def set_button_decide(set_button, hardwares):
         set_button.setDisabled(True)
     else:
         set_button.setDisabled(False)
-        for hardware in hardwares:
-            if hardware.busy.read():
-                set_button.setDisabled(hardware.busy.read())
+        for hardware in hardwares.values():
+            if hardware.busy_obj.read():
+                set_button.setDisabled(hardware.busy_obj.read())
 
 
 class HardwareFrontPanel(QtCore.QObject):
@@ -649,7 +649,7 @@ class HardwareFrontPanel(QtCore.QObject):
         self.front_panel_elements = []
         for hardware in self.hardwares.values():
             name = " ".join([hardware.name, "(" + hardware.model + ")"])
-            input_table.add(name, hardware.busy)
+            input_table.add(name, hardware.busy_obj)
             current_objects = hardware.exposed
             destination_objects = []
             for obj in hardware.exposed:
@@ -662,23 +662,11 @@ class HardwareFrontPanel(QtCore.QObject):
             for obj in destination_objects:
                 input_table.add(obj.label, obj)
             self.front_panel_elements.append([current_objects, destination_objects])
-            hardware.initialized.updated.connect(self.initialize)
         layout.addWidget(input_table)
         self.advanced_button, self.set_button = layout_widget.add_buttons(
             self.on_set, self.show_advanced, self.hardwares
         )
         g.hardware_widget.add_to(layout_widget)
-
-    def initialize(self):
-        # will fire each time ANY hardware contained within finishes initialize
-        # not ideal behavior, but good enough
-        for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
-            if hardware.initialized:
-                for current_object, destination_object in zip(
-                    front_panel_elements[0], front_panel_elements[1]
-                ):
-                    position = current_object.read()
-                    destination_object.write(position)
 
     def show_advanced(self):
         self.advanced.emit()
@@ -717,7 +705,7 @@ class HardwareAdvancedPanel(QtCore.QObject):
     def __init__(self, hardwares, advanced_button):
         QtCore.QObject.__init__(self)
         self.tabs = QtWidgets.QTabWidget()
-        for hardware in hardwares:
+        for hardware in hardwares.values():
             widget = QtWidgets.QWidget()
             box = QtWidgets.QHBoxLayout()
             hardware.gui.create_frame(box)

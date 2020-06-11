@@ -9,8 +9,7 @@ import somatic.acquisition as acquisition
 import project.widgets as pw
 import project.classes as pc
 
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
+from ..hardware import opas, spectrometers
 import devices.devices as devices
 
 
@@ -47,9 +46,7 @@ class Worker(acquisition.Worker):
 
         config = self.config_dictionary
         opa_name = config["OPA"]["opa"]
-        opa_names = [opa.name for opa in opas.hardwares]
-        opa_index = opa_names.index(opa_name)
-        self.opa_hardware = opas.hardwares[opa_index]
+        self.opa_hardware = opas[opa_name]
 
         self.curve = self.opa_hardware.curve.copy()
         curve_ids = list(self.opa_hardware.driver.curve_paths.keys())
@@ -231,7 +228,7 @@ class AqnSectionWidget:
 class OpaSectionWidget(AqnSectionWidget):
     def __init__(self, section_name, parent):
         super().__init__(section_name, parent)
-        allowed = [hardware.name for hardware in opas.hardwares]
+        allowed = [hardware.name for hardware in opas.values()]
         self.items["OPA"] = pc.Combo(allowed)
 
 
@@ -295,7 +292,7 @@ class MotorAxisSectionWidget(AqnSectionWidget):
         self.items["Num"] = pc.Number(initial_value=31, decimals=0)
 
     def on_update(self):
-        hardware = next(h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read())
+        hardware = opas[self.parent["OPA"]["OPA"].read()]
         self.items["Motor"].set_allowed_values(hardware.curve.dependent_names)
 
 

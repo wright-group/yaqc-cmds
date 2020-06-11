@@ -17,19 +17,15 @@ import project.widgets as pw
 import project.project_globals as g
 
 # hardwares (also ensure present in GUI)
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.filters.filters as filters
+from pycmds.hardware import opas, spectrometers, delays, filters, hardwares as all_hardwares
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 main_dir = g.main_dir.read()
 ini = project.ini_handler.Ini(os.path.join(main_dir, "autonomic", "coset.ini"))
 ini.return_raw = True
 
 # ensure that all elements are in the ini file
-all_hardware_names = [hw.name for hw in all_hardwares]
+all_hardware_names = all_hardwares.keys()
 ini.config.read(ini.filepath)
 for section in all_hardware_names:
     if not ini.config.has_section(section):
@@ -175,9 +171,8 @@ class CoSetHW:
                 for i, corr in enumerate(self.corrs)
             ]
             new_offset = np.sum(corr_results)
-            if g.hardware_initialized.read():
-                self.hardware.set_offset(new_offset, self.hardware.native_units)
-                ini.write(self.hardware.name, "offset", new_offset)
+            self.hardware.set_offset(new_offset, self.hardware.native_units)
+            ini.write(self.hardware.name, "offset", new_offset)
 
     def load_file(self, path):
         """
@@ -187,7 +182,7 @@ class CoSetHW:
         setattr(corr, "path", path)
         self.corrs.append(corr)
         self.control_hardware.append(
-            next(hw for hw in all_hardwares if hw.name == corr.setpoints.name)
+            all_hardwares[corr.setpoints.name]
         )
         self.add_table_row(corr)
         self.update_combobox()
@@ -237,9 +232,8 @@ class CoSetHW:
         if self.use_bool.read():
             self.launch()
         else:
-            if g.hardware_initialized.read():
-                self.hardware.set_offset(0.0, self.hardware.native_units)
-                ini.write(self.hardware.name, "offset", 0.0)
+            self.hardware.set_offset(0.0, self.hardware.native_units)
+            ini.write(self.hardware.name, "offset", 0.0)
 
     def unload_file(self, index):
         removed_corr = self.corrs.pop(index)
@@ -363,17 +357,17 @@ class GUI(QtCore.QObject):
         # create own layout
         self.tabs = QtWidgets.QTabWidget()
         # OPAs
-        if len(opas.hardwares) > 0:
-            self.create_hardware_frame("OPAs", opas.hardwares)
+        if opas:
+            self.create_hardware_frame("OPAs", opas.values())
         # spectrometers
-        if len(spectrometers.hardwares) > 0:
-            self.create_hardware_frame("Spectrometers", spectrometers.hardwares)
+        if spectrometers:
+            self.create_hardware_frame("Spectrometers", spectrometers.values())
         # delays
-        if len(delays.hardwares) > 0:
-            self.create_hardware_frame("Delays", delays.hardwares)
+        if delays:
+            self.create_hardware_frame("Delays", delays.values())
         # filters
-        if len(filters.hardwares) > 0:
-            self.create_hardware_frame("Filters", filters.hardwares)
+        if filters:
+            self.create_hardware_frame("Filters", filters.values())
         parent_layout.addWidget(self.tabs)
 
     def create_hardware_frame(self, name, hardwares):

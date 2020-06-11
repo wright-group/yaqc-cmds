@@ -7,11 +7,9 @@ import matplotlib
 matplotlib.use("ps")  # important - images will be generated in worker threads
 
 import sys
-from PySide2 import QtWidgets, QtCore
-
-app = QtWidgets.QApplication(sys.argv)
 
 import pathlib
+from PySide2 import QtWidgets, QtCore
 
 folders = []
 folders.append("data")
@@ -27,14 +25,8 @@ for folder in folders:
 # BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
 
-import copy
-import glob
-import inspect
-import subprocess
-
 import project.project_globals as g
 
-g.app.write(app)
 g.logger.load()
 g.logger.log("info", "Startup", "PyCMDS is attempting startup")
 
@@ -45,7 +37,6 @@ import project.file_dialog_handler
 
 from hardware import initialize_hardwares
 
-import WrightTools as wt
 import yaqc
 
 
@@ -83,8 +74,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._initialize_hardware()
         self._initialize_widgets()
         # open internet things
-        self._load_google_drive()
-        self._load_witch()
+        # self._load_google_drive()
+        # self._load_witch()
         # populate self
         self.data_folder = pathlib.Path.home()/"pycmds"/ "data"
         # somatic system
@@ -261,15 +252,3 @@ class MainWindow(QtWidgets.QMainWindow):
         # called by slack
         return self.queue_gui.get_status(full)
 
-
-def main():
-    global MainWindow
-    MainWindow = MainWindow()
-    style.set_style()
-    MainWindow.show()
-    MainWindow.showMaximized()
-    app.exec_()
-    return MainWindow
-
-
-main_form = main()
