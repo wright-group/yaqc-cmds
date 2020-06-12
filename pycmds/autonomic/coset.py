@@ -11,17 +11,14 @@ from PySide2 import QtWidgets, QtCore
 import WrightTools as wt
 import attune
 
-import project
-import project.classes as pc
-import project.widgets as pw
-import project.project_globals as g
+from ..project import classes as pc, widgets as pw, project_globals as g, ini_handler, file_dialog_handler
 
 # hardwares (also ensure present in GUI)
 from pycmds.hardware import opas, spectrometers, delays, filters, hardwares as all_hardwares
 
 
 main_dir = g.main_dir.read()
-ini = project.ini_handler.Ini(os.path.join(main_dir, "autonomic", "coset.ini"))
+ini = ini_handler.Ini(os.path.join(main_dir, "autonomic", "coset.ini"))
 ini.return_raw = True
 
 # ensure that all elements are in the ini file
@@ -197,7 +194,7 @@ class CoSetHW:
         caption = "Import a coset file"
         directory = os.path.join(g.main_dir.read(), "coset", "files")
         options = "COSET (*.curve);;All Files (*.*)"
-        path = project.file_dialog_handler.open_dialog(caption, directory, options)
+        path = file_dialog_handler.open_dialog(caption, directory, options)
         if not os.path.isfile(path):  # presumably user canceled
             return
         corr = attune.Curve.read(path)  # this object is throwaway

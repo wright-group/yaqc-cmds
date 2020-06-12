@@ -15,9 +15,9 @@ from PySide2 import QtWidgets
 import WrightTools as wt
 import yaqc
 
-import project.classes as pc
-import project.widgets as pw
-import project.project_globals as g
+from ..project import classes as pc
+from ..project import widgets as pw
+from ..project import project_globals as g
 
 
 ### gui #######################################################################

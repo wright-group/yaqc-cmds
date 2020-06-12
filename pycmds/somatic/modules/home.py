@@ -2,15 +2,12 @@
 
 import WrightTools as wt
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
-import somatic.acquisition as acquisition
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
+import pycmds.somatic.acquisition as acquisition
 
-main_dir = g.main_dir.read()
-app = g.app.read()
 
-import hardware.opas.opas as opas
+from pycmds.hardware import opas
 
 
 ### define ####################################################################
@@ -62,9 +59,7 @@ class Worker(acquisition.Worker):
     def run(self):
         # get OPA properties
         opa_name = self.aqn.read("home", "opa name")
-        opa_names = [h.name for h in opas.hardwares]
-        opa_index = opa_names.index(opa_name)
-        opa_hardware = opas.hardwares[opa_index]
+        opa_hardware = opas[opa_name]
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve
         motor_names = self.aqn.read("home", "motor names")
@@ -84,13 +79,13 @@ class GUI(acquisition.GUI):
     def create_frame(self):
         # shared settings
         input_table = pw.InputTable()
-        allowed = [hardware.name for hardware in opas.hardwares]
+        allowed = [hardware.name for hardware in opas.values()]
         self.opa_combo = pc.Combo(allowed)
         input_table.add("OPA", self.opa_combo)
         self.opa_combo.updated.connect(self.on_opa_combo_updated)
         self.layout.addWidget(input_table)
         # motor settings
-        self.opa_guis = [OPA_GUI(hardware, self.layout) for hardware in opas.hardwares]
+        self.opa_guis = [OPA_GUI(hardware, self.layout) for hardware in opas.values()]
         self.opa_guis[0].show()
 
     def load(self, aqn_path):

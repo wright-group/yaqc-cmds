@@ -25,17 +25,17 @@ for folder in folders:
 # BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
 
-import project.project_globals as g
+from .project import project_globals as g
 
 g.logger.load()
 g.logger.log("info", "Startup", "PyCMDS is attempting startup")
 
-import project.style as style
-import project.widgets as pw
-import project.classes as pc
-import project.file_dialog_handler
+from .project import style as style
+from .project import widgets as pw
+from .project import classes as pc
+from .project import file_dialog_handler
 
-from hardware import initialize_hardwares
+from .hardware import initialize_hardwares
 
 import yaqc
 
@@ -79,7 +79,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # populate self
         self.data_folder = pathlib.Path.home()/"pycmds"/ "data"
         # somatic system
-        from somatic import queue
+        from .somatic import queue
 
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
         self.queue_gui.load_modules()
@@ -191,7 +191,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # connect MainWindow poll method to pool timeout
         g.poll_timer.connect_to_timeout(self.poll)
         # now we can begin the CPU watcher (which is triggered by poll)
-        import project.logging_handler as logging_handler
+        from .project import logging_handler as logging_handler
 
         logging_handler.begin_cpu_watcher()
 
@@ -202,12 +202,12 @@ class MainWindow(QtWidgets.QMainWindow):
         print("initialize hardware")
         # import
         initialize_hardwares()
-        import devices.devices
+        from .devices import devices
 
     def _initialize_widgets(self):
         print("initialize widgets")
         # import widgets
-        import autonomic.coset
+        from .autonomic import coset
 
     def _load_google_drive(self):
         raise NotImplementedError
@@ -222,7 +222,7 @@ class MainWindow(QtWidgets.QMainWindow):
         bots_ini = ini.Ini(os.path.join(g.main_dir.read(), "project", "slack", "bots.ini"))
         g.slack_enabled.write(bots_ini.read("bots", "enable"))
         if g.slack_enabled.read():
-            import project.slack as slack
+            from .project import slack as slack
 
             # create witch
             self.witch = slack.control

@@ -7,10 +7,7 @@ import os
 
 from PySide2 import QtCore
 
-try:
-    import project_globals as g
-except:
-    from project import project_globals as g
+from . import project_globals as g
 main_dir = g.main_dir.read()
 
 

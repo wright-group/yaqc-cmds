@@ -10,7 +10,7 @@ from ._delay import Delay
 from ._spectrometer import Spectrometer
 from ._opa import OPA
 from ._filter import Filter
-from project import widgets as pw
+from ..project import widgets as pw
 
 config_dir = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds"))
 

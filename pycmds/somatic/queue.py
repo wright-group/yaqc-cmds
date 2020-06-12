@@ -3,7 +3,6 @@
 
 import os
 import traceback
-import imp
 import time
 import datetime
 import dateutil
@@ -11,14 +10,18 @@ import collections
 
 import configparser as configparser
 
+import appdirs
+import pkg_resources
+import toml
+
 from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
-import project.file_dialog_handler as file_dialog_handler
+from ..project import project_globals as g
+from ..project import classes as pc
+from ..project import widgets as pw
+from ..project import file_dialog_handler as file_dialog_handler
 
 from pycmds.hardware import hardwares as all_hardwares
 
@@ -984,22 +987,19 @@ class GUI(QtCore.QObject):
         acquisition_thread = QtCore.QThread()
         g.scan_thread.write(acquisition_thread)
         acquisition_thread.start()
-        # import modules
-        # done from modules.ini
-        # modules appear in order of import (order of appearance in ini)
-        config = configparser.SafeConfigParser()
-        p = os.path.join(somatic_folder, "modules.ini")
-        config.read(p)
-        self.modules = collections.OrderedDict()
-        for name in config.options("load"):
-            if config.get("load", name) == "True":
-                path = os.path.join(somatic_folder, "modules", name + ".py")
-                module = imp.load_source(name, path)
-                if module.load():
-                    module.mkGUI()
-                    self.modules[module.module_name] = module
-                    self.module_container_widget.layout().addWidget(module.gui.frame)
-        if len(self.modules) > 0:
+
+        config = toml.load(appdirs.user_config_dir("pycmds", "pycmds") + "/config.toml")["aquisition_modules"]
+        self.modules = {}
+
+        for name, conf in config.items():
+            if conf.get("load", True):
+                print(name)
+                module = next(pkg_resources.iter_entry_points("pycmds.acquisition", name)).load()
+                module.mkGUI()
+                self.modules[module.module_name] = module
+                self.module_container_widget.layout().addWidget(module.gui.frame)
+
+        if self.modules:
             # update module combo
             self.module_combobox.set_allowed_values(list(self.modules.keys()))
             self.module_combobox.updated.connect(self.on_module_combobox_updated)

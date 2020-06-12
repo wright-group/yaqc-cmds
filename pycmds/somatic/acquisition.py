@@ -25,14 +25,14 @@ from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 
-import project.project_globals as g
+from ..project import project_globals as g
 
 app = g.app.read()
 
 
 from ..hardware import hardwares as all_hardwares
 
-import devices.devices as devices
+from ..devices import devices
 
 from . import constant_resolver
 
@@ -42,7 +42,7 @@ from . import constant_resolver
 
 app = g.app.read()
 
-somatic_folder = os.path.dirname(__file__)
+somatic_folder = g.main_dir.read() / "somatic"
 
 
 ### container objects #########################################################

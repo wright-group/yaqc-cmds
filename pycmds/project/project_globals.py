@@ -37,7 +37,7 @@ class main_dir:
 
 main_dir = main_dir()
 
-import project.ini_handler as ini  # must come after main_dir has been defined
+from . import ini_handler as ini  # must come after main_dir has been defined
 
 
 
@@ -64,8 +64,7 @@ class logger:  # must come before other globals
         pass
 
     def load(self):
-        import project.logging_handler as logging_handler
-
+        from . import logging_handler
         self.value = logging_handler.log
         self.log("info", "Debug", "PyCMDS is in debug mode")
 

@@ -3,6 +3,8 @@
 import os
 import pathlib
 
+import appdirs
+import toml
 import numpy as np
 
 import matplotlib
@@ -12,24 +14,18 @@ matplotlib.pyplot.ioff()
 from PySide2 import QtWidgets
 import WrightTools as wt
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
-import somatic.acquisition as acquisition
-import project.ini_handler as ini_handler
+import pycmds.project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
+import pycmds.somatic.acquisition as acquisition
 
-main_dir = g.main_dir.read()
-ini = ini_handler.Ini(os.path.join(main_dir, "somatic", "modules", "scan.ini"))
-app = g.app.read()
 
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.opas.opas as opas
-import hardware.filters.filters as filters
+from pycmds.hardware import hardwares as all_hardwares, opas, spectrometers, delays, filters
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-import devices.devices as devices
+import pycmds.devices.devices as devices
 
+
+config = toml.load(appdirs.user_config_dir("pycmds", "pycmds") + "/config.toml")["aquisition_modules"]["scan"]
 
 ### define ####################################################################
 
@@ -42,7 +38,6 @@ module_name = "SCAN"
 
 class Axis:
     def __init__(self, units_kind, axis_index):
-        print(filters.hardwares)
         self.units_kind = units_kind
         if self.units_kind == "energy":
             self.units = "wn"
@@ -71,11 +66,11 @@ class Axis:
         self.widget.add("Number", self.number)
         # hardwares
         if self.units_kind == "energy":
-            hardware_objs = opas.hardwares + spectrometers.hardwares
+            hardware_objs = list(opas.values()) + list(spectrometers.values())
         elif self.units_kind == "delay":
-            hardware_objs = delays.hardwares
+            hardware_objs = delays.values()
         elif self.units_kind == "angle":
-            hardware_objs = filters.hardwares
+            hardware_objs = filters.values()
         self.hardwares = {}
         for hw in hardware_objs:
             checkbox = pc.Bool()
@@ -96,11 +91,11 @@ class Constant:
         # hardware name
         allowed_values = [h.name for h in all_hardwares]
         self.hardware_name_combo = pc.Combo(allowed_values=allowed_values)
-        self.hardware_name_combo.write(spectrometers.hardwares[0].name)
+        self.hardware_name_combo.write(spectrometers.values()[0].name)
         # self.hardware_name_combo.set_disabled(True)
         self.widget.add("Hardware", self.hardware_name_combo)
         # expression
-        opanames = [h.name for h in opas.hardwares]
+        opanames = [h.name for h in opas.values()]
         self.expression = pc.String(initial_value="+".join(opanames))
         self.widget.add("Expression", self.expression)
 
@@ -121,8 +116,8 @@ class Worker(acquisition.Worker):
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
         # decide which channels to make plots for
-        main_channel = self.aqn.read("processing", "main channel")
-        if self.aqn.read("processing", "process all channels"):
+        main_channel = self.aqn.read("processing", "main_channel")
+        if self.aqn.read("processing", "process_all_channels"):
             channels = data.channel_names
         else:
             channels = [main_channel]
@@ -286,12 +281,10 @@ class GUI(acquisition.GUI):
         input_table.add("Processing", None)
         self.channel_combo = pc.Combo(
             allowed_values=devices.control.channel_names,
-            ini=ini,
-            section="main",
-            option="main channel",
+            initial_value=config["main_channel"],
         )
         input_table.add("Main Channel", self.channel_combo)
-        self.process_all_channels = pc.Bool(ini=ini, section="main", option="process all channels")
+        self.process_all_channels = pc.Bool(config["process_all_channels"])
         input_table.add("Process All Channels", self.process_all_channels)
         self.layout.addWidget(input_table)
 
@@ -333,10 +326,10 @@ class GUI(acquisition.GUI):
             self.constants_container_widget.layout().addWidget(constant.widget)
         # processing
         try:
-            self.channel_combo.write(aqn.read("processing", "main channel"))
+            self.channel_combo.write(aqn.read("processing", "main_channel"))
         except ValueError:
             pass  # TODO: log warning or something
-        self.process_all_channels.write(aqn.read("processing", "process all channels"))
+        self.process_all_channels.write(aqn.read("processing", "process_all_channels"))
         # allow devices to load settings
         self.device_widget.load(aqn_path)
 
@@ -388,8 +381,8 @@ class GUI(acquisition.GUI):
             aqn.write(name, "expression", constant.expression.read())
         # processing
         aqn.add_section("processing")
-        aqn.write("processing", "main channel", self.channel_combo.read())
-        aqn.write("processing", "process all channels", self.process_all_channels.read())
+        aqn.write("processing", "main_channel", self.channel_combo.read())
+        aqn.write("processing", "process_all_channels", self.process_all_channels.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
 

@@ -8,7 +8,7 @@ import numpy as np
 
 from PySide2 import QtCore
 
-from project import project_globals as g
+from . import project_globals as g
 
 import WrightTools.units as wt_units
 

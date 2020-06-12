@@ -17,9 +17,9 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 import tidy_headers
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
+from ..project import project_globals as g
+from ..project import classes as pc
+from ..project import widgets as pw
 
 
 # --- define --------------------------------------------------------------------------------------

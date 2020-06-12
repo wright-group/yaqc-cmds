@@ -35,7 +35,18 @@ setup(
         "Source": "https://github.com/wright-group/PyCMDS",
         "Issue Tracker": "https://github.com/wright-group/PyCMDS/issues",
     },
-    entry_points={"console_scripts": {"pycmds=pycmds.__main__:main"}},
+    entry_points={"console_scripts": ["pycmds=pycmds.__main__:main"],
+        "pycmds.acquisition":[
+            "scan=pycmds.somatic.modules.scan",
+            "home=pycmds.somatic.modules.home",
+            "motortune=pycmds.somatic.modules.motortune",
+            "tune_holistic=pycmds.somatic.modules.tune_holistic",
+            "tune_intensity=pycmds.somatic.modules.tune_intensity",
+            "tune_setpoint=pycmds.somatic.modules.tune_setpoint",
+            "tune_test=pycmds.somatic.modules.tune_test",
+            "zero_tune=pycmds.somatic.modules.zero_tune",
+            ]
+        },
     keywords="spectroscopy science multidimensional hardware",
     classifiers=[
         "Development Status :: 3 - Alpha",
