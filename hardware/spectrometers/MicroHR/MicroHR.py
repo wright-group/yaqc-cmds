@@ -57,7 +57,7 @@ class Driver(BaseDriver):
         return self.ctrl.busy()
 
     def set_position(self, destination):
-        self.ctrl.set_position(destination)
+        self.ctrl.set_position(float(destination))
         while self.is_busy():
             time.sleep(0.01)
         self.get_position()
