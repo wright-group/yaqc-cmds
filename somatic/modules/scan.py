@@ -178,7 +178,7 @@ class Worker(acquisition.Worker):
             start = self.aqn.read(axis_name, "start")
             stop = self.aqn.read(axis_name, "stop")
             number = self.aqn.read(axis_name, "number")
-            points = np.linspace(start, stop, number)
+            points = np.linspace(start, stop, int(number))
             units = self.aqn.read(axis_name, "units")
             axis = acquisition.Axis(points, units, axis_name, axis_name)
             axes.append(axis)
