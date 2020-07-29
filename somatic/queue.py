@@ -217,7 +217,7 @@ class Worker(QtCore.QObject):
         # upload aqn file
         if g.google_drive_enabled.read():
             g.google_drive_control.read().create_file(
-                path=str(item.aqn_path), parent_id=self.folder.read(), id_=str(item.aqn_path)
+                path=str(item.aqn_path), parent_id=self.folder.read(), id=str(item.aqn_path)
             )
 
         # send message on slack
@@ -373,7 +373,7 @@ class Queue:
                 g.google_drive_control.read().reserve_id(self.folder.read())
                 self.url = g.google_drive_control.read().id_to_open_url(self.folder.read())
                 g.google_drive_control.read().create_folder(
-                    path=self.folder.read(), id_=self.folder.read()
+                    path=self.folder.read(), id=self.folder.read()
                 )
                 g.google_drive_control.read().create_file(
                     self.ini_path, self.folder.read(), self.ini_path
@@ -609,7 +609,7 @@ class Queue:
         self.gui.update_ui()
         # upload ini
         if g.google_drive_enabled.read():
-            g.google_drive_control.read().update_file(self.ini_path, self.ini_path)
+            g.google_drive_control.read().update_file(self.ini_path, id=self.ini_path)
 
     def update_progress(self):
         # progress bar
