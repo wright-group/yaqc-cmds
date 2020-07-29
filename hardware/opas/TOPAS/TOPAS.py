@@ -32,19 +32,20 @@ class Driver(BaseDriver):
             os.path.join(main_dir, "hardware", "opas", "TOPAS", "TOPAS.ini")
         )
         self.has_shutter = kwargs["has_shutter"]
-        self.yaq_port = kwargs["yaq_port"]
+        self.motor_ports = kwargs["motor_ports"]
         if self.has_shutter:
             self.shutter_position = pc.Bool(name="Shutter", display=True, set_method="set_shutter")
+            self.shutter = yaqc.Client(kwargs["shutter_port"])
         BaseDriver.__init__(self, *args, **kwargs)
         self.serial_number = self.ini.read("OPA" + str(self.index), "serial number")
-        # load api
-        self.api = yaqc.Client(self.yaq_port)
+        
         if self.has_shutter:
-            self.api.set_shutter(False)
+            self.shutter.set_position(0)
 
         # motor positions
-        for motor_name in self.motor_names:
-            min_position, max_position = self.api.get_motor_range(motor_name)
+        for motor_name, motor_port in zip(self.motor_names, self.motor_ports):
+            self.motors[motor_name] = yaqc.Client(motor_port)
+            min_position, max_position = self.motors[motor_name].get_limits()
             limits = pc.NumberLimits(min_position, max_position)
             number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
             self.motor_positions[motor_name] = number
@@ -97,7 +98,7 @@ class Driver(BaseDriver):
 
     def _home_motors(self, motor_names):
         for m in motor_names:
-            self.api.home_motor(m)
+            self.motors[m].home()
         self.wait_until_still()
 
     def _load_curve(self, interaction):
@@ -121,7 +122,7 @@ class Driver(BaseDriver):
     def _set_motors(self, motor_destinations):
         for motor_name, destination in motor_destinations.items():
             destination = float(destination)
-            self.api.set_motor_position(motor_name, destination)
+            self.motors[motor_name].set_position(destination)
 
     def _update_api(self, interaction):
         # write to TOPAS ini
@@ -141,22 +142,21 @@ class Driver(BaseDriver):
 
     def close(self):
         if self.has_shutter:
-            self.api.set_shutter(False)
-        self.api.close()
+            self.shutter.set_position(0)
 
     def get_motor_positions(self):
         for m, motor_mutex in self.motor_positions.items():
-            position = self.api.get_motor_position(m)
+            position = self.motors[m].get_position()
             motor_mutex.write(position)
         if self.poynting_correction:
             self.poynting_correction.get_motor_positions()
 
     def is_busy(self):
-        return any(self.api.is_motor_busy(m) for m in self.motor_names)
+        return any(self.motors[m].busy() for m in self.motor_names)
 
     def set_shutter(self, inputs):
         shutter_state = inputs[0]
-        error = self.api.set_shutter(shutter_state)
+        error = self.shutter.set_position(shutter_state)
         self.shutter_position.write(shutter_state)
         return error
 
