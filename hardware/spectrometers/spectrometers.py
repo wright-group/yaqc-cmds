@@ -1,21 +1,12 @@
 ### import ####################################################################
 
 
-import os
+import pathlib
 
-import project
-import project.project_globals as g
+import appdirs
+import toml
 
-main_dir = g.main_dir.read()
-app = g.app.read()
 import hardware.hardware as hw
-
-
-### define ####################################################################
-
-
-directory = os.path.dirname(os.path.abspath(__file__))
-ini = project.ini_handler.Ini(os.path.join(directory, "spectrometers.ini"))
 
 
 ### driver ####################################################################
@@ -23,7 +14,6 @@ ini = project.ini_handler.Ini(os.path.join(directory, "spectrometers.ini"))
 
 class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
-        self.hardware_ini = ini
         hw.Driver.__init__(self, *args, **kwargs)
         self.limits.write(0.0, 10000.0)
 
@@ -47,7 +37,8 @@ class Hardware(hw.Hardware):
 ### import ####################################################################
 
 
-ini_path = os.path.join(directory, "spectrometers.ini")
+conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    ini_path, name="Spectrometers", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("spectrometers", {}), name="Spectrometers", Driver=Driver, GUI=GUI, Hardware=Hardware
 )

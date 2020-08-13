@@ -12,25 +12,17 @@ import logging
 from argparse import ArgumentParser
 
 from slackclient import SlackClient
-from project.ini_handler import Ini
 import project.project_globals as g
+
+import appdirs
+import toml
+import pathlib
 
 main_dir = g.main_dir.read()
 
-# make ini
-ini_path = os.path.join(main_dir, "project", "slack", "bots.ini")
-ini = Ini(ini_path)
-
-# read from ini
-debug = ini.read("bots", "DEBUG") == "True"
-default_channel = ini.read("bots", "CHANNEL")
-witch_token = ini.read("bots", "Token")
-team_creation = ini.read("bots", "team_creation")
-
-
-def dbg(debug_string):
-    if debug:
-        logging.info(debug_string)
+config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+default_channel = config["slack"]["channel"]
+witch_token = config["slack"]["token"]
 
 
 class RtmBot(object):
@@ -69,7 +61,6 @@ class RtmBot(object):
     def input(self, data):
         if "type" in data:
             function_name = "process_" + data["type"]
-            dbg("got {}".format(function_name))
             for plugin in self.bot_plugins:
                 plugin.register_jobs()
                 plugin.do(function_name, data)
@@ -127,19 +118,9 @@ class Plugin(object):
 
     def do(self, function_name, data):
         if function_name in dir(self.module):
-            # this makes the plugin fail with stack trace in debug mode
-            if not debug:
-                try:
-                    eval("self.module." + function_name)(data)
-                except:
-                    dbg("problem in module {} {}".format(function_name, data))
-            else:
-                eval("self.module." + function_name)(data)
+            eval("self.module." + function_name)(data)
         if "catch_all" in dir(self.module):
-            try:
-                self.module.catch_all(data)
-            except:
-                dbg("problem in catch all")
+            self.module.catch_all(data)
 
     def do_jobs(self):
         for job in self.jobs:
@@ -173,13 +154,7 @@ class Job(object):
 
     def check(self):
         if self.lastrun + self.interval < time.time():
-            if not debug:
-                try:
-                    self.function()
-                except:
-                    dbg("problem")
-            else:
-                self.function()
+            self.function()
             self.lastrun = time.time()
             pass
 
@@ -215,7 +190,6 @@ if False:  # __name__ == "__main__":
         directory = os.path.abspath("{}/{}".format(os.getcwd(), directory))
 
     # config = yaml.load(file(args.config or 'rtmbot.conf', 'r'))
-    # debug = config["DEBUG"]
     # bot = RtmBot(config["SLACK_TOKEN"])
     site_plugins = []
     files_currently_downloading = []

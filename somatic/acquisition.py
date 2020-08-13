@@ -17,6 +17,8 @@ import traceback
 
 import configparser
 
+import appdirs
+import toml
 import numpy as np
 
 import numexpr
@@ -47,6 +49,9 @@ from . import constant_resolver
 app = g.app.read()
 
 somatic_folder = os.path.dirname(__file__)
+
+
+__here__ = pathlib.Path(__file__).parent
 
 
 ### container objects #########################################################
@@ -97,18 +102,12 @@ class Destinations:
 class Order:
     def __init__(self, name, path):
         self.name = name
-        self.module = imp.load_source(name, path)
+        self.module = imp.load_source(name, str(path))
         self.process = self.module.process
 
 
 orderers = []
-config = configparser.SafeConfigParser()
-p = os.path.join(somatic_folder, "order", "order.ini")
-config.read(p)
-for name in config.options("load"):
-    if config.get("load", name) == "True":
-        path = os.path.join(somatic_folder, "order", name + ".py")
-        orderers.append(Order(name, path))
+orderers.append(Order("ndindex", __here__ / "order" / "ndindex.py"))
 
 
 ### Worker base ##############################################################
@@ -429,9 +428,14 @@ class Worker(QtCore.QObject):
 
 
 class GUI(QtCore.QObject):
+
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
+        self.state_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "modules" / f"{self.module_name.lower()}.toml"
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self.state_path.touch(exist_ok=True)
+        self.state = toml.load(self.state_path)
         # create frame
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setMargin(0)
@@ -464,6 +468,10 @@ class GUI(QtCore.QObject):
     def on_device_settings_updated(self):
         # overload this if your gui has device-dependent settings
         pass
+
+    def save_state(self):
+        with open(self.state_path, "w") as f:
+            f.write(toml.dumps(self.state))
 
     def show(self):
         self.frame.show()

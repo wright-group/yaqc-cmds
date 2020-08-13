@@ -4,12 +4,15 @@
 import os
 import imp
 import time
+import appdirs
+import pathlib
 
 import collections
 
 import numpy as np
 
 
+import toml
 import h5py
 
 from PySide2 import QtCore, QtWidgets
@@ -26,19 +29,19 @@ import project.widgets as pw
 
 
 main_dir = g.main_dir.read()
-ini = wt.kit.INI(os.path.join(main_dir, "devices", "devices.ini"))
+config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
 
 # dictionary of how to access all PyCMDS-compatible DAQ devices
 # [module path, class name, initialization arguments, friendly name]
 device_dict = collections.OrderedDict()
 device_dict["NI 6251"] = [
-    os.path.join(main_dir, "devices", "NI_6251", "NI_6251.py"),
+    os.path.join(main_dir, "sensors", "NI_6251", "NI_6251.py"),
     "Device",
     [None],
     "ni6251",
 ]
 device_dict["InGaAs array"] = [
-    os.path.join(main_dir, "devices", "InGaAs_array", "InGaAs.py"),
+    os.path.join(main_dir, "sensors", "InGaAs_array", "InGaAs.py"),
     "Device",
     [None],
     "InGaAs",
@@ -58,8 +61,7 @@ idx = pc.Mutex()  # holds tuple
 save_shots = pc.Bool(display=True)
 
 ms_wait_limits = pc.NumberLimits(0, 10000)
-ms_wait = pc.Number(
-    ini=ini, section="settings", option="ms wait", decimals=0, limits=ms_wait_limits, display=True
+ms_wait = pc.Number(initial_value=config["sensors"]["settings"]["ms_wait"], decimals=0, limits=ms_wait_limits, display=True
 )
 
 # --- classes -------------------------------------------------------------------------------------
@@ -74,9 +76,9 @@ class CurrentSlice(QtCore.QObject):
 
     def begin(self, shape):
         """
-        Tell current slice that a new scan is beginning. Mostly works to 
+        Tell current slice that a new scan is beginning. Mostly works to
         reset y limits.
-        
+
         Parameters
         ----------
         shape : list of ints
@@ -95,7 +97,7 @@ class CurrentSlice(QtCore.QObject):
         """
         Clear the old data from memory, and define new parameters for the next
         slice.
-        
+
         Parameters
         ----------
         d : dictionary
@@ -113,7 +115,7 @@ class CurrentSlice(QtCore.QObject):
     def append(self, position, data):
         """
         Add new values into the slice.
-        
+
         Parameters
         ----------
         position : float
@@ -165,7 +167,7 @@ class Headers:
     def read(self, kind="data"):
         """
         Assemble contained dictionaries into a single dictionary.
-        
+
         Parameters
         ----------
         kind : {'data', 'shots'}  (optional)
@@ -529,18 +531,18 @@ class Control(QtCore.QObject):
         g.main_window.read().queue_control.connect(self.queue_control_update)
         self.channel_names = []
         # import devices
-        for section in ini.sections:
+        for section in config["sensors"].keys():
             if section == "settings":
                 continue
-            if ini.read(section, "enable"):
+            if config["sensors"][section]["enable"]:
                 # collect arguments
                 kwargs = collections.OrderedDict()
-                for option in ini.get_options(section):
+                for option in config["sensors"][section].keys():
                     if option in ["enable", "model", "serial", "path", "__name__"]:
                         continue
                     else:
-                        kwargs[option] = ini.read(section, option)
-                model = ini.read(section, "model")
+                        kwargs[option] = config["sensors"][section][option]
+                model = config["sensors"][section]["model"]
                 # import
                 if model == "Virtual":
                     device = Device(
@@ -552,14 +554,15 @@ class Control(QtCore.QObject):
                         model="Virtual",
                     )
                 else:
-                    path = os.path.abspath(ini.read(section, "path"))
+                    parent = pathlib.Path(__file__).parent.parent
+                    path = parent / pathlib.Path(config["sensors"][section]["path"])
                     fname = os.path.basename(path).split(".")[0]
                     mod = imp.load_source(fname, path)
                     device_cls = getattr(mod, "Device")
                     cls = getattr(mod, "Driver")
                     gui = getattr(mod, "GUI")
                     widget_cls = getattr(mod, "Widget")
-                    serial = ini.read(section, "serial")
+                    serial = config["sensors"][parent]["serial"]
                     device = device_cls(
                         cls,
                         kwargs,

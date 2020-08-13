@@ -8,16 +8,8 @@ import warnings
 import project.com_handler as com_handler
 import project.classes as pc
 import project.project_globals as g
-from project.ini_handler import Ini
 from hardware.delays.delays import Driver as BaseDriver
 from hardware.delays.delays import GUI as BaseGUI
-
-
-### define ####################################################################
-
-
-main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, "hardware", "delays", "MFA", "MFA.ini"))
 
 
 ### define ####################################################################

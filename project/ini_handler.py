@@ -64,14 +64,3 @@ class Ini(QtCore.QMutex):
         self._do(
             "write", section=section, option=option, value=value, with_apostrophe=with_apostrophe
         )
-
-
-### shared inis initialized here ##############################################
-
-
-main = Ini(os.path.join(main_dir, "main.ini"))
-config = Ini(os.path.join(main_dir, "config.ini"))
-daq = Ini(os.path.join(main_dir, "devices", "devices.ini"))
-opas = Ini(os.path.join(main_dir, "hardware", "opas", "opas.ini"))
-filters = Ini(os.path.join(main_dir, "hardware", "filters", "filters.ini"))
-spectrometers = Ini(os.path.join(main_dir, "hardware", "spectrometers", "spectrometers.ini"))

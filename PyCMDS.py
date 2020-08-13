@@ -11,6 +11,7 @@ from PySide2 import QtWidgets, QtCore
 app = QtWidgets.QApplication(sys.argv)
 
 import os
+import pathlib
 
 folders = []
 folders.append(["data"])
@@ -44,7 +45,6 @@ import project.project_globals as g
 
 g.app.write(app)
 g.logger.load()
-import project.ini_handler as ini
 
 g.logger.log("info", "Startup", "PyCMDS is attempting startup")
 
@@ -54,6 +54,9 @@ import project.classes as pc
 import project.file_dialog_handler
 
 from hardware.hardware import all_initialized
+
+import appdirs
+import toml
 
 import WrightTools as wt
 import yaqc
@@ -94,6 +97,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self, parent=None)
+        self.config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+        g.system_name.write(self.config["system_name"])
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
         self.setWindowTitle("PyCMDS %s" % __version__)
@@ -240,7 +245,6 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def _initialize_hardware(self):
-        g.offline.get_saved()
         if g.debug.read():
             print("initialize hardware")
         # import
@@ -258,15 +262,13 @@ class MainWindow(QtWidgets.QMainWindow):
         import autonomic.coset
 
     def _load_google_drive(self):
-        google_drive_ini = ini.Ini(os.path.join(g.main_dir.read(), "project", "google_drive.ini"))
-        g.google_drive_enabled.write(google_drive_ini.read("main", "enable"))
+        g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))
         if g.google_drive_enabled.read():
-            g.google_drive_control.write(yaqc.Client(google_drive_ini.read("main", "port")))
+            g.google_drive_control.write(yaqc.Client(self.config["google_drive"]["port"]))
 
     def _load_witch(self):
         # check if witch is enabled
-        bots_ini = ini.Ini(os.path.join(g.main_dir.read(), "project", "slack", "bots.ini"))
-        g.slack_enabled.write(bots_ini.read("bots", "enable"))
+        g.slack_enabled.write(self.config.get("slack", {}).get("enable", False))
         if g.slack_enabled.read():
             import project.slack as slack
 

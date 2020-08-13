@@ -17,29 +17,6 @@ class SimpleGlobal:
         self.value = value
 
 
-class GlobalWithIni:
-    def __init__(self, ini, section, option):
-        self.ini = ini
-        self.section = section
-        self.option = option
-        self.get_saved()
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
-    def get_saved(self):
-        self.value = self.ini.read(self.section, self.option)
-        return self.value
-
-    def save(self, value=None):
-        if not value == None:
-            self.value = value
-        self.ini.write(self.section, self.option, self.value)
-
-
 ### order sensitive globals  ##################################################
 
 
@@ -61,7 +38,8 @@ main_dir = main_dir()
 
 import project.ini_handler as ini  # must come after main_dir has been defined
 
-debug = GlobalWithIni(ini.config, "main", "debug")
+debug = SimpleGlobal()
+debug.write(False)
 
 
 class PollTimer:
@@ -92,8 +70,6 @@ class logger:  # must come before other globals
         self.value = logging_handler.log
         if debug.read():
             self.log("info", "Debug", "PyCMDS is in debug mode")
-        if offline.read():
-            self.log("info", "Offline", "PyCMDS is offline")
 
     def log(self, level, name, message="", origin="name"):
         """
@@ -291,8 +267,6 @@ class QueueControl(QtCore.QObject):
 
 queue_control = QueueControl()
 
-offline = GlobalWithIni(ini.config, "main", "offline")
-
 
 class progress_bar:
     def __init__(self):
@@ -375,7 +349,7 @@ slack_control = SimpleGlobal()
 
 slack_enabled = SimpleGlobal()
 
-system_name = GlobalWithIni(ini.config, "main", "system name")
+system_name = SimpleGlobal()
 
 
 class UseArray:

@@ -1,7 +1,10 @@
 # --- import --------------------------------------------------------------------------------------
 
 
-import os
+import pathlib
+
+import appdirs
+import toml
 
 import WrightTools as wt
 
@@ -11,22 +14,11 @@ import project.classes as pc
 import hardware.hardware as hw
 
 
-# --- define --------------------------------------------------------------------------------------
-
-
-main_dir = g.main_dir.read()
-app = g.app.read()
-
-directory = os.path.dirname(os.path.abspath(__file__))
-ini = wt.kit.INI(os.path.join(directory, "delays.ini"))
-
-
 # --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
-        self.hardware_ini = ini
         self.motor_units = kwargs.pop("motor_units")
         hw.Driver.__init__(self, *args, **kwargs)
         self.factor = self.hardware.factor
@@ -34,7 +26,6 @@ class Driver(hw.Driver):
         self.motor_limits = self.hardware.motor_limits
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
-        self.zero_position.write(kwargs["zero_position"])
         self.recorded["_".join([self.name, "zero"])] = [
             self.zero_position,
             "mm",
@@ -44,12 +35,14 @@ class Driver(hw.Driver):
         ]
         self.native_per_mm = 1
 
-    def save_status(self):
-        self.hardware_ini.write(
-            self.name, "zero_position", self.zero_position.read(self.motor_units)
-        )
-        self.hardware_ini.write(self.name, "factor", int(self.factor.read()))
-        hw.Driver.save_status(self)
+    def get_state(self):
+        state = super().get_state()
+        state["zero_position"] = self.zero_position.read(self.motor_units)
+        return state
+
+    def load_state(self, state):
+        super().load_state(state)
+        self.hardware.zero_position.write(state.get("zero_postion", 0))
 
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)
@@ -181,7 +174,10 @@ class Hardware(hw.Hardware):
 # --- import --------------------------------------------------------------------------------------
 
 
-ini_path = os.path.join(directory, "delays.ini")
+
+conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    ini_path, name="Delays", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("delays", {}), name="Delays", Driver=Driver, GUI=GUI, Hardware=Hardware
 )
+
