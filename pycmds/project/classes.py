@@ -304,7 +304,9 @@ class Combo(PyCMDS_Object):
         if value is not None:
             self.value.write(value)
         if self.has_ini:
-            self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
+            self.ini.write(
+                self.section, self.option, self.value.read(), with_apostrophe=True
+            )
 
     def set_allowed_values(self, allowed_values):
         """
@@ -366,7 +368,9 @@ class Combo(PyCMDS_Object):
 
 
 class Filepath(PyCMDS_Object):
-    def __init__(self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs):
+    def __init__(
+        self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs
+    ):
         """
         holds the filepath as a string \n
         
@@ -408,7 +412,9 @@ class Filepath(PyCMDS_Object):
 
         if self.kind == "file":
             filter_string = ";;".join(self.options + ["All Files (*.*)"])
-            out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
+            out = file_dialog_handler.open_dialog(
+                self.caption, directory_string, filter_string
+            )
             if os.path.isfile(out):
                 self.write(out)
         elif self.kind == "directory":
@@ -452,7 +458,10 @@ class NumberLimits(PyCMDS_Object):
             min_value = wt_units.converter(min_value, self.units, output_units)
             max_value = wt_units.converter(max_value, self.units, output_units)
         # ensure order
-        min_value, max_value = [min([min_value, max_value]), max([min_value, max_value])]
+        min_value, max_value = [
+            min([min_value, max_value]),
+            max([min_value, max_value]),
+        ]
         return [min_value, max_value]
 
     def write(self, min_value, max_value, input_units="same"):
@@ -462,7 +471,10 @@ class NumberLimits(PyCMDS_Object):
             min_value = wt_units.converter(min_value, input_units, self.units)
             max_value = wt_units.converter(max_value, input_units, self.units)
         # ensure order
-        min_value, max_value = [min([min_value, max_value]), max([min_value, max_value])]
+        min_value, max_value = [
+            min([min_value, max_value]),
+            max([min_value, max_value]),
+        ]
         PyCMDS_Object.write(self, [min_value, max_value])
         self.updated.emit()
 
@@ -510,12 +522,17 @@ class Number(PyCMDS_Object):
         min_value = wt_units.converter(min_value, limits_units, self.units)
         max_value = wt_units.converter(max_value, limits_units, self.units)
         # ensure order
-        min_value, max_value = [min([min_value, max_value]), max([min_value, max_value])]
+        min_value, max_value = [
+            min([min_value, max_value]),
+            max([min_value, max_value]),
+        ]
         if self.has_widget:
             self.widget.setMinimum(min_value)
             self.widget.setMaximum(max_value)
             if not self.display:
-                self.set_tool_tip("min: " + str(min_value) + "\n" + "max: " + str(max_value))
+                self.set_tool_tip(
+                    "min: " + str(min_value) + "\n" + "max: " + str(max_value)
+                )
 
     def associate(self, display=None, pre_name=""):
         # display
@@ -573,7 +590,9 @@ class Number(PyCMDS_Object):
 
     def set_units(self, units):
         if self.has_widget:
-            allowed = [self.units_widget.itemText(i) for i in range(self.units_widget.count())]
+            allowed = [
+                self.units_widget.itemText(i) for i in range(self.units_widget.count())
+            ]
             index = allowed.index(units)
             self.units_widget.setCurrentIndex(index)
         else:
@@ -739,7 +758,9 @@ class Hardware(QtCore.QObject):
     update_ui = QtCore.Signal()
     initialized_signal = QtCore.Signal()
 
-    def __init__(self, driver_class, driver_arguments, gui_class, name, model, serial=None):
+    def __init__(
+        self, driver_class, driver_arguments, gui_class, name, model, serial=None
+    ):
         """
         Hardware representation object living in the main thread.
         

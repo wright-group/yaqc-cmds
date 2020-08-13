@@ -13,7 +13,13 @@ class Worker(abstract_tuning.Worker):
         spec = config["Spectral Axis"]["axis"]
         data.transform(opa, f"{spec}-{opa}")
         return attune.workup.tune_test(
-            data, channel, curve, level=level, gtol=gtol, ltol=ltol, save_directory=scan_folder,
+            data,
+            channel,
+            curve,
+            level=level,
+            gtol=gtol,
+            ltol=ltol,
+            save_directory=scan_folder,
         )
 
 

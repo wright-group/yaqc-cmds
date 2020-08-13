@@ -161,7 +161,9 @@ class Hardware(hw.Hardware):
         self.kind = "delay"
         self.factor = pc.Number(1, decimals=0)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units="mm")
-        self.motor_position = pc.Number(units="mm", display=True, limits=self.motor_limits)
+        self.motor_position = pc.Number(
+            units="mm", display=True, limits=self.motor_limits
+        )
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
@@ -174,10 +176,12 @@ class Hardware(hw.Hardware):
 # --- import --------------------------------------------------------------------------------------
 
 
-
 conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    conf.get("hardware", {}).get("delays", {}), name="Delays", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("delays", {}),
+    name="Delays",
+    Driver=Driver,
+    GUI=GUI,
+    Hardware=Hardware,
 )
-

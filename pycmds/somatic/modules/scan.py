@@ -28,7 +28,9 @@ import hardware.delays.delays as delays
 import hardware.opas.opas as opas
 import hardware.filters.filters as filters
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+all_hardwares = (
+    opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+)
 import devices.devices as devices
 
 
@@ -289,13 +291,15 @@ class GUI(acquisition.GUI):
             self.state["main_channel"] = devices.control.channel_names[0]
         self.channel_combo = pc.Combo(
             allowed_values=devices.control.channel_names,
-            initial_value=self.state["main_channel"]
+            initial_value=self.state["main_channel"],
         )
         self.channel_combo.updated.connect(self.save_state)
         input_table.add("Main Channel", self.channel_combo)
         if "process_all_channels" not in self.state.keys():
             self.state["process_all_channels"] = False
-        self.process_all_channels = pc.Bool(initial_value=self.state["process_all_channels"])
+        self.process_all_channels = pc.Bool(
+            initial_value=self.state["process_all_channels"]
+        )
         self.process_all_channels.updated.connect(self.save_state)
         input_table.add("Process All Channels", self.process_all_channels)
         self.layout.addWidget(input_table)
@@ -394,7 +398,9 @@ class GUI(acquisition.GUI):
         # processing
         aqn.add_section("processing")
         aqn.write("processing", "main channel", self.channel_combo.read())
-        aqn.write("processing", "process all channels", self.process_all_channels.read())
+        aqn.write(
+            "processing", "process all channels", self.process_all_channels.read()
+        )
         # allow devices to write settings
         self.device_widget.save(aqn_path)
 

@@ -97,7 +97,12 @@ class FileDialog(QtCore.QObject):
         caption, directory, savefilter, selectedfilter, options = inputs
         out = self.clean(
             QtWidgets.QFileDialog.getSaveFileName(
-                g.main_window.read(), caption, directory, savefilter, selectedfilter, options
+                g.main_window.read(),
+                caption,
+                directory,
+                savefilter,
+                selectedfilter,
+                options,
             )[0]
         )
         save_filepath.write(out)

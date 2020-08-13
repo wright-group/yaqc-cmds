@@ -30,7 +30,9 @@ import hardware.delays.delays as delays
 import hardware.opas.opas as opas
 import hardware.filters.filters as filters
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+all_hardwares = (
+    opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+)
 import devices.devices as devices
 
 
@@ -54,8 +56,12 @@ class Worker(acquisition.Worker):
         delays = self.aqn.read("delay", "delays")
         channel_name = self.aqn.read("processing", "channel")
         # This can be simplified, I guess, as it is known which will occur in what order
-        color_units = [i.units for i in data.axes if wt.units.kind(i.units) == "energy"][0]
-        delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == "delay"][0]
+        color_units = [
+            i.units for i in data.axes if wt.units.kind(i.units) == "energy"
+        ][0]
+        delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == "delay"][
+            0
+        ]
         transform = list(data.axis_expressions)[:2]
         for axis in data.axis_expressions:
             if axis not in transform:
@@ -264,7 +270,9 @@ class GUI(acquisition.GUI):
                 hardwares.append(key)
         aqn.write("delay", "delays", hardwares)
         aqn.write(
-            "info", "description", "{} {} zero tune".format(self.opa_combo.read(), hardwares)
+            "info",
+            "description",
+            "{} {} zero tune".format(self.opa_combo.read(), hardwares),
         )
         # constants
         aqn.add_section("scan")

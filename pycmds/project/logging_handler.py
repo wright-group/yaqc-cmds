@@ -105,7 +105,10 @@ def begin_cpu_watcher():
 # logger#########################################################################
 
 # filepath
-filepath = pathlib.Path(appdirs.user_log_dir("pycmds", "pycmds")) / f"{str(time.strftime('%Y-%m-%d_%H.%M.%S'))}.log"
+filepath = (
+    pathlib.Path(appdirs.user_log_dir("pycmds", "pycmds"))
+    / f"{str(time.strftime('%Y-%m-%d_%H.%M.%S'))}.log"
+)
 filepath.parent.mkdir(parents=True, exist_ok=True)
 log_file = open(filepath, "w")
 log_file.close()

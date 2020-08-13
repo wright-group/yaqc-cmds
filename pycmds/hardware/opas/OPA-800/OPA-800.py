@@ -82,7 +82,11 @@ class Driver(BaseDriver):
             if motor_name in ["Phi", "Theta"]:
                 continue
             number = pc.Number(
-                name=motor_name, initial_value=25.0, decimals=6, limits=motor_limits, display=True
+                name=motor_name,
+                initial_value=25.0,
+                decimals=6,
+                limits=motor_limits,
+                display=True,
             )
             self.motor_positions[motor_name] = number
             self.motors.update({motor_name: yaqc.Client(self.motor_ports[motor_index])})

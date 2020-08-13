@@ -53,7 +53,9 @@ class Driver(hw.Driver):
             self.poynting_type = None
 
         if self.poynting_correction:
-            self.curve_paths["Poynting"] = pc.Filepath(initial_value=self.poynting_curve_path)
+            self.curve_paths["Poynting"] = pc.Filepath(
+                initial_value=self.poynting_curve_path
+            )
         if self.model == "Virtual":
             self.load_curve()
 
@@ -229,7 +231,7 @@ class Driver(hw.Driver):
 
     def load_state(self, state):
         super().load_state(state)
-        self.poynting_curve_path = state.get("poynting_curve_path", '')
+        self.poynting_curve_path = state.get("poynting_curve_path", "")
 
 
 ### gui #######################################################################
@@ -304,7 +306,9 @@ class GUI(hw.GUI):
         input_table.add("Motors", None)
         settings_layout.addWidget(input_table)
         for motor_name, motor_mutex in self.driver.motor_positions.items():
-            settings_layout.addWidget(MotorControlGUI(motor_name, motor_mutex, self.driver))
+            settings_layout.addWidget(
+                MotorControlGUI(motor_name, motor_mutex, self.driver)
+            )
         self.home_all_button = pw.SetButton("HOME ALL", "advanced")
         settings_layout.addWidget(self.home_all_button)
         homeable = any(self.driver.homeable)
@@ -315,7 +319,9 @@ class GUI(hw.GUI):
             self.poynting_manual_control = pc.Bool()
             input_table = pw.InputTable()
             input_table.add("Poynting Control", self.poynting_manual_control)
-            self.poynting_manual_control.updated.connect(self.on_poynting_manual_control_updated)
+            self.poynting_manual_control.updated.connect(
+                self.on_poynting_manual_control_updated
+            )
             settings_layout.addWidget(input_table)
         # stretch
         settings_layout.addStretch(1)
@@ -405,7 +411,9 @@ class MotorControlGUI(QtWidgets.QWidget):
         input_table.add("Dest. " + motor_name, self.destination)
         self.layout.addWidget(input_table)
         # buttons
-        home_button, set_button = self.add_buttons(self.layout, "HOME", "advanced", "SET", "set")
+        home_button, set_button = self.add_buttons(
+            self.layout, "HOME", "advanced", "SET", "set"
+        )
         home_button.clicked.connect(self.on_home)
         set_button.clicked.connect(self.on_set)
         g.queue_control.disable_when_true(home_button)
@@ -413,7 +421,9 @@ class MotorControlGUI(QtWidgets.QWidget):
         # finish
         self.setLayout(self.layout)
 
-    def add_buttons(self, layout, button1_text, button1_color, button2_text, button2_color):
+    def add_buttons(
+        self, layout, button1_text, button1_color, button2_text, button2_color
+    ):
         colors = g.colors_dict.read()
         # layout
         button_container = QtWidgets.QWidget()
@@ -477,7 +487,9 @@ class Hardware(hw.Hardware):
     def get_tune_points(self, units="native"):
         if units == "native":
             units = self.native_units
-        return wt.units.converter(self.curve.setpoints[:], self.curve.setpoints.units, units)
+        return wt.units.converter(
+            self.curve.setpoints[:], self.curve.setpoints.units, units
+        )
 
     def home_motor(self, motor):
         """
@@ -502,6 +514,9 @@ class Hardware(hw.Hardware):
 conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    conf.get("hardware", {}).get("opas", {}), name="OPAs", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("opas", {}),
+    name="OPAs",
+    Driver=Driver,
+    GUI=GUI,
+    Hardware=Hardware,
 )
-

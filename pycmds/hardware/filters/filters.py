@@ -38,7 +38,6 @@ class Driver(hw.Driver):
         self.motor_position.write(state["motor_position"])
         self.zero_position.write(state["zero_position"])
 
-
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)
         self.save_status()
@@ -156,8 +155,12 @@ class Hardware(hw.Hardware):
     def __init__(self, *arks, **kwargs):
         self.kind = "filter"
         self.factor = pc.Number(1, decimals=0)
-        self.motor_limits = pc.NumberLimits(min_value=-360.0, max_value=360.0, units="deg")
-        self.motor_position = pc.Number(units="deg", display=True, limits=self.motor_limits)
+        self.motor_limits = pc.NumberLimits(
+            min_value=-360.0, max_value=360.0, units="deg"
+        )
+        self.motor_position = pc.Number(
+            units="deg", display=True, limits=self.motor_limits
+        )
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
@@ -171,5 +174,9 @@ class Hardware(hw.Hardware):
 conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    conf.get("hardware", {}).get("filters", {}), name="Filters", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("filters", {}),
+    name="Filters",
+    Driver=Driver,
+    GUI=GUI,
+    Hardware=Hardware,
 )

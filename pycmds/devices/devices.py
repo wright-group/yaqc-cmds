@@ -29,7 +29,9 @@ import project.widgets as pw
 
 
 main_dir = g.main_dir.read()
-config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+config = toml.load(
+    pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+)
 
 # dictionary of how to access all PyCMDS-compatible DAQ devices
 # [module path, class name, initialization arguments, friendly name]
@@ -61,7 +63,11 @@ idx = pc.Mutex()  # holds tuple
 save_shots = pc.Bool(display=True)
 
 ms_wait_limits = pc.NumberLimits(0, 10000)
-ms_wait = pc.Number(initial_value=config["sensors"]["settings"]["ms_wait"], decimals=0, limits=ms_wait_limits, display=True
+ms_wait = pc.Number(
+    initial_value=config["sensors"]["settings"]["ms_wait"],
+    decimals=0,
+    limits=ms_wait_limits,
+    display=True,
 )
 
 # --- classes -------------------------------------------------------------------------------------
@@ -104,7 +110,9 @@ class CurrentSlice(QtCore.QObject):
             The new slice dictionary, passed all the way from the acquisition
             orderer module.
         """
-        self.name = str(d["name"])  # somehow a qstring is getting here? - Blaise 2016.07.27
+        self.name = str(
+            d["name"]
+        )  # somehow a qstring is getting here? - Blaise 2016.07.27
         self.units = d["units"]
         self.points = d["points"]
         self.use_actual = d["use actual"]
@@ -264,7 +272,9 @@ class FileAddress(QtCore.QObject):
         # TODO: this is hack
         if aqn.has_section("NI 6251"):
             if False and aqn.read("NI 6251", "save shots"):
-                p = os.path.join(os.path.dirname(data_path.read()), "NI 6251 shots.hdf5")
+                p = os.path.join(
+                    os.path.dirname(data_path.read()), "NI 6251 shots.hdf5"
+                )
                 f = h5py.File(p)
                 dictionary = headers.read(kind="shots")
                 for key, value in dictionary.items():
@@ -279,7 +289,10 @@ class FileAddress(QtCore.QObject):
                     f.attrs[key] = value
                 col_count = len(dictionary["name"])
                 f.create_dataset(
-                    "array", (col_count, 0), maxshape=(col_count, None), compression="gzip"
+                    "array",
+                    (col_count, 0),
+                    maxshape=(col_count, None),
+                    compression="gzip",
                 )
                 f["array"].set_fill_value = np.nan
                 f.close()
@@ -290,10 +303,14 @@ class FileAddress(QtCore.QObject):
         data_file = open(data_path.read(), "ab")
         if len(data_arr.shape) == 2:  # case of multidimensional devices
             for row in data_arr.T:
-                np.savetxt(data_file, row, fmt=str("%8.6f"), delimiter="\t", newline="\t")
+                np.savetxt(
+                    data_file, row, fmt=str("%8.6f"), delimiter="\t", newline="\t"
+                )
                 data_file.write(b"\n")
         else:
-            np.savetxt(data_file, data_arr, fmt=str("%8.6f"), delimiter="\t", newline="\t")
+            np.savetxt(
+                data_file, data_arr, fmt=str("%8.6f"), delimiter="\t", newline="\t"
+            )
             data_file.write(b"\n")
         data_file.close()
         # shots ---------------------------------------------------------------
@@ -305,7 +322,9 @@ class FileAddress(QtCore.QObject):
             current_row_count = f["array"].shape[1]
             new_row_count = shots_arr.shape[1]
             f["array"].resize(current_row_count + new_row_count, axis=1)
-            f["array"][:, current_row_count : current_row_count + new_row_count] = shots_arr
+            f["array"][
+                :, current_row_count : current_row_count + new_row_count
+            ] = shots_arr
             f.close()
 
     def initialize(self, inputs):
@@ -656,8 +675,12 @@ class Control(QtCore.QObject):
                             data_arr[data_i] = scan_hardware.recorded[key][0].read()
                             shots_arr[shots_i] = scan_hardware.recorded[key][0].read()
                         else:
-                            data_arr[data_i] = scan_hardware.recorded[key][0].read(out_units)
-                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read(out_units)
+                            data_arr[data_i] = scan_hardware.recorded[key][0].read(
+                                out_units
+                            )
+                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read(
+                                out_units
+                            )
                         data_i += 1
                         shots_i += 1
             # potentially multidimensional things -----------------------------
@@ -690,7 +713,9 @@ class Control(QtCore.QObject):
             slice_axis_index = headers.data_cols["name"].index(current_slice.name)
             slice_position = np.mean(data_arr[slice_axis_index])
             native_units = headers.data_cols["units"][slice_axis_index]
-            slice_position = wt.units.converter(slice_position, native_units, current_slice.units)
+            slice_position = wt.units.converter(
+                slice_position, native_units, current_slice.units
+            )
             data_arrs = []
             for device in self.devices:
                 data_arrs.append(device.data.read())
@@ -721,9 +746,13 @@ class Control(QtCore.QObject):
                 for key in device.map_axes.keys():
                     # add axis
                     headers.axis_info["axis names"].append(key)
-                    identity, units, points, centers, interpolate = device.get_axis_properties(
-                        destinations_list
-                    )
+                    (
+                        identity,
+                        units,
+                        points,
+                        centers,
+                        interpolate,
+                    ) = device.get_axis_properties(destinations_list)
                     headers.axis_info["axis identities"].append(identity)
                     headers.axis_info["axis units"].append(units)
                     headers.axis_info["axis interpolate"].append(interpolate)
@@ -909,7 +938,10 @@ class Widget(QtWidgets.QWidget):
         input_table = pw.InputTable()
         input_table.add("Device Settings", None)
         self.ms_wait = pc.Number(
-            initial_value=0, limits=ms_wait_limits, decimals=0, disable_under_queue_control=True
+            initial_value=0,
+            limits=ms_wait_limits,
+            decimals=0,
+            disable_under_queue_control=True,
         )
         input_table.add("ms Wait", self.ms_wait)
         layout.addWidget(input_table)
@@ -1100,7 +1132,9 @@ class GUI(QtCore.QObject):
 
     def on_slice_append(self):
         device_index = self.device_combo.read_index()
-        device_display_settings = list(self.display_settings_widgets.values())[device_index]
+        device_display_settings = list(self.display_settings_widgets.values())[
+            device_index
+        ]
         channel_index = device_display_settings.channel_combo.read_index()
         # limits
         ymin = current_slice.ymins[device_index][channel_index]
@@ -1109,7 +1143,9 @@ class GUI(QtCore.QObject):
         # data
         xi = current_slice.xi
         # TODO: in case of device with shape...
-        yi = [current_slice.data[i][device_index][channel_index] for i, _ in enumerate(xi)]
+        yi = [
+            current_slice.data[i][device_index][channel_index] for i, _ in enumerate(xi)
+        ]
         # finish
         self.plot_scatter.setData(xi, yi)
         self.plot_line.setData(xi, yi)

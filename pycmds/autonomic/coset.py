@@ -23,7 +23,9 @@ import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
 import hardware.filters.filters as filters
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+all_hardwares = (
+    opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+)
 
 main_dir = g.main_dir.read()
 ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "coset.ini"
@@ -106,7 +108,9 @@ class CoSetHW:
         button = pw.SetButton("REMOVE", color="stop")
         g.queue_control.disable_when_true(button)
         button.setProperty("TableRowIndex", new_row_index)
-        button.clicked.connect(lambda: self.on_remove_file(button.property("TableRowIndex")))
+        button.clicked.connect(
+            lambda: self.on_remove_file(button.property("TableRowIndex"))
+        )
         self.table.setCellWidget(new_row_index, 2, button)
 
     def create_frame(self, layout):
@@ -220,7 +224,12 @@ class CoSetHW:
                 break  # should only be one
         # load in
         self.load_file(path)
-        ini.write(self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True)
+        ini.write(
+            self.hardware.name,
+            corr.setpoints.name,
+            str(corr.path),
+            with_apostrophe=True,
+        )
         self.display_combobox.write(corr.setpoints.name)
 
     def on_remove_file(self, row):
@@ -247,7 +256,9 @@ class CoSetHW:
         removed_corr = self.corrs.pop(index)
         self.control_hardware.pop(index)
         ini.write(self.hardware.name, removed_corr.setpoints.name, None)
-        ini.write(self.hardware.name, list(removed_corr.dependents.keys())[0] + " offset", 0.0)
+        ini.write(
+            self.hardware.name, list(removed_corr.dependents.keys())[0] + " offset", 0.0
+        )
         # clear table
         for i in range(self.table.rowCount()):
             self.table.removeRow(0)
@@ -305,14 +316,21 @@ class CoSetHW:
             corr.offset_to(list(corr.dependents.keys())[0], 0, self.control_position[i])
             corr.name = f"{next(iter(corr.dependents))}_{corr.setpoints.name} offset"
             paths.append(
-                corr.save(save_directory=pathlib.Path(g.main_dir.read()) / "autonomic" / "files")
+                corr.save(
+                    save_directory=pathlib.Path(g.main_dir.read())
+                    / "autonomic"
+                    / "files"
+                )
             )
         for i in range(len(self.corrs)):
             self.unload_file(0)
         for path in paths:
             corr = self.load_file(path)
             ini.write(
-                self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True
+                self.hardware.name,
+                corr.setpoints.name,
+                str(corr.path),
+                with_apostrophe=True,
             )
 
         self.launch()

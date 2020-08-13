@@ -57,7 +57,9 @@ class ProxyMotorAxisSectionWidget(abstract_tuning.AqnSectionWidget):
         self.items["Motor"] = pc.Combo()
 
     def on_update(self):
-        hardware = next(h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read())
+        hardware = next(
+            h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read()
+        )
         self.items["Motor"].set_allowed_values(hardware.curve.dependent_names)
 
 

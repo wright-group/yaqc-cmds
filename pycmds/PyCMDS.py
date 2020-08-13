@@ -79,7 +79,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self, parent=None)
-        self.config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+        self.config = toml.load(
+            pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+        )
         g.system_name.write(self.config["system_name"])
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
@@ -245,9 +247,13 @@ class MainWindow(QtWidgets.QMainWindow):
         import autonomic.coset
 
     def _load_google_drive(self):
-        g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))
+        g.google_drive_enabled.write(
+            self.config.get("google_drive", {}).get("enable", False)
+        )
         if g.google_drive_enabled.read():
-            g.google_drive_control.write(yaqc.Client(self.config["google_drive"]["port"]))
+            g.google_drive_control.write(
+                yaqc.Client(self.config["google_drive"]["port"])
+            )
 
     def _load_witch(self):
         # check if witch is enabled
@@ -278,7 +284,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # a function which ensures that the window appears in the center of the screen at startup
         screen = QtWidgets.QDesktopWidget().screenGeometry()
         size = self.geometry()
-        self.move((screen.width() - size.width()) / 2, (screen.height() - size.height()) / 2)
+        self.move(
+            (screen.width() - size.width()) / 2, (screen.height() - size.height()) / 2
+        )
 
     def get_status(self, full=False):
         # called by slack

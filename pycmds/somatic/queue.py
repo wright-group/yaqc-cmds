@@ -29,7 +29,9 @@ import hardware.delays.delays as delays
 import hardware.opas.opas as opas
 import hardware.filters.filters as filters
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+all_hardwares = (
+    opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+)
 
 ### define ####################################################################
 
@@ -61,7 +63,9 @@ class Item(QtCore.QObject):
         # basic information
         self.name = name  # filled by user, up to 10 charachters long
         self.info = info  # filled by user, can be arbitrarily long
-        self.description = description  # filled programmatically, to be displayed in table
+        self.description = (
+            description  # filled programmatically, to be displayed in table
+        )
         # status: can be one of 'ENQUEUED', 'RUNNING', 'COMPLETE', 'FAILED'
         self.status = "ENQUEUED"
         self.finished = pc.Bool(initial_value=False)
@@ -142,7 +146,9 @@ class Wait(Item):
 class Worker(QtCore.QObject):
     action_complete = QtCore.Signal()
 
-    def __init__(self, enqueued, busy, queue_status, queue_url, queue_index, queue_folder):
+    def __init__(
+        self, enqueued, busy, queue_status, queue_url, queue_index, queue_folder
+    ):
         QtCore.QObject.__init__(self)
         self.enqueued = enqueued
         self.busy = busy
@@ -221,13 +227,17 @@ class Worker(QtCore.QObject):
         # upload aqn file
         if g.google_drive_enabled.read():
             g.google_drive_control.read().create_file(
-                path=str(item.aqn_path), parent_id=self.folder.read(), id=str(item.aqn_path)
+                path=str(item.aqn_path),
+                parent_id=self.folder.read(),
+                id=str(item.aqn_path),
             )
 
         # send message on slack
         if g.slack_enabled.read():
             name = os.path.split(folder_name)[1]
-            message = ":checkered_flag: acquisition complete - {0} - {1}".format(name, item.url)
+            message = ":checkered_flag: acquisition complete - {0} - {1}".format(
+                name, item.url
+            )
             g.slack_control.read().send_message(message)
 
     def execute_device(self, item):
@@ -355,7 +365,9 @@ class Queue:
         # create queue folder
         if folder is None:
             folder_name = " ".join([self.timestamp.path, self.name])
-            self.folder = pc.Value(os.path.join(g.main_window.read().data_folder, folder_name))
+            self.folder = pc.Value(
+                os.path.join(g.main_window.read().data_folder, folder_name)
+            )
             os.mkdir(self.folder.read())
         else:
             self.folder = pc.Value(folder)
@@ -375,7 +387,9 @@ class Queue:
         if url is None:
             if g.google_drive_enabled.read():
                 g.google_drive_control.read().reserve_id(self.folder.read())
-                self.url = g.google_drive_control.read().id_to_open_url(self.folder.read())
+                self.url = g.google_drive_control.read().id_to_open_url(
+                    self.folder.read()
+                )
                 g.google_drive_control.read().create_folder(
                     path=self.folder.read(), id=self.folder.read()
                 )
@@ -390,7 +404,12 @@ class Queue:
         self.worker_enqueued = pc.Enqueued()
         self.worker_busy = pc.Busy()
         self.worker = Worker(
-            self.worker_enqueued, self.worker_busy, self.status, self.url, self.index, self.folder
+            self.worker_enqueued,
+            self.worker_busy,
+            self.status,
+            self.url,
+            self.index,
+            self.folder,
         )
         self.worker.fraction_complete.updated.connect(self.update_progress)
         self.worker.action_complete.connect(self.on_action_complete)
@@ -400,7 +419,9 @@ class Queue:
         self.worker_q = pc.Q(self.worker_enqueued, self.worker_busy, self.worker)
         # message on slack
         if g.slack_enabled.read():
-            message = ":baby: new queue created - {0} - {1}".format(folder_name, self.url)
+            message = ":baby: new queue created - {0} - {1}".format(
+                folder_name, self.url
+            )
             g.slack_control.read().send_message(message)
 
     def _start_next_action(self):
@@ -449,8 +470,12 @@ class Queue:
         # TODO:
         print("append_device")
 
-    def append_hardware(self, hardwares, value, units, name, info, description, update=True):
-        hardware = Hardware(hardwares, value, units, name=name, info=info, description=description)
+    def append_hardware(
+        self, hardwares, value, units, name, info, description, update=True
+    ):
+        hardware = Hardware(
+            hardwares, value, units, name=name, info=info, description=description
+        )
         self.items.append(hardware)
         if update:
             self.update()
@@ -490,7 +515,9 @@ class Queue:
         seconds = self.status.get_runtime()
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
-        string = ":".join([str(int(h)).zfill(3), str(int(m)).zfill(2), str(int(s)).zfill(2)])
+        string = ":".join(
+            [str(int(h)).zfill(3), str(int(m)).zfill(2), str(int(s)).zfill(2)]
+        )
         return string
 
     def interrupt(self, option=None, message="Please choose how to proceed."):
@@ -603,7 +630,9 @@ class Queue:
                 path = (
                     os.path.join(
                         self.folder.read(),
-                        " ".join([index_str, item.module.module_name, item.name]).rstrip(),
+                        " ".join(
+                            [index_str, item.module.module_name, item.name]
+                        ).rstrip(),
                     )
                     + ".aqn"
                 )
@@ -677,7 +706,9 @@ class GUI(QtCore.QObject):
         index.setValue(i)
         index.setProperty("TableRowIndex", i)
         index.editingFinished.connect(
-            lambda: self.on_index_changed(index.property("TableRowIndex"), int(index.value()))
+            lambda: self.on_index_changed(
+                index.property("TableRowIndex"), int(index.value())
+            )
         )
         self.table.setCellWidget(i, 0, index)
         return index
@@ -827,7 +858,14 @@ class GUI(QtCore.QObject):
         settings_layout.addWidget(line)
         # type combobox
         input_table = pw.InputTable()
-        allowed_values = ["Acquisition", "Wait", "Interrupt", "Hardware", "Device", "Script"]
+        allowed_values = [
+            "Acquisition",
+            "Wait",
+            "Interrupt",
+            "Hardware",
+            "Device",
+            "Script",
+        ]
         allowed_values.remove("Device")  # not ready yet
         allowed_values.remove("Script")  # not ready yet
         self.type_combo = pc.Combo(allowed_values=allowed_values)
@@ -964,7 +1002,9 @@ class GUI(QtCore.QObject):
             fields.append(
                 make_field(
                     "done/total",
-                    "/".join([str(self.queue.index.read()), str(len(self.queue.items))]),
+                    "/".join(
+                        [str(self.queue.index.read()), str(len(self.queue.items))]
+                    ),
                     short=True,
                 )
             )
@@ -974,7 +1014,9 @@ class GUI(QtCore.QObject):
             for item_index, item in enumerate(self.queue.items):
                 if not full and item.status != "RUNNING":
                     continue
-                name = " - ".join([str(item_index).zfill(3), item.type, item.description])
+                name = " - ".join(
+                    [str(item_index).zfill(3), item.type, item.description]
+                )
                 fields = []
                 if item.started is not None:
                     fields.append(make_field("started", item.started.human, short=True))
@@ -983,7 +1025,9 @@ class GUI(QtCore.QObject):
                 if item.type == "acquisition" and item.status in ["COMPLETE", "FAILED"]:
                     fields.append(make_field("url", item.url, short=False))
                 attachments.append(
-                    make_attachment("", title=name, fields=fields, color=colors[item.status])
+                    make_attachment(
+                        "", title=name, fields=fields, color=colors[item.status]
+                    )
                 )
             return message, attachments
 
@@ -999,7 +1043,9 @@ class GUI(QtCore.QObject):
         # import modules
         # done from modules.ini
         # modules appear in order of import (order of appearance in ini)
-        config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds"))/ "config.toml")
+        config = toml.load(
+            pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+        )
         self.modules = {}
         for name, load in config["modules"].items():
             if load:
@@ -1082,7 +1128,9 @@ class GUI(QtCore.QObject):
         caption = "Choose an aqn file"
         directory = os.path.join(somatic_folder, "saved")
         options = "AQN (*.aqn);;All Files (*.*)"
-        p = file_dialog_handler.open_dialog(caption=caption, directory=directory, options=options)
+        p = file_dialog_handler.open_dialog(
+            caption=caption, directory=directory, options=options
+        )
         # load basic info
         ini = wt.kit.INI(p)
         self.acquisition_name.write(ini.read("info", "name"))
@@ -1191,13 +1239,20 @@ class GUI(QtCore.QObject):
                 value = ini.read(section, "value")
                 units = ini.read(section, "units")
                 self.queue.append_hardware(
-                    hardwares, value, units, name=name, info=info, description=description
+                    hardwares,
+                    value,
+                    units,
+                    name=name,
+                    info=info,
+                    description=description,
                 )
             elif item_type == "interrupt":
                 name = ini.read(section, "name")
                 info = ini.read(section, "info")
                 description = ini.read(section, "description")
-                self.queue.append_interrupt(name=name, info=info, description=description)
+                self.queue.append_interrupt(
+                    name=name, info=info, description=description
+                )
             elif item_type == "script":
                 raise NotImplementedError
             elif item_type == "wait":
@@ -1220,10 +1275,16 @@ class GUI(QtCore.QObject):
                     item.exited = wt.kit.TimeStamp()
                 else:
                     item.status = status
-                item.created = wt.kit.timestamp_from_RFC3339(ini.read(section, "created"))
+                item.created = wt.kit.timestamp_from_RFC3339(
+                    ini.read(section, "created")
+                )
                 if ini.has_section("started"):
-                    item.started = wt.kit.timestamp_from_RFC3339(ini.read(section, "started"))
-                    item.exited = wt.kit.timestamp_from_RFC3339(ini.read(section, "exited"))
+                    item.started = wt.kit.timestamp_from_RFC3339(
+                        ini.read(section, "started")
+                    )
+                    item.exited = wt.kit.timestamp_from_RFC3339(
+                        ini.read(section, "exited")
+                    )
                     if item.status == "COMPLETE":
                         item.finished.write(True)
             i += 1
@@ -1269,7 +1330,9 @@ class GUI(QtCore.QObject):
         ini.write("info", "module", module_name)
         ini.write("info", "name", name)
         ini.write("info", "info", self.acquisition_info.read())
-        ini.write("info", "description", module_name)  # optionally overwritten by module
+        ini.write(
+            "info", "description", module_name
+        )  # optionally overwritten by module
         # fill with module specific information
         self.modules[module_name].gui.save(p)
         # finish
@@ -1335,7 +1398,9 @@ class GUI(QtCore.QObject):
             label.setToolTip(item.description)
             self.table.setCellWidget(i, 5, label)
             # remove
-            button = self.add_button_to_table(i, 6, "REMOVE", "stop", self.on_remove_item)
+            button = self.add_button_to_table(
+                i, 6, "REMOVE", "stop", self.on_remove_item
+            )
             if not item.status == "ENQUEUED":
                 button.setDisabled(True)
             # load

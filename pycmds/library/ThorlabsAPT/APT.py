@@ -128,11 +128,15 @@ class APTMotor:
         maximumAcceleration = ctypes.c_float()
         maximumVelocity = ctypes.c_float()
         error = self.dll.MOT_GetVelParamLimits(
-            serial_number, ctypes.pointer(maximumAcceleration), ctypes.pointer(maximumVelocity)
+            serial_number,
+            ctypes.pointer(maximumAcceleration),
+            ctypes.pointer(maximumVelocity),
         )
         return maximumAcceleration.value, maximumVelocity.value
 
-    def _set_velocity_parameters(self, minimum_velocity, acceleration, maximum_velocity):
+    def _set_velocity_parameters(
+        self, minimum_velocity, acceleration, maximum_velocity
+    ):
         serial_number = ctypes.c_long(self.serial_number)
         minimumVelocity = ctypes.c_float(minimum_velocity)
         acceleration = ctypes.c_float(acceleration)
@@ -214,7 +218,9 @@ class APTMotor:
     def set_acceleration(self, acceleration):
         if acceleration > self.maximum_acceleration:
             raise ValueError("acceleration too large")
-        self._set_velocity_parameters(self.minimum_velocity, acceleration, self.maximum_velocity)
+        self._set_velocity_parameters(
+            self.minimum_velocity, acceleration, self.maximum_velocity
+        )
 
     def set_backlash_distance(self, distance):
         serial_number = ctypes.c_long(self.serial_number)
@@ -223,10 +229,14 @@ class APTMotor:
         return BLashDist.value
 
     def set_maximum_velocity(self, maximum_velocity):
-        self._set_velocity_parameters(self.minimum_velocity, self.acceleration, maximum_velocity)
+        self._set_velocity_parameters(
+            self.minimum_velocity, self.acceleration, maximum_velocity
+        )
 
     def set_minimum_velocity(self, minimum_velocity):
-        self._set_velocity_parameters(minimum_velocity, self.acceleration, self.maximum_velocity)
+        self._set_velocity_parameters(
+            minimum_velocity, self.acceleration, self.maximum_velocity
+        )
 
     def set_position(self, position, wait=False):
         serial_number = ctypes.c_long(self.serial_number)

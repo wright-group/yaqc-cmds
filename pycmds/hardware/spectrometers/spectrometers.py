@@ -40,5 +40,9 @@ class Hardware(hw.Hardware):
 conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    conf.get("hardware", {}).get("spectrometers", {}), name="Spectrometers", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("spectrometers", {}),
+    name="Spectrometers",
+    Driver=Driver,
+    GUI=GUI,
+    Hardware=Hardware,
 )

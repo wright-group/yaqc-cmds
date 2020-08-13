@@ -77,7 +77,9 @@ class BinaryCommand(object):
         return packed
 
     def __str__(self):
-        return "[{:d}, {:d}, {:d}]".format(self.device_number, self.command_number, self.data)
+        return "[{:d}, {:d}, {:d}]".format(
+            self.device_number, self.command_number, self.data
+        )
 
 
 class BinaryDevice(object):
@@ -276,7 +278,9 @@ class BinaryReply(object):
                 binary (ascii) string.
         """
         if isinstance(reply, bytes):
-            self.device_number, self.command_number, self.data = struct.unpack("<2Bl", reply)
+            self.device_number, self.command_number, self.data = struct.unpack(
+                "<2Bl", reply
+            )
             if message_id:
                 # Use bitmasks to extract the message ID.
                 self.message_id = (self.data & 0xFF000000) >> 24
@@ -315,7 +319,9 @@ class BinaryReply(object):
         return struct.pack("<2Bl", self.device_number, self.command_number, self.data)
 
     def __str__(self):
-        return "[{:d}, {:d}, {:d}]".format(self.device_number, self.command_number, self.data)
+        return "[{:d}, {:d}, {:d}]".format(
+            self.device_number, self.command_number, self.data
+        )
 
 
 class BinarySerial(object):
@@ -428,7 +434,8 @@ class BinarySerial(object):
 
         else:
             raise TypeError(
-                "write must be passed several integers, or a " "string, list, or BinaryCommand."
+                "write must be passed several integers, or a "
+                "string, list, or BinaryCommand."
             )
 
         self._ser.write(data)

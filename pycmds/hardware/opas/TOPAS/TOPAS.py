@@ -34,11 +34,13 @@ class Driver(BaseDriver):
         self.has_shutter = kwargs["has_shutter"]
         self.motor_ports = kwargs["motor_ports"]
         if self.has_shutter:
-            self.shutter_position = pc.Bool(name="Shutter", display=True, set_method="set_shutter")
+            self.shutter_position = pc.Bool(
+                name="Shutter", display=True, set_method="set_shutter"
+            )
             self.shutter = yaqc.Client(kwargs["shutter_port"])
         BaseDriver.__init__(self, *args, **kwargs)
         self.serial_number = self.ini.read("OPA" + str(self.index), "serial number")
-        
+
         if self.has_shutter:
             self.shutter.set_position(0)
 
@@ -49,7 +51,12 @@ class Driver(BaseDriver):
             limits = pc.NumberLimits(min_position, max_position)
             number = pc.Number(initial_value=0, limits=limits, display=True, decimals=6)
             self.motor_positions[motor_name] = number
-            self.recorded["w%d_" % self.index + motor_name] = [number, None, 1.0, motor_name]
+            self.recorded["w%d_" % self.index + motor_name] = [
+                number,
+                None,
+                1.0,
+                motor_name,
+            ]
         # finish
 
         if self.has_shutter:
@@ -81,7 +88,9 @@ class Driver(BaseDriver):
         all_crvs = attune.TopasCurve.read_all(paths)
         allowed_values = list(all_crvs.keys())
         self.interaction_string_combo = pc.Combo(allowed_values=allowed_values)
-        current_value = self.ini.read("OPA%i" % self.index, "current interaction string")
+        current_value = self.ini.read(
+            "OPA%i" % self.index, "current interaction string"
+        )
         self.interaction_string_combo.write(current_value)
         self.interaction_string_combo.updated.connect(self.load_curve)
         g.queue_control.disable_when_true(self.interaction_string_combo)
@@ -112,7 +121,9 @@ class Driver(BaseDriver):
             for dependent in curve.dependent_names:
                 if dependent not in self.motor_names:
                     try:
-                        curve.rename_dependent(dependent, self.motor_names[int(dependent)])
+                        curve.rename_dependent(
+                            dependent, self.motor_names[int(dependent)]
+                        )
                     except:
                         pass
         self.interaction_string_combo.set_allowed_values(list(all_curves.keys()))

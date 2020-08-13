@@ -41,7 +41,11 @@ class Driver(pc.Driver):
         self.serial = self.hardware.serial
         self.label = pc.String(kwargs["label"])
         self.native_units = kwargs["native_units"]
-        self.state_filepath = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "hardware" / f"{self.name}-state.toml"
+        self.state_filepath = (
+            pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds"))
+            / "hardware"
+            / f"{self.name}-state.toml"
+        )
         self.state_filepath.parent.mkdir(parents=True, exist_ok=True)
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
@@ -62,7 +66,7 @@ class Driver(pc.Driver):
             self.label.read(),
             False,
         ]
-        #self.queue_emptied.connect(self.save_status)
+        # self.queue_emptied.connect(self.save_status)
 
     def close(self):
         pass
@@ -97,7 +101,10 @@ class Driver(pc.Driver):
         self.is_busy()
 
     def get_state(self):
-        return {"position": self.position.read(self.native_units), "display_units":self.position.units}
+        return {
+            "position": self.position.read(self.native_units),
+            "display_units": self.position.units,
+        }
 
     def save_status(self):
         with open(self.state_filepath, "w") as f:
@@ -243,7 +250,9 @@ class Hardware(pc.Hardware):
         if input_units is None:
             pass
         else:
-            destination = wt.units.converter(destination, input_units, self.native_units)
+            destination = wt.units.converter(
+                destination, input_units, self.native_units
+            )
         min_value, max_value = self.limits.read(self.native_units)
         if min_value <= destination <= max_value:
             return True
@@ -277,7 +286,9 @@ class Hardware(pc.Hardware):
         if input_units is None:
             pass
         else:
-            destination = wt.units.converter(destination, input_units, self.native_units)
+            destination = wt.units.converter(
+                destination, input_units, self.native_units
+            )
         # do nothing if new destination is same as current destination
         if destination == self.destination.read(self.native_units):
             if not force_send:
@@ -312,7 +323,9 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
                 cls = getattr(mod, "Driver")
                 gui = getattr(mod, "GUI")
                 serial = section["serial"]
-                hardware = Hardware(cls, kwargs, gui, name=section, model=model, serial=serial)
+                hardware = Hardware(
+                    cls, kwargs, gui, name=section, model=model, serial=serial
+                )
             hardwares.append(hardware)
     gui = pw.HardwareFrontPanel(hardwares, name=name)
     advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)

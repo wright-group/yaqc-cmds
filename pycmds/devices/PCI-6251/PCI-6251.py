@@ -76,7 +76,9 @@ class Channel:
         ini_section = " ".join(["Channel", str(self.index)])
         self.section = ini_section
         self.active = pc.Bool(ini=ini, section=ini_section, option="active")
-        self.name = pc.String(inital_value="Name", ini=ini, section=ini_section, option="name")
+        self.name = pc.String(
+            inital_value="Name", ini=ini, section=ini_section, option="name"
+        )
         self.physical_correspondance = pc.Number(
             decimals=0,
             limits=pc.NumberLimits(0, 7, None),
@@ -92,10 +94,18 @@ class Channel:
         self.invert = pc.Bool(ini=ini, section=ini_section, option="invert")
         sample_limits = pc.NumberLimits(0, 899, None)
         self.signal_start_index = pc.Number(
-            decimals=0, limits=sample_limits, ini=ini, section=ini_section, option="signal start"
+            decimals=0,
+            limits=sample_limits,
+            ini=ini,
+            section=ini_section,
+            option="signal start",
         )
         self.signal_stop_index = pc.Number(
-            decimals=0, limits=sample_limits, ini=ini, section=ini_section, option="signal stop"
+            decimals=0,
+            limits=sample_limits,
+            ini=ini,
+            section=ini_section,
+            option="signal stop",
         )
         self.signal_pre_index = pc.Number(
             decimals=0,
@@ -106,14 +116,25 @@ class Channel:
         )
         processing_methods = ["Average", "Sum", "Min", "Max"]
         self.signal_method = pc.Combo(
-            allowed_values=processing_methods, ini=ini, section=ini_section, option="signal method"
+            allowed_values=processing_methods,
+            ini=ini,
+            section=ini_section,
+            option="signal method",
         )
         self.use_baseline = pc.Bool(ini=ini, section=ini_section, option="use baseline")
         self.baseline_start_index = pc.Number(
-            decimals=0, limits=sample_limits, ini=ini, section=ini_section, option="baseline start"
+            decimals=0,
+            limits=sample_limits,
+            ini=ini,
+            section=ini_section,
+            option="baseline start",
         )
         self.baseline_stop_index = pc.Number(
-            decimals=0, limits=sample_limits, ini=ini, section=ini_section, option="baseline stop"
+            decimals=0,
+            limits=sample_limits,
+            ini=ini,
+            section=ini_section,
+            option="baseline stop",
         )
         self.baseline_pre_index = pc.Number(
             decimals=0,
@@ -204,7 +225,9 @@ class Chopper:
         ini_section = " ".join(["Chopper", str(self.index)])
         self.section = ini_section
         self.active = pc.Bool(ini=ini, section=ini_section, option="active")
-        self.name = pc.String(inital_value="Name", ini=ini, section=ini_section, option="name")
+        self.name = pc.String(
+            inital_value="Name", ini=ini, section=ini_section, option="name"
+        )
         self.physical_correspondance = pc.Number(
             decimals=0,
             limits=pc.NumberLimits(0, 7, None),
@@ -215,7 +238,11 @@ class Chopper:
         self.invert = pc.Bool(ini=ini, section=ini_section, option="invert")
         sample_limits = pc.NumberLimits(0, 899, None)
         self.index = pc.Number(
-            decimals=0, limits=sample_limits, ini=ini, section=ini_section, option="index"
+            decimals=0,
+            limits=sample_limits,
+            ini=ini,
+            section=ini_section,
+            option="index",
         )
         # a list of all properties
         self.properties = [
@@ -283,7 +310,12 @@ nshots = pc.Number(
     decimals=0,
 )
 nsamples = pc.Number(
-    initial_value=np.nan, ini=ini, section="DAQ", option="samples", decimals=0, display=True
+    initial_value=np.nan,
+    ini=ini,
+    section="DAQ",
+    option="samples",
+    decimals=0,
+    display=True,
 )
 scan_index = pc.Number(initial_value=0, display=True, decimals=0)
 
@@ -508,7 +540,9 @@ class Driver(BaseDriver):
             return
         # create arrays for task to fill --------------------------------------
         self.samples = np.zeros(int(self.shots * nsamples.read()), dtype=np.float64)
-        self.samples_len = len(self.samples)  # do not want to call for every acquisition
+        self.samples_len = len(
+            self.samples
+        )  # do not want to call for every acquisition
         # finish --------------------------------------------------------------
         self.task_created = True
         self.task_changed.emit()
@@ -557,8 +591,12 @@ class Driver(BaseDriver):
         samples.write(self.samples)
         ### process ###########################################################
         # calculate shot values for each channel, chopper ---------------------
-        active_channels = [channel for channel in channels.read() if channel.active.read()]
-        active_choppers = [chopper for chopper in choppers.read() if chopper.active.read()]
+        active_channels = [
+            channel for channel in channels.read() if channel.active.read()
+        ]
+        active_choppers = [
+            chopper for chopper in choppers.read() if chopper.active.read()
+        ]
         shots_array = np.full(
             (len(active_channels) + len(active_choppers), int(self.shots)), np.nan
         )
@@ -568,7 +606,8 @@ class Driver(BaseDriver):
         for channel_index, channel in enumerate(active_channels):
             # get signal points
             signal_index_possibilities = range(
-                int(channel.signal_start_index.read()), int(channel.signal_stop_index.read()) + 1
+                int(channel.signal_start_index.read()),
+                int(channel.signal_stop_index.read()) + 1,
             )
             signal_indicies = [
                 i
@@ -645,7 +684,9 @@ class Driver(BaseDriver):
             directory = os.path.dirname(path)
             f, p, d = imp.find_module(name, [directory])
             processing_module = imp.load_module(name, f, p, d)
-            kinds = ["channel" for _ in channel_names] + ["chopper" for _ in chopper_names]
+            kinds = ["channel" for _ in channel_names] + [
+                "chopper" for _ in chopper_names
+            ]
             names = channel_names + chopper_names
             out = processing_module.process(shots_array, names, kinds)
             if len(out) == 3:
@@ -725,15 +766,21 @@ class GUI(BaseGUI):
         self.samples_plot_min_voltage_line = self.samples_plot_widget.add_infinite_line(
             color="y", angle=0
         )
-        self.samples_plot_signal_stop_line = self.samples_plot_widget.add_infinite_line(color="r")
-        self.samples_plot_signal_start_line = self.samples_plot_widget.add_infinite_line(color="g")
+        self.samples_plot_signal_stop_line = self.samples_plot_widget.add_infinite_line(
+            color="r"
+        )
+        self.samples_plot_signal_start_line = self.samples_plot_widget.add_infinite_line(
+            color="g"
+        )
         self.samples_plot_baseline_stop_line = self.samples_plot_widget.add_infinite_line(
             color="r", style="dashed"
         )
         self.samples_plot_baseline_start_line = self.samples_plot_widget.add_infinite_line(
             color="g", style="dashed"
         )
-        self.samples_plot_chopper_line = self.samples_plot_widget.add_infinite_line(color="b")
+        self.samples_plot_chopper_line = self.samples_plot_widget.add_infinite_line(
+            color="b"
+        )
         display_layout.addWidget(self.samples_plot_widget)
         legend = self.samples_plot_widget.plot_object.addLegend()
         legend.addItem(self.samples_plot_active_scatter, "channel samples")
@@ -771,7 +818,9 @@ class GUI(BaseGUI):
         self.sample_shots_displayed = pc.Number(
             initial_value=1, limits=pc.NumberLimits(1, 10), decimals=0, display=True
         )
-        self.sample_shots_displayed.updated.connect(self.on_sample_shots_displayed_updated)
+        self.sample_shots_displayed.updated.connect(
+            self.on_sample_shots_displayed_updated
+        )
         input_table.add("Shots Displayed", self.sample_shots_displayed)
         input_table.add("Settings", None)
         input_table.add("Samples per Shot", nsamples)
@@ -781,9 +830,13 @@ class GUI(BaseGUI):
         line = pw.line("H")
         settings_layout.addWidget(line)
         # channel_combobox
-        allowed_values = [channel.section for channel in channels.read() if channel.active.read()]
+        allowed_values = [
+            channel.section for channel in channels.read() if channel.active.read()
+        ]
         self.samples_channel_combo = pc.Combo(allowed_values=allowed_values)
-        self.samples_channel_combo.updated.connect(self.on_sample_shots_displayed_updated)
+        self.samples_channel_combo.updated.connect(
+            self.on_sample_shots_displayed_updated
+        )
         self.on_sample_shots_displayed_updated()
         input_table = pw.InputTable()
         input_table.add("Channel", self.samples_channel_combo)
@@ -816,7 +869,9 @@ class GUI(BaseGUI):
         settings_layout.addWidget(line)
         # chopper_combobox
         allowed_values = [
-            chopper.section for chopper in destination_choppers.read() if chopper.active.read()
+            chopper.section
+            for chopper in destination_choppers.read()
+            if chopper.active.read()
         ]
         self.samples_chopper_combo = pc.Combo(allowed_values=allowed_values)
         input_table = pw.InputTable()
@@ -892,7 +947,9 @@ class GUI(BaseGUI):
 
     def on_add_channel(self):
         allowed_values = [
-            channel.section for channel in destination_channels.read() if channel.active.read()
+            channel.section
+            for channel in destination_channels.read()
+            if channel.active.read()
         ]
         new_channel_section = "Channel %i" % len(allowed_values)
         allowed_values.append(new_channel_section)
@@ -903,7 +960,9 @@ class GUI(BaseGUI):
 
     def on_add_chopper(self):
         allowed_values = [
-            chopper.section for chopper in destination_choppers.read() if chopper.active.read()
+            chopper.section
+            for chopper in destination_choppers.read()
+            if chopper.active.read()
         ]
         new_chopper_section = "Chopper %i" % len(allowed_values)
         allowed_values.append(new_chopper_section)
@@ -940,7 +999,9 @@ class GUI(BaseGUI):
                 break
         self.hardware.update_sample_correspondances(channels.read(), choppers.read())
         allowed_values = [
-            channel.section for channel in destination_channels.read() if channel.active.read()
+            channel.section
+            for channel in destination_channels.read()
+            if channel.active.read()
         ]
         self.samples_channel_combo.set_allowed_values(allowed_values)
         self.samples_channel_combo.write(allowed_values[-1])
@@ -956,7 +1017,9 @@ class GUI(BaseGUI):
                 break
         self.hardware.update_sample_correspondances(channels.read(), choppers.read())
         allowed_values = [
-            chopper.section for chopper in destination_choppers.read() if chopper.active.read()
+            chopper.section
+            for chopper in destination_choppers.read()
+            if chopper.active.read()
         ]
         self.samples_chopper_combo.set_allowed_values(allowed_values)
         self.samples_chopper_combo.write(allowed_values[-1])
@@ -972,20 +1035,27 @@ class GUI(BaseGUI):
 
     def on_sample_shots_displayed_updated(self):
         # all samples
-        self.sample_xi = list(range(nsamples.read())) * int(self.sample_shots_displayed.read())
+        self.sample_xi = list(range(nsamples.read())) * int(
+            self.sample_shots_displayed.read()
+        )
         # signal samples
-        current_channel_object = channels.read()[self.samples_channel_combo.read_index()]
+        current_channel_object = channels.read()[
+            self.samples_channel_combo.read_index()
+        ]
         signal_start_index = int(current_channel_object.signal_start_index.read())
         signal_stop_index = int(current_channel_object.signal_stop_index.read())
         self.signal_indicies = np.array(
             [
                 i
                 for i in np.arange(signal_start_index, signal_stop_index)
-                if sample_correspondances.read()[i] == self.samples_channel_combo.read_index() + 1
+                if sample_correspondances.read()[i]
+                == self.samples_channel_combo.read_index() + 1
             ],
             dtype=np.int,
         )
-        self.signal_xi = list(self.signal_indicies) * int(self.sample_shots_displayed.read())
+        self.signal_xi = list(self.signal_indicies) * int(
+            self.sample_shots_displayed.read()
+        )
         for i in range(1, int(self.sample_shots_displayed.read())):
             self.signal_indicies = np.hstack(
                 (self.signal_indicies, self.signal_indicies + i * nsamples.read())
@@ -997,11 +1067,14 @@ class GUI(BaseGUI):
             [
                 i
                 for i in np.arange(baseline_start_index, baseline_stop_index)
-                if sample_correspondances.read()[i] == self.samples_channel_combo.read_index() + 1
+                if sample_correspondances.read()[i]
+                == self.samples_channel_combo.read_index() + 1
             ],
             dtype=np.int,
         )
-        self.baseline_xi = list(self.baseline_indicies) * int(self.sample_shots_displayed.read())
+        self.baseline_xi = list(self.baseline_indicies) * int(
+            self.sample_shots_displayed.read()
+        )
         for i in range(1, int(self.sample_shots_displayed.read())):
             self.baseline_indicies = np.hstack(
                 (self.baseline_indicies, self.baseline_indicies + i * nsamples.read())
@@ -1010,7 +1083,9 @@ class GUI(BaseGUI):
     def on_shot_channel_updated(self):
         # update y range to be range of channel
         channel_index = shot_channel_combo.read_index()
-        active_channels = [channel for channel in channels.read() if channel.active.read()]
+        active_channels = [
+            channel for channel in channels.read() if channel.active.read()
+        ]
         if channel_index > len(active_channels) - 1:
             # must be a chopper
             ymin = -1
@@ -1039,7 +1114,9 @@ class GUI(BaseGUI):
         self.samples_plot_scatter.setData(self.sample_xi, yi)
         # active samples
         self.samples_plot_active_scatter.hide()
-        current_channel_object = channels.read()[self.samples_channel_combo.read_index()]
+        current_channel_object = channels.read()[
+            self.samples_channel_combo.read_index()
+        ]
         if current_channel_object.active.read():
             self.samples_plot_active_scatter.show()
             xi = self.signal_xi

@@ -20,7 +20,9 @@ import pathlib
 
 main_dir = g.main_dir.read()
 
-config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+config = toml.load(
+    pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+)
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]
 
@@ -166,7 +168,9 @@ class UnknownChannel(Exception):
 def main_loop():
     if "LOGFILE" in config:
         logging.basicConfig(
-            filename=config["LOGFILE"], level=logging.INFO, format="%(asctime)s %(message)s"
+            filename=config["LOGFILE"],
+            level=logging.INFO,
+            format="%(asctime)s %(message)s",
         )
     logging.info(directory)
     try:
@@ -179,7 +183,9 @@ def main_loop():
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("-c", "--config", help="Full path to config file.", metavar="path")
+    parser.add_argument(
+        "-c", "--config", help="Full path to config file.", metavar="path"
+    )
     return parser.parse_args()
 
 
