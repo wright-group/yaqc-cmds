@@ -429,9 +429,12 @@ class Worker(QtCore.QObject):
 
 
 class GUI(QtCore.QObject):
+
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
+        self.state_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "modules" / f"self.module_name.toml"
+        self.state = toml.load(self.state_path)
         # create frame
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setMargin(0)
@@ -464,6 +467,10 @@ class GUI(QtCore.QObject):
     def on_device_settings_updated(self):
         # overload this if your gui has device-dependent settings
         pass
+
+    def save_state(self):
+        with open(self.state_path, "w") as f:
+            f.write(toml.dumps(self.state))
 
     def show(self):
         self.frame.show()

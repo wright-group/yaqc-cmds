@@ -3,6 +3,9 @@
 import os
 import pathlib
 
+import appdirs
+import toml
+
 import numpy as np
 
 import matplotlib
@@ -19,8 +22,6 @@ import somatic.acquisition as acquisition
 import project.ini_handler as ini_handler
 
 main_dir = g.main_dir.read()
-ini = ini_handler.Ini(os.path.join(main_dir, "somatic", "modules", "scan.ini"))
-app = g.app.read()
 
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
@@ -198,7 +199,7 @@ class Worker(acquisition.Worker):
             )
             constants.append(constant)
         # do scan
-        self.scan(axes, constants)
+        self.scan(ini, constants)
         # finish
         if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull
@@ -284,14 +285,18 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
+        if "main_channel" not in self.state.keys():
+            self.state["main_channel"] = devices.control.channel_names[0]
         self.channel_combo = pc.Combo(
             allowed_values=devices.control.channel_names,
-            ini=ini,
-            section="main",
-            option="main channel",
+            initial_value=self.state["main_channel"]
         )
+        self.channel_combo.updated.connect(self.save_state)
         input_table.add("Main Channel", self.channel_combo)
-        self.process_all_channels = pc.Bool(ini=ini, section="main", option="process all channels")
+        if "process_all_channels" not in self.state.keys():
+            self.state["process_all_channels"] = False
+        self.process_all_channels = pc.Bool(initial_value=self.state["process_all_channels"])
+        self.process_all_channels.updated.connect(self.save_state)
         input_table.add("Process All Channels", self.process_all_channels)
         self.layout.addWidget(input_table)
 
