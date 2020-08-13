@@ -96,6 +96,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self, parent=None)
         self.config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+        g.system_name.write(self.config["system_name"])
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
         self.setWindowTitle("PyCMDS %s" % __version__)
@@ -242,7 +243,6 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def _initialize_hardware(self):
-        g.offline.get_saved()
         if g.debug.read():
             print("initialize hardware")
         # import
