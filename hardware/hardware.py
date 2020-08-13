@@ -295,7 +295,7 @@ class Hardware(pc.Hardware):
 
 def import_hardwares(config, name, Driver, GUI, Hardware):
     hardwares = []
-    for name, section in config.items():
+    for hw_name, section in config.items():
         if section.get("enable", True):
             # initialization arguments
             kwargs = collections.OrderedDict()
@@ -304,7 +304,7 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
                 kwargs.pop(option, None)
             model = section["model"]
             if model == "Virtual":
-                hardware = Hardware(Driver, kwargs, GUI, name=name, model="Virtual")
+                hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model="Virtual")
             else:
                 path = (g.main_dir.read() / pathlib.Path(section["path"])).resolve()
                 fname = path.stem
