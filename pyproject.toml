@@ -6,5 +6,18 @@ build-backend = "flit_core.buildapi"
 module = "pycmds"
 author = "Blaise Thompson"
 author-email = "blaise@untzag.com"
+home-page = "https://github.com/wright-group/PyCMDS"
 classifiers = ["License :: OSI Approved :: MIT License"]
-
+requires-python = ">=3.7"
+requires = ["numexpr",
+            "psutil",
+            "pydaqmx",
+ 	    "pydrive",
+	    "pyqtgraph",
+	    "pyserial",
+	    "slackclient",
+	    "slacker",
+	    "sympy",
+	    "tidy_headers>=1.0.0",
+	    "wrighttools"
+	    ]
