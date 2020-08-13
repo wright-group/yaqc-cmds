@@ -199,7 +199,7 @@ class Worker(acquisition.Worker):
             )
             constants.append(constant)
         # do scan
-        self.scan(axes, constants)
+        self.scan(ini, constants)
         # finish
         if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull
@@ -397,6 +397,11 @@ class GUI(acquisition.GUI):
         aqn.write("processing", "process all channels", self.process_all_channels.read())
         # allow devices to write settings
         self.device_widget.save(aqn_path)
+
+    def save_state(self):
+        self.state["main_channel"] = self.channel_combo.read()
+        self.state["process_all_channels"] = self.process_all_channels.read()
+        super().save_state()
 
 
 def load():
