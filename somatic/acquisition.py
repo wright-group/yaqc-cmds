@@ -17,6 +17,8 @@ import traceback
 
 import configparser
 
+import appdirs
+import toml
 import numpy as np
 
 import numexpr
@@ -433,7 +435,9 @@ class GUI(QtCore.QObject):
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
-        self.state_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "modules" / f"self.module_name.toml"
+        self.state_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "modules" / f"{self.module_name.lower()}.toml"
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self.state_path.touch(exist_ok=True)
         self.state = toml.load(self.state_path)
         # create frame
         self.layout = QtWidgets.QVBoxLayout()

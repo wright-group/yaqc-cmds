@@ -199,7 +199,7 @@ class Worker(acquisition.Worker):
             )
             constants.append(constant)
         # do scan
-        self.scan(ini, constants)
+        self.scan(axes, constants)
         # finish
         if not self.stopped.read():
             self.finished.write(True)  # only if acquisition successfull

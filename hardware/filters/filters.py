@@ -1,7 +1,10 @@
 # --- import --------------------------------------------------------------------------------------
 
 
-import os
+import pathlib
+
+import toml
+import appdirs
 
 import WrightTools as wt
 
@@ -10,23 +13,11 @@ import project.widgets as pw
 import project.classes as pc
 import hardware.hardware as hw
 
-
-# --- define --------------------------------------------------------------------------------------
-
-
-main_dir = g.main_dir.read()
-app = g.app.read()
-
-directory = os.path.dirname(os.path.abspath(__file__))
-ini = wt.kit.INI(os.path.join(directory, "filters.ini"))
-
-
 # --- driver --------------------------------------------------------------------------------------
 
 
 class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
-        self.hardware_ini = ini
         self.motor_units = kwargs.pop("motor_units")
         self.factor = self.hardware.factor
         self.factor.write(kwargs["factor"])
@@ -177,9 +168,8 @@ class Hardware(hw.Hardware):
 
 
 # --- import --------------------------------------------------------------------------------------
-
-
-ini_path = os.path.join(directory, "filters.ini")
+conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    ini_path, name="Filters", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("filters", {}), name="Filters", Driver=Driver, GUI=GUI, Hardware=Hardware
 )

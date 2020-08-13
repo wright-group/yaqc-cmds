@@ -12,6 +12,7 @@ import collections
 import numpy as np
 
 
+import toml
 import h5py
 
 from PySide2 import QtCore, QtWidgets
@@ -34,13 +35,13 @@ config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "
 # [module path, class name, initialization arguments, friendly name]
 device_dict = collections.OrderedDict()
 device_dict["NI 6251"] = [
-    os.path.join(main_dir, "devices", "NI_6251", "NI_6251.py"),
+    os.path.join(main_dir, "sensors", "NI_6251", "NI_6251.py"),
     "Device",
     [None],
     "ni6251",
 ]
 device_dict["InGaAs array"] = [
-    os.path.join(main_dir, "devices", "InGaAs_array", "InGaAs.py"),
+    os.path.join(main_dir, "sensors", "InGaAs_array", "InGaAs.py"),
     "Device",
     [None],
     "InGaAs",
@@ -530,18 +531,18 @@ class Control(QtCore.QObject):
         g.main_window.read().queue_control.connect(self.queue_control_update)
         self.channel_names = []
         # import devices
-        for section in config["devices"].keys():
+        for section in config["sensors"].keys():
             if section == "settings":
                 continue
-            if config["devices"][section]["enable"]:
+            if config["sensors"][section]["enable"]:
                 # collect arguments
                 kwargs = collections.OrderedDict()
-                for option in config["devices"][section].keys():
+                for option in config["sensors"][section].keys():
                     if option in ["enable", "model", "serial", "path", "__name__"]:
                         continue
                     else:
-                        kwargs[option] = config["devices"][section][option]
-                model = config["devices"][section]["model"]
+                        kwargs[option] = config["sensors"][section][option]
+                model = config["sensors"][section]["model"]
                 # import
                 if model == "Virtual":
                     device = Device(
@@ -554,14 +555,14 @@ class Control(QtCore.QObject):
                     )
                 else:
                     parent = pathlib.Path(__file__).parent.parent
-                    path = parent / pathlib.Path(config["devices"][section]["path"])
+                    path = parent / pathlib.Path(config["sensors"][section]["path"])
                     fname = os.path.basename(path).split(".")[0]
                     mod = imp.load_source(fname, path)
                     device_cls = getattr(mod, "Device")
                     cls = getattr(mod, "Driver")
                     gui = getattr(mod, "GUI")
                     widget_cls = getattr(mod, "Widget")
-                    serial = config["devices"][parent]["serial"]
+                    serial = config["sensors"][parent]["serial"]
                     device = device_cls(
                         cls,
                         kwargs,

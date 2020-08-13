@@ -11,6 +11,7 @@ from PySide2 import QtWidgets, QtCore
 app = QtWidgets.QApplication(sys.argv)
 
 import os
+import pathlib
 
 folders = []
 folders.append(["data"])
@@ -54,6 +55,7 @@ import project.file_dialog_handler
 
 from hardware.hardware import all_initialized
 
+import appdirs
 import toml
 
 import WrightTools as wt

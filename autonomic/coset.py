@@ -26,7 +26,7 @@ import hardware.filters.filters as filters
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 main_dir = g.main_dir.read()
-ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds") / "coset.ini")
+ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "coset.ini"
 ini = project.ini_handler.Ini(ini_path)
 ini.return_raw = True
 

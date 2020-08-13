@@ -7,6 +7,8 @@ import pathlib
 import shutil
 import collections
 
+import appdirs
+import toml
 import numpy as np
 
 from PySide2 import QtWidgets
@@ -21,15 +23,6 @@ import hardware.hardware as hw
 from hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
 
 
-### define ####################################################################
-
-
-directory = os.path.dirname(os.path.abspath(__file__))
-
-main_dir = g.main_dir.read()
-app = g.app.read()
-
-
 ### driver ####################################################################
 
 
@@ -38,9 +31,8 @@ class Driver(hw.Driver):
         self.index = kwargs["index"]
         self.motor_positions = collections.OrderedDict()
         self.homeable = {}  # TODO:
-        self.poynting_type = kwargs.pop("poynting_type")
+        self.poynting_type = kwargs.pop("poynting_type", None)
         self.poynting_correction = None
-        self.poynting_curve_path = kwargs.pop("poynting_curve_path")
         hw.Driver.__init__(self, *args, **kwargs)
         if not hasattr(self, "motor_names"):  # for virtual...
             self.motor_names = ["Delay", "Crystal", "Mixer"]

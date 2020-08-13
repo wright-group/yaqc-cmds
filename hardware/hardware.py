@@ -14,6 +14,9 @@ import collections
 from PySide2 import QtCore
 from PySide2 import QtWidgets
 
+import appdirs
+import toml
+
 import WrightTools as wt
 
 import project.classes as pc
@@ -42,11 +45,16 @@ class Driver(pc.Driver):
         self.state_filepath.parent.mkdir(parents=True, exist_ok=True)
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
-        self.load_state()
+        if self.state_filepath.exists():
+            state = toml.load(self.state_filepath)
+        else:
+            state = {}
+        self.load_state(state)
         self.offset = pc.Number(units=self.native_units, name="Offset", display=True)
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
+        print(self.name, type(self.name))
         self.recorded[self.name] = [
             self.position,
             self.native_units,
@@ -54,7 +62,7 @@ class Driver(pc.Driver):
             self.label.read(),
             False,
         ]
-        self.queue_emptied.connect(self.save_status)
+        #self.queue_emptied.connect(self.save_status)
 
     def close(self):
         pass
@@ -66,6 +74,7 @@ class Driver(pc.Driver):
         """
         May not accept arguments.
         """
+        print("Driver initialize", self.name)
         self.label.updated.connect(self.on_label_updated)
         self.initialized.write(True)
         self.initialized_signal.emit()
@@ -93,11 +102,7 @@ class Driver(pc.Driver):
     def save_status(self):
         toml.dump(self.get_state(), self.state_filepath)
 
-    def load_state(self):
-        if self.state_filepath.exists():
-            state = toml.load(self.state_filepath)
-        else:
-            state = {}
+    def load_state(self, state):
         self.position = pc.Number(
             initial_value=state.get("position", float("nan")),
             units=self.native_units,
@@ -201,6 +206,7 @@ def all_initialized():
     # fires any time a hardware is initialized
     for hardware in hardwares:
         while not hardware.initialized.read():
+            print(hardware.name, "not yet inited")
             time.sleep(0.1)
     # past here only runs when ALL hardwares are initialized
     g.hardware_initialized.write(True)
@@ -297,7 +303,7 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
                 kwargs.pop(option, None)
             model = section["model"]
             if model == "Virtual":
-                hardware = Hardware(Driver, kwargs, GUI, name=section, model="Virtual")
+                hardware = Hardware(Driver, kwargs, GUI, name=name, model="Virtual")
             else:
                 path = (g.main_dir.read() / pathlib.Path(section["path"])).resolve()
                 fname = path.stem

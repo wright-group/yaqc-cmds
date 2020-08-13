@@ -1,7 +1,10 @@
 # --- import --------------------------------------------------------------------------------------
 
 
-import os
+import pathlib
+
+import appdirs
+import toml
 
 import WrightTools as wt
 
@@ -35,10 +38,11 @@ class Driver(hw.Driver):
     def get_state(self):
         state = super().get_state()
         state["zero_position"] = self.zero_position.read(self.motor_units)
+        return state
 
     def load_state(self, state):
         super().load_state(state)
-        self.zero_position.write(state.get("zero_postion", 0))
+        self.hardware.zero_position.write(state.get("zero_postion", 0))
 
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)

@@ -8,10 +8,14 @@ import time
 import datetime
 import dateutil
 import collections
+import pathlib
 
 import configparser as configparser
 
 from PySide2 import QtCore, QtWidgets
+
+import appdirs
+import toml
 
 import WrightTools as wt
 
@@ -995,12 +999,10 @@ class GUI(QtCore.QObject):
         # import modules
         # done from modules.ini
         # modules appear in order of import (order of appearance in ini)
-        config = configparser.SafeConfigParser()
-        p = os.path.join(somatic_folder, "modules.ini")
-        config.read(p)
-        self.modules = collections.OrderedDict()
-        for name in config.options("load"):
-            if config.get("load", name) == "True":
+        config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds"))/ "config.toml")
+        self.modules = {}
+        for name, load in config["modules"].items():
+            if load:
                 path = os.path.join(somatic_folder, "modules", name + ".py")
                 module = imp.load_source(name, path)
                 if module.load():
