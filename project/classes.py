@@ -152,6 +152,11 @@ class PyCMDS_Object(QtCore.QObject):
     def __init__(
         self,
         initial_value=None,
+        ini=None,
+        section="",
+        option="",
+        import_from_ini=True,
+        save_to_ini_at_shutdown=True,
         display=False,
         name="",
         label="",
@@ -170,6 +175,18 @@ class PyCMDS_Object(QtCore.QObject):
             self.disabled = True
         else:
             self.disabled = False
+        # ini
+        if ini:
+            self.has_ini = True
+            self.ini = ini
+            self.section = section
+            self.option = option
+        else:
+            self.has_ini = False
+        if import_from_ini:
+            self.get_saved()
+        if save_to_ini_at_shutdown:
+            g.shutdown.add_method(self.save)
         # name
         self.name = name
         if not label == "":
@@ -206,11 +223,15 @@ class PyCMDS_Object(QtCore.QObject):
         self.updated.emit()
 
     def get_saved(self):
+        if self.has_ini:
+            self.value.write(self.ini.read(self.section, self.option))
         self.updated.emit()
 
     def save(self, value=None):
         if value is not None:
             self.value.write(value)
+        if self.has_ini:
+            self.ini.write(self.section, self.option, self.value.read())
 
     def set_disabled(self, disabled):
         self.disabled = bool(disabled)
@@ -282,16 +303,18 @@ class Combo(PyCMDS_Object):
     def save(self, value=None):
         if value is not None:
             self.value.write(value)
+        if self.has_ini:
+            self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
 
     def set_allowed_values(self, allowed_values):
         """
-        Set the allowed values of the Combo object.
-
+        Set the allowed values of the Combo object. 
+        
         Parameters
         ----------
         allowed_values : list
             the new allowed values
-
+        
         Notes
         ----------
         The value of the object is written to the first allowed value if the
@@ -346,7 +369,7 @@ class Filepath(PyCMDS_Object):
     def __init__(self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs):
         """
         holds the filepath as a string \n
-
+        
         Kind one in {'file', 'directory'}
         """
         PyCMDS_Object.__init__(self, *args, **kwargs)
@@ -398,11 +421,17 @@ class Filepath(PyCMDS_Object):
         return str(PyCMDS_Object.read(self))
 
     def get_saved(self):
+        if self.has_ini:
+            read = self.ini.read(self.section, self.option)
+            self.value.write(os.path.normpath(read))
         self.updated.emit()
 
     def save(self, value=None):
         if value is not None:
             self.value.write(value)
+        if self.has_ini:
+            out = str(self.value.read().replace("\\", "/"))
+            self.ini.write(self.section, self.option, out)
 
 
 class NumberLimits(PyCMDS_Object):
@@ -638,7 +667,7 @@ class Driver(QtCore.QObject):
     def check_busy(self):
         """
         Handles writing of busy to False.
-
+        
         Must always write to busy.
         """
         if self.is_busy():
@@ -662,9 +691,9 @@ class Driver(QtCore.QObject):
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
-
+        
         Method passed as qstring, inputs as list of [args, kwargs].
-
+        
         Calls own method with arguments from inputs.
         """
         self.update_ui.emit()
@@ -713,7 +742,7 @@ class Hardware(QtCore.QObject):
     def __init__(self, driver_class, driver_arguments, gui_class, name, model, serial=None):
         """
         Hardware representation object living in the main thread.
-
+        
         Parameters
         driver_class : Driver class
             Class of driver.
