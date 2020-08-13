@@ -293,7 +293,7 @@ class Control:
             text = message["text"]
             channel = message["channel"]
             # only process messages that are posted in the appropriate channel
-            if not channel == config["slack"]["channel"]:
+            if not channel == self.config["slack"]["channel"]:
                 continue
             text = text.split(" ", 1)[1]
             print("message read from slack:", text)

@@ -14,6 +14,10 @@ from argparse import ArgumentParser
 from slackclient import SlackClient
 import project.project_globals as g
 
+import appdirs
+import toml
+import pathlib
+
 main_dir = g.main_dir.read()
 
 config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
@@ -57,7 +61,6 @@ class RtmBot(object):
     def input(self, data):
         if "type" in data:
             function_name = "process_" + data["type"]
-            dbg("got {}".format(function_name))
             for plugin in self.bot_plugins:
                 plugin.register_jobs()
                 plugin.do(function_name, data)
@@ -115,18 +118,9 @@ class Plugin(object):
 
     def do(self, function_name, data):
         if function_name in dir(self.module):
-            # this makes the plugin fail with stack trace in debug mode
-            try:
-                eval("self.module." + function_name)(data)
-            except:
-                dbg("problem in module {} {}".format(function_name, data))
-            else:
-                eval("self.module." + function_name)(data)
+            eval("self.module." + function_name)(data)
         if "catch_all" in dir(self.module):
-            try:
-                self.module.catch_all(data)
-            except:
-                dbg("problem in catch all")
+            self.module.catch_all(data)
 
     def do_jobs(self):
         for job in self.jobs:
