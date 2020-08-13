@@ -3,6 +3,7 @@
 import os
 import pathlib
 import ast
+import appdirs
 
 import numpy as np
 
@@ -25,7 +26,8 @@ import hardware.filters.filters as filters
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 main_dir = g.main_dir.read()
-ini = project.ini_handler.Ini(os.path.join(main_dir, "autonomic", "coset.ini"))
+ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds") / "coset.ini")
+ini = project.ini_handler.Ini(ini_path)
 ini.return_raw = True
 
 # ensure that all elements are in the ini file
