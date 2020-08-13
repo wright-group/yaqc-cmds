@@ -160,12 +160,7 @@ class Job(object):
 
     def check(self):
         if self.lastrun + self.interval < time.time():
-                try:
-                    self.function()
-                except:
-                    dbg("problem")
-            else:
-                self.function()
+            self.function()
             self.lastrun = time.time()
             pass
 

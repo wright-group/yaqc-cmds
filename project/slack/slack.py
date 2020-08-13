@@ -5,7 +5,9 @@ import os
 import time
 import tempfile
 import pathlib
+
 import appdirs
+import toml
 
 from PySide2 import QtGui, QtCore
 
@@ -139,7 +141,7 @@ class Control:
         # connect
         g.shutdown.add_method(self.close)
         # signal startup
-        self.send_message(":wave: signing on", config["slack"]["channel"])
+        self.send_message(":wave: signing on", self.config["slack"]["channel"])
         g.slack_control.write(self)
 
     def append(self, text, channel):
