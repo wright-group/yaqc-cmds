@@ -100,7 +100,8 @@ class Driver(pc.Driver):
         return {"position": self.position.read(self.native_units), "display_units":self.position.units}
 
     def save_status(self):
-        toml.dump(self.get_state(), self.state_filepath)
+        with open(self.state_filepath, "w") as f:
+            toml.dump(self.get_state(), f)
 
     def load_state(self, state):
         self.position = pc.Number(
