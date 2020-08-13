@@ -51,6 +51,9 @@ app = g.app.read()
 somatic_folder = os.path.dirname(__file__)
 
 
+__here__ = pathlib.Path(__file__).parent
+
+
 ### container objects #########################################################
 
 
@@ -99,18 +102,12 @@ class Destinations:
 class Order:
     def __init__(self, name, path):
         self.name = name
-        self.module = imp.load_source(name, path)
+        self.module = imp.load_source(name, str(path))
         self.process = self.module.process
 
 
 orderers = []
-config = configparser.SafeConfigParser()
-p = os.path.join(somatic_folder, "order", "order.ini")
-config.read(p)
-for name in config.options("load"):
-    if config.get("load", name) == "True":
-        path = os.path.join(somatic_folder, "order", name + ".py")
-        orderers.append(Order(name, path))
+orderers.append(Order("ndindex", __here__ / "order" / "ndindex.py"))
 
 
 ### Worker base ##############################################################
