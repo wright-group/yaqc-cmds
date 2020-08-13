@@ -13,24 +13,6 @@ app = QtWidgets.QApplication(sys.argv)
 import os
 import pathlib
 
-folders = []
-folders.append(["data"])
-folders.append(["logs"])
-folders.append(["autonomic", "files"])
-folders.append(["hardware", "opas", "OPA-800", "OPA2 curves"])
-folders.append(["hardware", "opas", "OPA-800", "OPA3 curves"])
-folders.append(["hardware", "opas", "TOPAS", "OPA1 (10743) curves"])
-folders.append(["hardware", "opas", "TOPAS", "OPA2 (10742) curves"])
-folders.append(["hardware", "opas", "TOPAS", "configuration"])
-
-for folder in folders:
-    folder_path = os.path.join(os.getcwd(), *folder)
-    if not os.path.isdir(folder_path):
-        os.mkdir(folder_path)
-
-
-# TODO: create config.ini if none exists
-
 
 #### import ###################################################################
 # BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
@@ -121,7 +103,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._load_google_drive()
         self._load_witch()
         # populate self
-        self.data_folder = os.path.join(directory, "data")
+        self.data_folder = pathlib.Path.home() / "pycmds-data"
+        self.data_folder.mkdir(exist_ok=True)
         # somatic system
         from somatic import queue
 
