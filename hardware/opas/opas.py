@@ -3,6 +3,7 @@
 
 import os
 import time
+import pathlib
 import shutil
 import collections
 
@@ -15,7 +16,6 @@ import attune
 
 import project.project_globals as g
 import project.widgets as pw
-import project.ini_handler as ini
 import project.classes as pc
 import hardware.hardware as hw
 from hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
@@ -28,7 +28,6 @@ directory = os.path.dirname(os.path.abspath(__file__))
 
 main_dir = g.main_dir.read()
 app = g.app.read()
-ini = ini.opas
 
 
 ### driver ####################################################################
@@ -36,7 +35,6 @@ ini = ini.opas
 
 class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
-        self.hardware_ini = ini
         self.index = kwargs["index"]
         self.motor_positions = collections.OrderedDict()
         self.homeable = {}  # TODO:
@@ -158,13 +156,13 @@ class Driver(hw.Driver):
             old_directory = os.path.dirname(str(self.curve_paths[name]))
             p = shutil.copy(path, old_directory)
             self.curve_paths[name].write(os.path.abspath(p))
-        # remake own curve object
+        # remake own curve object/
         curve = self._load_curve(interaction)
         if self.poynting_correction:
             p = self.curve_paths["Poynting"].read()
             self.curve = attune.Curve.read(p, subcurve=curve)
             self.curve.kind = "poynting"
-            self.hardware_ini.write(self.name, "poynting_curve_path", p)
+            self.save_status()
         self.curve.convert(self.native_units)
         # update limits
         self.limits.write(*self.curve.get_limits(), self.native_units)
@@ -230,6 +228,16 @@ class Driver(hw.Driver):
         if self.poynting_correction:
             self.poynting_correction.wait_until_still()
         self.get_motor_positions()
+
+    def get_state(self):
+        state = super().get_state()
+        if self.poynting_correction:
+            state["poynting_curve_path"] = self.curve_paths["Poynting"].read()
+        return state
+
+    def load_state(self, state):
+        super().load_state(state)
+        self.poynting_curve_path = state.get("poynting_curve_path", '')
 
 
 ### gui #######################################################################
@@ -499,8 +507,9 @@ class Hardware(hw.Hardware):
 
 ### initialize ################################################################
 
-
-ini_path = os.path.join(directory, "opas.ini")
+conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
-    ini_path, name="OPAs", Driver=Driver, GUI=GUI, Hardware=Hardware
+    conf.get("hardware", {}).get("opas", {}), name="OPAs", Driver=Driver, GUI=GUI, Hardware=Hardware
 )
+

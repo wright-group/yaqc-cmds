@@ -28,26 +28,25 @@ class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
         self.hardware_ini = ini
         self.motor_units = kwargs.pop("motor_units")
-        hw.Driver.__init__(self, *args, **kwargs)
         self.factor = self.hardware.factor
         self.factor.write(kwargs["factor"])
         self.motor_limits = self.hardware.motor_limits
         self.motor_position = self.hardware.motor_position
-        self.motor_position.write(kwargs["motor_position"])
         self.zero_position = self.hardware.zero_position
-        self.zero_position.write(kwargs["zero_position"])
         self.update_recorded()
         self.native_per_deg = 1
+        hw.Driver.__init__(self, *args, **kwargs)
 
-    def save_status(self):
-        self.hardware_ini.write(
-            self.name, "zero_position", self.zero_position.read(self.motor_units)
-        )
-        self.hardware_ini.write(self.name, "factor", int(self.factor.read()))
-        self.hardware_ini.write(
-            self.name, "motor_position", self.motor_position.read(self.motor_units)
-        )
-        hw.Driver.save_status(self)
+    def get_state(self):
+        state = super().get_state()
+        state["zero_position"] = self.zero_position.read(self.motor_units)
+        state["motor_position"] = self.motor_position.read(self.motor_units)
+
+    def load_state(self, state):
+        super().load_state(state)
+        self.motor_position.write(state["motor_position"])
+        self.zero_position.write(state["zero_position"])
+
 
     def set_motor_position(self, motor_position):
         self.motor_position.write(motor_position)

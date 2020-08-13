@@ -6,7 +6,7 @@ Parent hardware class and associated.
 ### import ####################################################################
 
 
-import os
+import pathlib
 import imp
 import time
 import collections
@@ -38,18 +38,12 @@ class Driver(pc.Driver):
         self.serial = self.hardware.serial
         self.label = pc.String(kwargs["label"])
         self.native_units = kwargs["native_units"]
+        self.state_filepath = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "hardware" / f"{self.name}-state.toml"
+        self.state_filepath.parent.mkdir(parents=True, exist_ok=True)
         # mutex attributes
         self.limits = pc.NumberLimits(units=self.native_units)
-        self.position = pc.Number(
-            initial_value=kwargs["position"],
-            units=self.native_units,
-            name="Position",
-            display=True,
-            set_method="set_position",
-            limits=self.limits,
-        )
+        self.load_state()
         self.offset = pc.Number(units=self.native_units, name="Offset", display=True)
-        self.position.set_units(kwargs["display_units"])
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
@@ -60,6 +54,7 @@ class Driver(pc.Driver):
             self.label.read(),
             False,
         ]
+        self.queue_emptied.connect(self.save_status)
 
     def close(self):
         pass
@@ -92,10 +87,26 @@ class Driver(pc.Driver):
         self.get_position()
         self.is_busy()
 
+    def get_state(self):
+        return {"position": self.position.read(self.native_units), "display_units":self.position.units}
+
     def save_status(self):
-        self.hardware_ini.write(self.name, "position", self.position.read(self.native_units))
-        self.hardware_ini.write(self.name, "display_units", self.position.units)
-        self.hardware_ini.write(self.name, "label", self.label.read())
+        toml.dump(self.get_state(), self.state_filepath)
+
+    def load_state(self):
+        if self.state_filepath.exists():
+            state = toml.load(self.state_filepath)
+        else:
+            state = {}
+        self.position = pc.Number(
+            initial_value=state.get("position", float("nan")),
+            units=self.native_units,
+            name="Position",
+            display=True,
+            set_method="set_position",
+            limits=self.limits,
+        )
+        self.position.set_units(state.get("display_units", self.native_units))
 
     def set_offset(self, offset):
         self.offset.write(offset, self.native_units)
@@ -275,28 +286,25 @@ class Hardware(pc.Hardware):
 ### import method #############################################################
 
 
-def import_hardwares(ini_path, name, Driver, GUI, Hardware):
-    ini = wt.kit.INI(ini_path)
+def import_hardwares(config, name, Driver, GUI, Hardware):
     hardwares = []
-    for section in ini.sections:
-        if ini.read(section, "enable"):
+    for name, section in config.items():
+        if section.get("enable", True):
             # initialization arguments
             kwargs = collections.OrderedDict()
-            for option in ini.get_options(section):
-                if option in ["__name__", "enable", "model", "serial", "path"]:
-                    continue
-                else:
-                    kwargs[option] = ini.read(section, option)
-            model = ini.read(section, "model")
+            kwargs.update(section)
+            for option in ["__name__", "enable", "model", "serial", "path"]:
+                kwargs.pop(option, None)
+            model = section["model"]
             if model == "Virtual":
                 hardware = Hardware(Driver, kwargs, GUI, name=section, model="Virtual")
             else:
-                path = os.path.abspath(ini.read(section, "path"))
-                fname = os.path.basename(path).split(".")[0]
+                path = (g.main_dir.read() / pathlib.Path(section["path"])).resolve()
+                fname = path.stem
                 mod = imp.load_source(fname, path)
                 cls = getattr(mod, "Driver")
                 gui = getattr(mod, "GUI")
-                serial = ini.read(section, "serial")
+                serial = section["serial"]
                 hardware = Hardware(cls, kwargs, gui, name=section, model=model, serial=serial)
             hardwares.append(hardware)
     gui = pw.HardwareFrontPanel(hardwares, name=name)
