@@ -4,17 +4,17 @@
 import os
 import time
 import tempfile
+import pathlib
+import appdirs
 
 from PySide2 import QtGui, QtCore
 
 import project.classes as pc
 import project.logging_handler as logging_handler
 import project.project_globals as g
-from project.ini_handler import Ini
 from . import bots
 
 main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, "project", "slack", "bots.ini"))
 
 
 ### container objects #########################################################
@@ -66,7 +66,7 @@ class Address(QtCore.QObject):
     def check_busy(self):
         """
         Handles writing of busy to False.
-        
+
         Must always write to busy.
         """
         if self.is_busy():
@@ -83,9 +83,9 @@ class Address(QtCore.QObject):
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
-        
+
         Method passed as qstring, inputs as list of [args, kwargs].
-        
+
         Calls own method with arguments from inputs.
         """
         self.update_ui.emit()
@@ -125,6 +125,7 @@ class Address(QtCore.QObject):
 class Control:
     def __init__(self):
         self.most_recent_delete = time.time()
+        self.config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
         # create control containers
         self.busy = pc.Busy()
         self.enqueued = pc.Enqueued()
@@ -138,7 +139,7 @@ class Control:
         # connect
         g.shutdown.add_method(self.close)
         # signal startup
-        self.send_message(":wave: signing on", ini.read("bots", "channel"))
+        self.send_message(":wave: signing on", config["slack"]["channel"])
         g.slack_control.write(self)
 
     def append(self, text, channel):
@@ -290,7 +291,7 @@ class Control:
             text = message["text"]
             channel = message["channel"]
             # only process messages that are posted in the appropriate channel
-            if not channel == ini.read("bots", "channel"):
+            if not channel == config["slack"]["channel"]:
                 continue
             text = text.split(" ", 1)[1]
             print("message read from slack:", text)

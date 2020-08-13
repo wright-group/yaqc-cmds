@@ -12,25 +12,13 @@ import logging
 from argparse import ArgumentParser
 
 from slackclient import SlackClient
-from project.ini_handler import Ini
 import project.project_globals as g
 
 main_dir = g.main_dir.read()
 
-# make ini
-ini_path = os.path.join(main_dir, "project", "slack", "bots.ini")
-ini = Ini(ini_path)
-
-# read from ini
-debug = ini.read("bots", "DEBUG") == "True"
-default_channel = ini.read("bots", "CHANNEL")
-witch_token = ini.read("bots", "Token")
-team_creation = ini.read("bots", "team_creation")
-
-
-def dbg(debug_string):
-    if debug:
-        logging.info(debug_string)
+config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+default_channel = config["slack"]["channel"]
+witch_token = config["slack"]["token"]
 
 
 class RtmBot(object):
@@ -128,11 +116,10 @@ class Plugin(object):
     def do(self, function_name, data):
         if function_name in dir(self.module):
             # this makes the plugin fail with stack trace in debug mode
-            if not debug:
-                try:
-                    eval("self.module." + function_name)(data)
-                except:
-                    dbg("problem in module {} {}".format(function_name, data))
+            try:
+                eval("self.module." + function_name)(data)
+            except:
+                dbg("problem in module {} {}".format(function_name, data))
             else:
                 eval("self.module." + function_name)(data)
         if "catch_all" in dir(self.module):
@@ -173,7 +160,6 @@ class Job(object):
 
     def check(self):
         if self.lastrun + self.interval < time.time():
-            if not debug:
                 try:
                     self.function()
                 except:
@@ -215,7 +201,6 @@ if False:  # __name__ == "__main__":
         directory = os.path.abspath("{}/{}".format(os.getcwd(), directory))
 
     # config = yaml.load(file(args.config or 'rtmbot.conf', 'r'))
-    # debug = config["DEBUG"]
     # bot = RtmBot(config["SLACK_TOKEN"])
     site_plugins = []
     files_currently_downloading = []

@@ -8,19 +8,12 @@ import project.project_globals as g
 
 main_dir = g.main_dir.read()
 
-# make ini
-from project.ini_handler import Ini
-
-ini_path = os.path.join(main_dir, "project", "slack", "bots.ini")
-ini = Ini(ini_path)
-
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot
 
-team_creation = ini.read("bots", "team_creation")
-debug = ini.read("bots", "DEBUG")
-default_channel = ini.read("bots", "CHANNEL")
-witch_token = ini.read("bots", "Token")
+config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+default_channel = config["slack"]["channel"]
+witch_token = config["slack"]["token"]
 
 
 class PyCMDS_bot(object):
