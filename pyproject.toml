@@ -1,0 +1,45 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.metadata]
+module = "pycmds"
+author = "Blaise Thompson"
+author-email = "blaise@untzag.com"
+home-page = "https://github.com/wright-group/PyCMDS"
+classifiers = ["License :: OSI Approved :: MIT License"]
+requires-python = ">=3.7"
+requires = ["click",
+            "numexpr",
+            "psutil",
+            "pydaqmx",
+ 	    "pydrive",
+	    "pyqtgraph",
+	    "pyserial",
+	    "slackclient",
+	    "slacker",
+	    "sympy",
+	    "tidy_headers>=1.0.0",
+	    "wrighttools"
+	    ]
+
+[tool.flit.scripts]
+pycmds = "pycmds.__main__:main"
+
+[tool.black]
+line-length = 99
+target-version = ['py37', 'py38']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | dist
+)/
+'''
