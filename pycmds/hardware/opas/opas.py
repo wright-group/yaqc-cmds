@@ -511,6 +511,7 @@ class Hardware(hw.Hardware):
 
 ### initialize ################################################################
 
+
 conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(

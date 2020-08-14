@@ -12,8 +12,8 @@ import time
 from PySide2 import QtCore
 from PySide2 import QtWidgets
 
-from project import project_globals as g
-from project import classes as pc
+from . import project_globals as g
+from . import classes as pc
 
 
 ### FileDialog object #########################################################
@@ -38,9 +38,9 @@ class FileDialog(QtCore.QObject):
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
-        
+
         Method passed as qstring, inputs as list of [args, kwargs].
-        
+
         Calls own method with arguments from inputs.
         """
         self.update_ui.emit()

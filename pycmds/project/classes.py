@@ -3,6 +3,7 @@
 
 import os
 import time
+import pathlib
 
 import numpy as np
 
@@ -11,6 +12,10 @@ from PySide2 import QtCore
 from . import project_globals as g
 
 import WrightTools.units as wt_units
+
+
+
+__here__ = pathlib.Path(__file__).parent
 
 
 ### mutex #####################################################################
@@ -407,7 +412,7 @@ class Filepath(PyCMDS_Object):
             if self.read() is not None:
                 directory_string = self.read()
             else:
-                directory_string = g.main_dir.read()
+                directory_string = __here__.parent
         # filter
 
         if self.kind == "file":

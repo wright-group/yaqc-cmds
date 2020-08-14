@@ -7,9 +7,6 @@ import project.classes as pc
 import project.widgets as pw
 import somatic.acquisition as acquisition
 
-main_dir = g.main_dir.read()
-app = g.app.read()
-
 import hardware.opas.opas as opas
 
 

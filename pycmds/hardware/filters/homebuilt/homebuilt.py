@@ -12,7 +12,6 @@ from hardware.filters.filters import Driver as BaseDriver
 from hardware.filters.filters import GUI as BaseGUI
 import project.com_handler as com_handler
 
-main_dir = g.main_dir.read()
 
 
 ### driver ####################################################################

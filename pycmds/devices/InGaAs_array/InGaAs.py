@@ -2,6 +2,7 @@
 
 
 import os
+import pathlib
 
 import numpy as np
 
@@ -26,9 +27,10 @@ from devices.devices import DeviceWidget as BaseWidget
 # --- define --------------------------------------------------------------------------------------
 
 
+__here__ = pathlib.Path(__file__).parent
+
 app = g.app.read()
-main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, "devices", "InGaAs_array", "InGaAs.ini"))
+ini = Ini(os.path.join(__here__, "InGaAs.ini"))
 
 pixel_width = 50.0  # um
 
@@ -74,12 +76,12 @@ class Device(BaseDevice):
         """
         Get the axis properties to record for the given scan, given hardware
         positions.
-        
+
         Parameters
         ----------
         destinations_list : list of modules.scan.Destination objects
             The scan destinations
-            
+
         Returns
         -------
         tuple : (identity, units, points, centers, interpolate)

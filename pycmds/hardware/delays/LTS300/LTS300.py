@@ -10,12 +10,6 @@ from hardware.delays.delays import GUI as BaseGUI
 from library.ThorlabsAPT.APT import APTMotor
 
 
-# --- define --------------------------------------------------------------------------------------
-
-
-main_dir = g.main_dir.read()
-
-
 # --- driver --------------------------------------------------------------------------------------
 
 

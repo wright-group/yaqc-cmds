@@ -8,12 +8,6 @@ import project.classes as pc
 import project.project_globals as g
 
 
-### define ####################################################################
-
-
-main_dir = g.main_dir.read()
-
-
 ### driver ####################################################################
 
 

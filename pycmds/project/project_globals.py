@@ -20,23 +20,7 @@ class SimpleGlobal:
 ### order sensitive globals  ##################################################
 
 
-class main_dir:
-    def __init__(self):
-        import os
-
-        self.value = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        sys.path.insert(0, self.value)
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = str(value)
-
-
-main_dir = main_dir()
-
-import project.ini_handler as ini  # must come after main_dir has been defined
+import pycmds.project.ini_handler as ini
 
 debug = SimpleGlobal()
 debug.write(False)
@@ -65,7 +49,7 @@ class logger:  # must come before other globals
         pass
 
     def load(self):
-        import project.logging_handler as logging_handler
+        import pycmds.project.logging_handler as logging_handler
 
         self.value = logging_handler.log
         if debug.read():

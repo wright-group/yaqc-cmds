@@ -25,10 +25,12 @@ import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 
 
+__here__ = pathlib.Path(__file__)
+
+
 # --- define --------------------------------------------------------------------------------------
 
 
-main_dir = g.main_dir.read()
 config = toml.load(
     pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
 )
@@ -37,13 +39,13 @@ config = toml.load(
 # [module path, class name, initialization arguments, friendly name]
 device_dict = collections.OrderedDict()
 device_dict["NI 6251"] = [
-    os.path.join(main_dir, "sensors", "NI_6251", "NI_6251.py"),
+    os.path.join(__here__, "NI_6251", "NI_6251.py"),
     "Device",
     [None],
     "ni6251",
 ]
 device_dict["InGaAs array"] = [
-    os.path.join(main_dir, "sensors", "InGaAs_array", "InGaAs.py"),
+    os.path.join(__here__, "InGaAs_array", "InGaAs.py"),
     "Device",
     [None],
     "InGaAs",

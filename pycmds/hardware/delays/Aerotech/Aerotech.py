@@ -9,12 +9,6 @@ from hardware.delays.delays import GUI as BaseGUI
 import project.com_handler as com_handler
 
 
-### define ####################################################################
-
-
-main_dir = g.main_dir.read()
-
-
 ### driver ####################################################################
 
 

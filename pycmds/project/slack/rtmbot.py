@@ -2,7 +2,7 @@
 
 import sys
 
-sys.dont_write_bytecode = True
+sys.dont_write_bytecode = True  # ??? - Blaise 2020-08-13
 
 import glob
 import os
@@ -17,8 +17,6 @@ import project.project_globals as g
 import appdirs
 import toml
 import pathlib
-
-main_dir = g.main_dir.read()
 
 config = toml.load(
     pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"

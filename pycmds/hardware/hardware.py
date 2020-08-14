@@ -24,6 +24,9 @@ from pycmds.project import widgets as pw
 from pycmds.project import project_globals as g
 
 
+__here__ = pathlib.Path(__file__)
+
+
 ### driver ####################################################################
 
 
@@ -317,7 +320,7 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
             if model == "Virtual":
                 hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model="Virtual")
             else:
-                path = (g.main_dir.read() / pathlib.Path(section["path"])).resolve()
+                path = (__here__.parent / pathlib.Path(section["path"])).resolve()
                 fname = path.stem
                 mod = imp.load_source(fname, path)
                 cls = getattr(mod, "Driver")

@@ -10,8 +10,6 @@ import toml
 
 import project.project_globals as g
 
-main_dir = g.main_dir.read()
-
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot
 

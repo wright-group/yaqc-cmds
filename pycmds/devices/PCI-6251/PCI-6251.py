@@ -5,6 +5,7 @@ import os
 import imp
 import time
 import copy
+import pathlib
 
 import numpy as np
 
@@ -30,9 +31,10 @@ from devices.devices import DeviceWidget as BaseWidget
 # --- define --------------------------------------------------------------------------------------
 
 
+__here__ = pathlib.Path(__file__).parent
+
 app = g.app.read()
-main_dir = g.main_dir.read()
-ini = Ini(os.path.join(main_dir, "devices", "PCI-6251", "PCI-6251.ini"))
+ini = Ini(os.path.join(__here__, "PCI-6251.ini"))
 
 DAQ_device_name = ini.read("DAQ", "device name")
 
@@ -446,7 +448,7 @@ class Driver(BaseDriver):
         Define a new DAQ task. This needs to be run once every time the
         parameters of the aquisition (channel correspondance, shots, etc.)
         change.
-        
+
         No inputs
         """
         # ensure previous task closed -----------------------------------------

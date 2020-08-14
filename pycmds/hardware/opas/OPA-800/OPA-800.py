@@ -13,12 +13,6 @@ from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 
 
-### define ####################################################################
-
-
-main_dir = g.main_dir.read()
-
-
 ### driver ####################################################################
 
 

@@ -1,4 +1,3 @@
-### import ####################################################################
 import time
 
 import project.classes as pc
@@ -6,14 +5,7 @@ import project.project_globals as g
 from hardware.delays.delays import Driver as BaseDriver
 from hardware.delays.delays import GUI as BaseGUI
 
-# import library.precision_micro_motors.precision_motors as motors
 import yaqc
-
-
-### define ####################################################################
-
-
-main_dir = g.main_dir.read()
 
 
 ### driver ####################################################################

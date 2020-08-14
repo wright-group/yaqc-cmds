@@ -10,11 +10,6 @@ from hardware.spectrometers.spectrometers import GUI as BaseGUI
 
 import yaqc
 
-### define ####################################################################
-
-
-main_dir = g.main_dir.read()
-
 
 ### driver ####################################################################
 

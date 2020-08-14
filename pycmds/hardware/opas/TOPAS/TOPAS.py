@@ -1,9 +1,7 @@
-# --- import --------------------------------------------------------------------------------------
-
-
 import os
 import time
 import collections
+import pathlib
 
 import attune
 import yaqc
@@ -15,22 +13,15 @@ from project.ini_handler import Ini
 from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 
-# --- define --------------------------------------------------------------------------------------
 
-
-main_dir = g.main_dir.read()
-
-
-# --- driver --------------------------------------------------------------------------------------
+__here__ = pathlib.Path(__file__)
 
 
 class Driver(BaseDriver):
     def __init__(self, *args, **kwargs):
         self.motors = {}
         self.curve_paths = collections.OrderedDict()
-        self.ini = project.ini_handler.Ini(
-            os.path.join(main_dir, "hardware", "opas", "TOPAS", "TOPAS.ini")
-        )
+        self.ini = project.ini_handler.Ini(__here__ / "TOPAS.ini")
         self.has_shutter = kwargs["has_shutter"]
         self.motor_ports = kwargs["motor_ports"]
         if self.has_shutter:
@@ -64,10 +55,8 @@ class Driver(BaseDriver):
         # tuning curves
         self.serial_number = self.ini.read(f"OPA{self.index}", "serial number")
         self.TOPAS_ini_filepath = os.path.join(
-            g.main_dir.read(),
-            "hardware",
-            "opas",
-            "TOPAS",
+            __here__,
+            "..",
             "configuration",
             str(self.serial_number) + ".ini",
         )

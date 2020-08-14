@@ -27,7 +27,6 @@ all_hardwares = (
     opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 )
 
-main_dir = g.main_dir.read()
 ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "coset.ini"
 ini = ini_handler.Ini(ini_path)
 ini.return_raw = True
@@ -56,6 +55,7 @@ for section in all_hardware_names:
 class CoSetHW:
     def __init__(self, hardware):
         self.hardware = hardware
+        self.curves_directory = pathlib.Path().home() + "pycmds-curves"
         # directly write stored offset to hardware
         stored_offset = float(ini.read(self.hardware.name, "offset"))
         self.hardware.offset.write(stored_offset)
@@ -206,9 +206,8 @@ class CoSetHW:
         """
         # get filepath
         caption = "Import a coset file"
-        directory = os.path.join(g.main_dir.read(), "coset", "files")
         options = "COSET (*.curve);;All Files (*.*)"
-        path = project.file_dialog_handler.open_dialog(caption, directory, options)
+        path = project.file_dialog_handler.open_dialog(caption, self.curves_directory, options)
         if not os.path.isfile(path):  # presumably user canceled
             return
         corr = attune.Curve.read(path)  # this object is throwaway
@@ -315,13 +314,7 @@ class CoSetHW:
         for i, corr in enumerate(self.corrs):
             corr.offset_to(list(corr.dependents.keys())[0], 0, self.control_position[i])
             corr.name = f"{next(iter(corr.dependents))}_{corr.setpoints.name} offset"
-            paths.append(
-                corr.save(
-                    save_directory=pathlib.Path(g.main_dir.read())
-                    / "autonomic"
-                    / "files"
-                )
-            )
+            paths.append(corr.save(save_directory=self.curves_directory))
         for i in range(len(self.corrs)):
             self.unload_file(0)
         for path in paths:

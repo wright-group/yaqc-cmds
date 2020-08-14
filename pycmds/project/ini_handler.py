@@ -10,8 +10,7 @@ from PySide2 import QtCore
 try:
     import project_globals as g
 except:
-    from project import project_globals as g
-main_dir = g.main_dir.read()
+    from pycmds.project import project_globals as g
 
 
 ### ini class #################################################################
@@ -27,9 +26,9 @@ class Ini(QtCore.QMutex):
     def _do(self, operation, section, option, value, with_apostrophe):
         """
         put all interaction with ini file itself behind a 'busy' to make
-        it a psuedo-Mutex. prevents bizzare race conditions that I don't 
+        it a psuedo-Mutex. prevents bizzare race conditions that I don't
         understand
-        
+
         DO NOT CALL THIS METHOD DIRECTLY!
         """
         self.lock()

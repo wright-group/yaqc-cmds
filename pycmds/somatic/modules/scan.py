@@ -21,8 +21,6 @@ import project.widgets as pw
 import somatic.acquisition as acquisition
 import project.ini_handler as ini_handler
 
-main_dir = g.main_dir.read()
-
 import hardware.spectrometers.spectrometers as spectrometers
 import hardware.delays.delays as delays
 import hardware.opas.opas as opas

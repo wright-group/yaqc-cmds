@@ -16,7 +16,6 @@ import project.logging_handler as logging_handler
 import project.project_globals as g
 from . import bots
 
-main_dir = g.main_dir.read()
 
 
 ### container objects #########################################################
