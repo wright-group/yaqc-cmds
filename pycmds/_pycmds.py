@@ -35,7 +35,7 @@ from .project import widgets as pw
 from .project import classes as pc
 from .project import file_dialog_handler
 
-from hardware.hardware import all_initialized
+from .hardware.hardware import all_initialized
 
 import appdirs
 import toml
@@ -106,7 +106,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.data_folder = pathlib.Path.home() / "pycmds-data"
         self.data_folder.mkdir(exist_ok=True)
         # somatic system
-        from somatic import queue
+        from pycmds.somatic import queue
 
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
         self.queue_gui.load_modules()
@@ -226,7 +226,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if g.debug.read():
             print("initialize widgets")
         # import widgets
-        import autonomic.coset
+        import pycmds.autonomic.coset
 
     def _load_google_drive(self):
         g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))

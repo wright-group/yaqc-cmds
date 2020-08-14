@@ -18,7 +18,7 @@ import WrightTools as wt
 import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
-import somatic.acquisition as acquisition
+import pycmds.somatic.acquisition as acquisition
 import pycmds.project.ini_handler as ini_handler
 
 import pycmds.hardware.spectrometers.spectrometers as spectrometers

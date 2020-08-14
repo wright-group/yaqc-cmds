@@ -1,4 +1,4 @@
-"""The 'binary' module contains all classes related to the Binary 
+"""The 'binary' module contains all classes related to the Binary
 protocol.
 """
 
@@ -9,7 +9,7 @@ import logging
 import sys
 
 # Changed path to accurately import
-from library.zaber.exceptions import TimeoutError, UnexpectedReplyError
+from pycmds.library.zaber.exceptions import TimeoutError, UnexpectedReplyError
 
 # See https://docs.python.org/2/howto/logging.html#configuring-logging-
 # for-a-library for info on why we have these two lines here.
@@ -22,7 +22,7 @@ class BinaryCommand(object):
 
     Attributes:
         device_number: An integer representing the number (*a.k.a.*
-            address) of the device to which to send the command. A 
+            address) of the device to which to send the command. A
             device number of 0 indicates the command should be executed
             by all devices. 0-255.
         command_number: An integer representing the command to be sent
@@ -114,8 +114,8 @@ class BinaryDevice(object):
 
         Notes:
             The ability to pass integers to this function is provided
-            as a convenience to the programmer. Calling 
-            ``device.send(2)`` is equivalent to calling 
+            as a convenience to the programmer. Calling
+            ``device.send(2)`` is equivalent to calling
             ``device.send(BinaryCommand(device.number, 2))``.
 
             Note that in the Binary protocol, devices will only reply
@@ -127,7 +127,7 @@ class BinaryDevice(object):
             sent will be completed within the timeout.
 
             Regardless of the device address specified to this function,
-            the device number of the transmitted command will be 
+            the device number of the transmitted command will be
             overwritten with the number of this device.
 
             If the command has a message ID set, this function will return
@@ -164,7 +164,7 @@ class BinaryDevice(object):
     def home(self):
         """Sends the "home" command (1), then waits for the device to
         reply.
-        
+
         Returns: A BinaryReply containing the reply received.
         """
         return self.send(1)
@@ -175,7 +175,7 @@ class BinaryDevice(object):
 
         Args:
             position: The position in microsteps to which to move.
-        
+
         Returns: A BinaryReply containing the reply received.
         """
         return self.send(20, position)
@@ -183,10 +183,10 @@ class BinaryDevice(object):
     def move_rel(self, distance):
         """Sends the "move relative" command (21), then waits for the
         device to reply.
-        
+
         Args:
             distance: The distance in microsteps to which to move.
-        
+
         Returns: A BinaryReply containing the reply received.
         """
         return self.send(21, distance)
@@ -203,7 +203,7 @@ class BinaryDevice(object):
             immediately to this command. This means that when this
             function returns, it is likely that the device is still
             moving.
-        
+
         Returns: A BinaryReply containing the reply received.
         """
         return self.send(22, speed)
@@ -211,13 +211,13 @@ class BinaryDevice(object):
     def stop(self):
         """Sends the "stop" command (23), then waits for the device to
         reply.
-        
+
         Returns: A BinaryReply containing the reply received.
         """
         return self.send(23)
 
     def get_status(self):
-        """Sends the "Return Status" command (54), and returns the 
+        """Sends the "Return Status" command (54), and returns the
         result.
 
         Returns:
@@ -231,7 +231,7 @@ class BinaryDevice(object):
 
     ### Methods not included in Zaber provided Code
     def get_position(self):
-        """Sends the "Return Current Position" command (60), and returns the 
+        """Sends the "Return Current Position" command (60), and returns the
         result.
 
         Returns:
@@ -338,7 +338,7 @@ class BinarySerial(object):
                 used to specify times shorter than a second.
             inter_char_timeout : A number representing the number of seconds
                 to wait between bytes in a reply. If your computer is bad at
-                reading incoming serial data in a timely fashion, try 
+                reading incoming serial data in a timely fashion, try
                 increasing this value.
 
         Notes:
@@ -369,7 +369,7 @@ class BinarySerial(object):
         r"""Writes a command to the port.
 
         This function accepts either a BinaryCommand object, a set
-        of integer arguments, a list of integers, or a string. 
+        of integer arguments, a list of integers, or a string.
         If passed integer arguments or a list of integers, those
         integers must be in the same order as would be passed to the
         BinaryCommand constructor (ie. device number, then command
@@ -378,9 +378,9 @@ class BinarySerial(object):
         Args:
             *args: A BinaryCommand to be sent, or between 2 and 4
                 integer arguements, or a list containing between 2 and
-                4 integers, or a string representing a 
+                4 integers, or a string representing a
                 properly-formatted Binary command.
-                
+
         Notes:
             Passing integers or a list of integers is equivalent to
             passing a BinaryCommand with those integers as constructor
@@ -437,15 +437,15 @@ class BinarySerial(object):
         """Reads six bytes from the port and returns a BinaryReply.
 
         Args:
-            message_id: True if the response is expected to have a 
+            message_id: True if the response is expected to have a
                 message ID. Defaults to False.
 
         Returns:
             A BinaryCommand containing all of the information read from
             the serial port.
 
-        Raises: 
-            zaber.serial.TimeoutError: No data was read before the 
+        Raises:
+            zaber.serial.TimeoutError: No data was read before the
                 specified timeout elapsed.
         """
         reply = self._ser.read(6)
@@ -477,7 +477,7 @@ class BinarySerial(object):
     @property
     def timeout(self):
         """The number of seconds to wait for input while reading.
-        
+
         The ``timeout`` property accepts floating point numbers for
         fractional wait times.
         """

@@ -55,7 +55,7 @@ for section in all_hardware_names:
 class CoSetHW:
     def __init__(self, hardware):
         self.hardware = hardware
-        self.curves_directory = pathlib.Path().home() + "pycmds-curves"
+        self.curves_directory = pathlib.Path().home() / "pycmds-curves"
         # directly write stored offset to hardware
         stored_offset = float(ini.read(self.hardware.name, "offset"))
         self.hardware.offset.write(stored_offset)
