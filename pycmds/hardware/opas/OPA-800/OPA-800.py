@@ -7,8 +7,8 @@ import numpy as np
 import attune
 import yaqc
 
-import project.classes as pc
-import project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.project_globals as g
 from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI
 
@@ -82,11 +82,7 @@ class Driver(BaseDriver):
             if motor_name in ["Phi", "Theta"]:
                 continue
             number = pc.Number(
-                name=motor_name,
-                initial_value=25.0,
-                decimals=6,
-                limits=motor_limits,
-                display=True,
+                name=motor_name, initial_value=25.0, decimals=6, limits=motor_limits, display=True,
             )
             self.motor_positions[motor_name] = number
             self.motors.update({motor_name: yaqc.Client(self.motor_ports[motor_index])})

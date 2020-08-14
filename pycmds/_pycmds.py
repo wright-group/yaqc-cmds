@@ -215,12 +215,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if g.debug.read():
             print("initialize hardware")
         # import
-        import hardware
-        import hardware.opas.opas
-        import hardware.spectrometers.spectrometers
-        import hardware.delays.delays
-        import hardware.filters.filters
-        import devices.devices
+        from . import hardware
+        from .hardware.opas import opas
+        from .hardware.spectrometers import spectrometers
+        from .hardware.delays import delays
+        from .hardware.filters import filters
+        from .devices import devices
 
     def _initialize_widgets(self):
         if g.debug.read():
@@ -229,19 +229,15 @@ class MainWindow(QtWidgets.QMainWindow):
         import autonomic.coset
 
     def _load_google_drive(self):
-        g.google_drive_enabled.write(
-            self.config.get("google_drive", {}).get("enable", False)
-        )
+        g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))
         if g.google_drive_enabled.read():
-            g.google_drive_control.write(
-                yaqc.Client(self.config["google_drive"]["port"])
-            )
+            g.google_drive_control.write(yaqc.Client(self.config["google_drive"]["port"]))
 
     def _load_witch(self):
         # check if witch is enabled
         g.slack_enabled.write(self.config.get("slack", {}).get("enable", False))
         if g.slack_enabled.read():
-            import project.slack as slack
+            import pycmds.project.slack as slack
 
             # create witch
             self.witch = slack.control
@@ -266,9 +262,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # a function which ensures that the window appears in the center of the screen at startup
         screen = QtWidgets.QDesktopWidget().screenGeometry()
         size = self.geometry()
-        self.move(
-            (screen.width() - size.width()) / 2, (screen.height() - size.height()) / 2
-        )
+        self.move((screen.width() - size.width()) / 2, (screen.height() - size.height()) / 2)
 
     def get_status(self, full=False):
         # called by slack

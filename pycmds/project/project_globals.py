@@ -36,7 +36,7 @@ class main_dir:
 
 main_dir = main_dir()
 
-import project.ini_handler as ini  # must come after main_dir has been defined
+import pycmds.project.ini_handler as ini  # must come after main_dir has been defined
 
 debug = SimpleGlobal()
 debug.write(False)
@@ -65,7 +65,7 @@ class logger:  # must come before other globals
         pass
 
     def load(self):
-        import project.logging_handler as logging_handler
+        import pycmds.project.logging_handler as logging_handler
 
         self.value = logging_handler.log
         if debug.read():

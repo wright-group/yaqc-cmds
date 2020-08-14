@@ -1,8 +1,8 @@
 import attune
 
 import somatic.modules.abstract_tuning as abstract_tuning
-import project.classes as pc
-import hardware.opas.opas as opas
+import pycmds.project.classes as pc
+import pycmds.hardware.opas.opas as opas
 
 
 ### define ####################################################################
@@ -57,9 +57,7 @@ class ProxyMotorAxisSectionWidget(abstract_tuning.AqnSectionWidget):
         self.items["Motor"] = pc.Combo()
 
     def on_update(self):
-        hardware = next(
-            h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read()
-        )
+        hardware = next(h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read())
         self.items["Motor"].set_allowed_values(hardware.curve.dependent_names)
 
 

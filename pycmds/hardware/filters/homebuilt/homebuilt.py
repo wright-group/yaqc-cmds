@@ -7,10 +7,10 @@ import time
 
 import numpy as np
 
-import project.project_globals as g
+import pycmds.project.project_globals as g
 from hardware.filters.filters import Driver as BaseDriver
 from hardware.filters.filters import GUI as BaseGUI
-import project.com_handler as com_handler
+import pycmds.project.com_handler as com_handler
 
 main_dir = g.main_dir.read()
 
@@ -46,14 +46,11 @@ class Driver(BaseDriver):
     def initialize(self):
         # open com port
         port_index = self.hardware_ini.read(self.name, "serial_port")
-        self.port = com_handler.get_com(
-            port_index, timeout=100000
-        )  # timeout in 100 seconds
+        self.port = com_handler.get_com(port_index, timeout=100000)  # timeout in 100 seconds
         # stepping
         self.microsteps = self.hardware_ini.read(self.name, "degree_of_microstepping")
         steps_per_rotation = (
-            self.hardware_ini.read(self.name, "full_steps_per_rotation")
-            * self.microsteps
+            self.hardware_ini.read(self.name, "full_steps_per_rotation") * self.microsteps
         )
         self.degrees_per_step = 360.0 / steps_per_rotation
         self.port.write("U %i" % self.microsteps)

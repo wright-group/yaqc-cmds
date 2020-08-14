@@ -11,9 +11,9 @@ import toml
 
 from PySide2 import QtGui, QtCore
 
-import project.classes as pc
-import project.logging_handler as logging_handler
-import project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.logging_handler as logging_handler
+import pycmds.project.project_globals as g
 from . import bots
 
 main_dir = g.main_dir.read()
@@ -174,9 +174,7 @@ class Control:
             "STOP": ":octagonal_sign: Queue stopped, use `run` to continue with next item",
             "SKIP": ":black_right_pointing_double_triangle_with_vertical_bar: Item skipped, continuing queue",
         }
-        message = messages.get(
-            subcommand, ":confounded: I do not understand the command"
-        )
+        message = messages.get(subcommand, ":confounded: I do not understand the command")
         if subcommand == "PAUSE":
             g.main_window.read().queue_gui.queue.status.pause.write(True)
         elif subcommand in messages.keys():
@@ -227,9 +225,7 @@ class Control:
         list_string = self._make_list(lines)
         attachment = self._make_attachment(list_string)
         self.send_message(
-            "here are the {0} most recent log items (out of {1})".format(
-                number, num_lines
-            ),
+            "here are the {0} most recent log items (out of {1})".format(number, num_lines),
             channel,
             [attachment],
         )
@@ -254,16 +250,12 @@ class Control:
         list_string = self._make_list(folder_names)
         attachment = self._make_attachment(list_string)
         self.send_message(
-            "here are the {0} most recent aquisitions (out of {1})".format(
-                number, num_folders
-            ),
+            "here are the {0} most recent aquisitions (out of {1})".format(number, num_folders),
             channel,
             [attachment],
         )
 
-    def make_attachment(
-        self, text, title=None, pretext=None, fields=None, color="#808080"
-    ):
+    def make_attachment(self, text, title=None, pretext=None, fields=None, color="#808080"):
         attachment = {}
         if pretext is not None:
             attachment["pretext"] = pretext
@@ -362,8 +354,7 @@ class Control:
         )
         command_fields.append(
             self.make_field(
-                "screenshot",
-                "Take a screenshot of the current window and post to slack.",
+                "screenshot", "Take a screenshot of the current window and post to slack.",
             )
         )
         command_fields.append(self.make_field("help", "Show this help message."))

@@ -8,10 +8,10 @@ import appdirs
 
 import WrightTools as wt
 
-import project.project_globals as g
-import project.widgets as pw
-import project.classes as pc
-import hardware.hardware as hw
+import pycmds.project.project_globals as g
+import pycmds.project.widgets as pw
+import pycmds.project.classes as pc
+import pycmds.hardware.hardware as hw
 
 # --- driver --------------------------------------------------------------------------------------
 
@@ -155,12 +155,8 @@ class Hardware(hw.Hardware):
     def __init__(self, *arks, **kwargs):
         self.kind = "filter"
         self.factor = pc.Number(1, decimals=0)
-        self.motor_limits = pc.NumberLimits(
-            min_value=-360.0, max_value=360.0, units="deg"
-        )
-        self.motor_position = pc.Number(
-            units="deg", display=True, limits=self.motor_limits
-        )
+        self.motor_limits = pc.NumberLimits(min_value=-360.0, max_value=360.0, units="deg")
+        self.motor_position = pc.Number(units="deg", display=True, limits=self.motor_limits)
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)

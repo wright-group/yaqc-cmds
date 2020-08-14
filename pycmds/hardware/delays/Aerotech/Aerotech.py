@@ -3,10 +3,10 @@
 
 import time
 
-import project.project_globals as g
+import pycmds.project.project_globals as g
 from hardware.delays.delays import Driver as BaseDriver
 from hardware.delays.delays import GUI as BaseGUI
-import project.com_handler as com_handler
+import pycmds.project.com_handler as com_handler
 
 
 ### define ####################################################################
@@ -48,11 +48,7 @@ class Driver(BaseDriver):
     def get_position(self):
         position = self.get_motor_position()
         # calculate delay
-        delay = (
-            (position - self.zero_position.read())
-            * self.native_per_mm
-            * self.factor.read()
-        )
+        delay = (position - self.zero_position.read()) * self.native_per_mm * self.factor.read()
         self.position.write(delay, self.native_units)
         # return
         return delay
@@ -102,11 +98,7 @@ class Driver(BaseDriver):
     def set_zero(self, zero):
         self.zero_position.write(zero)
         min_value = -self.zero_position.read() * self.native_per_mm * self.factor.read()
-        max_value = (
-            (250.0 - self.zero_position.read())
-            * self.native_per_mm
-            * self.factor.read()
-        )
+        max_value = (250.0 - self.zero_position.read()) * self.native_per_mm * self.factor.read()
         self.limits.write(min_value, max_value, "ps")
 
 

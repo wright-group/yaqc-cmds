@@ -12,8 +12,8 @@ from PySide2 import QtCore
 
 import serial
 
-import project.project_globals as g
-import project.classes as pc
+import pycmds.project.project_globals as g
+import pycmds.project.classes as pc
 
 
 ### define ####################################################################
@@ -29,14 +29,7 @@ creating_com = pc.Busy()
 
 class COM(QtCore.QMutex):
     def __init__(
-        self,
-        port,
-        baud_rate,
-        timeout,
-        write_termination="\r\n",
-        data="ASCII",
-        size=-1,
-        **kwargs
+        self, port, baud_rate, timeout, write_termination="\r\n", data="ASCII", size=-1, **kwargs
     ):
         QtCore.QMutex.__init__(self)
         self.port_index = port
@@ -115,9 +108,7 @@ class COM(QtCore.QMutex):
                 if not data.endswith(self.write_termination.encode()):
                     value += self.instrument.write(self.write_termination.encode())
         else:
-            value = self.instrument.write(
-                "".join([chr(i) for i in data])
-            )  # Python3: bytes(data))
+            value = self.instrument.write("".join([chr(i) for i in data]))  # Python3: bytes(data))
         if then_read:
             value = self._read()
         if not self.external_lock_control:

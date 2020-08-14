@@ -2,15 +2,15 @@
 
 import WrightTools as wt
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
+import pycmds.project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
 import somatic.acquisition as acquisition
 
 main_dir = g.main_dir.read()
 app = g.app.read()
 
-import hardware.opas.opas as opas
+import pycmds.hardware.opas.opas as opas
 
 
 ### define ####################################################################
@@ -116,9 +116,7 @@ class GUI(acquisition.GUI):
                 homed_motor_names.append(motor.name)
         homed_motor_names = str(homed_motor_names).replace("'", "")
         aqn.write(
-            "info",
-            "description",
-            "HOME: {} {}".format(self.opa_combo.read(), homed_motor_names),
+            "info", "description", "HOME: {} {}".format(self.opa_combo.read(), homed_motor_names),
         )
         # shared settings
         aqn.add_section("home")

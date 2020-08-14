@@ -8,10 +8,10 @@ import toml
 
 import WrightTools as wt
 
-import project.project_globals as g
-import project.widgets as pw
-import project.classes as pc
-import hardware.hardware as hw
+import pycmds.project.project_globals as g
+import pycmds.project.widgets as pw
+import pycmds.project.classes as pc
+import pycmds.hardware.hardware as hw
 
 
 # --- driver --------------------------------------------------------------------------------------
@@ -37,7 +37,7 @@ class Driver(hw.Driver):
 
     def get_state(self):
         state = super().get_state()
-        state["zero_position"] = self.zero_position.read(self.motor_units)
+        state["zero_position"] = float(self.zero_position.read(self.motor_units))
         return state
 
     def load_state(self, state):
@@ -161,9 +161,7 @@ class Hardware(hw.Hardware):
         self.kind = "delay"
         self.factor = pc.Number(1, decimals=0)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units="mm")
-        self.motor_position = pc.Number(
-            units="mm", display=True, limits=self.motor_limits
-        )
+        self.motor_position = pc.Number(units="mm", display=True, limits=self.motor_limits)
         self.zero_position = pc.Number(display=True)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
