@@ -49,7 +49,7 @@ busy = busy()
 # filepath
 filepath = (
     pathlib.Path(appdirs.user_log_dir("pycmds", "pycmds"))
-    / f"{str(time.strftime('%Y-%m-%d_%H.%M.%S'))}.log"
+    / f"{str(time.strftime('%Y%m%dT%H%M%S%z'))}.log"
 )
 filepath.parent.mkdir(parents=True, exist_ok=True)
 log_file = open(filepath, "w")
@@ -58,8 +58,8 @@ log_file.close()
 # setup
 logger = logging.getLogger("PyCMDS")
 formatter = logging.Formatter(
-    fmt="%(asctime)s.%(msecs).03d | CPU %(cpu)-2s RAM %(ram)-2s | %(levelname)-8s | Thread %(thread)-5s | %(origin)-20s | %(name)-20s | %(message)s",
-    datefmt="%Y.%m.%d %H:%M:%S",
+    fmt="%(asctime)s.%(msecs).03d | %(levelname)-8s | Thread %(thread)-5s | %(origin)-20s | %(name)-20s | %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S%z",
 )
 
 # set level

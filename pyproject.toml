@@ -9,18 +9,22 @@ author-email = "blaise@untzag.com"
 home-page = "https://github.com/wright-group/PyCMDS"
 classifiers = ["License :: OSI Approved :: MIT License"]
 requires-python = ">=3.7"
-requires = ["click",
+requires = ["appdirs",
+            "click",
             "numexpr",
             "psutil",
             "pydaqmx",
  	    "pydrive",
 	    "pyqtgraph",
+	    "pyside2",
 	    "pyserial",
 	    "slackclient",
 	    "slacker",
 	    "sympy",
+	    "toml",
 	    "tidy_headers>=1.0.0",
-	    "wrighttools"
+	    "wrighttools",
+	    "yaqc",
 	    ]
 
 [tool.flit.scripts]
