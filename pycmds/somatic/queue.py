@@ -41,16 +41,7 @@ app = g.app.read()
 main_window = g.main_window.read()
 
 somatic_folder = os.path.dirname(__file__)
-saved_folder = os.path.join(somatic_folder, "saved")
 data_folder = main_window.data_folder
-
-
-### ensure folders exist ######################################################
-
-
-if not os.path.isdir(saved_folder):
-    os.mkdir(saved_folder)
-
 
 ### queue item classes ########################################################
 
@@ -742,10 +733,6 @@ class GUI(QtCore.QObject):
         module_layout.setMargin(0)
         module_layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.module_container_widget)
-        # save aqn file
-        self.save_aqn_button = pw.SetButton("SAVE FILE")
-        self.save_aqn_button.clicked.connect(self.on_save_aqn)
-        layout.addWidget(self.save_aqn_button)
         return frame
 
     def create_device_frame(self):
@@ -1126,10 +1113,9 @@ class GUI(QtCore.QObject):
     def on_load_aqn(self):
         # get path from user
         caption = "Choose an aqn file"
-        directory = os.path.join(somatic_folder, "saved")
         options = "AQN (*.aqn);;All Files (*.*)"
         p = file_dialog_handler.open_dialog(
-            caption=caption, directory=directory, options=options
+            caption=caption, directory=str(data_folder), options=options
         )
         # load basic info
         ini = wt.kit.INI(p)
@@ -1307,9 +1293,6 @@ class GUI(QtCore.QObject):
         else:
             index = row.toInt()[0]  # given as QVariant
         self.queue.pop(index)
-
-    def on_save_aqn(self):
-        self.save_aqn(saved_folder)
 
     def save_aqn(self, folder):
         # all aqn files are first created using this method
