@@ -10,8 +10,6 @@ import appdirs
 
 from PySide2 import QtCore
 
-# import packages.psutil as psutil #why doesn't this work!?!?!
-import psutil
 from pycmds.project import project_globals as g
 
 app = g.app.read()
@@ -49,7 +47,7 @@ busy = busy()
 # filepath
 filepath = (
     pathlib.Path(appdirs.user_log_dir("pycmds", "pycmds"))
-    / f"{str(time.strftime('%Y-%m-%d_%H.%M.%S'))}.log"
+    / f"{str(time.strftime('%Y%m%dT%H%M%S%z'))}.log"
 )
 filepath.parent.mkdir(parents=True, exist_ok=True)
 log_file = open(filepath, "w")
@@ -58,30 +56,23 @@ log_file.close()
 # setup
 logger = logging.getLogger("PyCMDS")
 formatter = logging.Formatter(
-    fmt="%(asctime)s.%(msecs).03d | CPU %(cpu)-2s RAM %(ram)-2s | %(levelname)-8s | Thread %(thread)-5s | %(origin)-20s | %(name)-20s | %(message)s",
-    datefmt="%Y.%m.%d %H:%M:%S",
+    fmt="%(asctime)s.%(msecs).03d | %(levelname)-8s | Thread %(thread)-5s | %(origin)-20s | %(name)-20s | %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S%z",
 )
 
-# set level
-if g.debug.read():
-    logger.setLevel(logging.DEBUG)  # default is info
+logger.setLevel(logging.DEBUG)
 
 
 class ContextFilter(logging.Filter):
     def __init__(self, origin, name):
         self.origin = origin
         self.name = name
+        super().__init__()
 
     def filter(self, record):
         record.thread = threading.current_thread().ident
         record.origin = self.origin
         record.name = self.name
-        cpu_now = cpu.read()
-        if cpu_now == "??":
-            record.cpu = cpu_now
-        else:
-            record.cpu = str(int(cpu.read())).zfill(2)
-        record.ram = str(int(psutil.swap_memory().percent)).zfill(2)
         return True
 
 
@@ -95,15 +86,13 @@ def log(level, name, message="", origin="name"):
     handler = logging.FileHandler(filepath)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-
     # additional context
     if origin == "name":
-        origin = str(inspect.stack()[2][1]).split("\\")[-1].replace(".py", "")
+        origin = str(inspect.stack()[2][1]).split(os.sep)[-1].replace(".py", "")
     logger.addFilter(ContextFilter(origin, name))
-
     # log
     getattr(logger, level)(message)
-
     # close
+    handler.flush()
     logger.removeHandler(handler)
     handler.close()
