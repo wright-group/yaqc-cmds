@@ -62,26 +62,19 @@ formatter = logging.Formatter(
     datefmt="%Y-%m-%dT%H:%M:%S%z",
 )
 
-# set level
-if g.debug.read():
-    logger.setLevel(logging.DEBUG)  # default is info
+logger.setLevel(logging.DEBUG)
 
 
 class ContextFilter(logging.Filter):
     def __init__(self, origin, name):
         self.origin = origin
         self.name = name
+        super().__init__()
 
     def filter(self, record):
         record.thread = threading.current_thread().ident
         record.origin = self.origin
         record.name = self.name
-        cpu_now = cpu.read()
-        if cpu_now == "??":
-            record.cpu = cpu_now
-        else:
-            record.cpu = str(int(cpu.read())).zfill(2)
-        record.ram = str(int(psutil.swap_memory().percent)).zfill(2)
         return True
 
 
@@ -95,15 +88,13 @@ def log(level, name, message="", origin="name"):
     handler = logging.FileHandler(filepath)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-
     # additional context
     if origin == "name":
-        origin = str(inspect.stack()[2][1]).split("\\")[-1].replace(".py", "")
+        origin = str(inspect.stack()[2][1]).split(os.sep)[-1].replace(".py", "")
     logger.addFilter(ContextFilter(origin, name))
-
     # log
     getattr(logger, level)(message)
-
     # close
+    handler.flush()
     logger.removeHandler(handler)
     handler.close()
