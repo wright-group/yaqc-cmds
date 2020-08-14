@@ -12,13 +12,13 @@ from .__version__ import __version__
 from ._pycmds import app, MainWindow, style
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(__version__)
 def main():
-    pass
+    launch()
 
 
-@main.command(name="launch")
+@main.command()
 def launch():
     global window
     window = MainWindow()
