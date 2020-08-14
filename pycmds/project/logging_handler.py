@@ -10,8 +10,6 @@ import appdirs
 
 from PySide2 import QtCore
 
-# import packages.psutil as psutil #why doesn't this work!?!?!
-import psutil
 from pycmds.project import project_globals as g
 
 app = g.app.read()
