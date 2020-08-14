@@ -12,7 +12,6 @@ requires-python = ">=3.7"
 requires = ["appdirs",
             "click",
             "numexpr",
-            "psutil",
             "pydaqmx",
 	    "pyqtgraph",
 	    "pyside2",
