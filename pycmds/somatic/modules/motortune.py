@@ -12,14 +12,14 @@ matplotlib.pyplot.ioff()
 
 import WrightTools as wt
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
+import pycmds.project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
 import somatic.acquisition as acquisition
 
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import devices.devices as devices
+import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.devices.devices as devices
 
 
 ### define ####################################################################
@@ -138,9 +138,7 @@ class Worker(acquisition.Worker):
             output_image_path = str(output_folder / "animation.gif")
             wt.artists.stitch_to_animation(images=filepaths, outpath=output_image_path)
         # upload
-        self.upload(
-            self.scan_folders[self.scan_index], reference_image=output_image_path
-        )
+        self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
 
     def run(self):
         # assemble axes
@@ -210,9 +208,7 @@ class Worker(acquisition.Worker):
                     identity = name
                     kwargs = {}
                 points = np.linspace(center - width, center + width, npts)
-                hardware_dict = {
-                    name: [opa_hardware, "set_motor", [motor_name, "destination"]]
-                }
+                hardware_dict = {name: [opa_hardware, "set_motor", [motor_name, "destination"]]}
                 axis = acquisition.Axis(
                     points, motor_units, name, identity, hardware_dict, **kwargs
                 )
@@ -220,9 +216,7 @@ class Worker(acquisition.Worker):
             elif self.aqn.read(motor_name, "method") == "Set":
                 pass
             elif self.aqn.read(motor_name, "method") == "Static":
-                opa_hardware.q.push(
-                    "set_motor", [motor_name, self.aqn.read(motor_name, "center")]
-                )
+                opa_hardware.q.push("set_motor", [motor_name, self.aqn.read(motor_name, "center")])
         # mono
         if self.aqn.read("spectrometer", "method") == "Scan":
             name = "wm"
@@ -259,15 +253,11 @@ class Worker(acquisition.Worker):
                 spectrometers.hardwares[0].set_position(center, "wn")
         elif self.aqn.read("spectrometer", "method") == "Static":
             center = self.aqn.read("spectrometer", "center")
-            center = wt.units.convert(
-                center, self.aqn.read("spectrometer", "center units"), "wn"
-            )
+            center = wt.units.convert(center, self.aqn.read("spectrometer", "center units"), "wn")
             spectrometers.hardwares[0].set_position(center, "wn")
         # handle centers
         for axis_index, axis in enumerate(axes):
-            centers_shape = [
-                a.points.size for i, a in enumerate(axes) if not i == axis_index
-            ]
+            centers_shape = [a.points.size for i, a in enumerate(axes) if not i == axis_index]
             ones = np.ones(centers_shape)
             if hasattr(axis, "centers"):
                 # arrays always follow
@@ -300,8 +290,7 @@ class GUI(acquisition.GUI):
         self.layout.addWidget(input_table)
         # motor settings
         self.opa_guis = [
-            OPA_GUI(hardware, self.layout, self.use_tune_points)
-            for hardware in opas.hardwares
+            OPA_GUI(hardware, self.layout, self.use_tune_points) for hardware in opas.hardwares
         ]
         self.opa_guis[0].show()
         # mono settings
@@ -315,9 +304,7 @@ class GUI(acquisition.GUI):
             initial_value=500, units="wn", disable_under_module_control=True
         )
         self.mono_width.set_disabled_units(True)
-        self.mono_npts = pc.Number(
-            initial_value=51, decimals=0, disable_under_module_control=True
-        )
+        self.mono_npts = pc.Number(initial_value=51, decimals=0, disable_under_module_control=True)
         input_table = pw.InputTable()
         input_table.add("Spectrometer", None)
         input_table.add("Method", self.mono_method_combo)

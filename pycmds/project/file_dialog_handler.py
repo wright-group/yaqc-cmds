@@ -12,8 +12,8 @@ import time
 from PySide2 import QtCore
 from PySide2 import QtWidgets
 
-from . import project_globals as g
-from . import classes as pc
+from pycmds.project import project_globals as g
+from pycmds.project import classes as pc
 
 
 ### FileDialog object #########################################################
@@ -97,12 +97,7 @@ class FileDialog(QtCore.QObject):
         caption, directory, savefilter, selectedfilter, options = inputs
         out = self.clean(
             QtWidgets.QFileDialog.getSaveFileName(
-                g.main_window.read(),
-                caption,
-                directory,
-                savefilter,
-                selectedfilter,
-                options,
+                g.main_window.read(), caption, directory, savefilter, selectedfilter, options,
             )[0]
         )
         save_filepath.write(out)

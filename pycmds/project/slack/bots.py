@@ -8,14 +8,12 @@ import pathlib
 import appdirs
 import toml
 
-import project.project_globals as g
+import pycmds.project.project_globals as g
 
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot
 
-config = toml.load(
-    pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
-)
+config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]
 
@@ -31,9 +29,7 @@ class PyCMDS_bot(object):
         try:
             self.check = self._check_channel()
         except:
-            print(
-                "Something is seriously wrong with the called slackerbot. DO NOT USE THIS BOT!!"
-            )
+            print("Something is seriously wrong with the called slackerbot. DO NOT USE THIS BOT!!")
         # try:
         if not self.check:
             print("The default channel does not exist. Better fix that.")
@@ -116,10 +112,7 @@ class PyCMDS_bot(object):
             channel = self.channel
         if self._check_channel(channel):
             upload_ok = self.slacker.files.upload(
-                file_path,
-                title=Title,
-                initial_comment=first_comment,
-                channels=[channel],
+                file_path, title=Title, initial_comment=first_comment, channels=[channel],
             ).body["ok"]
             return upload_ok
         else:
@@ -145,9 +138,9 @@ class PyCMDS_bot(object):
             all_files = fl_info["files"]
             for idx in range(fl_info["paging"]["pages"] - 1):
                 all_files.extend(
-                    self.slacker.files.list(ts_to=all_files[-1]["created"], count=1000)[
-                        "files"
-                    ][1:]
+                    self.slacker.files.list(ts_to=all_files[-1]["created"], count=1000)["files"][
+                        1:
+                    ]
                 )
             space_used = sum([f["size"] for f in all_files])
             if space_used > 4 * 10 ^ 9:

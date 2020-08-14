@@ -12,12 +12,12 @@ import serial
 
 import WrightTools as wt
 
-import project.classes as pc
-import project.widgets as pw
-import project.project_globals as g
-import project.kit as kit
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
+import pycmds.project.project_globals as g
+import pycmds.project.kit as kit
 from project.ini_handler import Ini
-import hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.spectrometers.spectrometers as spectrometers
 from devices.devices import Device as BaseDevice
 from devices.devices import Driver as BaseDriver
 from devices.devices import DeviceGUI as BaseGUI
@@ -171,9 +171,7 @@ class Driver(BaseDriver):
                 # transform to floats
                 raw_pixels = np.frombuffer(raw_string, dtype=">i2", count=256)
                 # hardcoded processing
-                pixels = 0.00195 * (
-                    raw_pixels[::-1] - (2060.0 + -0.0142 * np.arange(256))
-                )
+                pixels = 0.00195 * (raw_pixels[::-1] - (2060.0 + -0.0142 * np.arange(256)))
                 self.buffer[:, i] = pixels
         self.out = np.mean(self.buffer, axis=1)
         self.data.write_properties((256,), ["array_signal"], [self.out])
@@ -240,11 +238,7 @@ class GUI(BaseGUI):
         input_table.add("Display", None)
         pixel_limits = pc.NumberLimits(0, 255)
         self.display_pixel_index = pc.Number(
-            ini=ini,
-            section="main",
-            option="display pixel index",
-            limits=pixel_limits,
-            decimals=0,
+            ini=ini, section="main", option="display pixel index", limits=pixel_limits, decimals=0,
         )
         input_table.add("Pixel Index", self.display_pixel_index)
         # input_table.add('Settings', None)

@@ -6,7 +6,7 @@ import pathlib
 import appdirs
 import toml
 
-import hardware.hardware as hw
+import pycmds.hardware.hardware as hw
 
 
 ### driver ####################################################################

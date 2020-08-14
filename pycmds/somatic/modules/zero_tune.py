@@ -13,27 +13,25 @@ from PySide2 import QtWidgets
 import WrightTools as wt
 import attune
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
+import pycmds.project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
 import somatic.acquisition as acquisition
 from somatic.modules.scan import Axis as ScanAxisGUI
 from somatic.modules.scan import Constant
-import project.ini_handler as ini_handler
+import pycmds.project.ini_handler as ini_handler
 
 main_dir = g.main_dir.read()
 ini = ini_handler.Ini(os.path.join(main_dir, "somatic", "modules", "zero_tune.ini"))
 app = g.app.read()
 
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.opas.opas as opas
-import hardware.filters.filters as filters
+import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.delays.delays as delays
+import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.filters.filters as filters
 
-all_hardwares = (
-    opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-)
-import devices.devices as devices
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+import pycmds.devices.devices as devices
 
 
 ### define ####################################################################
@@ -56,12 +54,8 @@ class Worker(acquisition.Worker):
         delays = self.aqn.read("delay", "delays")
         channel_name = self.aqn.read("processing", "channel")
         # This can be simplified, I guess, as it is known which will occur in what order
-        color_units = [
-            i.units for i in data.axes if wt.units.kind(i.units) == "energy"
-        ][0]
-        delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == "delay"][
-            0
-        ]
+        color_units = [i.units for i in data.axes if wt.units.kind(i.units) == "energy"][0]
+        delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == "delay"][0]
         transform = list(data.axis_expressions)[:2]
         for axis in data.axis_expressions:
             if axis not in transform:
@@ -270,9 +264,7 @@ class GUI(acquisition.GUI):
                 hardwares.append(key)
         aqn.write("delay", "delays", hardwares)
         aqn.write(
-            "info",
-            "description",
-            "{} {} zero tune".format(self.opa_combo.read(), hardwares),
+            "info", "description", "{} {} zero tune".format(self.opa_combo.read(), hardwares),
         )
         # constants
         aqn.add_section("scan")

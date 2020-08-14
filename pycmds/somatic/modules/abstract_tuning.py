@@ -6,12 +6,12 @@ import WrightTools as wt
 
 import somatic.acquisition as acquisition
 
-import project.widgets as pw
-import project.classes as pc
+import pycmds.project.widgets as pw
+import pycmds.project.classes as pc
 
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import devices.devices as devices
+import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.devices.devices as devices
 
 
 class Worker(acquisition.Worker):
@@ -23,17 +23,12 @@ class Worker(acquisition.Worker):
         apply_ = kwargs.pop("apply")
         old_path = self.curve.save(scan_folder, plot=False)
         old_path.rename(old_path.with_suffix(f".old{old_path.suffix}"))
-        curve = self._process(
-            data, self.curve, config=config, scan_folder=scan_folder, **kwargs
-        )
+        curve = self._process(data, self.curve, config=config, scan_folder=scan_folder, **kwargs)
         if apply_ and not self.stopped.read():
-            path = curve.save(
-                pathlib.Path(self.opa_hardware.curve_paths[self.curve_id]).parent
-            )
+            path = curve.save(pathlib.Path(self.opa_hardware.curve_paths[self.curve_id]).parent)
             self.opa_hardware.driver.curve_paths[self.curve_id].write(str(path))
         self.upload(
-            scan_folder,
-            reference_image=str(pathlib.Path(scan_folder) / self.reference_image),
+            scan_folder, reference_image=str(pathlib.Path(scan_folder) / self.reference_image),
         )
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
@@ -43,9 +38,7 @@ class Worker(acquisition.Worker):
     def config_dictionary(self):
         out = {}
         for section in self.aqn.sections:
-            out[section] = {
-                k: self.aqn.read(section, k) for k in self.aqn.get_options(section)
-            }
+            out[section] = {k: self.aqn.read(section, k) for k in self.aqn.get_options(section)}
         return out
 
     def run(self):
@@ -89,11 +82,7 @@ class Worker(acquisition.Worker):
         axis_identity = opa_name
         if spec_action == "Tracking":
             axis_identity = f"{opa_name}={spec_name}"
-        axes.append(
-            acquisition.Axis(
-                self.curve.setpoints[:], "wn", axis_identity, axis_identity
-            )
-        )
+        axes.append(acquisition.Axis(self.curve.setpoints[:], "wn", axis_identity, axis_identity))
         full_shape.append(len(self.curve.setpoints))
         for section, conf in config.items():
             if not section.startswith("Motor"):
@@ -122,12 +111,8 @@ class Worker(acquisition.Worker):
             sh[0] = len(self.curve[name])
             centers = self.curve[name][:].reshape(sh)
             print(f"{sh}")
-            centers = np.broadcast_to(
-                centers, full_shape[:index] + full_shape[index + 1 :]
-            )
-            hardware_dict = {
-                opa_name: [self.opa_hardware, "set_motor", [name, "destination"]]
-            }
+            centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index + 1 :])
+            hardware_dict = {opa_name: [self.opa_hardware, "set_motor", [name, "destination"]]}
             axes.append(
                 acquisition.Axis(
                     points,
@@ -151,14 +136,8 @@ class Worker(acquisition.Worker):
                 sh = [1] * (len(full_shape) - 1)
                 sh[0] = len(self.curve.setpoints)
                 centers = self.curve.setpoints[:].reshape(sh)
-                centers = np.broadcast_to(
-                    centers, full_shape[:index] + full_shape[index + 1 :]
-                )
-                axes.append(
-                    acquisition.Axis(
-                        points, "wn", f"{name}", f"D{name}", centers=centers
-                    )
-                )
+                centers = np.broadcast_to(centers, full_shape[:index] + full_shape[index + 1 :])
+                axes.append(acquisition.Axis(points, "wn", f"{name}", f"D{name}", centers=centers))
                 index += 1
 
         self.scan(axes)
@@ -198,9 +177,7 @@ class GUI(acquisition.GUI):
 
     def save(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
-        aqn.write(
-            "info", "description", f"{self['OPA']['OPA'].read()} {self.module_name}"
-        )
+        aqn.write("info", "description", f"{self['OPA']['OPA'].read()} {self.module_name}")
         for item in self.items.values():
             item.save(aqn_path)
 
@@ -318,9 +295,7 @@ class MotorAxisSectionWidget(AqnSectionWidget):
         self.items["Num"] = pc.Number(initial_value=31, decimals=0)
 
     def on_update(self):
-        hardware = next(
-            h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read()
-        )
+        hardware = next(h for h in opas.hardwares if h.name == self.parent["OPA"]["OPA"].read())
         self.items["Motor"].set_allowed_values(hardware.curve.dependent_names)
 
 

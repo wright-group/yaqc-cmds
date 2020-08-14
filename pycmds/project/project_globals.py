@@ -22,6 +22,7 @@ class SimpleGlobal:
 
 import pycmds.project.ini_handler as ini
 
+
 debug = SimpleGlobal()
 debug.write(False)
 

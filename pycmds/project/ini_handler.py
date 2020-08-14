@@ -7,10 +7,7 @@ import os
 
 from PySide2 import QtCore
 
-try:
-    import project_globals as g
-except:
-    from pycmds.project import project_globals as g
+import pycmds.project.project_globals as g
 
 
 ### ini class #################################################################
@@ -55,17 +52,11 @@ class Ini(QtCore.QMutex):
             self.unlock()
 
     def read(self, section, option):
-        return self._do(
-            "read", section=section, option=option, value=None, with_apostrophe=False
-        )
+        return self._do("read", section=section, option=option, value=None, with_apostrophe=False)
 
     def write(self, section, option, value, with_apostrophe=False):
         if type(value) in [str] and not self.return_raw:
             with_apostrophe = True
         self._do(
-            "write",
-            section=section,
-            option=option,
-            value=value,
-            with_apostrophe=with_apostrophe,
+            "write", section=section, option=option, value=value, with_apostrophe=with_apostrophe,
         )

@@ -4,8 +4,8 @@
 import time
 import collections
 
-import project.classes as pc
-import project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.project_globals as g
 
 
 ### driver ####################################################################
@@ -51,9 +51,7 @@ class PoyntingCorrectionDevice(object):
             motor_index = motor
             motor = self.motor_name.index(motor)
         else:
-            print(
-                "motor_index not recognized in PoyntingCorrectionDevice get_motor_position"
-            )
+            print("motor_index not recognized in PoyntingCorrectionDevice get_motor_position")
             return
         # read position
         position = self._get_motor_position(motor_index)
@@ -80,11 +78,7 @@ class PoyntingCorrectionDevice(object):
         motor_limits = self.motor_limits()
         for motor_index, motor_name in enumerate(self.motor_names):
             number = pc.Number(
-                name=motor_name,
-                initial_value=0,
-                decimals=0,
-                limits=motor_limits,
-                display=True,
+                name=motor_name, initial_value=0, decimals=0, limits=motor_limits, display=True,
             )
             self.motor_positions[motor_name] = number
             self.recorded["%s_%s" % (self.OPA.name, motor_name)] = [

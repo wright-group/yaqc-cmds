@@ -12,7 +12,7 @@ import logging
 from argparse import ArgumentParser
 
 from slackclient import SlackClient
-import project.project_globals as g
+import pycmds.project.project_globals as g
 
 import appdirs
 import toml
@@ -166,9 +166,7 @@ class UnknownChannel(Exception):
 def main_loop():
     if "LOGFILE" in config:
         logging.basicConfig(
-            filename=config["LOGFILE"],
-            level=logging.INFO,
-            format="%(asctime)s %(message)s",
+            filename=config["LOGFILE"], level=logging.INFO, format="%(asctime)s %(message)s",
         )
     logging.info(directory)
     try:
@@ -181,9 +179,7 @@ def main_loop():
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument(
-        "-c", "--config", help="Full path to config file.", metavar="path"
-    )
+    parser.add_argument("-c", "--config", help="Full path to config file.", metavar="path")
     return parser.parse_args()
 
 

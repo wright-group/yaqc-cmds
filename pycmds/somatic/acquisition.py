@@ -27,20 +27,18 @@ from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 
-import project.project_globals as g
+import pycmds.project.project_globals as g
 
 app = g.app.read()
 
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.opas.opas as opas
-import hardware.filters.filters as filters
+import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.delays.delays as delays
+import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.filters.filters as filters
 
-all_hardwares = (
-    opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-)
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
-import devices.devices as devices
+import pycmds.devices.devices as devices
 
 from . import constant_resolver
 
@@ -169,9 +167,7 @@ class Worker(QtCore.QObject):
         file_extension = data_path.suffix
         # chop data if over 2D
         for channel_index, channel_name in enumerate(data.channel_names):
-            output_folder = (
-                data_folder if data.ndim <= 2 else data_folder / channel_name
-            )
+            output_folder = data_folder if data.ndim <= 2 else data_folder / channel_name
             output_folder.mkdir(exist_ok=True)
             image_fname = channel_name + " " + file_name
             if len(data.shape) == 1:
@@ -198,9 +194,7 @@ class Worker(QtCore.QObject):
             if channel_index == 0:
                 output_image_path = outs[0]
         # upload
-        self.upload(
-            self.scan_folders[self.scan_index], reference_image=output_image_path
-        )
+        self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
 
     def scan(
         self,
@@ -246,9 +240,7 @@ class Worker(QtCore.QObject):
                 hardware = axis.hardware_dict[key][0]
                 method = axis.hardware_dict[key][1]
                 passed_args = axis.hardware_dict[key][2]
-                destinations = Destinations(
-                    arr, axis.units, hardware, method, passed_args
-                )
+                destinations = Destinations(arr, axis.units, hardware, method, passed_args)
                 destinations_list.append(destinations)
         constant_dict = {c.name: c for c in constants}
         for constant in constant_resolver.const_order(
@@ -308,16 +300,12 @@ class Worker(QtCore.QObject):
                 devices.headers.axis_info[axis.name + " centers"] = axis.centers
         # constants
         devices.headers.constant_info["constant names"] = [c.name for c in constants]
-        devices.headers.constant_info["constant identities"] = [
-            c.identity for c in constants
-        ]
+        devices.headers.constant_info["constant identities"] = [c.identity for c in constants]
         # create scan folder
         scan_index_str = str(self.scan_index).zfill(3)
         axis_names = str([str(a.name) for a in axes]).replace("'", "")
         if multiple_scans:
-            scan_folder_name = " ".join(
-                [scan_index_str, axis_names, module_reserved]
-            ).rstrip()
+            scan_folder_name = " ".join([scan_index_str, axis_names, module_reserved]).rstrip()
             scan_folder = os.path.join(self.folder, scan_folder_name)
             os.mkdir(scan_folder)
             self.scan_folders.append(scan_folder)
@@ -327,9 +315,7 @@ class Worker(QtCore.QObject):
         # create scan folder on google drive
         if g.google_drive_enabled.read():
             scan_url = g.google_drive_control.read().reserve_id(scan_folder)
-            self.scan_urls.append(
-                g.google_drive_control.read().id_to_open_url(scan_folder)
-            )
+            self.scan_urls.append(g.google_drive_control.read().id_to_open_url(scan_folder))
         else:
             self.scan_urls.append(None)
         # add urls to headers
@@ -407,17 +393,13 @@ class Worker(QtCore.QObject):
         if g.google_drive_enabled.read():
             folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
             g.google_drive_control.read().upload_folder(
-                path=scan_folder,
-                parent_id=str(pathlib.Path(scan_folder).parent),
-                id=scan_folder,
+                path=scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id=scan_folder,
             )
             image_url = None
             if reference_image is not None:
                 reference_id = f"{scan_folder} reference"
                 g.google_drive_control.read().reserve_id(reference_id)
-                image_url = g.google_drive_control.read().id_to_download_url(
-                    reference_id
-                )
+                image_url = g.google_drive_control.read().id_to_download_url(reference_id)
                 g.google_drive_control.read().create_file(
                     path=reference_image, parent_id=scan_folder, id=reference_id
                 )

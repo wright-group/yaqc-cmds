@@ -105,17 +105,18 @@ class Driver(pc.Driver):
 
     def get_state(self):
         return {
-            "position": self.position.read(self.native_units),
+            "position": float(self.position.read(self.native_units)),
             "display_units": self.position.units,
         }
 
     def save_status(self):
+        print(self.name, "STATE", self.get_state())
         with open(self.state_filepath, "w") as f:
             toml.dump(self.get_state(), f)
 
     def load_state(self, state):
         self.position = pc.Number(
-            initial_value=state.get("position", float("nan")),
+            initial_value=state.get("position", 0),
             units=self.native_units,
             name="Position",
             display=True,
@@ -253,9 +254,7 @@ class Hardware(pc.Hardware):
         if input_units is None:
             pass
         else:
-            destination = wt.units.converter(
-                destination, input_units, self.native_units
-            )
+            destination = wt.units.converter(destination, input_units, self.native_units)
         min_value, max_value = self.limits.read(self.native_units)
         if min_value <= destination <= max_value:
             return True
@@ -289,9 +288,7 @@ class Hardware(pc.Hardware):
         if input_units is None:
             pass
         else:
-            destination = wt.units.converter(
-                destination, input_units, self.native_units
-            )
+            destination = wt.units.converter(destination, input_units, self.native_units)
         # do nothing if new destination is same as current destination
         if destination == self.destination.read(self.native_units):
             if not force_send:
@@ -326,9 +323,7 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
                 cls = getattr(mod, "Driver")
                 gui = getattr(mod, "GUI")
                 serial = section["serial"]
-                hardware = Hardware(
-                    cls, kwargs, gui, name=section, model=model, serial=serial
-                )
+                hardware = Hardware(cls, kwargs, gui, name=section, model=model, serial=serial)
             hardwares.append(hardware)
     gui = pw.HardwareFrontPanel(hardwares, name=name)
     advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
