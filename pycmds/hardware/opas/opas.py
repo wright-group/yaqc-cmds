@@ -16,11 +16,11 @@ from PySide2 import QtWidgets
 import WrightTools as wt
 import attune
 
-import project.project_globals as g
-import project.widgets as pw
-import project.classes as pc
-import hardware.hardware as hw
-from hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
+import pycmds.project.project_globals as g
+import pycmds.project.widgets as pw
+import pycmds.project.classes as pc
+from pycmds.hardware import hardware as hw
+from pycmds.hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
 
 
 ### driver ####################################################################
@@ -203,7 +203,7 @@ class Driver(hw.Driver):
     def set_position_except(self, destination, exceptions):
         """
         set position, except for motors that follow
-        
+
         does not wait until still...
         """
         self.hardware.destination.write(destination, self.native_units)

@@ -44,64 +44,6 @@ class busy(QtCore.QMutex):
 busy = busy()
 
 
-class cpu(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = "??"
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-
-    def wait_for_update(self):
-        if self.value:
-            self.lock()
-            self.WaitCondition.wait(self)
-            self.unlock()
-
-
-cpu = cpu()
-
-
-class cpu_watcher(QtCore.QObject):
-    @QtCore.Slot()
-    def get_cpu(self):
-        pass
-        busy.write(True)
-        cpu_now = psutil.cpu_percent(interval=1)
-        cpu.write(cpu_now)
-        time.sleep(1)  # not meant to loop quickly
-        busy.write(False)
-
-
-cpu_thread = QtCore.QThread()
-
-
-def begin_cpu_watcher():
-
-    # begin cpu_watcher object in seperate thread
-    g.shutdown.add_method(cpu_thread.quit)
-    cpu_obj = cpu_watcher()
-    cpu_obj.moveToThread(cpu_thread)
-
-    caller = QtCore.QMetaObject()
-
-    def call_cpu_watcher():
-        if not busy.read():
-            caller.invokeMethod(cpu_obj, "get_cpu")
-
-    g.poll_timer.connect_to_timeout(call_cpu_watcher)
-    cpu_thread.start()
-
-    g.shutdown.read().connect(cpu_thread.quit)
-
-
 # logger#########################################################################
 
 # filepath

@@ -12,16 +12,16 @@ from PySide2 import QtWidgets, QtCore
 import WrightTools as wt
 import attune
 
-import project
-import project.classes as pc
-import project.widgets as pw
-import project.project_globals as g
+import pycmds.project.ini_handler as ini_handler
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
+import pycmds.project.project_globals as g
 
 # hardwares (also ensure present in GUI)
-import hardware.opas.opas as opas
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.filters.filters as filters
+import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.delays.delays as delays
+import pycmds.hardware.filters.filters as filters
 
 all_hardwares = (
     opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
@@ -29,7 +29,7 @@ all_hardwares = (
 
 main_dir = g.main_dir.read()
 ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "coset.ini"
-ini = project.ini_handler.Ini(ini_path)
+ini = ini_handler.Ini(ini_path)
 ini.return_raw = True
 
 # ensure that all elements are in the ini file

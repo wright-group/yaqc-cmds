@@ -1,5 +1,5 @@
 from PySide2 import QtWidgets
-from project import project_globals as g
+from . import project_globals as g
 
 # see http://www.google.com/design/spec/style/color.html#color-color-palette
 
@@ -67,7 +67,7 @@ def set_style():
 
     """
     MainWindow = g.main_window.read()
-    
+
     palette = QtWidgets.QPalette(MainWindow.palette())
     palette.setColor(MainWindow.backgroundRole(), QtWidgets.QColor(colors['background']))
     #MainWindow.setPalette(palette)

@@ -8,7 +8,7 @@ import numpy as np
 
 from PySide2 import QtCore
 
-from project import project_globals as g
+from . import project_globals as g
 
 import WrightTools.units as wt_units
 
@@ -310,13 +310,13 @@ class Combo(PyCMDS_Object):
 
     def set_allowed_values(self, allowed_values):
         """
-        Set the allowed values of the Combo object. 
-        
+        Set the allowed values of the Combo object.
+
         Parameters
         ----------
         allowed_values : list
             the new allowed values
-        
+
         Notes
         ----------
         The value of the object is written to the first allowed value if the
@@ -373,7 +373,7 @@ class Filepath(PyCMDS_Object):
     ):
         """
         holds the filepath as a string \n
-        
+
         Kind one in {'file', 'directory'}
         """
         PyCMDS_Object.__init__(self, *args, **kwargs)
@@ -686,7 +686,7 @@ class Driver(QtCore.QObject):
     def check_busy(self):
         """
         Handles writing of busy to False.
-        
+
         Must always write to busy.
         """
         if self.is_busy():
@@ -710,9 +710,9 @@ class Driver(QtCore.QObject):
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
-        
+
         Method passed as qstring, inputs as list of [args, kwargs].
-        
+
         Calls own method with arguments from inputs.
         """
         self.update_ui.emit()
@@ -763,7 +763,7 @@ class Hardware(QtCore.QObject):
     ):
         """
         Hardware representation object living in the main thread.
-        
+
         Parameters
         driver_class : Driver class
             Class of driver.

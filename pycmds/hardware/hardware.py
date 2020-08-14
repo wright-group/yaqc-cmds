@@ -19,9 +19,9 @@ import toml
 
 import WrightTools as wt
 
-import project.classes as pc
-import project.widgets as pw
-import project.project_globals as g
+from pycmds.project import classes as pc
+from pycmds.project import widgets as pw
+from pycmds.project import project_globals as g
 
 
 ### driver ####################################################################

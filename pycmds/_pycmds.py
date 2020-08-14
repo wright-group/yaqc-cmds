@@ -23,17 +23,17 @@ import glob
 import inspect
 import subprocess
 
-import project.project_globals as g
+from .project import project_globals as g
 
 g.app.write(app)
 g.logger.load()
 
 g.logger.log("info", "Startup", "PyCMDS is attempting startup")
 
-import project.style as style
-import project.widgets as pw
-import project.classes as pc
-import project.file_dialog_handler
+from .project import style
+from .project import widgets as pw
+from .project import classes as pc
+from .project import file_dialog_handler
 
 from hardware.hardware import all_initialized
 
@@ -86,8 +86,6 @@ class MainWindow(QtWidgets.QMainWindow):
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
         self.setWindowTitle("PyCMDS %s" % __version__)
-        # begin poll timer
-        self._begin_poll_loop()
         # disable 'x'
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
@@ -213,22 +211,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.main_frame.setLayout(hbox)
         self.setCentralWidget(self.main_frame)
 
-    def _begin_poll_loop(self):
-        # polling is done by a q timer
-        timer = QtCore.QTimer()
-        timer.start(10000)  # milliseconds
-        self.shutdown.connect(timer.stop)
-        g.poll_timer.write(timer)
-        # connect MainWindow poll method to pool timeout
-        g.poll_timer.connect_to_timeout(self.poll)
-        # now we can begin the CPU watcher (which is triggered by poll)
-        import project.logging_handler as logging_handler
-
-        logging_handler.begin_cpu_watcher()
-
-    def poll(self):
-        pass
-
     def _initialize_hardware(self):
         if g.debug.read():
             print("initialize hardware")
@@ -291,16 +273,3 @@ class MainWindow(QtWidgets.QMainWindow):
     def get_status(self, full=False):
         # called by slack
         return self.queue_gui.get_status(full)
-
-
-def main():
-    global MainWindow
-    MainWindow = MainWindow()
-    style.set_style()
-    MainWindow.show()
-    MainWindow.showMaximized()
-    app.exec_()
-    return MainWindow
-
-
-main_form = main()

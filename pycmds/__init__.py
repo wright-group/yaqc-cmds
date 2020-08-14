@@ -2,3 +2,4 @@
 
 
 from .__version__ import *
+from .project import *

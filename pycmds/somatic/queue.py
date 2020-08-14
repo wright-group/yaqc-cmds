@@ -19,15 +19,15 @@ import toml
 
 import WrightTools as wt
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
-import project.file_dialog_handler as file_dialog_handler
+import pycmds.project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
+import pycmds.project.file_dialog_handler as file_dialog_handler
 
-import hardware.spectrometers.spectrometers as spectrometers
-import hardware.delays.delays as delays
-import hardware.opas.opas as opas
-import hardware.filters.filters as filters
+import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.delays.delays as delays
+import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.filters.filters as filters
 
 all_hardwares = (
     opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
@@ -160,7 +160,7 @@ class Worker(QtCore.QObject):
     def dequeue(self, method, inputs):
         """
         Slot to accept enqueued commands from main thread.
-        
+
         Method passed as qstring, inputs as list of [args, kwargs].
         """
         args, kwargs = inputs

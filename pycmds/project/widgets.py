@@ -8,7 +8,7 @@ from PySide2 import QtWidgets, QtCore
 
 import pyqtgraph as pg
 
-from project import project_globals as g
+from pycmds.project import project_globals as g
 
 colors = g.colors_dict.read()
 __here__ = pathlib.Path(__file__).parent
@@ -490,9 +490,9 @@ class TabWidget(QtWidgets.QTabWidget):
 class BusyDisplay(QtWidgets.QPushButton):
     """
     access value object to get state
-    
+
     True: scan running
-    
+
     pause methods are built in to this object
     """
 
@@ -862,7 +862,7 @@ class Plot1D(pg.GraphicsView):
     ):
         """
         Add an InfiniteLine object.
-        
+
         Parameters
         ----------
         color : (optional)
@@ -875,7 +875,7 @@ class Plot1D(pg.GraphicsView):
             Toggles if user can move the line. Default is False.
         hide : bool (optional)
             Toggles if the line is hidden upon initialization. Default is True.
-        
+
         Returns
         -------
         InfiniteLine object

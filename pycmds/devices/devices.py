@@ -20,9 +20,9 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 import tidy_headers
 
-import project.project_globals as g
-import project.classes as pc
-import project.widgets as pw
+import pycmds.project.project_globals as g
+import pycmds.project.classes as pc
+import pycmds.project.widgets as pw
 
 
 # --- define --------------------------------------------------------------------------------------
