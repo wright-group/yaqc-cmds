@@ -4,10 +4,6 @@ system_name = "argon"
 enable=false
 port=39200
 
-[slack]
-enable=false
-channel = "C0DD6BGNS"
-token = "xoxp-13447916375-14360340034-19223720375-d9227ae696"
 
 [sensors]
 [sensors.settings]
