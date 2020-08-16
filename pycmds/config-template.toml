@@ -1,0 +1,125 @@
+system_name = "argon"
+
+[google_drive]
+enable=false
+port=39200
+
+
+[sensors]
+[sensors.settings]
+ms_wait = 0
+
+[sensors.Virtual]
+enable = true
+model = 'Virtual'
+
+[sensors.PCI-6251]
+enable = false
+model = 'NI PCI-6251'
+path = 'sensors/PCI-6251/PCI-6251.py'
+
+
+[hardware]
+[hardware.delays.d2prime]
+enable = true
+yaqd_port = 39001
+model = 'Virtual'
+native_units = 'ps'
+label = '2prime3'
+#path = 'hardware/delays/PMC/PMC.py'
+motor_units = 'mm'
+factor = -1
+index = 1
+
+[hardware.delays.d2]
+enable = false
+yaqd_port = 39002
+model = 'PMC'
+native_units = 'ps'
+label = '23'
+path = 'hardware/delays/PMC/PMC.py'
+motor_units = 'mm'
+factor = -1
+index = 2
+
+[hardware.opas.vw0]
+enable = true
+model = 'Virtual'
+native_units = 'nm'
+label = '0'
+index = 0
+
+[hardware.opas.w1]
+enable = false
+yaq_port = 39400
+motor_ports = [39101, 39102, 39103, 39104, 39105, 39106]
+model = 'TOPAS-800'
+native_units = 'nm'
+label = '1'
+serial = '16426'
+path = 'hardware/opas/TOPAS/TOPAS-800.py'
+index = 1
+has_shutter = false
+#poynting_type = None #'zaber'
+poynting_port = 'COM4'
+poynting_indexes = [1,2]
+yaqd_port = 39400
+
+[hardware.opas.w2]
+enable = false
+model = 'OPA-800C'
+serial = '2040'
+native_units = 'wn'
+label = '3'
+path = 'hardware/opas/OPA-800/OPA-800.py'
+index = 2
+#poynting_type = None #'zaber'
+poynting_curve_path = ''
+motor_names = ["Grating", "BBO", "Mixer"]
+motor_ports = [39003, 39004, 39005]
+poynting_port = 'COM4'
+poynting_indexes = [3,4]
+
+[hardware.opas.w3]
+enable = false
+model = 'OPA-800C'
+native_units = 'wn'
+label = '3'
+serial = '1235'
+path = 'hardware/opas/OPA-800/OPA-800.py'
+index = 3
+#poynting_type = None #'zaber'
+motor_names = ["Grating", "BBO", "Mixer"]
+motor_ports = [39006, 39007, 39008]
+poynting_port = 'COM4'
+poynting_indexes = [5,6]
+
+[hardware.spectrometers.wm]
+enable = false
+model = 'MicroHR'
+yaqd_port = 39876
+serial = '0334-0413-MHRA'
+native_units = 'nm'
+label = 'm'
+path = 'spectrometers/MicroHR/MicroHR.py'
+unique_id = 'Mono1'
+grating_index = 1
+grating_1_maximum_wavelength = 1580
+grating_2_maximum_wavelength = 15800
+
+[hardware.spectrometers.vwm]
+enable = true
+model = 'Virtual'
+native_units = 'nm'
+label = 'm'
+
+[modules]
+scan = true
+tune_test = false
+tune_intensity = false
+tune_setpoint = false
+tune_holistic = false
+motortune = false
+home = false
+poynting_tune = false
+zero_tune = false
