@@ -39,7 +39,7 @@ class Mutex(QtCore.QMutex):
     def wait_for_update(self, timeout=5000):
         if self.value:
             self.lock()
-            self.WaitCondition.wait(self, msecs=timeout)
+            self.WaitCondition.wait(self, timeout)
             self.unlock()
 
 
@@ -74,7 +74,7 @@ class Busy(QtCore.QMutex):
         """
         if self.value:
             self.lock()
-            self.WaitCondition.wait(self, msecs=timeout)
+            self.WaitCondition.wait(self, timeout)
             self.unlock()
 
 
@@ -126,7 +126,7 @@ class Data(QtCore.QMutex):
     def wait_for_update(self, timeout=5000):
         if self.value:
             self.lock()
-            self.WaitCondition.wait(self, msecs=timeout)
+            self.WaitCondition.wait(self, timeout)
             self.unlock()
 
 
