@@ -84,7 +84,7 @@ class Driver(hw.Driver):
         # update zero
         offset_from_here = offset - self.offset.read(self.native_units)
         offset_motor = offset_from_here / (self.native_per_motor * self.factor.read())
-        new_zero = self.zero_position.read(self.motor_units) + offset_mm
+        new_zero = self.zero_position.read(self.motor_units) + offset_motor
         self.set_zero(new_zero)
         self.offset.write(offset, self.native_units)
         # return to old position
