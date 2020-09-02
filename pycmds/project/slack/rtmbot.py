@@ -181,22 +181,3 @@ def parse_args():
     parser.add_argument("-c", "--config", help="Full path to config file.", metavar="path")
     return parser.parse_args()
 
-
-if False:  # __name__ == "__main__":
-    args = parse_args()
-    directory = os.path.dirname(sys.argv[0])
-    if not directory.startswith("/"):
-        directory = os.path.abspath("{}/{}".format(os.getcwd(), directory))
-
-    # config = yaml.load(file(args.config or 'rtmbot.conf', 'r'))
-    # bot = RtmBot(config["SLACK_TOKEN"])
-    site_plugins = []
-    files_currently_downloading = []
-    job_hash = {}
-
-    """if config.has_key("DAEMON"):
-        if config["DAEMON"]:
-            import daemon
-            with daemon.DaemonContext():
-                main_loop()"""
-    main_loop()
