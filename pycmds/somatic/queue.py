@@ -1107,7 +1107,6 @@ class GUI(QtCore.QObject):
             index = row
         else:
             index = row.toInt()[0]  # given as QVariant
-        new_index = new_index
         self.queue.change_index(index, new_index)
 
     def on_load_aqn(self):
