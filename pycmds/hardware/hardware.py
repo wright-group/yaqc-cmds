@@ -313,9 +313,9 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
             kwargs.update(section)
             for option in ["__name__", "enable", "model", "serial", "path"]:
                 kwargs.pop(option, None)
-            model = section["model"]
-            if model == "Virtual":
-                hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model="Virtual")
+            model = section.get("model", "yaq")
+            if model in ("Virtual", "yaq"):
+                hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model=model)
             else:
                 path = (__here__.parent / pathlib.Path(section["path"])).resolve()
                 fname = path.stem

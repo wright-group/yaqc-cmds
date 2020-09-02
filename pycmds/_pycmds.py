@@ -218,7 +218,7 @@ class MainWindow(QtWidgets.QMainWindow):
         from . import hardware
         from .hardware.opas import opas
         from .hardware.spectrometers import spectrometers
-        from .hardware.delays import delays
+        from .hardware import delays
         from .hardware.filters import filters
         from .devices import devices
 

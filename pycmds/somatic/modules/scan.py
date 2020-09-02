@@ -22,7 +22,7 @@ import pycmds.somatic.acquisition as acquisition
 import pycmds.project.ini_handler as ini_handler
 
 import pycmds.hardware.spectrometers.spectrometers as spectrometers
-import pycmds.hardware.delays.delays as delays
+import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
 
