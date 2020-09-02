@@ -1386,7 +1386,7 @@ class GUI(QtCore.QObject):
             if not item.status == "ENQUEUED":
                 button.setDisabled(True)
             # load
-            button = self.add_button_to_table(i, 7, "LOAD", "go", self.on_load_item)
+            self.add_button_to_table(i, 7, "LOAD", "go", self.on_load_item)
 
     def update_type(self):
         for frame in self.type_frames.values():
