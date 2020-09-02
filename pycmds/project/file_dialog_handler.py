@@ -79,7 +79,7 @@ class FileDialog(QtCore.QObject):
         options = QtWidgets.QFileDialog.ShowDirsOnly
         out = self.clean(
             QtWidgets.QFileDialog.getExistingDirectory(
-                g.main_window.read(), caption, directory, options
+                g.main_window.read(), caption, str(directory), options
             )
         )
         directory_filepath.write(out)
