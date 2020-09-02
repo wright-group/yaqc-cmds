@@ -35,7 +35,6 @@ class PyCMDS_bot(object):
             print("The default channel does not exist. Better fix that.")
             self.channel = None
         else:
-            pass
             # self.users.set_active()
             hello = []
             while hello == []:

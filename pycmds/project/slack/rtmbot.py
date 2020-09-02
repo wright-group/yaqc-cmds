@@ -156,7 +156,6 @@ class Job(object):
         if self.lastrun + self.interval < time.time():
             self.function()
             self.lastrun = time.time()
-            pass
 
 
 class UnknownChannel(Exception):
