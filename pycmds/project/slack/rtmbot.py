@@ -5,7 +5,6 @@ import sys
 sys.dont_write_bytecode = True  # ??? - Blaise 2020-08-13
 
 import glob
-import os
 import sys
 import time
 import logging
