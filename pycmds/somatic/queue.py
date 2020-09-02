@@ -10,8 +10,6 @@ import dateutil
 import collections
 import pathlib
 
-import configparser as configparser
-
 from PySide2 import QtCore, QtWidgets
 
 import appdirs
@@ -250,13 +248,13 @@ class Worker(QtCore.QObject):
         tz = dateutil.tz.tzlocal()
         now = datetime.datetime.now(tz)
         if item.operation == "For":
-            h, m, s = [float(s) if s is not "" else 0.0 for s in item.amount.split(":")]
+            h, m, s = [float(s) if s != "" else 0.0 for s in item.amount.split(":")]
             total_seconds = 3600.0 * h + 60.0 * m + s
             stop_time = now + datetime.timedelta(0, total_seconds)
         elif item.operation == "Until":
             inputs = {}
             inputs["hour"], inputs["minute"], s = [
-                int(s) if s is not "" else 0 for s in item.amount.split(":")
+                int(s) if s != "" else 0 for s in item.amount.split(":")
             ]
             stop_time = collections.OrderedDict()
             stop_time["seconds"] = s
@@ -1107,7 +1105,6 @@ class GUI(QtCore.QObject):
             index = row
         else:
             index = row.toInt()[0]  # given as QVariant
-        new_index = new_index
         self.queue.change_index(index, new_index)
 
     def on_load_aqn(self):
@@ -1387,7 +1384,7 @@ class GUI(QtCore.QObject):
             if not item.status == "ENQUEUED":
                 button.setDisabled(True)
             # load
-            button = self.add_button_to_table(i, 7, "LOAD", "go", self.on_load_item)
+            self.add_button_to_table(i, 7, "LOAD", "go", self.on_load_item)
 
     def update_type(self):
         for frame in self.type_frames.values():

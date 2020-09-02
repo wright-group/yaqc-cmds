@@ -6,8 +6,6 @@ import pathlib
 import toml
 import appdirs
 
-import WrightTools as wt
-
 import pycmds.project.project_globals as g
 import pycmds.project.widgets as pw
 import pycmds.project.classes as pc

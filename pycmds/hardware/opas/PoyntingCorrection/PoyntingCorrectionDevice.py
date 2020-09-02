@@ -62,7 +62,7 @@ class PoyntingCorrectionDevice(object):
         return [self.get_motor_position(s) for s in self.motor_names]
 
     def home(self, motor=None):
-        if motor == None:
+        if motor is None:
             for m in range(len(self.motor_names)):
                 self._home(m)
         elif isinstance(motor, str):
@@ -120,7 +120,7 @@ class PoyntingCorrectionDevice(object):
         self.get_motor_positions()
 
     def zero(self, motor=None):
-        if motor == None:
+        if motor is None:
             for m in range(len(self.motor_names)):
                 self._zero(m)
         elif isinstance(motor, str):

@@ -17,12 +17,6 @@ import pathlib
 #### import ###################################################################
 # BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
-
-import copy
-import glob
-import inspect
-import subprocess
-
 from .project import project_globals as g
 
 g.app.write(app)
@@ -40,7 +34,6 @@ from .hardware.hardware import all_initialized
 import appdirs
 import toml
 
-import WrightTools as wt
 import yaqc
 
 

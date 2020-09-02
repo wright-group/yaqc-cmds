@@ -465,8 +465,6 @@ class Driver(pc.Driver):
         while self.freerun.read() and not self.enqueued.read():
             self.measure()
             self.busy.write(False)
-        else:
-            print(" ".join([self.name, "exiting loop!"]))
 
     def measure(self):
         timer = wt.kit.Timer(verbose=False)

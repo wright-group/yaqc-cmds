@@ -1,14 +1,11 @@
 # Slack implementation for pyCMDS
 
-import os
 import sys
 import time
 
 import pathlib
 import appdirs
 import toml
-
-import pycmds.project.project_globals as g
 
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot
@@ -35,7 +32,6 @@ class PyCMDS_bot(object):
             print("The default channel does not exist. Better fix that.")
             self.channel = None
         else:
-            pass
             # self.users.set_active()
             hello = []
             while hello == []:
@@ -84,7 +80,7 @@ class PyCMDS_bot(object):
         file_paths: a list of the file paths of the files to attache.
         Returns a True if message post was successful, returns False otherwise.
         """
-        if channel == None:
+        if channel is None:
             channel = self.channel
         if self._check_channel(channel):
             channel_object = self.rtmbot.slack_client.server.channels.find(channel)
@@ -108,7 +104,7 @@ class PyCMDS_bot(object):
         """
         Uploads a file. Pretty self explanitory.
         """
-        if channel == None:
+        if channel is None:
             channel = self.channel
         if self._check_channel(channel):
             upload_ok = self.slacker.files.upload(

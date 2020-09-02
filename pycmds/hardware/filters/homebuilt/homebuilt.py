@@ -7,7 +7,6 @@ import time
 
 import numpy as np
 
-import pycmds.project.project_globals as g
 from hardware.filters.filters import Driver as BaseDriver
 from hardware.filters.filters import GUI as BaseGUI
 import pycmds.project.com_handler as com_handler

@@ -15,8 +15,6 @@ import pathlib
 import time
 import traceback
 
-import configparser
-
 import appdirs
 import toml
 import numpy as np
@@ -28,8 +26,6 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 
 import pycmds.project.project_globals as g
-
-app = g.app.read()
 
 import pycmds.hardware.spectrometers.spectrometers as spectrometers
 import pycmds.hardware.delays.delays as delays
@@ -45,10 +41,6 @@ from . import constant_resolver
 
 ### define ####################################################################
 
-
-app = g.app.read()
-
-somatic_folder = os.path.dirname(__file__)
 
 
 __here__ = pathlib.Path(__file__).parent

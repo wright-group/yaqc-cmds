@@ -1,10 +1,6 @@
 ### import ####################################################################
 
-import os
 import pathlib
-
-import appdirs
-import toml
 
 import numpy as np
 
@@ -19,7 +15,6 @@ import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 import pycmds.somatic.acquisition as acquisition
-import pycmds.project.ini_handler as ini_handler
 
 import pycmds.hardware.spectrometers.spectrometers as spectrometers
 import pycmds.hardware.delays.delays as delays

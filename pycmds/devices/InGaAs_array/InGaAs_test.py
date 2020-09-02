@@ -32,8 +32,6 @@ ser.close()
 
 # process-----------------------------------------------------------------------
 
-out = np.zeros(256)
-
 # remove 'ready' from end
 string = line[:512]
 

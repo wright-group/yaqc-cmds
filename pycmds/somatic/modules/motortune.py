@@ -1,7 +1,6 @@
 ### import ####################################################################
 
 
-import os
 import pathlib
 
 import numpy as np
@@ -12,7 +11,6 @@ matplotlib.pyplot.ioff()
 
 import WrightTools as wt
 
-import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 import somatic.acquisition as acquisition
