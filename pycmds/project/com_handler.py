@@ -42,7 +42,7 @@ class COM(QtCore.QMutex):
 
     def _read(self, size=None):
         if self.data == "pass":
-            if size == None:
+            if size is None:
                 size = 1
             return self.instrument.read(size)
         elif self.data == "ASCII":

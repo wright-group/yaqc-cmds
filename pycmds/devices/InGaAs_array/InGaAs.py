@@ -251,7 +251,7 @@ class GUI(BaseGUI):
         self.hardware.update_ui.connect(self.update)
 
     def update(self):
-        if not self.hardware.data.read() == None:
+        if not self.hardware.data.read() is None:
             # plot
             xi = self.hardware.map.read()
             yi = self.hardware.data.read()[0]

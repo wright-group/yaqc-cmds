@@ -83,7 +83,7 @@ class PyCMDS_bot(object):
         file_paths: a list of the file paths of the files to attache.
         Returns a True if message post was successful, returns False otherwise.
         """
-        if channel == None:
+        if channel is None:
             channel = self.channel
         if self._check_channel(channel):
             channel_object = self.rtmbot.slack_client.server.channels.find(channel)
@@ -107,7 +107,7 @@ class PyCMDS_bot(object):
         """
         Uploads a file. Pretty self explanitory.
         """
-        if channel == None:
+        if channel is None:
             channel = self.channel
         if self._check_channel(channel):
             upload_ok = self.slacker.files.upload(
