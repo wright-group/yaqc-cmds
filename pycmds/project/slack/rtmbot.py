@@ -12,7 +12,6 @@ import logging
 from argparse import ArgumentParser
 
 from slackclient import SlackClient
-import pycmds.project.project_globals as g
 
 import appdirs
 import toml

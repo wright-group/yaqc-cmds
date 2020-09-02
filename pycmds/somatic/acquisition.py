@@ -15,8 +15,6 @@ import pathlib
 import time
 import traceback
 
-import configparser
-
 import appdirs
 import toml
 import numpy as np

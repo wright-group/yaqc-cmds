@@ -1,14 +1,11 @@
 # Slack implementation for pyCMDS
 
-import os
 import sys
 import time
 
 import pathlib
 import appdirs
 import toml
-
-import pycmds.project.project_globals as g
 
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot

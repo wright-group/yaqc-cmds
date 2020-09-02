@@ -4,7 +4,6 @@
 import time
 
 import pycmds.project.classes as pc
-import pycmds.project.project_globals as g
 from hardware.spectrometers.spectrometers import Driver as BaseDriver
 from hardware.spectrometers.spectrometers import GUI as BaseGUI
 

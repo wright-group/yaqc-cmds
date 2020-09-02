@@ -3,11 +3,8 @@
 
 import ast
 import configparser
-import os
 
 from PySide2 import QtCore
-
-import pycmds.project.project_globals as g
 
 
 ### ini class #################################################################
