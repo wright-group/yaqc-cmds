@@ -42,13 +42,6 @@ native_units = 'nm'
 label = '0'
 index = 0
 
-[hardware.opas.vw0]
-enable = true
-model = 'Virtual'
-native_units = 'nm'
-label = '0'
-index = 0
-
 [hardware.opas.w1]
 enable = false
 yaq_port = 39400
