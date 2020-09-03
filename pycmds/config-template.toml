@@ -21,6 +21,13 @@ path = 'sensors/PCI-6251/PCI-6251.py'
 
 [hardware]
 
+[hardware.delays.d1]
+enable = true
+yaqd_port = 39001
+native_units = 'ps'
+label = '13'
+factor = -1
+
 [hardware.delays.d2]
 enable = true
 yaqd_port = 39002
