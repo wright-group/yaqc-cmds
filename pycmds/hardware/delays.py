@@ -2,6 +2,7 @@
 
 
 import pathlib
+import time
 
 import appdirs
 import toml
@@ -59,7 +60,6 @@ class Driver(hw.Driver):
         self.position.write(delay, self.native_units)
         return delay
 
-
     def get_state(self):
         state = super().get_state()
         state["zero_position"] = float(self.zero_position.read(self.motor_units))
@@ -77,7 +77,9 @@ class Driver(hw.Driver):
         self.get_position()
 
     def set_position(self, destination):
-        destination_motor = self.zero_position.read() + destination / (self.native_per_motor * self.factor.read())
+        destination_motor = self.zero_position.read() + destination / (
+            self.native_per_motor * self.factor.read()
+        )
         self.set_motor_position(destination_motor)
 
     def set_offset(self, offset):
@@ -117,12 +119,11 @@ class Driver(hw.Driver):
 
     def set_zero(self, new_zero):
         self.zero_position.write(new_zero)
-        motor_min, motor_max = self.motor_limits.read() 
+        motor_min, motor_max = self.motor_limits.read()
         min_ = (motor_min - new_zero) * self.native_per_motor * self.factor.read()
         max_ = (motor_max - new_zero) * self.native_per_motor * self.factor.read()
         self.limits.write(min_, max_, self.native_units)
         self.get_position()
-        
 
 
 # --- gui -----------------------------------------------------------------------------------------
