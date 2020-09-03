@@ -42,7 +42,7 @@ class Driver(pc.Driver):
         self.name = self.hardware.name
         self.model = self.hardware.model
         self.serial = self.hardware.serial
-        self.label = pc.String(kwargs["label"])
+        self.label = pc.String(kwargs["label"], display=True)
         self.native_units = kwargs["native_units"]
         self.state_filepath = (
             pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds"))
@@ -313,9 +313,9 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
             kwargs.update(section)
             for option in ["__name__", "enable", "model", "serial", "path"]:
                 kwargs.pop(option, None)
-            model = section["model"]
-            if model == "Virtual":
-                hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model="Virtual")
+            model = section.get("model", "yaq")
+            if model in ("Virtual", "yaq"):
+                hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model=model)
             else:
                 path = (__here__.parent / pathlib.Path(section["path"])).resolve()
                 fname = path.stem

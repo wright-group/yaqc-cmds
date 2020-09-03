@@ -17,7 +17,7 @@ import pycmds.project.widgets as pw
 import pycmds.somatic.acquisition as acquisition
 
 import pycmds.hardware.spectrometers.spectrometers as spectrometers
-import pycmds.hardware.delays.delays as delays
+import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
 

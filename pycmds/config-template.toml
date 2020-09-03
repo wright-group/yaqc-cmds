@@ -20,27 +20,27 @@ path = 'sensors/PCI-6251/PCI-6251.py'
 
 
 [hardware]
-[hardware.delays.d2prime]
+
+[hardware.delays.d1]
 enable = true
 yaqd_port = 39001
-model = 'Virtual'
 native_units = 'ps'
-label = '2prime3'
-#path = 'hardware/delays/PMC/PMC.py'
-motor_units = 'mm'
+label = '13'
 factor = -1
-index = 1
 
 [hardware.delays.d2]
-enable = false
+enable = true
 yaqd_port = 39002
-model = 'PMC'
 native_units = 'ps'
 label = '23'
-path = 'hardware/delays/PMC/PMC.py'
-motor_units = 'mm'
 factor = -1
-index = 2
+
+[hardware.opas.vw0]
+enable = true
+model = 'Virtual'
+native_units = 'nm'
+label = '0'
+index = 0
 
 [hardware.opas.vw0]
 enable = true

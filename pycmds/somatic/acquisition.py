@@ -28,7 +28,7 @@ import WrightTools as wt
 import pycmds.project.project_globals as g
 
 import pycmds.hardware.spectrometers.spectrometers as spectrometers
-import pycmds.hardware.delays.delays as delays
+import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
 
