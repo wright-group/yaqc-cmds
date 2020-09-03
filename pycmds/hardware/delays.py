@@ -44,7 +44,7 @@ class Driver(hw.Driver):
         self.motor_limits.write(*self.motor.get_limits())
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
-        self.set_zero(self.zero_position.read())
+        self.set_zero(self.zero_position.read(self.motor_units))
         self.recorded["_".join([self.name, "zero"])] = [
             self.zero_position,
             "mm",
@@ -65,7 +65,11 @@ class Driver(hw.Driver):
     def get_position(self):
         position = self.motor.get_position()
         self.motor_position.write(position)
-        delay = (position - self.zero_position.read()) * self.native_per_motor * self.factor.read()
+        delay = (
+            (position - self.zero_position.read(self.motor_units))
+            * self.native_per_motor
+            * self.factor.read()
+        )
         self.position.write(delay, self.native_units)
         return delay
 
@@ -86,7 +90,7 @@ class Driver(hw.Driver):
         self.get_position()
 
     def set_position(self, destination):
-        destination_motor = self.zero_position.read() + destination / (
+        destination_motor = self.zero_position.read(self.motor_units) + destination / (
             self.native_per_motor * self.factor.read()
         )
         self.set_motor_position(destination_motor)
@@ -191,6 +195,7 @@ class GUI(hw.GUI):
 
     def on_set_zero(self):
         new_zero = self.zero_destination.read("mm")
+        print("on_set_new_zero", new_zero)
         self.driver.set_zero(new_zero)
         self.driver.offset.write(0)
         name = self.hardware.name
@@ -211,7 +216,7 @@ class Hardware(hw.Hardware):
         self.factor = pc.Number(1, decimals=0, display=True)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units="mm")
         self.motor_position = pc.Number(units="mm", display=True, limits=self.motor_limits)
-        self.zero_position = pc.Number(display=True)
+        self.zero_position = pc.Number(display=True, units="mm", limits=self.motor_limits)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
 
