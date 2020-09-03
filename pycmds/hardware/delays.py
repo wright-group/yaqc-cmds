@@ -30,6 +30,14 @@ class Driver(hw.Driver):
         self.native_units = kwargs.get("native_units", "ps")
         self.native_per_motor = float(wt.units.convert(1, self.motor_units, self.native_units))
         hw.Driver.__init__(self, *args, **kwargs)
+        id_ = self.motor.id()
+        if id_["model"] is not None:
+            self.hardware.model = id_["model"]
+        elif id_["kind"].startswith("fake"):
+            self.hardware.model = "fake"
+        else:
+            self.hardware.model = id_["kind"]
+
         self.factor = self.hardware.factor
         self.factor.write(kwargs["factor"])
         self.motor_limits = self.hardware.motor_limits
@@ -200,7 +208,7 @@ class GUI(hw.GUI):
 class Hardware(hw.Hardware):
     def __init__(self, *arks, **kwargs):
         self.kind = "delay"
-        self.factor = pc.Number(1, decimals=0)
+        self.factor = pc.Number(1, decimals=0, display=True)
         self.motor_limits = pc.NumberLimits(min_value=0, max_value=50, units="mm")
         self.motor_position = pc.Number(units="mm", display=True, limits=self.motor_limits)
         self.zero_position = pc.Number(display=True)

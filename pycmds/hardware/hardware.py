@@ -42,7 +42,7 @@ class Driver(pc.Driver):
         self.name = self.hardware.name
         self.model = self.hardware.model
         self.serial = self.hardware.serial
-        self.label = pc.String(kwargs["label"])
+        self.label = pc.String(kwargs["label"], display=True)
         self.native_units = kwargs["native_units"]
         self.state_filepath = (
             pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds"))
