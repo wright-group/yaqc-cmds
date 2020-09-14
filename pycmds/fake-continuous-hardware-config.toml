@@ -1,0 +1,10 @@
+[d1]
+port=39001
+units="mm"
+limits=[0,50]
+velocity=10
+[d2]
+port=39002
+units="mm"
+limits=[0,300]
+velocity=50
