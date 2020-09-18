@@ -73,8 +73,6 @@ daq_widget = SimpleGlobal()
 
 daq_array_widget = SimpleGlobal()
 
-daq_plot_widget = SimpleGlobal()
-
 hardware_advanced_box = SimpleGlobal()
 
 hardware_initialized = SimpleGlobal(False)
@@ -130,21 +128,6 @@ hardware_widget = hardware_widget()
 main_thread = SimpleGlobal(QtCore.QThread.currentThread())
 
 main_window = SimpleGlobal()
-
-
-class module_advanced_widget(SimpleGlobal):
-    def __init__(self, initial_value=None):
-        super().__init__(initial_value)
-        self.child = None
-
-    def add_child(self, widget):
-        self.value.setLayout(QtWidgets.QVBoxLayout())
-        self.child = widget
-        self.value.layout().setMargin(0)
-        self.value.layout().addWidget(self.child)
-
-
-module_advanced_widget = module_advanced_widget()
 
 
 class QueueControl(QtCore.QObject):
@@ -205,8 +188,6 @@ class progress_bar:
 
 progress_bar = progress_bar()
 
-scan_thread = SimpleGlobal()
-
 
 class shutdown(SimpleGlobal):
     """
@@ -236,7 +217,5 @@ slack_control = SimpleGlobal()
 slack_enabled = SimpleGlobal()
 
 system_name = SimpleGlobal()
-
-use_array = SimpleGlobal()
 
 version = SimpleGlobal()
