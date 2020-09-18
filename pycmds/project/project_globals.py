@@ -6,8 +6,8 @@ from PySide2 import QtWidgets, QtCore
 
 
 class SimpleGlobal:
-    def __init__(self):
-        self.value = None
+    def __init__(self, initial_value=None):
+        self.value = initial_value
 
     def read(self):
         return self.value
@@ -22,20 +22,10 @@ class SimpleGlobal:
 import pycmds.project.ini_handler as ini
 
 
-debug = SimpleGlobal()
-debug.write(False)
+debug = SimpleGlobal(False)
 
 
-class PollTimer:
-    def __init__(self):
-        self.value = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
+class PollTimer(SimpleGlobal):
     def connect_to_timeout(self, slot):
         QtWidgets.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
 
@@ -79,52 +69,15 @@ coset_control = SimpleGlobal()
 
 coset_widget = SimpleGlobal()
 
+daq_widget = SimpleGlobal()
 
-class daq_widget:
-    def __init__(self):
-        self.value = None
+daq_array_widget = SimpleGlobal()
 
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
-
-daq_widget = daq_widget()
-
-
-class daq_array_widget:
-    def __init__(self):
-        self.value = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
-
-daq_array_widget = daq_array_widget()
-
-
-class daq_plot_widget:
-    def __init__(self):
-        self.value = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
-
-daq_plot_widget = daq_plot_widget()
+daq_plot_widget = SimpleGlobal()
 
 hardware_advanced_box = SimpleGlobal()
 
-hardware_initialized = SimpleGlobal()
-hardware_initialized.write(False)
+hardware_initialized = SimpleGlobal(False)
 
 google_drive_control = SimpleGlobal()
 
@@ -154,16 +107,13 @@ class hardware_waits:
 hardware_waits = hardware_waits()
 
 
-class hardware_widget:
-    def __init__(self):
-        self.value = None
+class hardware_widget(SimpleGlobal):
+    def __init__(self, initial_value=None):
+        super().__init__(initial_value)
         self.number_of_widgets = 0
 
-    def read(self):
-        return self.value
-
     def write(self, value):
-        self.value = value
+        super().write(value)
         self.value.setLayout(QtWidgets.QVBoxLayout())
         self.value.layout().setMargin(5)
         self.value.layout().addStretch(1)
@@ -177,45 +127,15 @@ class hardware_widget:
 
 hardware_widget = hardware_widget()
 
+main_thread = SimpleGlobal(QtCore.QThread.currentThread())
 
-class main_thread:
-    def __init__(self):
-        self.value = QtCore.QThread.currentThread()
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = str(value)
+main_window = SimpleGlobal()
 
 
-main_thread = main_thread()
-
-
-class main_window:
-    def __init__(self):
-        self.value = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
-
-main_window = main_window()
-
-
-class module_advanced_widget:
-    def __init__(self):
-        self.value = None
+class module_advanced_widget(SimpleGlobal):
+    def __init__(self, initial_value=None):
+        super().__init__(initial_value)
         self.child = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
 
     def add_child(self, widget):
         self.value.setLayout(QtWidgets.QVBoxLayout())
@@ -285,22 +205,10 @@ class progress_bar:
 
 progress_bar = progress_bar()
 
-
-class scan_thread:
-    def __init__(self):
-        self.value = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
+scan_thread = SimpleGlobal()
 
 
-scan_thread = scan_thread()
-
-
-class shutdown:
+class shutdown(SimpleGlobal):
     """
     holds the reference of MainWindow.shutdown Qt signal
 
@@ -308,15 +216,9 @@ class shutdown:
     your method must not have any arguments
     """
 
-    def __init__(self):
-        self.value = False
+    def __init__(self, initial_value=None):
+        super().__init__(initial_value)
         self.methods = []
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
 
     def add_method(self, method):
         self.methods.append(method)
@@ -335,18 +237,6 @@ slack_enabled = SimpleGlobal()
 
 system_name = SimpleGlobal()
 
-
-class UseArray:
-    def __init__(self):
-        self.value = False
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
-
-use_array = UseArray()
+use_array = SimpleGlobal()
 
 version = SimpleGlobal()
