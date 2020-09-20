@@ -10,7 +10,6 @@ import click
 import toml
 
 from .__version__ import __version__
-from ._pycmds import app, MainWindow, style
 
 
 @click.group(invoke_without_command=True)
@@ -23,6 +22,8 @@ def main(ctx):
 
 @main.command()
 def launch():
+    from ._pycmds import app, MainWindow, style
+
     global window
     window = MainWindow()
     style.set_style()
