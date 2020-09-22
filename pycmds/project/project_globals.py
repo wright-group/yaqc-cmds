@@ -129,6 +129,8 @@ main_thread = SimpleGlobal(QtCore.QThread.currentThread())
 
 main_window = SimpleGlobal()
 
+scan_thread = SimpleGlobal()
+
 
 class QueueControl(QtCore.QObject):
     def __init__(self):

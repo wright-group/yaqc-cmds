@@ -986,6 +986,7 @@ class GUI(QtCore.QObject):
             print("load modules")
         # create acquisition thread
         acquisition_thread = QtCore.QThread()
+        g.scan_thread.write(acquisition_thread)
         acquisition_thread.start()
         # import modules
         # done from modules.ini
