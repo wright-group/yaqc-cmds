@@ -13,6 +13,7 @@ import WrightTools as wt
 import attune
 
 import pycmds.project.ini_handler as ini_handler
+import pycmds.project.file_dialog_handler as file_dialog_handler
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 import pycmds.project.project_globals as g
@@ -23,9 +24,7 @@ import pycmds.hardware.spectrometers.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.filters.filters as filters
 
-all_hardwares = (
-    opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-)
+all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "coset.ini"
 ini = ini_handler.Ini(ini_path)
@@ -108,9 +107,7 @@ class CoSetHW:
         button = pw.SetButton("REMOVE", color="stop")
         g.queue_control.disable_when_true(button)
         button.setProperty("TableRowIndex", new_row_index)
-        button.clicked.connect(
-            lambda: self.on_remove_file(button.property("TableRowIndex"))
-        )
+        button.clicked.connect(lambda: self.on_remove_file(button.property("TableRowIndex")))
         self.table.setCellWidget(new_row_index, 2, button)
 
     def create_frame(self, layout):
@@ -207,7 +204,7 @@ class CoSetHW:
         # get filepath
         caption = "Import a coset file"
         options = "COSET (*.curve);;All Files (*.*)"
-        path = project.file_dialog_handler.open_dialog(caption, self.curves_directory, options)
+        path = file_dialog_handler.open_dialog(caption, self.curves_directory, options)
         if not os.path.isfile(path):  # presumably user canceled
             return
         corr = attune.Curve.read(path)  # this object is throwaway
@@ -224,10 +221,7 @@ class CoSetHW:
         # load in
         self.load_file(path)
         ini.write(
-            self.hardware.name,
-            corr.setpoints.name,
-            str(corr.path),
-            with_apostrophe=True,
+            self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True,
         )
         self.display_combobox.write(corr.setpoints.name)
 
@@ -255,9 +249,7 @@ class CoSetHW:
         removed_corr = self.corrs.pop(index)
         self.control_hardware.pop(index)
         ini.write(self.hardware.name, removed_corr.setpoints.name, None)
-        ini.write(
-            self.hardware.name, list(removed_corr.dependents.keys())[0] + " offset", 0.0
-        )
+        ini.write(self.hardware.name, list(removed_corr.dependents.keys())[0] + " offset", 0.0)
         # clear table
         for i in range(self.table.rowCount()):
             self.table.removeRow(0)
@@ -320,10 +312,7 @@ class CoSetHW:
         for path in paths:
             corr = self.load_file(path)
             ini.write(
-                self.hardware.name,
-                corr.setpoints.name,
-                str(corr.path),
-                with_apostrophe=True,
+                self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True,
             )
 
         self.launch()
