@@ -1,8 +1,6 @@
 ### import ####################################################################
 
 
-import os
-
 import numpy as np
 
 import matplotlib
@@ -42,9 +40,6 @@ class Worker(acquisition.Worker):
     def process(self, scan_folder):
         data_path = wt.kit.glob_handler(".data", folder=str(scan_folder))[0]
         data = wt.data.from_PyCMDS(data_path)
-        opa_name = self.aqn.read("opa", "opa")
-        opa_names = [opa.name for opa in opas.hardwares]
-        opa_index = opa_names.index(opa_name)
         delays = self.aqn.read("delay", "delays")
         channel_name = self.aqn.read("processing", "channel")
         transform = list(data.axis_expressions)[:2]
