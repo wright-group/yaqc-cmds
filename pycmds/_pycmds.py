@@ -45,20 +45,7 @@ directory = os.path.abspath(os.path.dirname(__file__))
 
 ### version information #######################################################
 
-
-# MAJOR.MINOR.PATCH (semantic versioning)
-# major version changes may break backwards compatibility
-__version__ = "0.11.0"
-
-# add git branch, if appropriate
-p = os.path.join(directory, ".git", "HEAD")
-if os.path.isfile(p):
-    with open(p) as _f:
-        __branch__ = _f.readline().rstrip().split(r"/")[-1]
-    if __branch__ != "master":
-        __version__ += "-" + __branch__
-else:
-    __branch__ = None
+from .__version__ import __version__
 
 g.version.write(__version__)
 
