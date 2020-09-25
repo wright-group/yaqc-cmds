@@ -19,6 +19,7 @@ from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 import tidy_headers
+import yaqc
 
 import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
@@ -362,7 +363,7 @@ class Device(pc.Hardware):
         self.freerun = pc.Bool(initial_value=False)
         self.Widget = kwargs.pop("Widget")
         self.data = pc.Data()
-        self.active = False
+        self.active = True
         # shape
         if "shape" in kwargs.keys():
             self.shape = kwargs.pop("shape")
@@ -373,33 +374,13 @@ class Device(pc.Hardware):
             self.has_map = kwargs.pop("has_map")
         else:
             self.has_map = False
+        self.has_map = False  # turning this feature off for now  --Blaise 2020-09-25
         # shots_compatable
-        if "shots_compatible" in kwargs.keys():
-            self.shots_compatible = kwargs.pop("shots_compatible")
-        else:
-            self.shots_compatible = False
+        self.shots_compatible = False  # turning this feature off for now  --Blaise 2020-09-25
         self.nshots = pc.Number(initial_value=100)
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
         pc.Hardware.__init__(self, *args, **kwargs)
         self.settings_updated.emit()
-
-    def close(self):
-        # TODO:
-        if False:
-            # stop looping
-            self.set_freerun(False)
-            self.wait_until_done()
-            # TODO: log
-            if False:
-                if g.debug.read():
-                    print("daq shutting down")
-                g.logger.log("info", "DAQ shutdown")
-            # shutdown driver
-            q.push("shutdown")
-            self.wait_until_done()
-            self.thread.quit()
-        else:
-            self.thread.quit()
 
     def get_headers(self):
         out = collections.OrderedDict()
@@ -446,10 +427,11 @@ class Driver(pc.Driver):
     settings_updated = QtCore.Signal()
     running = False
 
-    def __init__(self, device):
+    def __init__(self, device, yaqd_port):
         pc.Driver.__init__(self)
+        self.client = yaqc.Client(yaqd_port)
         # attributes
-        self.name = "Virtual"
+        self.name = self.client.id()["name"]
         self.enqueued = device.enqueued
         self.busy = device.busy
         self.freerun = device.freerun
@@ -469,11 +451,15 @@ class Driver(pc.Driver):
     def measure(self):
         timer = wt.kit.Timer(verbose=False)
         with timer:
-            time.sleep(0.1)
-            out_names = ["channel_%i" % i for i in range(5)]
-            signed = [not i % 2 for i in range(5)]
-            out = np.random.standard_normal(len(out_names))
+            self.busy.write(True)
+            self.client.measure(loop=False)
+            while self.client.busy():
+                time.sleep(0.1)
+            out_names = self.client.get_channel_names()
+            signed = [False for _ in out_names]
+            out = list(self.client.get_measured().values())[:-1]
             self.data.write_properties(self.shape, out_names, out, signed)
+            self.busy.write(False)
         self.measure_time.write(timer.interval)
         self.update_ui.emit()
 
@@ -548,36 +534,14 @@ class Control(QtCore.QObject):
                         continue
                     else:
                         kwargs[option] = config["sensors"][section][option]
-                model = config["sensors"][section]["model"]
-                # import
-                if model == "Virtual":
-                    device = Device(
-                        Driver,
-                        kwargs,
-                        DeviceGUI,
-                        Widget=DeviceWidget,
-                        name=section,
-                        model="Virtual",
-                    )
-                else:
-                    parent = pathlib.Path(__file__).parent.parent
-                    path = parent / pathlib.Path(config["sensors"][section]["path"])
-                    fname = os.path.basename(path).split(".")[0]
-                    mod = imp.load_source(fname, path)
-                    device_cls = getattr(mod, "Device")
-                    cls = getattr(mod, "Driver")
-                    gui = getattr(mod, "GUI")
-                    widget_cls = getattr(mod, "Widget")
-                    serial = config["sensors"][parent]["serial"]
-                    device = device_cls(
-                        cls,
-                        kwargs,
-                        gui,
-                        Widget=widget_cls,
-                        name=section,
-                        model=model,
-                        serial=serial,
-                    )
+                device = Device(
+                    Driver,
+                    kwargs,
+                    DeviceGUI,
+                    Widget=DeviceWidget,
+                    name=section,
+                    model="Virtual",
+                )
                 self.devices.append(device)
         # gui
         self.gui = GUI(self)
@@ -616,7 +580,7 @@ class Control(QtCore.QObject):
         if save:
             # 1D things -------------------------------------------------------
             data_rows = np.prod([d.data.size for d in self.devices if d.active])
-            data_shape = (len(headers.data_cols["name"]), data_rows)
+            data_shape = (len(headers.data_cols["name"]), int(data_rows))
             data_arr = np.full(data_shape, np.nan)
             shots_rows = int(
                 np.prod(
@@ -663,7 +627,7 @@ class Control(QtCore.QObject):
                             shots_arr[shots_i] = scan_hardware.recorded[key][0].read()
                         else:
                             data_arr[data_i] = scan_hardware.recorded[key][0].read(out_units)
-                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read(out_units)
+                            #shots_arr[shots_i] = scan_hardware.recorded[key][0].read(out_units)
                         data_i += 1
                         shots_i += 1
             # potentially multidimensional things -----------------------------
@@ -713,12 +677,12 @@ class Control(QtCore.QObject):
         # apply device settings from aqn
         ms_wait.write(aqn.read("device settings", "ms wait"))
         for device in self.devices:
-            if not aqn.has_section(device.name):
-                device.active = False
-                continue
-            if not aqn.read(device.name, "use"):
-                device.active = False
-                continue
+            #if not aqn.has_section(device.name):
+            #    device.active = False
+            #    continue
+            #if not aqn.read(device.name, "use"):
+            #    device.active = False
+            #    continue
             # apply settings from aqn to device
             device.active = True
             device.load_settings(aqn)
@@ -843,10 +807,10 @@ class Control(QtCore.QObject):
             # channels
             self.channel_names = []
             for device in self.devices:
-                if not aqn.has_section(device.name):
-                    continue
-                if not aqn.read(device.name, "use"):
-                    continue
+                #if not aqn.has_section(device.name):
+                #    continue
+                #if not aqn.read(device.name, "use"):
+                #    continue
                 if device.shots_compatible and cols_type == "shots":
                     mutex = device.shots
                 else:
