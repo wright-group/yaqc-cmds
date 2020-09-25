@@ -1,8 +1,6 @@
 ### import ####################################################################
 
 
-import os
-
 import numpy as np
 
 import matplotlib
@@ -16,14 +14,9 @@ import attune
 import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
-import somatic.acquisition as acquisition
-from somatic.modules.scan import Axis as ScanAxisGUI
-from somatic.modules.scan import Constant
-import pycmds.project.ini_handler as ini_handler
-
-main_dir = g.main_dir.read()
-ini = ini_handler.Ini(os.path.join(main_dir, "somatic", "modules", "zero_tune.ini"))
-app = g.app.read()
+import pycmds.somatic.acquisition as acquisition
+from pycmds.somatic.modules.scan import Axis as ScanAxisGUI
+from pycmds.somatic.modules.scan import Constant
 
 import pycmds.hardware.spectrometers.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
@@ -47,15 +40,8 @@ class Worker(acquisition.Worker):
     def process(self, scan_folder):
         data_path = wt.kit.glob_handler(".data", folder=str(scan_folder))[0]
         data = wt.data.from_PyCMDS(data_path)
-        opa_name = self.aqn.read("opa", "opa")
-        opa_names = [opa.name for opa in opas.hardwares]
-        opa_index = opa_names.index(opa_name)
-        opa = opas.hardwares[opa_index]
         delays = self.aqn.read("delay", "delays")
         channel_name = self.aqn.read("processing", "channel")
-        # This can be simplified, I guess, as it is known which will occur in what order
-        color_units = [i.units for i in data.axes if wt.units.kind(i.units) == "energy"][0]
-        delay_units = [i.units for i in data.axes if wt.units.kind(i.units) == "delay"][0]
         transform = list(data.axis_expressions)[:2]
         for axis in data.axis_expressions:
             if axis not in transform:
@@ -88,7 +74,7 @@ class Worker(acquisition.Worker):
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve.copy()
         curve.convert("wn")
-        pts = np.linspace(curve.setpoints[:].min(), curve.setpoints[:].max(), npts)
+        pts = np.linspace(curve.setpoints[:].min(), curve.setpoints[:].max(), int(npts))
         axis = acquisition.Axis(pts, "wn", opa_friendly_name, opa_friendly_name)
         axes.append(axis)
         # delay
@@ -96,7 +82,7 @@ class Worker(acquisition.Worker):
         start = self.aqn.read(axis_name, "start")
         stop = self.aqn.read(axis_name, "stop")
         number = self.aqn.read(axis_name, "number")
-        points = np.linspace(start, stop, number)
+        points = np.linspace(start, stop, int(number))
         units = self.aqn.read(axis_name, "units")
         name = "=".join(self.aqn.read(axis_name, "delays"))
         axis = acquisition.Axis(points, units, name, name)
@@ -159,12 +145,7 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
-        self.channel_combo = pc.Combo(
-            allowed_values=devices.control.channel_names,
-            ini=ini,
-            section="main",
-            option="channel name",
-        )
+        self.channel_combo = pc.Combo(allowed_values=devices.control.channel_names)
         input_table.add("Channel", self.channel_combo)
         self.process_level = pc.Bool(initial_value=False)
         self.process_gtol = pc.Number(initial_value=0, decimals=5)
