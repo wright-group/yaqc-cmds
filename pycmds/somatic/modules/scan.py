@@ -278,7 +278,10 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
-        if "main_channel" not in self.state.keys():
+        if (
+            "main_channel" not in self.state.keys()
+            or self.state["main_channel"] not in record.control.channel_names
+        ):
             self.state["main_channel"] = record.control.channel_names[0]
         self.channel_combo = pc.Combo(
             allowed_values=record.control.channel_names, initial_value=self.state["main_channel"],
