@@ -715,7 +715,7 @@ class GUI(QtCore.QObject):
         allowed_values = [sensor.name for sensor in self.control.sensors]
         self.sensor_combo = pc.Combo(allowed_values=allowed_values)
         self.sensor_combo.updated.connect(self.on_update_sensor)
-        input_table.add("sensor", self.sensor_combo)
+        input_table.add("Sensor", self.sensor_combo)
         settings_layout.addWidget(input_table)
         self.display_settings_widgets = collections.OrderedDict()
         for sensor in self.control.sensors:
