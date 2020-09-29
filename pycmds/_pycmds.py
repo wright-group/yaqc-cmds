@@ -167,7 +167,6 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(somatic_tabs)
         # plot box
         plot_widget = QtWidgets.QWidget(parent=self.main_frame)
-        g.daq_plot_widget.write(plot_widget)
         # tab widget
         self.tabs = pw.TabWidget()
         self.tabs.addTab(program_widget, "Program")
