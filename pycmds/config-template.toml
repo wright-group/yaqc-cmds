@@ -4,20 +4,14 @@ system_name = "argon"
 enable=false
 port=39200
 
-
 [sensors]
+
 [sensors.settings]
 ms_wait = 0
 
-[sensors.Virtual]
+[sensors.mysensor]
 enable = true
-model = 'Virtual'
-
-[sensors.PCI-6251]
-enable = false
-model = 'NI PCI-6251'
-path = 'sensors/PCI-6251/PCI-6251.py'
-
+yaqd_port = 39900
 
 [hardware]
 
