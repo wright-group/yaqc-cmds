@@ -522,73 +522,72 @@ class Control(QtCore.QObject):
             sensor.close()
 
     def update_cols(self, aqn):
-        for cols_type in ["data"]:
-            kind = []
-            tolerance = []
-            units = []
-            label = []
-            name = []
-            # indicies
-            for n in headers.axis_info["axis names"]:
-                kind.append(None)
-                tolerance.append(None)
-                units.append(None)
-                label.append("")
-                name.append("_".join([n, "index"]))
-            # time
+        kind = []
+        tolerance = []
+        units = []
+        label = []
+        name = []
+        # indicies
+        for n in headers.axis_info["axis names"]:
             kind.append(None)
-            tolerance.append(0.01)
-            units.append("s")
-            label.append("lab")
-            name.append("time")
-            # scan hardware positions
-            for scan_hardware_module in scan_hardware_modules:
-                for scan_hardware in scan_hardware_module.hardwares:
-                    for key in scan_hardware.recorded:
-                        kind.append("hardware")
-                        tolerance.append(scan_hardware.recorded[key][2])
-                        units.append(scan_hardware.recorded[key][1])
-                        label.append(scan_hardware.recorded[key][3])
-                        name.append(key)
-            # acquisition maps
-            for sensor in self.sensors:
-                if not aqn.has_section(sensor.name):
-                    continue
-                if not aqn.read(sensor.name, "use"):
-                    continue
-                if sensor.has_map:
-                    for i in range(len(sensor.map_axes)):
-                        kind.append("hardware")
-                        tolerance.append(None)
-                        vals = list(sensor.map_axes.values())
-                        units.append(vals[i][1])
-                        label.append(vals[i][0])
-                        name.append(list(sensor.map_axes.keys())[i])
-            # channels
-            self.channel_names = []
-            for sensor in self.sensors:
-                # if not aqn.has_section(sensor.name):
-                #    continue
-                # if not aqn.read(sensor.name, "use"):
-                #    continue
-                mutex = sensor.data
-                for col in mutex.cols:
-                    kind.append("channel")
+            tolerance.append(None)
+            units.append(None)
+            label.append("")
+            name.append("_".join([n, "index"]))
+        # time
+        kind.append(None)
+        tolerance.append(0.01)
+        units.append("s")
+        label.append("lab")
+        name.append("time")
+        # scan hardware positions
+        for scan_hardware_module in scan_hardware_modules:
+            for scan_hardware in scan_hardware_module.hardwares:
+                for key in scan_hardware.recorded:
+                    kind.append("hardware")
+                    tolerance.append(scan_hardware.recorded[key][2])
+                    units.append(scan_hardware.recorded[key][1])
+                    label.append(scan_hardware.recorded[key][3])
+                    name.append(key)
+        # acquisition maps
+        for sensor in self.sensors:
+            if not aqn.has_section(sensor.name):
+                continue
+            if not aqn.read(sensor.name, "use"):
+                continue
+            if sensor.has_map:
+                for i in range(len(sensor.map_axes)):
+                    kind.append("hardware")
                     tolerance.append(None)
-                    units.append("")  # TODO: better units support?
-                    label.append("")  # TODO: ?
-                    name.append(col)
-                    self.channel_names.append(col)
-            # clean up
-            for i, s in enumerate(label):
-                label[i] = s.replace("prime", r"\'")
-            # finish
-            cols = headers.data_cols
-            cols["kind"] = kind
-            cols["tolerance"] = tolerance
-            cols["label"] = label
-            cols["units"] = units
-            cols["name"] = name
+                    vals = list(sensor.map_axes.values())
+                    units.append(vals[i][1])
+                    label.append(vals[i][0])
+                    name.append(list(sensor.map_axes.keys())[i])
+        # channels
+        self.channel_names = []
+        for sensor in self.sensors:
+            # if not aqn.has_section(sensor.name):
+            #    continue
+            # if not aqn.read(sensor.name, "use"):
+            #    continue
+            mutex = sensor.data
+            for col in mutex.cols:
+                kind.append("channel")
+                tolerance.append(None)
+                units.append("")  # TODO: better units support?
+                label.append("")  # TODO: ?
+                name.append(col)
+                self.channel_names.append(col)
+        # clean up
+        for i, s in enumerate(label):
+            label[i] = s.replace("prime", r"\'")
+        # finish
+        cols = headers.data_cols
+        cols["kind"] = kind
+        cols["tolerance"] = tolerance
+        cols["label"] = label
+        cols["units"] = units
+        cols["name"] = name
         self.on_sensor_settings_updated()
 
     def wait_until_file_done(self):
