@@ -34,7 +34,7 @@ import pycmds.hardware.filters.filters as filters
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
-import pycmds.devices.devices as devices
+import pycmds._record as record
 
 from . import constant_resolver
 
@@ -148,7 +148,7 @@ class Worker(QtCore.QObject):
 
     def process(self, scan_folder):
         # get path
-        data_path = devices.data_path.read()
+        data_path = record.data_path.read()
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
         data.save(data_path.replace(".data", ".p"), verbose=False)
@@ -276,23 +276,23 @@ class Worker(QtCore.QObject):
         g.logger.log("info", "Scan begun", "")
         # put info into headers -----------------------------------------------
         # clear values from previous scan
-        devices.headers.clear()
+        record.headers.clear()
         # data info
-        devices.headers.data_info["data name"] = self.aqn.read("info", "name")
-        devices.headers.data_info["data info"] = self.aqn.read("info", "info")
-        devices.headers.data_info["data origin"] = self.aqn.read("info", "module")
+        record.headers.data_info["data name"] = self.aqn.read("info", "name")
+        record.headers.data_info["data info"] = self.aqn.read("info", "info")
+        record.headers.data_info["data origin"] = self.aqn.read("info", "module")
         # axes (will be added onto in devices, potentially)
-        devices.headers.axis_info["axis names"] = [a.name for a in axes]
-        devices.headers.axis_info["axis identities"] = [a.identity for a in axes]
-        devices.headers.axis_info["axis units"] = [a.units for a in axes]
-        devices.headers.axis_info["axis interpolate"] = [False for a in axes]
+        record.headers.axis_info["axis names"] = [a.name for a in axes]
+        record.headers.axis_info["axis identities"] = [a.identity for a in axes]
+        record.headers.axis_info["axis units"] = [a.units for a in axes]
+        record.headers.axis_info["axis interpolate"] = [False for a in axes]
         for axis in axes:
-            devices.headers.axis_info[axis.name + " points"] = axis.points
+            record.headers.axis_info[axis.name + " points"] = axis.points
             if axis.identity[0] == "D":
-                devices.headers.axis_info[axis.name + " centers"] = axis.centers
+                record.headers.axis_info[axis.name + " centers"] = axis.centers
         # constants
-        devices.headers.constant_info["constant names"] = [c.name for c in constants]
-        devices.headers.constant_info["constant identities"] = [c.identity for c in constants]
+        record.headers.constant_info["constant names"] = [c.name for c in constants]
+        record.headers.constant_info["constant identities"] = [c.identity for c in constants]
         # create scan folder
         scan_index_str = str(self.scan_index).zfill(3)
         axis_names = str([str(a.name) for a in axes]).replace("'", "")
@@ -312,18 +312,18 @@ class Worker(QtCore.QObject):
             self.scan_urls.append(None)
         # add urls to headers
         if g.google_drive_enabled.read():
-            devices.headers.scan_info["queue url"] = self.queue_worker.queue_url
-            devices.headers.scan_info["acquisition url"] = self.aqn.read("info", "url")
-            devices.headers.scan_info["scan url"] = scan_url
+            record.headers.scan_info["queue url"] = self.queue_worker.queue_url
+            record.headers.scan_info["acquisition url"] = self.aqn.read("info", "url")
+            record.headers.scan_info["scan url"] = scan_url
         # initialize devices
-        devices.control.initialize_scan(self.aqn, scan_folder, destinations_list)
+        record.control.initialize_scan(self.aqn, scan_folder, destinations_list)
         # acquire -------------------------------------------------------------
         self.fraction_complete.write(0.0)
         slice_index = 0
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
             idx = tuple(idx)
-            devices.idx.write(idx)
+            record.idx.write(idx)
             # launch hardware
             for d in destinations_list:
                 destination = d.arr[idx]
@@ -343,14 +343,14 @@ class Worker(QtCore.QObject):
             # slice
             if slice_index < len(slices):  # takes care of last slice
                 if slices[slice_index]["index"] == i:
-                    devices.current_slice.index(slices[slice_index])
+                    record.current_slice.index(slices[slice_index])
                     slice_index += 1
             # wait for hardware
             g.hardware_waits.wait()
             # launch devices
-            devices.control.acquire(save=True, index=idx)
+            record.control.acquire(save=True, index=idx)
             # wait for devices
-            devices.control.wait_until_done()
+            record.control.wait_until_done()
             # update
             self.fraction_complete.write(i / npts)
             self.update_ui.emit()
@@ -363,7 +363,7 @@ class Worker(QtCore.QObject):
                 self.stopped.write(True)
                 break
         # finish scan ---------------------------------------------------------
-        devices.control.wait_until_file_done()
+        record.control.wait_until_file_done()
         self.fraction_complete.write(1.0)
         self.going.write(False)
         g.queue_control.write(False)
@@ -437,13 +437,13 @@ class GUI(QtCore.QObject):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.create_frame()  # add module-specific widgets to out layout
         # device widget
-        self.device_widget = devices.Widget()
+        self.device_widget = record.Widget()
         self.layout.addWidget(self.device_widget)
         # finish
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(self.layout)
         # signals and slots
-        devices.control.settings_updated.connect(self.on_device_settings_updated)
+        record.control.settings_updated.connect(self.on_device_settings_updated)
 
     def create_frame(self):
         layout = QtWidgets.QVBoxLayout()

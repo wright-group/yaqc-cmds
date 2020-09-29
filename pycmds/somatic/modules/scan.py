@@ -22,7 +22,7 @@ import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-import pycmds.devices.devices as devices
+import pycmds._record as record
 
 
 ### define ####################################################################
@@ -111,7 +111,7 @@ class Constant:
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
         # get path
-        data_path = devices.data_path.read()
+        data_path = record.data_path.read()
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
         # decide which channels to make plots for
@@ -279,9 +279,9 @@ class GUI(acquisition.GUI):
         input_table = pw.InputTable()
         input_table.add("Processing", None)
         if "main_channel" not in self.state.keys():
-            self.state["main_channel"] = devices.control.channel_names[0]
+            self.state["main_channel"] = record.control.channel_names[0]
         self.channel_combo = pc.Combo(
-            allowed_values=devices.control.channel_names, initial_value=self.state["main_channel"],
+            allowed_values=record.control.channel_names, initial_value=self.state["main_channel"],
         )
         self.channel_combo.updated.connect(self.save_state)
         input_table.add("Main Channel", self.channel_combo)
@@ -334,11 +334,11 @@ class GUI(acquisition.GUI):
         except ValueError:
             pass  # TODO: log warning or something
         self.process_all_channels.write(aqn.read("processing", "process all channels"))
-        # allow devices to load settings
+        # allow record to load settings
         self.device_widget.load(aqn_path)
 
     def on_device_settings_updated(self):
-        self.channel_combo.set_allowed_values(devices.control.channel_names)
+        self.channel_combo.set_allowed_values(record.control.channel_names)
 
     def remove_axis(self):
         # remove trailing axis

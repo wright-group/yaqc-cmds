@@ -1,4 +1,4 @@
-# --- import --------------------------------------------------------------------------------------
+"""Gathering data and writing to disk."""
 
 
 import os
@@ -23,33 +23,10 @@ import yaqc
 import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
+from pycmds._sensors import Sensor, Driver, SensorWidget
 
 
-__here__ = pathlib.Path(__file__)
-
-
-# --- define --------------------------------------------------------------------------------------
-
-
-config = toml.load(
-    pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
-)
-
-# dictionary of how to access all PyCMDS-compatible DAQ devices
-# [module path, class name, initialization arguments, friendly name]
-device_dict = collections.OrderedDict()
-device_dict["NI 6251"] = [
-    os.path.join(__here__, "NI_6251", "NI_6251.py"),
-    "Device",
-    [None],
-    "ni6251",
-]
-device_dict["InGaAs array"] = [
-    os.path.join(__here__, "InGaAs_array", "InGaAs.py"),
-    "Device",
-    [None],
-    "InGaAs",
-]
+config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
 
 axes = pc.Mutex()
 
@@ -70,9 +47,6 @@ ms_wait = pc.Number(
     display=True,
 )
 
-# --- classes -------------------------------------------------------------------------------------
-
-
 class CurrentSlice(QtCore.QObject):
     indexed = QtCore.Signal()
     appended = QtCore.Signal()
@@ -88,7 +62,7 @@ class CurrentSlice(QtCore.QObject):
         Parameters
         ----------
         shape : list of ints
-            Number of channels for all devices.
+            Number of channels for all sensors.
         """
         self.xi = []
         self.data = []
@@ -127,21 +101,21 @@ class CurrentSlice(QtCore.QObject):
         position : float
             The axis position (in the slices' own axis / units)
         data : list of lists of arrays
-            List of 1) devices, 2) channels, containing arrays
+            List of 1) sensors, 2) channels, containing arrays
         """
         if self.use_actual:
             self.xi.append(position)
         else:
             self.xi.append(self.points[len(self.xi)])
         self.data.append(data)
-        for device_index, device in enumerate(data):
-            for channel_index, channel in enumerate(data[device_index]):
-                minimum = np.min(data[device_index][channel_index])
-                maximum = np.max(data[device_index][channel_index])
-                if self.ymins[device_index][channel_index] > minimum:
-                    self.ymins[device_index][channel_index] = minimum
-                if self.ymaxs[device_index][channel_index] < maximum:
-                    self.ymaxs[device_index][channel_index] = maximum
+        for sensor_index, sensor in enumerate(data):
+            for channel_index, channel in enumerate(data[sensor_index]):
+                minimum = np.min(data[sensor_index][channel_index])
+                maximum = np.max(data[sensor_index][channel_index])
+                if self.ymins[sensor_index][channel_index] > minimum:
+                    self.ymins[sensor_index][channel_index] = minimum
+                if self.ymaxs[sensor_index][channel_index] < maximum:
+                    self.ymaxs[sensor_index][channel_index] = maximum
         self.appended.emit()
 
 
@@ -194,9 +168,6 @@ class Headers:
 
 
 headers = Headers()
-
-
-# --- file writing class --------------------------------------------------------------------------
 
 
 data_busy = pc.Busy()
@@ -252,7 +223,7 @@ class FileAddress(QtCore.QObject):
         data_arr = inputs[0]
         # pixels --------------------------------------------------------------
         data_file = open(data_path.read(), "ab")
-        if len(data_arr.shape) == 2:  # case of multidimensional devices
+        if len(data_arr.shape) == 2:  # case of multidimensional sensors
             for row in data_arr.T:
                 np.savetxt(data_file, row, fmt=str("%8.6f"), delimiter="\t", newline="\t")
                 data_file.write(b"\n")
@@ -297,119 +268,6 @@ def q(method, inputs=[]):
     # data_queue.invokeMethod(data_obj, 'dequeue', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, method), QtCore.Q_ARG(list, inputs))
 
 
-# --- device --------------------------------------------------------------------------------------
-
-
-class Device(pc.Hardware):
-    settings_updated = QtCore.Signal()
-
-    def __init__(self, *args, **kwargs):
-        self.freerun = pc.Bool(initial_value=False)
-        self.Widget = kwargs.pop("Widget")
-        self.data = pc.Data()
-        self.active = True
-        # shape
-        if "shape" in kwargs.keys():
-            self.shape = kwargs.pop("shape")
-        else:
-            self.shape = (1,)
-        # map
-        if "has_map" in kwargs.keys():
-            self.has_map = kwargs.pop("has_map")
-        else:
-            self.has_map = False
-        self.has_map = False  # turning this feature off for now  --Blaise 2020-09-25
-        self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
-        pc.Hardware.__init__(self, *args, **kwargs)
-        self.settings_updated.emit()
-
-    def get_headers(self):
-        out = collections.OrderedDict()
-        return out
-
-    def give_widget(self, widget):
-        self.widget = widget
-        self.gui.create_frame(widget)
-
-    def initialize(self):
-        self.wait_until_still()
-        self.freerun.updated.connect(self.on_freerun_updated)
-        self.update_ui.emit()
-        self.driver.update_ui.connect(self.on_driver_update_ui)
-        self.settings_updated.emit()
-
-    def load_settings(self, aqn):
-        pass
-
-    def measure(self):
-        self.q.push("measure")
-
-    def on_driver_update_ui(self):
-        self.update_ui.emit()
-
-    def on_freerun_updated(self):
-        self.q.push("loop")
-
-    def set_freerun(self, state):
-        self.freerun.write(state)
-        self.on_freerun_updated()
-        self.settings_updated.emit()  # TODO: should probably remove this
-
-    def wait_until_still(self):
-        while self.busy.read():
-            self.busy.wait_for_update()
-
-
-# --- driver --------------------------------------------------------------------------------------
-
-
-class Driver(pc.Driver):
-    settings_updated = QtCore.Signal()
-    running = False
-
-    def __init__(self, device, yaqd_port):
-        pc.Driver.__init__(self)
-        self.client = yaqc.Client(yaqd_port)
-        # attributes
-        self.name = self.client.id()["name"]
-        self.enqueued = device.enqueued
-        self.busy = device.busy
-        self.freerun = device.freerun
-        self.data = device.data
-        self.shape = device.shape
-        self.measure_time = device.measure_time
-        self.thread = device.thread
-
-    def initialize(self):
-        self.measure()
-
-    def loop(self):
-        while self.freerun.read() and not self.enqueued.read():
-            self.measure()
-            self.busy.write(False)
-
-    def measure(self):
-        timer = wt.kit.Timer(verbose=False)
-        with timer:
-            self.busy.write(True)
-            self.client.measure(loop=False)
-            while self.client.busy():
-                time.sleep(0.1)
-            out_names = self.client.get_channel_names()
-            signed = [False for _ in out_names]
-            out = list(self.client.get_measured().values())[:-1]
-            self.data.write_properties(self.shape, out_names, out, signed)
-            self.busy.write(False)
-        self.measure_time.write(timer.interval)
-        self.update_ui.emit()
-
-    def shutdown(self):
-        pass
-
-
-# --- gui -----------------------------------------------------------------------------------------
-
-
 class Widget(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
@@ -431,7 +289,7 @@ class Widget(QtWidgets.QWidget):
         ini.write("virtual", "use", self.use.read())
 
 
-class DeviceGUI(QtCore.QObject):
+class SensorGUI(QtCore.QObject):
     def __init__(self, hardware):
         QtCore.QObject.__init__(self)
         self.hardware = hardware
@@ -447,9 +305,6 @@ class DeviceGUI(QtCore.QObject):
         self.layout = parent_widget.layout()
 
 
-# --- control -------------------------------------------------------------------------------------
-
-
 class Control(QtCore.QObject):
     """
     Only one instance in the entire program.
@@ -459,10 +314,10 @@ class Control(QtCore.QObject):
 
     def __init__(self):
         QtCore.QObject.__init__(self)
-        self.devices = []
+        self.sensors = []
         g.main_window.read().queue_control.connect(self.queue_control_update)
         self.channel_names = []
-        # import devices
+        # import sensors
         for section in config["sensors"].keys():
             if section == "settings":
                 continue
@@ -474,32 +329,32 @@ class Control(QtCore.QObject):
                         continue
                     else:
                         kwargs[option] = config["sensors"][section][option]
-                device = Device(
+                sensor = Sensor(
                     Driver,
                     kwargs,
-                    DeviceGUI,
-                    Widget=DeviceWidget,
+                    SensorGUI,
+                    Widget=SensorWidget,
                     name=section,
                     model="Virtual",
                 )
-                self.devices.append(device)
+                self.sensors.append(sensor)
         # gui
         self.gui = GUI(self)
-        for device, widget in zip(self.devices, self.gui.device_widgets):
-            device.update_ui.connect(self.gui.create_main_tab)
+        for sensor, widget in zip(self.sensors, self.gui.sensor_widgets):
+            sensor.update_ui.connect(self.gui.create_main_tab)
         # initialize
-        for device in self.devices:
-            device.initialize()
+        for sensor in self.sensors:
+            sensor.initialize()
         self.set_freerun(True)
         self.wait_until_done()  # TODO:...
         # time.sleep(3)  # TOD: remove
         # connect
-        for device in self.devices:
-            device.settings_updated.connect(self.on_device_settings_updated)
+        for sensor in self.sensors:
+            sensor.settings_updated.connect(self.on_sensor_settings_updated)
         self.t_last = time.time()
         # initialize channel names
-        for device in self.devices:
-            for channel_name in device.data.cols:
+        for sensor in self.sensors:
+            for channel_name in sensor.data.cols:
                 self.channel_names.append(channel_name)
         # finish
         self.settings_updated.emit()
@@ -512,25 +367,25 @@ class Control(QtCore.QObject):
         # ms wait
         time.sleep(ms_wait.read() / 1000.0)
         # acquire
-        for device in self.devices:
-            if device.active:
-                device.measure()
+        for sensor in self.sensors:
+            if sensor.active:
+                sensor.measure()
         self.wait_until_done()
         # save
         if save:
             # 1D things -------------------------------------------------------
-            data_rows = np.prod([d.data.size for d in self.devices if d.active])
+            data_rows = np.prod([d.data.size for d in self.sensors if d.active])
             data_shape = (len(headers.data_cols["name"]), int(data_rows))
             data_arr = np.full(data_shape, np.nan)
             data_i = 0
             # scan indicies
-            for i in idx.read():  # scan device
+            for i in idx.read():  # scan sensor
                 data_arr[data_i] = i
                 data_i += 1
-            for device in self.devices:  # daq
-                if device.active and device.has_map:
-                    map_indicies = [i for i in np.ndindex(device.data.shape)]
-                    for i in range(len(device.data.shape)):
+            for sensor in self.sensors:  # daq
+                if sensor.active and sensor.has_map:
+                    map_indicies = [i for i in np.ndindex(sensor.data.shape)]
+                    for i in range(len(sensor.data.shape)):
                         data_arr[data_i] = [mi[i] for mi in map_indicies]
                         data_i += 1
             # time
@@ -549,14 +404,14 @@ class Control(QtCore.QObject):
                         data_i += 1
             # potentially multidimensional things -----------------------------
             # acquisition maps
-            for device in self.devices:
-                if device.active and device.has_map:
-                    data_arr[data_i] = device.map.read()
+            for sensor in self.sensors:
+                if sensor.active and sensor.has_map:
+                    data_arr[data_i] = sensor.map.read()
                     data_i += 1
             # acquisitions
-            for device in self.devices:
-                if device.active:
-                    channels = device.data.read()  # list of arrays
+            for sensor in self.sensors:
+                if sensor.active:
+                    channels = sensor.data.read()  # list of arrays
                     for arr in channels:
                         data_arr[data_i] = arr
                         data_i += 1
@@ -568,8 +423,8 @@ class Control(QtCore.QObject):
             native_units = headers.data_cols["units"][slice_axis_index]
             slice_position = wt.units.converter(slice_position, native_units, current_slice.units)
             data_arrs = []
-            for device in self.devices:
-                data_arrs.append(device.data.read())
+            for sensor in self.sensors:
+                data_arrs.append(sensor.data.read())
             current_slice.append(slice_position, data_arrs)
 
     def initialize_scan(self, aqn, scan_folder, destinations_list):
@@ -580,24 +435,24 @@ class Control(QtCore.QObject):
         headers.pycmds_info["PyCMDS version"] = g.version.read()
         headers.pycmds_info["system name"] = g.system_name.read()
         headers.pycmds_info["file created"] = timestamp.RFC3339
-        # apply device settings from aqn
-        ms_wait.write(aqn.read("device settings", "ms wait"))
-        for device in self.devices:
-            #if not aqn.has_section(device.name):
-            #    device.active = False
+        # apply sensor settings from aqn
+        ms_wait.write(aqn.read("sensor settings", "ms wait"))
+        for sensor in self.sensors:
+            #if not aqn.has_section(sensor.name):
+            #    sensor.active = False
             #    continue
-            #if not aqn.read(device.name, "use"):
-            #    device.active = False
+            #if not aqn.read(sensor.name, "use"):
+            #    sensor.active = False
             #    continue
-            # apply settings from aqn to device
-            device.active = True
-            device.load_settings(aqn)
-            # record device axes, if applicable
-            if device.has_map:
-                for key in device.map_axes.keys():
+            # apply settings from aqn to sensor
+            sensor.active = True
+            sensor.load_settings(aqn)
+            # record sensor axes, if applicable
+            if sensor.has_map:
+                for key in sensor.map_axes.keys():
                     # add axis
                     headers.axis_info["axis names"].append(key)
-                    (identity, units, points, centers, interpolate,) = device.get_axis_properties(
+                    (identity, units, points, centers, interpolate,) = sensor.get_axis_properties(
                         destinations_list
                     )
                     headers.axis_info["axis identities"].append(identity)
@@ -618,25 +473,25 @@ class Control(QtCore.QObject):
         # add channel signed choices
         # TODO: better implementation. for now, just assume not signed
         signed = []
-        for device in self.devices:
-            signed += device.data.signed
+        for sensor in self.sensors:
+            signed += sensor.data.signed
         headers.channel_info["channel signed"] = signed
         # add daq information to headers
-        for device in self.devices:
-            if device.active:
-                for key, value in device.get_headers().items():
-                    headers.daq_info[" ".join([device.name, key])] = value
+        for sensor in self.sensors:
+            if sensor.active:
+                for key, value in sensor.get_headers().items():
+                    headers.daq_info[" ".join([sensor.name, key])] = value
         q("create_data", [aqn, scan_folder])
         # refresh current slice properties
-        current_slice.begin([len(device.data.cols) for device in self.devices])
+        current_slice.begin([len(sensor.data.cols) for sensor in self.sensors])
         # wait until daq is done before letting module continue
         self.wait_until_done()
         self.wait_until_file_done()
 
-    def on_device_settings_updated(self):
+    def on_sensor_settings_updated(self):
         self.channel_names = []
-        for device in self.devices:
-            for channel_name in device.data.cols:
+        for sensor in self.sensors:
+            for channel_name in sensor.data.cols:
                 self.channel_names.append(channel_name)
         self.settings_updated.emit()
 
@@ -649,14 +504,14 @@ class Control(QtCore.QObject):
             self.set_freerun(True)
 
     def set_freerun(self, state):
-        for device in self.devices:
-            device.set_freerun(state)
+        for sensor in self.sensors:
+            sensor.set_freerun(state)
 
     def shutdown(self):
         self.set_freerun(False)
         self.wait_until_done()
-        for device in self.devices:
-            device.close()
+        for sensor in self.sensors:
+            sensor.close()
 
     def update_cols(self, aqn):
         for cols_type in ["data"]:
@@ -688,27 +543,27 @@ class Control(QtCore.QObject):
                         label.append(scan_hardware.recorded[key][3])
                         name.append(key)
             # acquisition maps
-            for device in self.devices:
-                if not aqn.has_section(device.name):
+            for sensor in self.sensors:
+                if not aqn.has_section(sensor.name):
                     continue
-                if not aqn.read(device.name, "use"):
+                if not aqn.read(sensor.name, "use"):
                     continue
-                if device.has_map:
-                    for i in range(len(device.map_axes)):
+                if sensor.has_map:
+                    for i in range(len(sensor.map_axes)):
                         kind.append("hardware")
                         tolerance.append(None)
-                        vals = list(device.map_axes.values())
+                        vals = list(sensor.map_axes.values())
                         units.append(vals[i][1])
                         label.append(vals[i][0])
-                        name.append(list(device.map_axes.keys())[i])
+                        name.append(list(sensor.map_axes.keys())[i])
             # channels
             self.channel_names = []
-            for device in self.devices:
-                #if not aqn.has_section(device.name):
+            for sensor in self.sensors:
+                #if not aqn.has_section(sensor.name):
                 #    continue
-                #if not aqn.read(device.name, "use"):
+                #if not aqn.read(sensor.name, "use"):
                 #    continue
-                mutex = device.data
+                mutex = sensor.data
                 for col in mutex.cols:
                     kind.append("channel")
                     tolerance.append(None)
@@ -726,7 +581,7 @@ class Control(QtCore.QObject):
             cols["label"] = label
             cols["units"] = units
             cols["name"] = name
-        self.on_device_settings_updated()
+        self.on_sensor_settings_updated()
 
     def wait_until_file_done(self):
         while data_busy.read():
@@ -734,86 +589,32 @@ class Control(QtCore.QObject):
 
     def wait_until_done(self):
         """
-        Wait until the acquisition devices are no longer busy. Does not wait
+        Wait until the acquisition sensors are no longer busy. Does not wait
         for the file writing queue to empty.
         """
-        for device in self.devices:
-            if device.active:
-                device.wait_until_still()
-
-
-# --- gui -----------------------------------------------------------------------------------------
-
-
-class DeviceWidget(QtWidgets.QWidget):
-    def __init__(self):
-        QtWidgets.QWidget.__init__(self)
-
-    def load(self, aqn_path):
-        # TODO:
-        pass
-
-    def save(self, aqn_path):
-        # TODO:
-        ini = wt.kit.INI(aqn_path)
-        ini.add_section("Virtual")
-        ini.write("Virtual", "use", True)
-
-
-class Widget(QtWidgets.QWidget):
-    def __init__(self):
-        QtWidgets.QWidget.__init__(self)
-        layout = QtWidgets.QVBoxLayout()
-        self.setLayout(layout)
-        layout.setMargin(0)
-        # daq settings
-        input_table = pw.InputTable()
-        input_table.add("Device Settings", None)
-        self.ms_wait = pc.Number(
-            initial_value=0, limits=ms_wait_limits, decimals=0, disable_under_queue_control=True,
-        )
-        input_table.add("ms Wait", self.ms_wait)
-        layout.addWidget(input_table)
-        # device settings
-        self.device_widgets = []
-        for device in control.devices:
-            widget = device.Widget()
-            layout.addWidget(widget)
-            self.device_widgets.append(widget)
-
-    def load(self, aqn_path):
-        ini = wt.kit.INI(aqn_path)
-        self.ms_wait.write(ini.read("device settings", "ms wait"))
-        for device_widget in self.device_widgets:
-            device_widget.load(aqn_path)
-
-    def save(self, aqn_path):
-        ini = wt.kit.INI(aqn_path)
-        ini.add_section("device settings")
-        ini.write("device settings", "ms wait", self.ms_wait.read())
-        for device_widget in self.device_widgets:
-            device_widget.save(aqn_path)
-
+        for sensor in self.sensors:
+            if sensor.active:
+                sensor.wait_until_still()
 
 class DisplaySettings(QtCore.QObject):
     updated = QtCore.Signal()
 
-    def __init__(self, device):
+    def __init__(self, sensor):
         """
-        Display settings for a particular device.
+        Display settings for a particular sensor.
         """
         QtCore.QObject.__init__(self)
-        self.device = device
-        # self.device.wait_until_done()
+        self.sensor = sensor
+        # self.sensor.wait_until_done()
         self.widget = pw.InputTable()
         self.channel_combo = pc.Combo()
         self.channel_combo.updated.connect(lambda: self.updated.emit())
         self.widget.add("Channel", self.channel_combo)
         self.shape_controls = []
-        if self.device.shape != (1,):
-            map_axis_names = list(self.device.map_axes.keys())
-            for i in range(len(self.device.shape)):
-                limits = pc.NumberLimits(0, self.device.shape[i] - 1)
+        if self.sensor.shape != (1,):
+            map_axis_names = list(self.sensor.map_axes.keys())
+            for i in range(len(self.sensor.shape)):
+                limits = pc.NumberLimits(0, self.sensor.shape[i] - 1)
                 control = pc.Number(initial_value=0, decimals=0, limits=limits)
                 self.widget.add(" ".join([map_axis_names[i], "index"]), control)
                 self.shape_controls.append(control)
@@ -834,7 +635,7 @@ class DisplaySettings(QtCore.QObject):
         self.widget.show()
 
     def update_channels(self):
-        allowed_values = self.device.data.read_properties()[1]
+        allowed_values = self.sensor.data.read_properties()[1]
         if not len(allowed_values) == 0:
             self.channel_combo.set_allowed_values(allowed_values)
 
@@ -849,7 +650,7 @@ class GUI(QtCore.QObject):
     def create_frame(self):
         # scan widget
         self.main_widget = g.main_window.read().scan_widget
-        # device widgets
+        # sensor widgets
         # get parent widget
         parent_widget = g.daq_widget.read()
         parent_widget.setLayout(QtWidgets.QHBoxLayout())
@@ -858,21 +659,21 @@ class GUI(QtCore.QObject):
         layout = parent_widget.layout()
         # create tab structure
         self.tabs = QtWidgets.QTabWidget()
-        # create tabs for each device
-        self.device_widgets = []
-        for device in self.control.devices:
+        # create tabs for each sensor
+        self.sensor_widgets = []
+        for sensor in self.control.sensors:
             widget = QtWidgets.QWidget()
-            self.tabs.addTab(widget, device.name)
-            self.device_widgets.append(widget)
-            device.give_widget(widget)
+            self.tabs.addTab(widget, sensor.name)
+            self.sensor_widgets.append(widget)
+            sensor.give_widget(widget)
         # finish
         layout.addWidget(self.tabs)
 
     def create_main_tab(self):
         if self.main_tab_created:
             return
-        for device in self.control.devices:
-            if len(device.data.read_properties()[1]) == 0:
+        for sensor in self.control.sensors:
+            if len(sensor.data.read_properties()[1]) == 0:
                 return
         self.main_tab_created = True
         # create main daq tab
@@ -920,27 +721,27 @@ class GUI(QtCore.QObject):
         # display settings
         input_table = pw.InputTable()
         input_table.add("Display", None)
-        allowed_values = [device.name for device in self.control.devices]
-        self.device_combo = pc.Combo(allowed_values=allowed_values)
-        self.device_combo.updated.connect(self.on_update_device)
-        input_table.add("Device", self.device_combo)
+        allowed_values = [sensor.name for sensor in self.control.sensors]
+        self.sensor_combo = pc.Combo(allowed_values=allowed_values)
+        self.sensor_combo.updated.connect(self.on_update_sensor)
+        input_table.add("sensor", self.sensor_combo)
         settings_layout.addWidget(input_table)
         self.display_settings_widgets = collections.OrderedDict()
-        for device in self.control.devices:
-            display_settings = DisplaySettings(device)
-            self.display_settings_widgets[device.name] = display_settings
+        for sensor in self.control.sensors:
+            display_settings = DisplaySettings(sensor)
+            self.display_settings_widgets[sensor.name] = display_settings
             settings_layout.addWidget(display_settings.widget)
-            device.settings_updated.connect(self.on_update_channels)
-            display_settings.updated.connect(self.on_update_device)
+            sensor.settings_updated.connect(self.on_update_channels)
+            display_settings.updated.connect(self.on_update_sensor)
         # global daq settings
         input_table = pw.InputTable()
         input_table.add("Settings", None)
         input_table.add("ms Wait", ms_wait)
-        for device in self.control.devices:
-            input_table.add(device.name, None)
-            input_table.add("Status", device.busy)
-            input_table.add("Freerun", device.freerun)
-            input_table.add("Time", device.measure_time)
+        for sensor in self.control.sensors:
+            input_table.add(sensor.name, None)
+            input_table.add("Status", sensor.busy)
+            input_table.add("Freerun", sensor.freerun)
+            input_table.add("Time", sensor.measure_time)
         input_table.add("File", None)
         data_busy.update_signal = data_obj.update_ui
         input_table.add("Status", data_busy)
@@ -953,24 +754,24 @@ class GUI(QtCore.QObject):
         settings_layout.addStretch(1)
         # finish --------------------------------------------------------------
         self.on_update_channels()
-        self.on_update_device()
-        for device in self.control.devices:
-            device.update_ui.connect(self.update)
+        self.on_update_sensor()
+        for sensor in self.control.sensors:
+            sensor.update_ui.connect(self.update)
         current_slice.indexed.connect(self.on_slice_index)
         current_slice.appended.connect(self.on_slice_append)
 
     def on_slice_append(self):
-        device_index = self.device_combo.read_index()
-        device_display_settings = list(self.display_settings_widgets.values())[device_index]
-        channel_index = device_display_settings.channel_combo.read_index()
+        sensor_index = self.sensor_combo.read_index()
+        sensor_display_settings = list(self.display_settings_widgets.values())[sensor_index]
+        channel_index = sensor_display_settings.channel_combo.read_index()
         # limits
-        ymin = current_slice.ymins[device_index][channel_index]
-        ymax = current_slice.ymaxs[device_index][channel_index]
+        ymin = current_slice.ymins[sensor_index][channel_index]
+        ymax = current_slice.ymaxs[sensor_index][channel_index]
         self.plot_widget.set_ylim(ymin, ymax)
         # data
         xi = current_slice.xi
-        # TODO: in case of device with shape...
-        yi = [current_slice.data[i][device_index][channel_index] for i, _ in enumerate(xi)]
+        # TODO: in case of sensor with shape...
+        yi = [current_slice.data[i][sensor_index][channel_index] for i, _ in enumerate(xi)]
         # finish
         self.plot_scatter.setData(xi, yi)
         self.plot_line.setData(xi, yi)
@@ -986,11 +787,11 @@ class GUI(QtCore.QObject):
         for display_settings in self.display_settings_widgets.values():
             display_settings.update_channels()
 
-    def on_update_device(self):
-        current_device_index = self.device_combo.read_index()
+    def on_update_sensor(self):
+        current_sensor_index = self.sensor_combo.read_index()
         for display_settings in self.display_settings_widgets.values():
             display_settings.hide()
-        list(self.display_settings_widgets.values())[current_device_index].show()
+        list(self.display_settings_widgets.values())[current_sensor_index].show()
         self.update()
 
     def update(self):
@@ -1000,24 +801,21 @@ class GUI(QtCore.QObject):
         # scan index
         self.idx_string.write(str(idx.read()))
         # big number
-        current_device_index = self.device_combo.read_index()
-        device = self.control.devices[current_device_index]
-        widget = list(self.display_settings_widgets.values())[current_device_index]
+        current_sensor_index = self.sensor_combo.read_index()
+        sensor = self.control.sensors[current_sensor_index]
+        widget = list(self.display_settings_widgets.values())[current_sensor_index]
         channel_index = widget.get_channel_index()
         map_index = widget.get_map_index()
         if map_index is None:
-            big_number = device.data.read()[channel_index]
+            big_number = sensor.data.read()[channel_index]
         else:
-            big_number = device.data.read()[channel_index][map_index]
+            big_number = sensor.data.read()[channel_index][map_index]
         if len(self.control.channel_names) > channel_index:
             self.big_channel.setText(self.control.channel_names[channel_index])
         self.big_display.setValue(big_number)
 
     def stop(self):
         pass
-
-
-# --- initialize ----------------------------------------------------------------------------------
 
 
 control = Control()
