@@ -1,7 +1,6 @@
 """Sensors."""
 
 
-import os
 import appdirs
 import pathlib
 
@@ -15,7 +14,6 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 import yaqc
 
-import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 

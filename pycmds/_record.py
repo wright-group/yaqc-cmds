@@ -12,13 +12,11 @@ import numpy as np
 
 
 import toml
-import h5py
 
 from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 import tidy_headers
-import yaqc
 
 import pycmds.project.project_globals as g
 import pycmds.project.classes as pc
