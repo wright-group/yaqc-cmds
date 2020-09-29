@@ -42,7 +42,6 @@ from . import constant_resolver
 ### define ####################################################################
 
 
-
 __here__ = pathlib.Path(__file__).parent
 
 
@@ -443,7 +442,7 @@ class GUI(QtCore.QObject):
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(self.layout)
         # signals and slots
-        record.control.settings_updated.connect(self.on_device_settings_updated)
+        record.control.settings_updated.connect(self.on_sensor_settings_updated)
 
     def create_frame(self):
         layout = QtWidgets.QVBoxLayout()
@@ -460,7 +459,7 @@ class GUI(QtCore.QObject):
     def hide(self):
         self.frame.hide()
 
-    def on_device_settings_updated(self):
+    def on_sensor_settings_updated(self):
         # overload this if your gui has device-dependent settings
         pass
 

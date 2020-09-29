@@ -275,19 +275,33 @@ class Widget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.setMargin(0)
+        # daq settings
         input_table = pw.InputTable()
-        input_table.add("Virtual", None)
-        self.use = pc.Bool(initial_value=True)
-        input_table.add("Use", self.use)
+        input_table.add("Sensor Settings", None)
+        self.ms_wait = pc.Number(
+            initial_value=0, limits=ms_wait_limits, decimals=0, disable_under_queue_control=True,
+        )
+        input_table.add("ms Wait", self.ms_wait)
         layout.addWidget(input_table)
+        # sensor settings
+        self.sensor_widgets = []
+        for sensor in control.sensors:
+            widget = sensor.Widget()
+            layout.addWidget(widget)
+            self.sensor_widgets.append(widget)
 
     def load(self, aqn_path):
-        pass
+        ini = wt.kit.INI(aqn_path)
+        self.ms_wait.write(ini.read("sensor settings", "ms wait"))
+        for sensor_widget in self.sensor_widgets:
+            sensor_widget.load(aqn_path)
 
     def save(self, aqn_path):
         ini = wt.kit.INI(aqn_path)
-        ini.add_section("virtual")
-        ini.write("virtual", "use", self.use.read())
+        ini.add_section("sensor settings")
+        ini.write("sensor settings", "ms wait", self.ms_wait.read())
+        for sensor_widget in self.sensor_widgets:
+            sensor_widget.save(aqn_path)
 
 
 class SensorGUI(QtCore.QObject):
