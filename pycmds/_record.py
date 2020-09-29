@@ -350,7 +350,7 @@ class Control(QtCore.QObject):
                 self.sensors.append(sensor)
         # gui
         self.gui = GUI(self)
-        for sensor, widget in zip(self.sensors, self.gui.sensor_widgets):
+        for sensor in self.sensors:
             sensor.update_ui.connect(self.gui.create_main_tab)
         # initialize
         for sensor in self.sensors:
@@ -661,24 +661,6 @@ class GUI(QtCore.QObject):
     def create_frame(self):
         # scan widget
         self.main_widget = g.main_window.read().scan_widget
-        # sensor widgets
-        # get parent widget
-        parent_widget = g.daq_widget.read()
-        parent_widget.setLayout(QtWidgets.QHBoxLayout())
-        parent_widget.layout().setContentsMargins(0, 10, 0, 0)
-        self.parent_widget = parent_widget
-        layout = parent_widget.layout()
-        # create tab structure
-        self.tabs = QtWidgets.QTabWidget()
-        # create tabs for each sensor
-        self.sensor_widgets = []
-        for sensor in self.control.sensors:
-            widget = QtWidgets.QWidget()
-            self.tabs.addTab(widget, sensor.name)
-            self.sensor_widgets.append(widget)
-            sensor.give_widget(widget)
-        # finish
-        layout.addWidget(self.tabs)
 
     def create_main_tab(self):
         if self.main_tab_created:

@@ -80,20 +80,6 @@ coset_control = SimpleGlobal()
 coset_widget = SimpleGlobal()
 
 
-class daq_widget:
-    def __init__(self):
-        self.value = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.value = value
-
-
-daq_widget = daq_widget()
-
-
 class daq_array_widget:
     def __init__(self):
         self.value = None
