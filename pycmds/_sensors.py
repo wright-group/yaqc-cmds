@@ -20,9 +20,7 @@ import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 
 
-config = toml.load(
-    pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
-)
+config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
 
 
 class Sensor(pc.Hardware):
@@ -83,7 +81,6 @@ class Sensor(pc.Hardware):
     def wait_until_still(self):
         while self.busy.read():
             self.busy.wait_for_update()
-
 
 
 class Driver(pc.Driver):

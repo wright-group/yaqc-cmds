@@ -47,6 +47,7 @@ ms_wait = pc.Number(
     display=True,
 )
 
+
 class CurrentSlice(QtCore.QObject):
     indexed = QtCore.Signal()
     appended = QtCore.Signal()
@@ -330,12 +331,7 @@ class Control(QtCore.QObject):
                     else:
                         kwargs[option] = config["sensors"][section][option]
                 sensor = Sensor(
-                    Driver,
-                    kwargs,
-                    SensorGUI,
-                    Widget=SensorWidget,
-                    name=section,
-                    model="Virtual",
+                    Driver, kwargs, SensorGUI, Widget=SensorWidget, name=section, model="Virtual",
                 )
                 self.sensors.append(sensor)
         # gui
@@ -438,10 +434,10 @@ class Control(QtCore.QObject):
         # apply sensor settings from aqn
         ms_wait.write(aqn.read("sensor settings", "ms wait"))
         for sensor in self.sensors:
-            #if not aqn.has_section(sensor.name):
+            # if not aqn.has_section(sensor.name):
             #    sensor.active = False
             #    continue
-            #if not aqn.read(sensor.name, "use"):
+            # if not aqn.read(sensor.name, "use"):
             #    sensor.active = False
             #    continue
             # apply settings from aqn to sensor
@@ -559,9 +555,9 @@ class Control(QtCore.QObject):
             # channels
             self.channel_names = []
             for sensor in self.sensors:
-                #if not aqn.has_section(sensor.name):
+                # if not aqn.has_section(sensor.name):
                 #    continue
-                #if not aqn.read(sensor.name, "use"):
+                # if not aqn.read(sensor.name, "use"):
                 #    continue
                 mutex = sensor.data
                 for col in mutex.cols:
@@ -595,6 +591,7 @@ class Control(QtCore.QObject):
         for sensor in self.sensors:
             if sensor.active:
                 sensor.wait_until_still()
+
 
 class DisplaySettings(QtCore.QObject):
     updated = QtCore.Signal()
