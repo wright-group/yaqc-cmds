@@ -2,7 +2,6 @@
 
 
 import os
-import imp
 import time
 import appdirs
 import pathlib
@@ -62,8 +61,6 @@ origin = pc.Mutex()
 loop_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
 
 idx = pc.Mutex()  # holds tuple
-
-save_shots = pc.Bool(display=True)
 
 ms_wait_limits = pc.NumberLimits(0, 10000)
 ms_wait = pc.Number(
@@ -171,26 +168,13 @@ class Headers:
         self.channel_info = collections.OrderedDict()
         self.daq_info = collections.OrderedDict()
         self.data_cols = collections.OrderedDict()
-        self.shots_cols = collections.OrderedDict()
 
-    def read(self, kind="data"):
+    def read(self):
         """
         Assemble contained dictionaries into a single dictionary.
-
-        Parameters
-        ----------
-        kind : {'data', 'shots'}  (optional)
-            Which kind of dictionary to return. Default is data.
         """
-        # get correct cols dictionary
-        if kind == "data":
-            cols = self.data_cols
-            channel_info = self.channel_info
-        elif kind == "shots":
-            cols = self.shots_cols
-            channel_info = {}
-        else:
-            raise Exception("kind {} not recognized in daq.Headers.get".format(kind))
+        cols = self.data_cols
+        channel_info = self.channel_info
         # assemble
         dicts = [
             self.pycmds_info,
@@ -221,10 +205,6 @@ data_path = pc.Mutex()
 
 enqueued_data = pc.Enqueued()
 
-fit_path = pc.Mutex()
-
-shot_path = pc.Mutex()
-
 
 class FileAddress(QtCore.QObject):
     update_ui = QtCore.Signal()
@@ -236,8 +216,6 @@ class FileAddress(QtCore.QObject):
         accepts queued signals from 'queue' (address using q method)
         method must be string, inputs must be list
         """
-        if g.debug.read():
-            print("data dequeue:", method)
         getattr(self, str(method))(inputs)  # method passed as qstring
         enqueued_data.pop()
         if not enqueued_data.read():
@@ -267,34 +245,11 @@ class FileAddress(QtCore.QObject):
         # create folder
         data_path.write(os.path.join(scan_folder, self.filename + ".data"))
         # generate file
-        dictionary = headers.read(kind="data")
+        dictionary = headers.read()
         tidy_headers.write(data_path.read(), dictionary)
-        # shots ---------------------------------------------------------------
-        # TODO: this is hack
-        if aqn.has_section("NI 6251"):
-            if False and aqn.read("NI 6251", "save shots"):
-                p = os.path.join(os.path.dirname(data_path.read()), "NI 6251 shots.hdf5")
-                f = h5py.File(p)
-                dictionary = headers.read(kind="shots")
-                for key, value in dictionary.items():
-                    # remove None
-                    if type(value) is list:
-                        for i, val in enumerate(value):
-                            if val is None:
-                                value[i] = "None"
-                            if isinstance(val, basestring):
-                                value[i] = str(val)  # cannot handle unicode in lists...
-                    # write to hdf5
-                    f.attrs[key] = value
-                col_count = len(dictionary["name"])
-                f.create_dataset(
-                    "array", (col_count, 0), maxshape=(col_count, None), compression="gzip",
-                )
-                f["array"].set_fill_value = np.nan
-                f.close()
 
     def write_data(self, inputs):
-        data_arr, shots_arr = inputs
+        data_arr = inputs[0]
         # pixels --------------------------------------------------------------
         data_file = open(data_path.read(), "ab")
         if len(data_arr.shape) == 2:  # case of multidimensional devices
@@ -305,17 +260,6 @@ class FileAddress(QtCore.QObject):
             np.savetxt(data_file, data_arr, fmt=str("%8.6f"), delimiter="\t", newline="\t")
             data_file.write(b"\n")
         data_file.close()
-        # shots ---------------------------------------------------------------
-        p = os.path.join(
-            os.path.dirname(data_path.read()), "NI 6251 shots.hdf5"
-        )  # TODO: this is hack
-        if os.path.isfile(p):
-            f = h5py.File(p)
-            current_row_count = f["array"].shape[1]
-            new_row_count = shots_arr.shape[1]
-            f["array"].resize(current_row_count + new_row_count, axis=1)
-            f["array"][:, current_row_count : current_row_count + new_row_count] = shots_arr
-            f.close()
 
     def initialize(self, inputs):
         pass
@@ -375,16 +319,12 @@ class Device(pc.Hardware):
         else:
             self.has_map = False
         self.has_map = False  # turning this feature off for now  --Blaise 2020-09-25
-        # shots_compatable
-        self.shots_compatible = False  # turning this feature off for now  --Blaise 2020-09-25
-        self.nshots = pc.Number(initial_value=100)
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
         pc.Hardware.__init__(self, *args, **kwargs)
         self.settings_updated.emit()
 
     def get_headers(self):
         out = collections.OrderedDict()
-        out["shots"] = self.nshots.read()
         return out
 
     def give_widget(self, widget):
@@ -582,41 +522,21 @@ class Control(QtCore.QObject):
             data_rows = np.prod([d.data.size for d in self.devices if d.active])
             data_shape = (len(headers.data_cols["name"]), int(data_rows))
             data_arr = np.full(data_shape, np.nan)
-            shots_rows = int(
-                np.prod(
-                    [
-                        d.nshots.read() if d.active and d.shots_compatible else 1
-                        for d in self.devices
-                    ]
-                )
-            )
-            shots_shape = (len(headers.shots_cols["name"]), shots_rows)
-            shots_arr = np.full(shots_shape, np.nan)
             data_i = 0
-            shots_i = 0
             # scan indicies
             for i in idx.read():  # scan device
                 data_arr[data_i] = i
-                shots_arr[shots_i] = i
                 data_i += 1
-                shots_i += 1
             for device in self.devices:  # daq
                 if device.active and device.has_map:
                     map_indicies = [i for i in np.ndindex(device.data.shape)]
                     for i in range(len(device.data.shape)):
                         data_arr[data_i] = [mi[i] for mi in map_indicies]
                         data_i += 1
-                        if device.shots_compatible:
-                            shots_arr[shots_i] = [mi[i] for mi in map_indicies]
-                            shots_i += 1
-            shots_arr[shots_i] = range(shots_rows)
-            shots_i += 1
             # time
             now = time.time()  # seconds since epoch
             data_arr[data_i] = now
             data_i += 1
-            shots_arr[shots_i] = now
-            shots_i += 1
             # hardware positions
             for scan_hardware_module in scan_hardware_modules:
                 for scan_hardware in scan_hardware_module.hardwares:
@@ -624,38 +544,24 @@ class Control(QtCore.QObject):
                         out_units = scan_hardware.recorded[key][1]
                         if out_units is None:
                             data_arr[data_i] = scan_hardware.recorded[key][0].read()
-                            shots_arr[shots_i] = scan_hardware.recorded[key][0].read()
                         else:
                             data_arr[data_i] = scan_hardware.recorded[key][0].read(out_units)
-                            #shots_arr[shots_i] = scan_hardware.recorded[key][0].read(out_units)
                         data_i += 1
-                        shots_i += 1
             # potentially multidimensional things -----------------------------
-            # TODO: shots_arr should be a DICTIONARY of arrays for each device
             # acquisition maps
             for device in self.devices:
                 if device.active and device.has_map:
                     data_arr[data_i] = device.map.read()
                     data_i += 1
-                    if device.shots_compatible:
-                        shots_arr[shots_i] = device.map.read()
-                        shots_i += 1
             # acquisitions
             for device in self.devices:
                 if device.active:
-                    # data
                     channels = device.data.read()  # list of arrays
                     for arr in channels:
                         data_arr[data_i] = arr
                         data_i += 1
-                    # shots
-                    if device.shots_compatible:
-                        channels = device.shots.read()  # list of arrays
-                        for arr in channels:
-                            shots_arr[shots_i] = arr
-                            shots_i += 1
             # send to file_address --------------------------------------------
-            q("write_data", [data_arr, shots_arr])
+            q("write_data", [data_arr])
             # fill slice ------------------------------------------------------
             slice_axis_index = headers.data_cols["name"].index(current_slice.name)
             slice_position = np.mean(data_arr[slice_axis_index])
@@ -753,7 +659,7 @@ class Control(QtCore.QObject):
             device.close()
 
     def update_cols(self, aqn):
-        for cols_type in ["data", "shots"]:
+        for cols_type in ["data"]:
             kind = []
             tolerance = []
             units = []
@@ -766,15 +672,6 @@ class Control(QtCore.QObject):
                 units.append(None)
                 label.append("")
                 name.append("_".join([n, "index"]))
-            if cols_type == "shots":
-                # shot indicies
-                for device in self.devices:
-                    if device.shots_compatible:
-                        kind.append(None)
-                        tolerance.append(None)
-                        units.append(None)
-                        label.append("")
-                        name.append("_".join([device.name, "shot", "index"]))
             # time
             kind.append(None)
             tolerance.append(0.01)
@@ -811,10 +708,7 @@ class Control(QtCore.QObject):
                 #    continue
                 #if not aqn.read(device.name, "use"):
                 #    continue
-                if device.shots_compatible and cols_type == "shots":
-                    mutex = device.shots
-                else:
-                    mutex = device.data
+                mutex = device.data
                 for col in mutex.cols:
                     kind.append("channel")
                     tolerance.append(None)
@@ -826,10 +720,7 @@ class Control(QtCore.QObject):
             for i, s in enumerate(label):
                 label[i] = s.replace("prime", r"\'")
             # finish
-            if cols_type == "data":
-                cols = headers.data_cols
-            elif cols_type == "shots":
-                cols = headers.shots_cols
+            cols = headers.data_cols
             cols["kind"] = kind
             cols["tolerance"] = tolerance
             cols["label"] = label
