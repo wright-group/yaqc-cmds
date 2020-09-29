@@ -88,7 +88,7 @@ class FileDialog(QtCore.QObject):
         caption, directory, options = inputs
         out = self.clean(
             QtWidgets.QFileDialog.getOpenFileName(
-                g.main_window.read(), caption, directory, options
+                g.main_window.read(), caption, str(directory), options
             )[0]
         )
         open_filepath.write(out)

@@ -69,10 +69,6 @@ coset_control = SimpleGlobal()
 
 coset_widget = SimpleGlobal()
 
-daq_widget = SimpleGlobal()
-
-daq_array_widget = SimpleGlobal()
-
 hardware_advanced_box = SimpleGlobal()
 
 hardware_initialized = SimpleGlobal(False)
