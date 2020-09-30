@@ -20,7 +20,6 @@ import pycmds.project.project_globals as g
 import pycmds.project.widgets as pw
 import pycmds.project.classes as pc
 from pycmds.hardware import hardware as hw
-from pycmds.hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
 
 
 ### driver ####################################################################
@@ -31,8 +30,6 @@ class Driver(hw.Driver):
         self.index = kwargs["index"]
         self.motor_positions = collections.OrderedDict()
         self.homeable = {}  # TODO:
-        self.poynting_type = kwargs.pop("poynting_type", None)
-        self.poynting_correction = None
         hw.Driver.__init__(self, *args, **kwargs)
         if not hasattr(self, "motor_names"):  # for virtual...
             self.motor_names = ["Delay", "Crystal", "Mixer"]
@@ -40,20 +37,8 @@ class Driver(hw.Driver):
             self.curve_paths = collections.OrderedDict()
         if not hasattr(self, "interaction_string_combo"):  # for virtual...
             self.interaction_string_combo = pc.Combo(allowed_values=["sig"])
-        if self.poynting_type is not None:
-            self.motor_names += ["Phi", "Theta"]  # TODO: Generalize
         self.curve = None
-        # poynting correction
-        if self.poynting_type == "zaber":
-            self.poynting_correction = ZaberCorrectionDevice(
-                kwargs.pop("poynting_port"), kwargs.pop("poynting_indexes")
-            )
-        else:
-            self.poynting_correction = None
-            self.poynting_type = None
 
-        if self.poynting_correction:
-            self.curve_paths["Poynting"] = pc.Filepath(initial_value=self.poynting_curve_path)
         if self.model == "Virtual":
             self.load_curve()
 
@@ -105,19 +90,11 @@ class Driver(hw.Driver):
 
     def home_all(self, inputs=[]):
         names = [i for i in self.motor_names if self.homeable.get(i)]
-        if self.poynting_correction:
-            self.poynting_correction.home()
-            for n in self.poynting_correction.motor_names:
-                names.pop(n, None)
         self._home_motors(names)
 
     def home_motor(self, inputs):
         # TODO: clean up for new inputs behavior
         motor_name = inputs[0]
-        if self.poynting_correction:
-            if motor_name in self.poynting_correction.motor_names:
-                self.poynting_correction.home(motor_name)
-                return
         if self.homeable.get(motor_name):
             self._home_motors([motor_name])
 
@@ -127,14 +104,6 @@ class Driver(hw.Driver):
             self.motor_positions["Delay"] = pc.Number(0.0, display=True)
             self.motor_positions["Crystal"] = pc.Number(0.0, display=True)
             self.motor_positions["Mixer"] = pc.Number(0.0, display=True)
-        if self.poynting_correction:
-            # initialize
-            self.poynting_correction.initialize(self)
-            for name in self.poynting_correction.motor_names:
-                self.homeable[name] = True
-                number = self.poynting_correction.motor_positions[name]
-                self.motor_positions[name] = number
-                self.recorded[self.name + "_" + name] = [number, None, 1.0, name]
         # get position
         self.load_curve()
         self.get_motor_positions()
@@ -150,11 +119,6 @@ class Driver(hw.Driver):
             self.curve_paths[name].write(os.path.abspath(p))
         # remake own curve object/
         curve = self._load_curve(interaction)
-        if self.poynting_correction:
-            p = self.curve_paths["Poynting"].read()
-            self.curve = attune.Curve.read(p, subcurve=curve)
-            self.curve.kind = "poynting"
-            self.save_status()
         self.curve.convert(self.native_units)
         # update limits
         self.limits.write(*self.curve.get_limits(), self.native_units)
@@ -162,22 +126,12 @@ class Driver(hw.Driver):
             self._update_api(interaction)
 
     def set_motor(self, motor_name, destination, wait=True):
-
-        if self.poynting_correction:
-            if motor_name in self.poynting_correction.motor_names:
-                self.poynting_correction.set_motor(motor_name, destination)
-                return
         self._set_motors({motor_name: destination})
         if wait:
             self.wait_until_still()
 
     def set_motors(self, motor_names, motor_positions, wait=True):
         destinations = {n: p for n, p in zip(motor_names, motor_positions)}
-        if self.poynting_correction:
-            for name, pos in zip(motor_names, motor_positions):
-                if name in self.poynting_correction.motor_names:
-                    self.poynting_correction.set_motor(name, pos)
-                    destinations.pop(name)
         self._set_motors(destinations)
         if wait:
             self.wait_until_still()
@@ -187,10 +141,6 @@ class Driver(hw.Driver):
         destination = np.clip(destination, *self.curve.get_limits())
         # get destinations from curve
         motor_destinations = self.curve(destination, self.native_units)
-        # poynting
-        if self.poynting_correction:
-            for m in self.poynting_correction.motor_names:
-                self.poynting_correction.set_motor(m, motor_destinations.pop(m))
         # OPA
         self._set_motors(motor_destinations)
         time.sleep(0.01)
@@ -210,27 +160,15 @@ class Driver(hw.Driver):
         motor_destinations = self.curve(destination, self.native_units)
         for e in exceptions:
             motor_destinations.pop(e, None)
-        if self.poynting_correction:
-            for m in self.poynting_correction.motor_names:
-                if m in motor_destinations:
-                    self.poynting_correction.set_motor(m, motor_destinations.pop(m))
         self._set_motors(motor_destinations)
 
     def wait_until_still(self):
         self._wait_until_still()
-        if self.poynting_correction:
-            self.poynting_correction.wait_until_still()
         self.get_motor_positions()
 
     def get_state(self):
         state = super().get_state()
-        if self.poynting_correction:
-            state["poynting_curve_path"] = self.curve_paths["Poynting"].read()
         return state
-
-    def load_state(self, state):
-        super().load_state(state)
-        self.poynting_curve_path = state.get("poynting_curve_path", "")
 
 
 ### gui #######################################################################
@@ -311,13 +249,6 @@ class GUI(hw.GUI):
         homeable = any(self.driver.homeable)
         self.home_all_button.clicked.connect(self.on_home_all)
         g.queue_control.disable_when_true(self.home_all_button)
-        # poynting manual mode
-        if self.driver.poynting_correction:
-            self.poynting_manual_control = pc.Bool()
-            input_table = pw.InputTable()
-            input_table.add("Poynting Control", self.poynting_manual_control)
-            self.poynting_manual_control.updated.connect(self.on_poynting_manual_control_updated)
-            settings_layout.addWidget(input_table)
         # stretch
         settings_layout.addStretch(1)
         # signals and slots
@@ -383,12 +314,6 @@ class GUI(hw.GUI):
         low_energy_limit, high_energy_limit = self.driver.limits.read("wn")
         self.low_energy_limit_display.write(low_energy_limit, "wn")
         self.high_energy_limit_display.write(high_energy_limit, "wn")
-
-    def on_poynting_manual_control_updated(self):
-        if self.poynting_manual_control.read():
-            self.driver.poynting_correction.port.setMode("manual")
-        else:
-            self.driver.poynting_correction.port.setMode("computer")
 
 
 class MotorControlGUI(QtWidgets.QWidget):

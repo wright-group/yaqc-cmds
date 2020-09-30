@@ -19,7 +19,7 @@ import pycmds.project.widgets as pw
 import pycmds.project.project_globals as g
 
 # hardwares (also ensure present in GUI)
-import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.opas as opas
 import pycmds.hardware.spectrometers.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.filters.filters as filters

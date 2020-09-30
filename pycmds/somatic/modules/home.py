@@ -5,7 +5,7 @@ import WrightTools as wt
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 import somatic.acquisition as acquisition
-import pycmds.hardware.opas.opas as opas
+import pycmds.hardware.opas as opas
 
 
 ### define ####################################################################
