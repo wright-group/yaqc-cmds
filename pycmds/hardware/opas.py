@@ -1,14 +1,11 @@
 ### import ####################################################################
 
 
-import os
 import time
 import pathlib
-import shutil
 
 import appdirs
 import toml
-import numpy as np
 
 from PySide2 import QtWidgets
 
