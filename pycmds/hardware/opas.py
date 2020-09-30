@@ -5,7 +5,6 @@ import os
 import time
 import pathlib
 import shutil
-import collections
 
 import appdirs
 import toml
@@ -27,124 +26,53 @@ from pycmds.hardware import hardware as hw
 
 class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
-        self.index = kwargs["index"]
-        self.motor_positions = collections.OrderedDict()
-        self.homeable = {}  # TODO:
+        self.yaqd_port = kwargs["yaqd_port"]
+        self.yaqd_host = kwargs.get("yaqd_host", "127.0.0.1")
+        self.client = yaqc.Client(self.yaqd_port, host=self.yaqd_host)
+        self.motor_positions = {
+            k: pc.Number(name=k, decimals=6, display=True) for k in self.client.get_setable_names()
+        }
         hw.Driver.__init__(self, *args, **kwargs)
-        if not hasattr(self, "motor_names"):  # for virtual...
-            self.motor_names = ["Delay", "Crystal", "Mixer"]
-        if not hasattr(self, "curve_paths"):  # for virtual...
-            self.curve_paths = collections.OrderedDict()
-        if not hasattr(self, "interaction_string_combo"):  # for virtual...
-            self.interaction_string_combo = pc.Combo(allowed_values=["sig"])
-        self.curve = None
-
-        if self.model == "Virtual":
-            self.load_curve()
-
-    def _home_motors(self, motor_names):
-        raise NotImplementedError
-
-    def _load_curve(self, interaction):
-        if self.model == "Virtual":
-            colors = np.linspace(400, 10000, 17)
-            motors = []
-            motors.append(attune.Dependent(((colors - 500) / 1e4) ** 2, "Delay"))
-            motors.append(attune.Dependent(-((colors - 90) ** 0.25), "Crystal"))
-            motors.append(attune.Dependent((colors - 30) ** 0.25, "Mixer"))
-            name = "curve"
-            interaction = "sig"
-            kind = "Virtual"
-            colors = attune.Setpoints(colors, "Colors", units="nm")
-            self.curve = attune.Curve(colors, motors, name, interaction, kind)
-            self.curve.convert(self.native_units)
-        else:
-            raise NotImplementedError
-
-    def _set_motors(self, motor_destinations):
-        if self.model == "Virtual":
-            # Virtual hardware, just set the position directly
-            for k, v in motor_destinations.items():
-                self.motor_positions[k].write(v)
-        else:
-            raise NotImplementedError
-
-    def _update_api(self, interaction):
-        pass
-
-    def _wait_until_still(self, inputs=[]):
-        while self.is_busy():
-            time.sleep(
-                0.1
-            )  # I've experienced hard crashes when wait set to 0.01 - Blaise 2015.12.30
-            self.get_motor_positions()
+        self.curve = attune.Instrument(**self.client.get_instrument())
+        self.load_curve()
         self.get_motor_positions()
+        self.get_position()
 
     def get_position(self):
-        position = self.hardware.destination.read()
+        position = self.client.get_position()
         self.position.write(position, self.native_units)
         return position
 
     def get_motor_positions(self):
-        pass
+        positions = self.client.get_setable_positions()
+        for k, v in self.motors.items():
+            v.write(positions[k])
 
     def home_all(self, inputs=[]):
-        names = [i for i in self.motor_names if self.homeable.get(i)]
-        self._home_motors(names)
+        self.client.home()
 
     def home_motor(self, inputs):
         # TODO: clean up for new inputs behavior
         motor_name = inputs[0]
-        if self.homeable.get(motor_name):
-            self._home_motors([motor_name])
+        self._client.home([motor_name])
 
-    def initialize(self):
-        # virtual stuff
-        if self.model == "Virtual":
-            self.motor_positions["Delay"] = pc.Number(0.0, display=True)
-            self.motor_positions["Crystal"] = pc.Number(0.0, display=True)
-            self.motor_positions["Mixer"] = pc.Number(0.0, display=True)
-        # get position
-        self.load_curve()
-        self.get_motor_positions()
-        self.get_position()
-        hw.Driver.initialize(self)
-
-    def load_curve(self, name=None, path=None, update=True):
-        interaction = self.interaction_string_combo.read()
-        # update curve_paths
-        if name is not None:
-            old_directory = os.path.dirname(str(self.curve_paths[name]))
-            p = shutil.copy(path, old_directory)
-            self.curve_paths[name].write(os.path.abspath(p))
-        # remake own curve object/
-        curve = self._load_curve(interaction)
-        self.curve.convert(self.native_units)
+    def load_curve(self, path=None):
         # update limits
-        self.limits.write(*self.curve.get_limits(), self.native_units)
-        if update:
-            self._update_api(interaction)
+        self.limits.write(*self.client.get_limits(), self.native_units)
 
     def set_motor(self, motor_name, destination, wait=True):
-        self._set_motors({motor_name: destination})
+        self.client.set_setable_positions({motor_name: destination})
         if wait:
             self.wait_until_still()
 
     def set_motors(self, motor_names, motor_positions, wait=True):
         destinations = {n: p for n, p in zip(motor_names, motor_positions)}
-        self._set_motors(destinations)
+        self.client.set_setable_positions(destinations)
         if wait:
             self.wait_until_still()
 
     def set_position(self, destination):
-        # coerce destination to be within current tune range
-        destination = np.clip(destination, *self.curve.get_limits())
-        # get destinations from curve
-        motor_destinations = self.curve(destination, self.native_units)
-        # OPA
-        self._set_motors(motor_destinations)
-        time.sleep(0.01)
-        # finish
+        self.client.set_position(destination)
         self.wait_until_still()
         self.get_position()
         self.save_status()
@@ -157,18 +85,13 @@ class Driver(hw.Driver):
         """
         self.hardware.destination.write(destination, self.native_units)
         self.position.write(destination, self.native_units)
-        motor_destinations = self.curve(destination, self.native_units)
-        for e in exceptions:
-            motor_destinations.pop(e, None)
-        self._set_motors(motor_destinations)
+        self.client.set_setable_positions_except(destination, exceptions)
 
     def wait_until_still(self):
-        self._wait_until_still()
+        while self.is_busy():
+            time.sleep(0.01)
+            self.get_motor_positions()
         self.get_motor_positions()
-
-    def get_state(self):
-        state = super().get_state()
-        return state
 
 
 ### gui #######################################################################
@@ -221,11 +144,9 @@ class GUI(hw.GUI):
         settings_layout.addWidget(input_table)
         # curves
         input_table = pw.InputTable()
-        input_table.add("Curves", None)
-        for name, obj in self.driver.curve_paths.items():
-            input_table.add(name, obj)
-            obj.updated.connect(self.on_curve_paths_updated)
-        input_table.add("Interaction String", self.driver.interaction_string_combo)
+        # input_table.add("Curves", None)
+        self.arrangment_combo = pc.Combo(allowed_values=["sig"])
+        input_table.add("Arrangement", self.arrangment_combo)
         # limits
         limits = pc.NumberLimits()  # units None
         self.low_energy_limit_display = pc.Number(
@@ -240,19 +161,18 @@ class GUI(hw.GUI):
         self.driver.limits.updated.connect(self.on_limits_updated)
         # motors
         input_table = pw.InputTable()
-        input_table.add("Motors", None)
+        input_table.add("Tune", None)
         settings_layout.addWidget(input_table)
         for motor_name, motor_mutex in self.driver.motor_positions.items():
             settings_layout.addWidget(MotorControlGUI(motor_name, motor_mutex, self.driver))
         self.home_all_button = pw.SetButton("HOME ALL", "advanced")
         settings_layout.addWidget(self.home_all_button)
-        homeable = any(self.driver.homeable)
         self.home_all_button.clicked.connect(self.on_home_all)
         g.queue_control.disable_when_true(self.home_all_button)
         # stretch
         settings_layout.addStretch(1)
         # signals and slots
-        self.driver.interaction_string_combo.updated.connect(self.update_plot)
+        self.arrangment_combo.updated.connect(self.update_plot)
         self.driver.update_ui.connect(self.update)
         # finish
         self.update()
@@ -289,7 +209,7 @@ class GUI(hw.GUI):
         xi = wt.units.converter(colors, self.driver.curve.setpoints.units, units)
         # yi
         self.plot_motor.set_allowed_values(
-            self.driver.curve.dependent_names
+            list(self.driver.curve.setables.keys())
         )  # can be done on initialization?
         motor_name = self.plot_motor.read()
         yi = self.driver.curve(xi, units)[motor_name]
@@ -387,23 +307,7 @@ class Hardware(hw.Hardware):
 
     @property
     def curve(self):
-        # TODO: a more thread-safe operation (copy?)
         return self.driver.curve
-
-    @property
-    def curve_paths(self):
-        """
-        OrderedDict {name: path}
-        """
-        # TODO: a more thread-safe operation
-        return collections.OrderedDict(
-            {key: value.read() for key, value in self.driver.curve_paths.items()}
-        )
-
-    def get_tune_points(self, units="native"):
-        if units == "native":
-            units = self.native_units
-        return wt.units.converter(self.curve.setpoints[:], self.curve.setpoints.units, units)
 
     def home_motor(self, motor):
         """
@@ -416,8 +320,7 @@ class Hardware(hw.Hardware):
 
     @property
     def motor_names(self):
-        # TODO: a more thread-safe operation
-        return self.driver.motor_names
+        return list(self.driver.motor_positions.keys())
 
     def set_motor(self, motor, destination):
         self.q.push("set_motor", motor, destination)
