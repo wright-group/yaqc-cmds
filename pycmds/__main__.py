@@ -22,7 +22,7 @@ def main(ctx):
 
 @main.command()
 def launch():
-    from ._pycmds import app, MainWindow, style
+    from ._main_window import app, MainWindow, style
 
     global window
     window = MainWindow()
