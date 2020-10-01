@@ -45,102 +45,47 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     full_scan_shape = tuple(a.points.size for a in axes)
     variables = ["labtime"] + [f"{a.name}_points" for a in axes] + [h.name for h in hardware]
     variable_shapes = {n: full_scan_shape for n in variables}
+    variable_units = {n: None for n in variables}
+    variable_units["labtime"] = "s"
     for i, axis in enumerate(axes):
         shape = [1] * len(axes)
         shape[i] = axis.points.size
         variable_shapes[f"{a.name}_points"] = tuple(shape)
+        variable_units[f"{a.name}_points"] = axis.units
+
+    for hw in hardware:
+        variable_units[hw.name] = hw.units
 
     channel_shapes = {}
+    channel_units = {}
 
     for sensor in sensors:
         # TODO allow sensors to be inactive
         # TODO allow multi-D sensors
         sensor.active = True
+        for ch in sensor.channel_names:
+            channel_shapes[ch] = full_scan_shape
+            # TODO: channel units?
+            channel_units[ch] = None
 
-    # add cols information
-    # add channel signed choices
-    # TODO: better implementation. for now, just assume not signed
-    signed = []
-    for sensor in self.sensors:
-        signed += sensor.data.signed
-    headers.channel_info["channel signed"] = signed
-    # add daq information to headers
-    for sensor in self.sensors:
-        if sensor.active:
-            for key, value in sensor.get_headers().items():
-                headers.daq_info[" ".join([sensor.name, key])] = value
-    # refresh current slice properties
-    current_slice.begin([len(sensor.data.cols) for sensor in self.sensors])
-    # wait until daq is done before letting module continue
-    self.wait_until_done()
-    self.wait_until_file_done()
+    for var, sh in variable_shapes.items():
+        units = variable_units[var]
+        data.create_variable(var, shape=sh, units=units)
 
-    kind = []
-    tolerance = []
-    units = []
-    label = []
-    name = []
-    # indicies
-    for n in headers.axis_info["axis names"]:
-        kind.append(None)
-        tolerance.append(None)
-        units.append(None)
-        label.append("")
-        name.append("_".join([n, "index"]))
-    # time
-    kind.append(None)
-    tolerance.append(0.01)
-    units.append("s")
-    label.append("lab")
-    name.append("time")
-    # scan hardware positions
-    for scan_hardware_module in scan_hardware_modules:
-        for scan_hardware in scan_hardware_module.hardwares:
-            for key in scan_hardware.recorded:
-                kind.append("hardware")
-                tolerance.append(scan_hardware.recorded[key][2])
-                units.append(scan_hardware.recorded[key][1])
-                label.append(scan_hardware.recorded[key][3])
-                name.append(key)
-    # acquisition maps
-    for sensor in self.sensors:
-        if not aqn.has_section(sensor.name):
-            continue
-        if not aqn.read(sensor.name, "use"):
-            continue
-        if sensor.has_map:
-            for i in range(len(sensor.map_axes)):
-                kind.append("hardware")
-                tolerance.append(None)
-                vals = list(sensor.map_axes.values())
-                units.append(vals[i][1])
-                label.append(vals[i][0])
-                name.append(list(sensor.map_axes.keys())[i])
-    # channels
-    self.channel_names = []
-    for sensor in self.sensors:
-        # if not aqn.has_section(sensor.name):
-        #    continue
-        # if not aqn.read(sensor.name, "use"):
-        #    continue
-        mutex = sensor.data
-        for col in mutex.cols:
-            kind.append("channel")
-            tolerance.append(None)
-            units.append("")  # TODO: better units support?
-            label.append("")  # TODO: ?
-            name.append(col)
-            self.channel_names.append(col)
-    # clean up
-    for i, s in enumerate(label):
-        label[i] = s.replace("prime", r"\'")
-    # finish
-    cols = headers.data_cols
-    cols["kind"] = kind
-    cols["tolerance"] = tolerance
-    cols["label"] = label
-    cols["units"] = units
-    cols["name"] = name
+    for axis in axes:
+        sh = data[f"{axis.name}_points"].shape
+        data[f"{axis.name}_points"][:] = axis.points.reshape(sh)
+
+    data.transform(*[a.name for a in axes])
+
+    for ch, sh in channel_shapes.items():
+        units = channel_units[ch]
+        data.create_channel(ch, shape=sh, units=units)
+        # TODO signed?
+        # TODO labels?
+
+    f.swmr_mode = True
+    f.flush()
 
 
 def get_file_readonly():
