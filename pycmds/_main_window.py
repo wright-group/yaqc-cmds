@@ -202,6 +202,7 @@ class MainWindow(QtWidgets.QMainWindow):
             print("initialize widgets")
         # import widgets
         import pycmds.autonomic.coset
+        import pycmds.somatic._gui
 
     def _load_google_drive(self):
         g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))

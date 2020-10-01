@@ -278,7 +278,7 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
-        channel_names = [s.channel_names for s in sensors]
+        channel_names = [l for s in sensors for l in s.channel_names]
         if (
             "main_channel" not in self.state.keys()
             or self.state["main_channel"] not in channel_names

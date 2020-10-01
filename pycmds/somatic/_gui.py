@@ -1,23 +1,72 @@
 """GUI for displaying scans in progress, current slice etc."""
 
 
+import collections
+
+from PySide2 import QtCore, QtWidgets
+
+import pycmds.project.project_globals as g
+from pycmds._sensors import sensors
+import pycmds.project.widgets as pw
+import pycmds.project.classes as pc
+
+
+class DisplaySettings(QtCore.QObject):
+    updated = QtCore.Signal()
+
+    def __init__(self, sensor):
+        """
+        Display settings for a particular sensor.
+        """
+        QtCore.QObject.__init__(self)
+        self.sensor = sensor
+        # self.sensor.wait_until_done()
+        self.widget = pw.InputTable()
+        self.channel_combo = pc.Combo()
+        self.channel_combo.updated.connect(lambda: self.updated.emit())
+        self.widget.add("Channel", self.channel_combo)
+        self.shape_controls = []
+        if self.sensor.shape != (1,):
+            map_axis_names = list(self.sensor.map_axes.keys())
+            for i in range(len(self.sensor.shape)):
+                limits = pc.NumberLimits(0, self.sensor.shape[i] - 1)
+                control = pc.Number(initial_value=0, decimals=0, limits=limits)
+                self.widget.add(" ".join([map_axis_names[i], "index"]), control)
+                self.shape_controls.append(control)
+                control.updated.connect(lambda: self.updated.emit())
+
+    def get_channel_index(self):
+        return self.channel_combo.read_index()
+
+    def get_map_index(self):
+        if len(self.shape_controls) == 0:
+            return None
+        return tuple(c.read() for c in self.shape_controls)
+
+    def hide(self):
+        self.widget.hide()
+
+    def show(self):
+        self.widget.show()
+
+    def update_channels(self):
+        allowed_values = self.sensor.data.read_properties()[1]
+        if not len(allowed_values) == 0:
+            self.channel_combo.set_allowed_values(allowed_values)
 
 
 class GUI(QtCore.QObject):
-    def __init__(self, control):
+    def __init__(self):
         QtCore.QObject.__init__(self)
-        self.control = control
         self.create_frame()
-        self.main_tab_created = False
 
     def create_frame(self):
         # scan widget
         self.main_widget = g.main_window.read().scan_widget
+        self.create_main_tab()
 
     def create_main_tab(self):
-        if self.main_tab_created:
-            return
-        for sensor in self.control.sensors:
+        for sensor in sensors:
             if len(sensor.data.read_properties()[1]) == 0:
                 return
         self.main_tab_created = True
@@ -66,13 +115,13 @@ class GUI(QtCore.QObject):
         # display settings
         input_table = pw.InputTable()
         input_table.add("Display", None)
-        allowed_values = [sensor.name for sensor in self.control.sensors]
+        allowed_values = [sensor.name for sensor in sensors]
         self.sensor_combo = pc.Combo(allowed_values=allowed_values)
         self.sensor_combo.updated.connect(self.on_update_sensor)
         input_table.add("Sensor", self.sensor_combo)
         settings_layout.addWidget(input_table)
         self.display_settings_widgets = collections.OrderedDict()
-        for sensor in self.control.sensors:
+        for sensor in sensors:
             display_settings = DisplaySettings(sensor)
             self.display_settings_widgets[sensor.name] = display_settings
             settings_layout.addWidget(display_settings.widget)
@@ -81,17 +130,14 @@ class GUI(QtCore.QObject):
         # global daq settings
         input_table = pw.InputTable()
         input_table.add("Settings", None)
-        input_table.add("ms Wait", ms_wait)
-        for sensor in self.control.sensors:
+        # input_table.add("ms Wait", ms_wait)
+        for sensor in sensors:
             input_table.add(sensor.name, None)
             input_table.add("Status", sensor.busy)
             input_table.add("Freerun", sensor.freerun)
             input_table.add("Time", sensor.measure_time)
-        input_table.add("File", None)
-        data_busy.update_signal = data_obj.update_ui
-        input_table.add("Status", data_busy)
         input_table.add("Scan", None)
-        input_table.add("Loop Time", loop_time)
+        # input_table.add("Loop Time", loop_time)
         self.idx_string = pc.String(initial_value="None", display=True)
         input_table.add("Scan Index", self.idx_string)
         settings_layout.addWidget(input_table)
@@ -100,10 +146,8 @@ class GUI(QtCore.QObject):
         # finish --------------------------------------------------------------
         self.on_update_channels()
         self.on_update_sensor()
-        for sensor in self.control.sensors:
+        for sensor in sensors:
             sensor.update_ui.connect(self.update)
-        current_slice.indexed.connect(self.on_slice_index)
-        current_slice.appended.connect(self.on_slice_append)
 
     def on_slice_append(self):
         sensor_index = self.sensor_combo.read_index()
@@ -144,10 +188,10 @@ class GUI(QtCore.QObject):
         Runs each time an update_ui signal fires (basically every run_task)
         """
         # scan index
-        self.idx_string.write(str(idx.read()))
+        # self.idx_string.write(str(idx.read()))
         # big number
         current_sensor_index = self.sensor_combo.read_index()
-        sensor = self.control.sensors[current_sensor_index]
+        sensor = sensors[current_sensor_index]
         widget = list(self.display_settings_widgets.values())[current_sensor_index]
         channel_index = widget.get_channel_index()
         map_index = widget.get_map_index()
@@ -155,9 +199,13 @@ class GUI(QtCore.QObject):
             big_number = sensor.data.read()[channel_index]
         else:
             big_number = sensor.data.read()[channel_index][map_index]
-        if len(self.control.channel_names) > channel_index:
-            self.big_channel.setText(self.control.channel_names[channel_index])
+        channel_names = [l for s in sensors for l in s.channel_names]
+        if len(channel_names) > channel_index:
+            self.big_channel.setText(channel_names[channel_index])
         self.big_display.setValue(big_number)
 
     def stop(self):
         pass
+
+
+GUI()
