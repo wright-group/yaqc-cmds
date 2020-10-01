@@ -62,7 +62,7 @@ class GUI(QtCore.QObject):
 
     def create_frame(self):
         # scan widget
-        self.main_widget = g.main_window.read().scan_widget
+        self.main_widget = g.main_window.read().plot_widget
         self.create_main_tab()
 
     def create_main_tab(self):

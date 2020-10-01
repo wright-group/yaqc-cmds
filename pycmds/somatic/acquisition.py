@@ -407,6 +407,8 @@ class Worker(QtCore.QObject):
 
 
 class GUI(QtCore.QObject):
+    """Acquisition module gui."""
+
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
