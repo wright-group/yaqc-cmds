@@ -30,7 +30,6 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         all active sensors
     """
     f = h5py.File(path, "w", libver="latest")
-    nonlocal data
     data = wt.Data(f, name=headers["name"])
 
     # fill out pycmds_information in headers

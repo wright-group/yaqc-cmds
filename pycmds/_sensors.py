@@ -93,8 +93,10 @@ class Sensor(pc.Hardware):
             self.has_map = False
         self.has_map = False  # turning this feature off for now  --Blaise 2020-09-25
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
-        pc.Hardware.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.settings_updated.emit()
+        self.freerun.write(True)
+        self.on_freerun_updated()
 
     @property
     def channel_names(self):
@@ -142,7 +144,7 @@ class Driver(pc.Driver):
     running = False
 
     def __init__(self, sensor, yaqd_port):
-        pc.Driver.__init__(self)
+        super().__init__()
         self.client = yaqc.Client(yaqd_port)
         # attributes
         self.name = self.client.id()["name"]
@@ -238,3 +240,4 @@ for section in config["sensors"].keys():
             model="Virtual",
         )
         sensors.append(sensor)
+        sensor.initialize()

@@ -184,9 +184,6 @@ class GUI(QtCore.QObject):
         self.update()
 
     def update(self):
-        """
-        Runs each time an update_ui signal fires (basically every run_task)
-        """
         # scan index
         # self.idx_string.write(str(idx.read()))
         # big number
@@ -208,4 +205,4 @@ class GUI(QtCore.QObject):
         pass
 
 
-GUI()
+gui = GUI()
