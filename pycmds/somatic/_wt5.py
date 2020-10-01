@@ -10,7 +10,7 @@ global data
 data = None
 
 
-def create_file(path, headers, destinations):
+def create_data(path, headers, destinations, axes, constants):
     """Create new data object.
 
     Parameters
@@ -54,9 +54,13 @@ def create_file(path, headers, destinations):
             for key in sensor.map_axes.keys():
                 # add axis
                 headers.axis_info["axis names"].append(key)
-                (identity, units, points, centers, interpolate,) = sensor.get_axis_properties(
-                    destinations_list
-                )
+                (
+                    identity,
+                    units,
+                    points,
+                    centers,
+                    interpolate,
+                ) = sensor.get_axis_properties(destinations_list)
                 headers.axis_info["axis identities"].append(identity)
                 headers.axis_info["axis units"].append(units)
                 headers.axis_info["axis interpolate"].append(interpolate)
