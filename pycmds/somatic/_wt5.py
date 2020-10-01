@@ -6,11 +6,10 @@ import h5py
 import WrightTools as wt
 
 
-global data
 data = None
 
 
-def create_data(path, headers, destinations, axes, constants):
+def create_data(path, headers, destinations, axes, constants, hardware, sensors):
     """Create new data object.
 
     Parameters
@@ -25,57 +24,40 @@ def create_data(path, headers, destinations, axes, constants):
         New scan axes.
     constants : list of pycmds.acquisition.Constant objects
         New scan constants.
+    hardware: list of pycmds.hardware.Hardware objects
+        all active hardware
+    sensors: list of pycmds._sensors.Sensor objects
+        all active sensors
     """
-    f = h5py.File()  # TODO:
-    global data
-    data = wt.Data(f)  # TODO:
+    f = h5py.File(path, "w", libver="latest")
+    nonlocal data
+    data = wt.Data(f, name=headers["name"])
 
-    timestamp = wt.kit.TimeStamp()
-    # stop freerunning
-    self.set_freerun(False)
     # fill out pycmds_information in headers
-    headers.pycmds_info["PyCMDS version"] = g.version.read()
-    headers.pycmds_info["system name"] = g.system_name.read()
-    headers.pycmds_info["file created"] = timestamp.RFC3339
-    # apply sensor settings from aqn
-    ms_wait.write(aqn.read("sensor settings", "ms wait"))
-    for sensor in self.sensors:
-        # if not aqn.has_section(sensor.name):
-        #    sensor.active = False
-        #    continue
-        # if not aqn.read(sensor.name, "use"):
-        #    sensor.active = False
-        #    continue
-        # apply settings from aqn to sensor
+    headers["PyCMDS version"] = g.version.read()
+    headers["system name"] = g.system_name.read()
+    # TODO: should this be an actual timestamp or a string?
+    timestamp = wt.kit.TimeStamp()
+    headers["file created"] = timestamp.RFC3339
+
+    data.attrs.update(headers)
+
+    full_scan_shape = tuple(a.points.size for a in axes)
+    variables = ["labtime"] + [f"{a.name}_points" for a in axes] + [h.name for h in hardware]
+    variable_shapes = {n: full_scan_shape for n in variables}
+    for i, axis in enumerate(axes):
+        shape = [1] * len(axes)
+        shape[i] = axis.points.size
+        variable_shapes[f"{a.name}_points"] = tuple(shape)
+
+    channel_shapes = {}
+
+    for sensor in sensors:
+        # TODO allow sensors to be inactive
+        # TODO allow multi-D sensors
         sensor.active = True
-        sensor.load_settings(aqn)
-        # record sensor axes, if applicable
-        if sensor.has_map:
-            for key in sensor.map_axes.keys():
-                # add axis
-                headers.axis_info["axis names"].append(key)
-                (
-                    identity,
-                    units,
-                    points,
-                    centers,
-                    interpolate,
-                ) = sensor.get_axis_properties(destinations_list)
-                headers.axis_info["axis identities"].append(identity)
-                headers.axis_info["axis units"].append(units)
-                headers.axis_info["axis interpolate"].append(interpolate)
-                headers.axis_info[" ".join([key, "points"])] = points
-                if centers is not None:
-                    headers.axis_info[" ".join([key, "centers"])] = centers
-                # expand exisiting axes (not current axis)
-                for subkey in headers.axis_info.keys():
-                    if "centers" in subkey and key not in subkey:
-                        centers = headers.axis_info[subkey]
-                        centers = np.expand_dims(centers, axis=-1)
-                        centers = np.repeat(centers, points.size, axis=-1)
-                        headers.axis_info[subkey] = centers
+
     # add cols information
-    self.update_cols(aqn)
     # add channel signed choices
     # TODO: better implementation. for now, just assume not signed
     signed = []
@@ -87,7 +69,6 @@ def create_data(path, headers, destinations, axes, constants):
         if sensor.active:
             for key, value in sensor.get_headers().items():
                 headers.daq_info[" ".join([sensor.name, key])] = value
-    q("create_data", [aqn, scan_folder])
     # refresh current slice properties
     current_slice.begin([len(sensor.data.cols) for sensor in self.sensors])
     # wait until daq is done before letting module continue
