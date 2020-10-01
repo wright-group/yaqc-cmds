@@ -12,6 +12,21 @@ data = None
 
 
 def create_file(path, headers, destinations):
+    """Create new data object.
+
+    Parameters
+    ----------
+    path : path-like
+        Full path to new file.
+    headers : dictionary
+        Metadata
+    destinations : list of pycmds.acquisition.Destination objects
+        New scan destinations.
+    axes : list of pycmds.acqusition.Axis objects
+        New scan axes.
+    constants : list of pycmds.acquisition.Constant objects
+        New scan constants.
+    """
     f = h5py.File()  # TODO:
     global data
     data = wt.Data(f)  # TODO:

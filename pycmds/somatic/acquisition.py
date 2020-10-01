@@ -83,7 +83,7 @@ class Constant:
 
 class Destinations:
     def __init__(self, arr, units, hardware, method, passed_args):
-        self.arr = arr
+        self.arr = arr  # full scan shape
         self.units = units
         self.hardware = hardware
         self.method = method
