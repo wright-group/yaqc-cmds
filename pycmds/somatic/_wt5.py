@@ -1,12 +1,20 @@
 """wt5 data file functions"""
 
 
+import h5py
 
+import WrightTools as wt
+
+
+global data
 data = None
 
 
 
-def create_file(path):
+def create_file(path, headers, destinations):
+    f = h5py.File()  # TODO:
+    global data
+    data = wt.Data(f)  # TODO:
 
     timestamp = wt.kit.TimeStamp()
     # stop freerunning
