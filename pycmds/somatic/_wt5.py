@@ -10,7 +10,6 @@ global data
 data = None
 
 
-
 def create_file(path, headers, destinations):
     f = h5py.File()  # TODO:
     global data
@@ -75,8 +74,6 @@ def create_file(path, headers, destinations):
     # wait until daq is done before letting module continue
     self.wait_until_done()
     self.wait_until_file_done()
-
-
 
     kind = []
     tolerance = []
@@ -146,16 +143,11 @@ def create_file(path, headers, destinations):
     cols["name"] = name
 
 
-
-
-
 def get_file_readonly():
     return data
 
 
-
-
-def write_data():
+def write_data(idx, hardware, sensors):
 
     # loop time
     now = time.time()
@@ -223,6 +215,5 @@ def write_data():
         for sensor in self.sensors:
             data_arrs.append(sensor.data.read())
         current_slice.append(slice_position, data_arrs)
-
 
     pass
