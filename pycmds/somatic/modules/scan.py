@@ -110,6 +110,7 @@ class Constant:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
+        return  # TODO:
         # get path
         data_path = record.data_path.read()
         # make data object
@@ -393,7 +394,7 @@ class GUI(acquisition.GUI):
         aqn.write("processing", "main channel", self.channel_combo.read())
         aqn.write("processing", "process all channels", self.process_all_channels.read())
         # allow devices to write settings
-        self.device_widget.save(aqn_path)
+        # self.device_widget.save(aqn_path)
 
     def save_state(self):
         self.state["main_channel"] = self.channel_combo.read()

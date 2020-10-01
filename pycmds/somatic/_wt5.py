@@ -1,10 +1,12 @@
 """wt5 data file functions"""
 
 
-import h5py
+import time
 
+import h5py
 import WrightTools as wt
 
+import pycmds.project.project_globals as g
 
 data = None
 
@@ -46,8 +48,8 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     for i, axis in enumerate(axes):
         shape = [1] * len(axes)
         shape[i] = axis.points.size
-        variable_shapes[f"{a.name}_points"] = tuple(shape)
-        variable_units[f"{a.name}_points"] = axis.units
+        variable_shapes[f"{axis.name}_points"] = tuple(shape)
+        variable_units[f"{axis.name}_units"] = axis.units
 
     for hw in hardware:
         variable_units[hw.name] = hw.units
@@ -91,7 +93,7 @@ def get_data_readonly():
 
 
 def write_data(idx, hardware, sensors):
-
+    return
     # loop time
     now = time.time()
     loop_time.write(now - self.t_last)

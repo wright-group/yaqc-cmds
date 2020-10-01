@@ -148,6 +148,7 @@ class Worker(QtCore.QObject):
 
     def process(self, scan_folder):
         # get path
+        return  # TODO:
         data_path = record.data_path.read()
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
@@ -288,23 +289,23 @@ class Worker(QtCore.QObject):
             self.scan_urls.append(None)
         # create data
         headers = dict()
-        headers["data name"] = self.aqn.read("info", "name")
+        headers["name"] = self.aqn.read("info", "name")
         headers["data info"] = self.aqn.read("info", "info")
         headers["data origin"] = self.aqn.read("info", "module")
         if g.google_drive_enabled.read():
             headers["queue url"] = self.queue_worker.queue_url
             headers["acquisition url"] = self.aqn.read("info", "url")
             headers["scan url"] = scan_url
-        create_data(path, headers, destinations, axes, constants)
-        # initialize devices
-        record.control.initialize_scan(self.aqn, scan_folder, destinations_list)
+        path = scan_folder + os.sep + "data.wt5"
+        create_data(
+            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=sensors
+        )
         # acquire -------------------------------------------------------------
         self.fraction_complete.write(0.0)
         slice_index = 0
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
             idx = tuple(idx)
-            record.idx.write(idx)
             # launch hardware
             for d in destinations_list:
                 destination = d.arr[idx]
@@ -324,7 +325,6 @@ class Worker(QtCore.QObject):
             # slice
             if slice_index < len(slices):  # takes care of last slice
                 if slices[slice_index]["index"] == i:
-                    record.current_slice.index(slices[slice_index])
                     slice_index += 1
             # wait for hardware
             g.hardware_waits.wait()
@@ -335,7 +335,7 @@ class Worker(QtCore.QObject):
             for s in sensors:
                 s.wait_until_still()
             # save
-            write_data(idx=idx, hardware=all_hardware, sensors=sensors)
+            write_data(idx=idx, hardware=all_hardwares, sensors=sensors)
             # update
             self.fraction_complete.write(i / npts)
             self.update_ui.emit()
@@ -348,7 +348,6 @@ class Worker(QtCore.QObject):
                 self.stopped.write(True)
                 break
         # finish scan ---------------------------------------------------------
-        record.control.wait_until_file_done()
         self.fraction_complete.write(1.0)
         self.going.write(False)
         g.queue_control.write(False)
