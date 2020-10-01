@@ -4,8 +4,7 @@
 import time
 
 import pycmds.project.classes as pc
-from hardware.spectrometers.spectrometers import Driver as BaseDriver
-from hardware.spectrometers.spectrometers import GUI as BaseGUI
+import pycmds.hardware.hardware as hw
 
 import yaqc
 
@@ -13,10 +12,10 @@ import yaqc
 ### driver ####################################################################
 
 
-class Driver(BaseDriver):
+class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
         self._yaqd_port = kwargs.pop("yaqd_port")
-        BaseDriver.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.grating_index = pc.Combo(
             name="Grating",
             allowed_values=[1, 2],
@@ -82,5 +81,29 @@ class Driver(BaseDriver):
 ### gui #######################################################################
 
 
-class GUI(BaseGUI):
+class GUI(hw.GUI):
     pass
+
+
+
+### hardware ##################################################################
+
+
+class Hardware(hw.Hardware):
+    def __init__(self, *args, **kwargs):
+        self.kind = "spectrometer"
+        hw.Hardware.__init__(self, *args, **kwargs)
+
+
+### import ####################################################################
+
+
+conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = toml.load(conf)
+hardwares, gui, advanced_gui = hw.import_hardwares(
+    conf.get("hardware", {}).get("spectrometers", {}),
+    name="Spectrometers",
+    Driver=Driver,
+    GUI=GUI,
+    Hardware=Hardware,
+)
