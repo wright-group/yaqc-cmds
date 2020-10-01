@@ -20,9 +20,9 @@ import pycmds.hardware.spectrometers.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
+from pycmds._sensors import sensors
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-import pycmds._record as record
 
 
 ### define ####################################################################
@@ -278,13 +278,15 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
+        channel_names = [s.channel_names for s in sensors]
         if (
             "main_channel" not in self.state.keys()
-            or self.state["main_channel"] not in record.control.channel_names
+            or self.state["main_channel"] not in channel_names
         ):
-            self.state["main_channel"] = record.control.channel_names[0]
+            self.state["main_channel"] = channel_names[0]
         self.channel_combo = pc.Combo(
-            allowed_values=record.control.channel_names, initial_value=self.state["main_channel"],
+            allowed_values=channel_names,
+            initial_value=self.state["main_channel"],
         )
         self.channel_combo.updated.connect(self.save_state)
         input_table.add("Main Channel", self.channel_combo)

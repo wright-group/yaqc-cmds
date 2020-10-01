@@ -37,8 +37,6 @@ from pycmds.somatic._wt5 import create_data, write_data
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
-import pycmds._record as record
-
 from . import constant_resolver
 
 
@@ -426,13 +424,11 @@ class GUI(QtCore.QObject):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.create_frame()  # add module-specific widgets to out layout
         # device widget
-        self.device_widget = record.Widget()
-        self.layout.addWidget(self.device_widget)
+        # self.device_widget = record.Widget()
+        # self.layout.addWidget(self.device_widget)
         # finish
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(self.layout)
-        # signals and slots
-        record.control.settings_updated.connect(self.on_sensor_settings_updated)
 
     def create_frame(self):
         layout = QtWidgets.QVBoxLayout()

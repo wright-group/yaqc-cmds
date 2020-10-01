@@ -21,13 +21,65 @@ import pycmds.project.widgets as pw
 config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
 
 
+class Data(QtCore.QMutex):
+    def __init__(self):
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.shape = (1,)
+        self.size = 1
+        self.channels = []
+        self.cols = []
+        self.signed = []
+        self.map = None
+
+    def read(self):
+        return self.channels
+
+    def read_properties(self):
+        """
+        Returns
+        -------
+        tuple
+            shape, cols, map
+        """
+        self.lock()
+        outs = self.shape, self.cols, self.map
+        self.unlock()
+        return outs
+
+    def write(self, channels):
+        self.lock()
+        self.channels = channels
+        self.WaitCondition.wakeAll()
+        self.unlock()
+
+    def write_properties(self, shape, cols, channels, signed=False, map=None):
+        self.lock()
+        self.shape = shape
+        self.size = np.prod(shape)
+        self.channels = channels
+        self.cols = cols
+        self.signed = signed
+        if not signed:
+            self.signed = [False] * len(self.cols)
+        self.map = map
+        self.WaitCondition.wakeAll()
+        self.unlock()
+
+    def wait_for_update(self, timeout=5000):
+        if self.value:
+            self.lock()
+            self.WaitCondition.wait(self, timeout)
+            self.unlock()
+
+
 class Sensor(pc.Hardware):
     settings_updated = QtCore.Signal()
 
     def __init__(self, *args, **kwargs):
         self.freerun = pc.Bool(initial_value=False)
         self.Widget = kwargs.pop("Widget")
-        self.data = pc.Data()
+        self.data = Data()
         self.active = True
         # shape
         if "shape" in kwargs.keys():
@@ -43,6 +95,10 @@ class Sensor(pc.Hardware):
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
         pc.Hardware.__init__(self, *args, **kwargs)
         self.settings_updated.emit()
+
+    @property
+    def channel_names(self):
+        return self.data.cols
 
     def get_headers(self):
         out = collections.OrderedDict()
@@ -159,3 +215,26 @@ class Widget(QtWidgets.QWidget):
         ini = wt.kit.INI(aqn_path)
         ini.add_section("virtual")
         ini.write("virtual", "use", self.use.read())
+
+
+sensors = []
+for section in config["sensors"].keys():
+    if section == "settings":
+        continue
+    if config["sensors"][section]["enable"]:
+        # collect arguments
+        kwargs = collections.OrderedDict()
+        for option in config["sensors"][section].keys():
+            if option in ["enable", "model", "serial", "path", "__name__"]:
+                continue
+            else:
+                kwargs[option] = config["sensors"][section][option]
+        sensor = Sensor(
+            Driver,
+            kwargs,
+            None,
+            Widget=SensorWidget,
+            name=section,
+            model="Virtual",
+        )
+        sensors.append(sensor)

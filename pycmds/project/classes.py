@@ -14,7 +14,6 @@ from . import project_globals as g
 import WrightTools.units as wt_units
 
 
-
 __here__ = pathlib.Path(__file__).parent
 
 
@@ -78,58 +77,6 @@ class Busy(QtCore.QMutex):
             self.unlock()
 
 
-class Data(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.shape = (1,)
-        self.size = 1
-        self.channels = []
-        self.cols = []
-        self.signed = []
-        self.map = None
-
-    def read(self):
-        return self.channels
-
-    def read_properties(self):
-        """
-        Returns
-        -------
-        tuple
-            shape, cols, map
-        """
-        self.lock()
-        outs = self.shape, self.cols, self.map
-        self.unlock()
-        return outs
-
-    def write(self, channels):
-        self.lock()
-        self.channels = channels
-        self.WaitCondition.wakeAll()
-        self.unlock()
-
-    def write_properties(self, shape, cols, channels, signed=False, map=None):
-        self.lock()
-        self.shape = shape
-        self.size = np.prod(shape)
-        self.channels = channels
-        self.cols = cols
-        self.signed = signed
-        if not signed:
-            self.signed = [False] * len(self.cols)
-        self.map = map
-        self.WaitCondition.wakeAll()
-        self.unlock()
-
-    def wait_for_update(self, timeout=5000):
-        if self.value:
-            self.lock()
-            self.WaitCondition.wait(self, timeout)
-            self.unlock()
-
-
 ### gui items #################################################################
 
 
@@ -168,7 +115,7 @@ class PyCMDS_Object(QtCore.QObject):
         set_method=None,
         disable_under_queue_control=False,
         *args,
-        **kwargs
+        **kwargs,
     ):
         QtCore.QObject.__init__(self)
         self.has_widget = False
@@ -309,9 +256,7 @@ class Combo(PyCMDS_Object):
         if value is not None:
             self.value.write(value)
         if self.has_ini:
-            self.ini.write(
-                self.section, self.option, self.value.read(), with_apostrophe=True
-            )
+            self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
 
     def set_allowed_values(self, allowed_values):
         """
@@ -373,9 +318,7 @@ class Combo(PyCMDS_Object):
 
 
 class Filepath(PyCMDS_Object):
-    def __init__(
-        self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs
-    ):
+    def __init__(self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs):
         """
         holds the filepath as a string \n
 
@@ -417,9 +360,7 @@ class Filepath(PyCMDS_Object):
 
         if self.kind == "file":
             filter_string = ";;".join(self.options + ["All Files (*.*)"])
-            out = file_dialog_handler.open_dialog(
-                self.caption, directory_string, filter_string
-            )
+            out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
             if os.path.isfile(out):
                 self.write(out)
         elif self.kind == "directory":
@@ -495,7 +436,7 @@ class Number(PyCMDS_Object):
         limits=None,
         units=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         PyCMDS_Object.__init__(self, initial_value=initial_value, *args, **kwargs)
         self.type = "number"
@@ -535,9 +476,7 @@ class Number(PyCMDS_Object):
             self.widget.setMinimum(min_value)
             self.widget.setMaximum(max_value)
             if not self.display:
-                self.set_tool_tip(
-                    "min: " + str(min_value) + "\n" + "max: " + str(max_value)
-                )
+                self.set_tool_tip("min: " + str(min_value) + "\n" + "max: " + str(max_value))
 
     def associate(self, display=None, pre_name=""):
         # display
@@ -595,9 +534,7 @@ class Number(PyCMDS_Object):
 
     def set_units(self, units):
         if self.has_widget:
-            allowed = [
-                self.units_widget.itemText(i) for i in range(self.units_widget.count())
-            ]
+            allowed = [self.units_widget.itemText(i) for i in range(self.units_widget.count())]
             index = allowed.index(units)
             self.units_widget.setCurrentIndex(index)
         else:
@@ -763,9 +700,7 @@ class Hardware(QtCore.QObject):
     update_ui = QtCore.Signal()
     initialized_signal = QtCore.Signal()
 
-    def __init__(
-        self, driver_class, driver_arguments, gui_class, name, model, serial=None
-    ):
+    def __init__(self, driver_class, driver_arguments, gui_class, name, model, serial=None):
         """
         Hardware representation object living in the main thread.
 
@@ -791,7 +726,8 @@ class Hardware(QtCore.QObject):
         self.busy = Busy()
         self.driver = driver_class(self, **driver_arguments)
         self.initialized = self.driver.initialized
-        self.gui = gui_class(self)
+        if gui_class:
+            self.gui = gui_class(self)
         self.q = Q(self.enqueued, self.busy, self.driver)
         # start thread
         self.driver.moveToThread(self.thread)
