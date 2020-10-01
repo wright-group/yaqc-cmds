@@ -36,9 +36,6 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     # fill out pycmds_information in headers
     headers["PyCMDS version"] = g.version.read()
     headers["system name"] = g.system_name.read()
-    # TODO: should this be an actual timestamp or a string?
-    timestamp = wt.kit.TimeStamp()
-    headers["file created"] = timestamp.RFC3339
 
     data.attrs.update(headers)
 
@@ -88,8 +85,10 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     f.flush()
 
 
-def get_file_readonly():
-    return data
+def get_data_readonly():
+    fp = data.filepath
+    f = h5py.File(fp, "r", libver="latest", swmr=True)
+    return wt.Data(f)
 
 
 def write_data(idx, hardware, sensors):
