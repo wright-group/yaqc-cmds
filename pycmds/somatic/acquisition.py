@@ -31,8 +31,12 @@ import pycmds.hardware.spectrometers.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
+import pycmds._sensors as sensors
+
+from pycmds.somatic._wt5 import create_data, write_data
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
+sensors = sensors.sensors
 
 import pycmds._record as record
 
@@ -272,6 +276,7 @@ class Worker(QtCore.QObject):
         g.queue_control.write(True)
         self.going.write(True)
         self.fraction_complete.write(0.0)
+        create_data(...)
         g.logger.log("info", "Scan begun", "")
         # put info into headers -----------------------------------------------
         # clear values from previous scan
@@ -346,10 +351,14 @@ class Worker(QtCore.QObject):
                     slice_index += 1
             # wait for hardware
             g.hardware_waits.wait()
-            # launch devices
-            record.control.acquire(save=True, index=idx)
-            # wait for devices
-            record.control.wait_until_done()
+            # launch sensors
+            for s in sensors:
+                s.measure()
+            # wait for sensors
+            for s in sensors:
+                s.wait_until_still()
+            # save
+            write_data(idx=idx, hardware=all_hardware, sensors=sensors)
             # update
             self.fraction_complete.write(i / npts)
             self.update_ui.emit()
