@@ -1,8 +1,6 @@
 ### import ####################################################################
 
 
-import time
-
 import pycmds.project.classes as pc
 import pycmds.hardware.hardware as hw
 import pathlib
@@ -66,7 +64,7 @@ class Driver(hw.Driver):
         self.limits.write(*self.ctrl.get_limits(), self.native_units)
         # set position for new grating
         self.set_position(self.position.read(self.native_units))
-        
+
 
 ### gui #######################################################################
 
