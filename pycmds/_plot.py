@@ -50,7 +50,7 @@ class DisplaySettings(QtCore.QObject):
         self.widget.show()
 
     def update_channels(self):
-        allowed_values = self.sensor.data.read_properties()[1]
+        allowed_values = self.sensor.channel_names
         if not len(allowed_values) == 0:
             self.channel_combo.set_allowed_values(allowed_values)
 
@@ -67,7 +67,7 @@ class GUI(QtCore.QObject):
 
     def create_main_tab(self):
         for sensor in sensors:
-            if len(sensor.data.read_properties()[1]) == 0:
+            if len(sensor.channel_names) == 0:
                 return
         self.main_tab_created = True
         # create main daq tab
@@ -150,9 +150,9 @@ class GUI(QtCore.QObject):
             sensor.update_ui.connect(self.update)
 
     def on_slice_append(self):
-        sensor_index = self.sensor_combo.read_index()
-        sensor_display_settings = list(self.display_settings_widgets.values())[sensor_index]
-        channel_index = sensor_display_settings.channel_combo.read_index()
+        sensor_name = self.sensor_combo.read()
+        sensor_display_settings = self.display_settings_widgets[sensor_name]
+        channel_name = sensor_display_settings.channel_combo.read()
         # limits
         ymin = current_slice.ymins[sensor_index][channel_index]
         ymax = current_slice.ymaxs[sensor_index][channel_index]
@@ -188,17 +188,17 @@ class GUI(QtCore.QObject):
         # self.idx_string.write(str(idx.read()))
         # big number
         current_sensor_index = self.sensor_combo.read_index()
+        current_sensor_name = self.sensor_combo.read()
         sensor = sensors[current_sensor_index]
-        widget = list(self.display_settings_widgets.values())[current_sensor_index]
-        channel_index = widget.get_channel_index()
-        map_index = widget.get_map_index()
+        widget = self.display_settings_widgets[current_sensor_name]
+        channel_name = widget.channel_combo.read()
+        map_index = None  # widget.get_map_index()
         if map_index is None:
-            big_number = sensor.data.read()[channel_index]
+            big_number = sensor.channels[channel_name]
         else:
             big_number = sensor.data.read()[channel_index][map_index]
         channel_names = [l for s in sensors for l in s.channel_names]
-        if len(channel_names) > channel_index:
-            self.big_channel.setText(channel_names[channel_index])
+        self.big_channel.setText(channel_name)
         self.big_display.setValue(big_number)
 
     def stop(self):

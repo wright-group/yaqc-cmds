@@ -27,25 +27,12 @@ class Data(QtCore.QMutex):
         self.WaitCondition = QtCore.QWaitCondition()
         self.shape = (1,)
         self.size = 1
-        self.channels = []
-        self.cols = []
+        self.channels = {}
         self.signed = []
         self.map = None
 
     def read(self):
         return self.channels
-
-    def read_properties(self):
-        """
-        Returns
-        -------
-        tuple
-            shape, cols, map
-        """
-        self.lock()
-        outs = self.shape, self.cols, self.map
-        self.unlock()
-        return outs
 
     def write(self, channels):
         self.lock()
@@ -53,15 +40,14 @@ class Data(QtCore.QMutex):
         self.WaitCondition.wakeAll()
         self.unlock()
 
-    def write_properties(self, shape, cols, channels, signed=False, map=None):
+    def write_properties(self, shape, channels, signed=False, map=None):
         self.lock()
         self.shape = shape
         self.size = np.prod(shape)
         self.channels = channels
-        self.cols = cols
         self.signed = signed
         if not signed:
-            self.signed = [False] * len(self.cols)
+            self.signed = [False] * len(self.channels)
         self.map = map
         self.WaitCondition.wakeAll()
         self.unlock()
@@ -100,7 +86,11 @@ class Sensor(pc.Hardware):
 
     @property
     def channel_names(self):
-        return self.data.cols
+        return list(self.data.channels.keys())
+
+    @property
+    def channels(self):
+        return self.data.channels
 
     def get_headers(self):
         out = collections.OrderedDict()
@@ -171,10 +161,10 @@ class Driver(pc.Driver):
             self.client.measure(loop=False)
             while self.client.busy():
                 time.sleep(0.1)
-            out_names = self.client.get_channel_names()
-            signed = [False for _ in out_names]
-            out = list(self.client.get_measured().values())[:-1]
-            self.data.write_properties(self.shape, out_names, out, signed)
+            out = self.client.get_measured()
+            del out["measurement_id"]
+            signed = [False for _ in out]
+            self.data.write_properties(self.shape, out, signed)
             self.busy.write(False)
         self.measure_time.write(timer.interval)
         self.update_ui.emit()
@@ -231,13 +221,6 @@ for section in config["sensors"].keys():
                 continue
             else:
                 kwargs[option] = config["sensors"][section][option]
-        sensor = Sensor(
-            Driver,
-            kwargs,
-            None,
-            Widget=SensorWidget,
-            name=section,
-            model="Virtual",
-        )
+        sensor = Sensor(Driver, kwargs, None, Widget=SensorWidget, name=section, model="Virtual",)
         sensors.append(sensor)
         sensor.initialize()

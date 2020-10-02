@@ -37,7 +37,6 @@ module_name = "SCAN"
 
 class Axis:
     def __init__(self, units_kind, axis_index):
-        print(filters.hardwares)
         self.units_kind = units_kind
         if self.units_kind == "energy":
             self.units = "wn"
@@ -119,7 +118,7 @@ class Worker(acquisition.Worker):
         else:
             channels = [main_channel]
         # make figures for each channel
-        data_path = pathlib.Path(data.filepath)
+        data_path = pathlib.Path(_wt5.data_filepath)
         data_folder = data_path.parent
         # make all images
         for channel_name in channels:

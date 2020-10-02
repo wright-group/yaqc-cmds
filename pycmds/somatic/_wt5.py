@@ -55,7 +55,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         variable_units[f"{axis.name}_units"] = axis.units
 
     for hw in hardware:
-        variable_units[hw.name] = hw.units
+        variable_units[hw.name] = hw.native_units
 
     channel_shapes = {}
     channel_units = {}
@@ -99,72 +99,9 @@ def close_data():
 
 
 def write_data(idx, hardware, sensors):
-    return
-    # loop time
-    now = time.time()
-    loop_time.write(now - self.t_last)
-    self.t_last = now
-    # ms wait
-    time.sleep(ms_wait.read() / 1000.0)
-    # acquire
-    for sensor in self.sensors:
-        if sensor.active:
-            sensor.measure()
-    self.wait_until_done()
-    # save
-    if save:
-        # 1D things -------------------------------------------------------
-        data_rows = np.prod([d.data.size for d in self.sensors if d.active])
-        data_shape = (len(headers.data_cols["name"]), int(data_rows))
-        data_arr = np.full(data_shape, np.nan)
-        data_i = 0
-        # scan indicies
-        for i in idx.read():  # scan sensor
-            data_arr[data_i] = i
-            data_i += 1
-        for sensor in self.sensors:  # daq
-            if sensor.active and sensor.has_map:
-                map_indicies = [i for i in np.ndindex(sensor.data.shape)]
-                for i in range(len(sensor.data.shape)):
-                    data_arr[data_i] = [mi[i] for mi in map_indicies]
-                    data_i += 1
-        # time
-        now = time.time()  # seconds since epoch
-        data_arr[data_i] = now
-        data_i += 1
-        # hardware positions
-        for scan_hardware_module in scan_hardware_modules:
-            for scan_hardware in scan_hardware_module.hardwares:
-                for key in scan_hardware.recorded:
-                    out_units = scan_hardware.recorded[key][1]
-                    if out_units is None:
-                        data_arr[data_i] = scan_hardware.recorded[key][0].read()
-                    else:
-                        data_arr[data_i] = scan_hardware.recorded[key][0].read(out_units)
-                    data_i += 1
-        # potentially multidimensional things -----------------------------
-        # acquisition maps
-        for sensor in self.sensors:
-            if sensor.active and sensor.has_map:
-                data_arr[data_i] = sensor.map.read()
-                data_i += 1
-        # acquisitions
-        for sensor in self.sensors:
-            if sensor.active:
-                channels = sensor.data.read()  # list of arrays
-                for arr in channels:
-                    data_arr[data_i] = arr
-                    data_i += 1
-        # send to file_address --------------------------------------------
-        q("write_data", [data_arr])
-        # fill slice ------------------------------------------------------
-        slice_axis_index = headers.data_cols["name"].index(current_slice.name)
-        slice_position = np.mean(data_arr[slice_axis_index])
-        native_units = headers.data_cols["units"][slice_axis_index]
-        slice_position = wt.units.converter(slice_position, native_units, current_slice.units)
-        data_arrs = []
-        for sensor in self.sensors:
-            data_arrs.append(sensor.data.read())
-        current_slice.append(slice_position, data_arrs)
-
-    pass
+    data["labtime"][idx] = time.time()
+    for hw in hardware:
+        data[hw.name][idx] = hw.get_position()
+    for s in sensors:
+        for ch, val in s.channels.items():
+            data[ch][idx] = val
