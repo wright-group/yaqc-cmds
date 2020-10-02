@@ -21,6 +21,7 @@ import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
 from pycmds._sensors import sensors
+from pycmds.somatic import _wt5
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -110,11 +111,7 @@ class Constant:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        return  # TODO:
-        # get path
-        data_path = record.data_path.read()
-        # make data object
-        data = wt.data.from_PyCMDS(data_path, verbose=False)
+        data = _wt5.get_data_readonly().copy()
         # decide which channels to make plots for
         main_channel = self.aqn.read("processing", "main channel")
         if self.aqn.read("processing", "process all channels"):
@@ -122,10 +119,8 @@ class Worker(acquisition.Worker):
         else:
             channels = [main_channel]
         # make figures for each channel
-        data_path = pathlib.Path(data_path)
+        data_path = pathlib.Path(data.filepath)
         data_folder = data_path.parent
-        file_name = data_path.stem
-        file_extension = data_path.suffix
         # make all images
         for channel_name in channels:
             channel_path = data_folder / channel_name
@@ -286,8 +281,7 @@ class GUI(acquisition.GUI):
         ):
             self.state["main_channel"] = channel_names[0]
         self.channel_combo = pc.Combo(
-            allowed_values=channel_names,
-            initial_value=self.state["main_channel"],
+            allowed_values=channel_names, initial_value=self.state["main_channel"],
         )
         self.channel_combo.updated.connect(self.save_state)
         input_table.add("Main Channel", self.channel_combo)

@@ -9,6 +9,7 @@ import WrightTools as wt
 import pycmds.project.project_globals as g
 
 data = None
+data_filepath = None
 
 
 def create_data(path, headers, destinations, axes, constants, hardware, sensors):
@@ -32,7 +33,9 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         all active sensors
     """
     f = h5py.File(path, "w", libver="latest")
+    global data, data_filepath
     data = wt.Data(f, name=headers["name"])
+    data_filepath = path
 
     # fill out pycmds_information in headers
     headers["PyCMDS version"] = g.version.read()
@@ -87,9 +90,12 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
 
 
 def get_data_readonly():
-    fp = data.filepath
-    f = h5py.File(fp, "r", libver="latest", swmr=True)
+    f = h5py.File(data_filepath, "r", libver="latest", swmr=True)
     return wt.Data(f)
+
+
+def close_data():
+    data.close()
 
 
 def write_data(idx, hardware, sensors):

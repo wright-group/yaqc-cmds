@@ -33,7 +33,7 @@ import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
 from pycmds._sensors import sensors
 
-from pycmds.somatic._wt5 import create_data, write_data
+from pycmds.somatic._wt5 import create_data, write_data, close_data
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -348,6 +348,7 @@ class Worker(QtCore.QObject):
                 self.stopped.write(True)
                 break
         # finish scan ---------------------------------------------------------
+        close_data()
         self.fraction_complete.write(1.0)
         self.going.write(False)
         g.queue_control.write(False)
@@ -369,9 +370,7 @@ class Worker(QtCore.QObject):
         if g.google_drive_enabled.read():
             folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
             g.google_drive_control.read().upload_folder(
-                path=scan_folder,
-                parent_id=str(pathlib.Path(scan_folder).parent),
-                id=scan_folder,
+                path=scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id=scan_folder,
             )
             image_url = None
             if reference_image is not None:
