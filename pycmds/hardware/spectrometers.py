@@ -41,9 +41,8 @@ class Driver(hw.Driver):
         self.serial_number = id_dict["serial"]
         self.position.write(self.ctrl.get_position())
         # recorded
-        self.recorded["wm"] = [self.position, "nm", 1.0, "m", False]
-        while self.is_busy():
-            time.sleep(0.1)
+        self.recorded[self.name] = [self.position, self.native_units, 1.0, "m", False]
+        self.wait_until_still()
         # finish
         self.initialized.write(True)
         self.initialized_signal.emit()
@@ -53,8 +52,7 @@ class Driver(hw.Driver):
 
     def set_position(self, destination):
         self.ctrl.set_position(float(destination))
-        while self.is_busy():
-            time.sleep(0.01)
+        self.wait_until_still()
         self.get_position()
 
     def set_turret(self, destination_index):
@@ -64,13 +62,11 @@ class Driver(hw.Driver):
         destination_index_zero_based = int(destination_index) - 1
         self.ctrl.set_turret(destination_index_zero_based)
         self.grating_index.write(destination_index)
-        while self.is_busy():
-            time.sleep(0.01)
-
+        self.wait_until_still()
         self.limits.write(*self.ctrl.get_limits(), self.native_units)
         # set position for new grating
         self.set_position(self.position.read(self.native_units))
-
+        
 
 ### gui #######################################################################
 
