@@ -277,8 +277,6 @@ class Worker(QtCore.QObject):
         g.logger.log("info", "Scan begun", "")
         # put info into headers -----------------------------------------------
         # create scan folder
-        scan_index_str = str(self.scan_index).zfill(3)
-        axis_names = str([str(a.name) for a in axes]).replace("'", "")
         scan_folder = str(self.folder)
         self.scan_folders.append(self.folder)
         # create scan folder on google drive
