@@ -67,15 +67,7 @@ class Driver(hw.Driver):
         while self.is_busy():
             time.sleep(0.01)
 
-        # TODO: move limit handling to daemon
-        # update own limits
-        max_limit = self.hardware_ini.read(
-            self.name, "grating_%i_maximum_wavelength" % self.grating_index.read()
-        )
-        if self.grating_index.read() == 1:
-            self.limits.write(0, max_limit, "nm")
-        elif self.grating_index.read() == 2:
-            self.limits.write(0, max_limit, "nm")
+        self.limits.write(*self.ctrl.get_limits(), self.native_units)
         # set position for new grating
         self.set_position(self.position.read(self.native_units))
 
@@ -85,7 +77,6 @@ class Driver(hw.Driver):
 
 class GUI(hw.GUI):
     pass
-
 
 
 ### hardware ##################################################################
