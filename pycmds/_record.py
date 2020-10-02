@@ -811,7 +811,7 @@ class GUI(QtCore.QObject):
 control = Control()
 
 import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.filters.filters as filters
 

@@ -22,7 +22,7 @@ import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 import pycmds.project.file_dialog_handler as file_dialog_handler
 
-import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
