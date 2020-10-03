@@ -51,7 +51,6 @@ class Driver(hw.Driver):
     def set_position(self, destination):
         self.ctrl.set_position(float(destination))
         self.wait_until_still()
-        self.get_position()
 
     def set_turret(self, destination_index):
         if type(destination_index) == list:
@@ -62,8 +61,6 @@ class Driver(hw.Driver):
         self.grating_index.write(destination_index)
         self.wait_until_still()
         self.limits.write(*self.ctrl.get_limits(), self.native_units)
-        # set position for new grating
-        self.set_position(self.position.read(self.native_units))
 
 
 ### gui #######################################################################

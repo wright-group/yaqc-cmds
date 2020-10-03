@@ -134,6 +134,12 @@ class Driver(pc.Driver):
         self.get_position()
         self.save_status()
 
+    def wait_until_still(self):
+        while self.is_busy():
+            self.get_position()
+            time.sleep(0.01)
+        self.get_position()
+
 
 ### gui #######################################################################
 
