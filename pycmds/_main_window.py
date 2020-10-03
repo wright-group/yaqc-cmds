@@ -141,8 +141,6 @@ class MainWindow(QtWidgets.QMainWindow):
         progress_bar.layout().addStretch(1)
         progress_bar.layout().addWidget(time_remaining)
         g.progress_bar.give_time_display_elements(time_elapsed, time_remaining)
-        # program box
-        program_widget = QtWidgets.QWidget(parent=self.main_frame)
         # hardware box
         hardware_advanced_widget = QtWidgets.QWidget(parent=self.main_frame)
         hardware_advanced_box = QtWidgets.QVBoxLayout()
@@ -159,7 +157,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot_widget = QtWidgets.QWidget(parent=self.main_frame)
         # tab widget
         self.tabs = pw.TabWidget()
-        self.tabs.addTab(program_widget, "Program")
         self.tabs.addTab(hardware_advanced_widget, "Hardware")
         self.tabs.addTab(coset_widget, "Autonomic")
         self.tabs.addTab(self.queue_widget, "Queue")
