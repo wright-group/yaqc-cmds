@@ -111,7 +111,7 @@ def write_data(idx, hardware, sensors):
     data["labtime"][idx] = time.time()
     for hw in hardware:
         for rec, (obj, *_) in hw.recorded.items():
-            data[rec][idx] = obj.read()
+            data[rec][idx] = obj.read(data[rec].units)
     for s in sensors:
         for ch, val in s.channels.items():
             data[ch][idx] = val
