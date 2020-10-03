@@ -10,7 +10,7 @@ import pycmds.project.widgets as pw
 import pycmds.project.classes as pc
 
 import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.spectrometers as spectrometers
 import pycmds.devices.devices as devices
 
 

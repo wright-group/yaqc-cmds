@@ -18,7 +18,7 @@ import pycmds.somatic.acquisition as acquisition
 from pycmds.somatic.modules.scan import Axis as ScanAxisGUI
 from pycmds.somatic.modules.scan import Constant
 
-import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters

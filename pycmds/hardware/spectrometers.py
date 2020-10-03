@@ -1,22 +1,21 @@
 ### import ####################################################################
 
 
-import time
-
 import pycmds.project.classes as pc
-from hardware.spectrometers.spectrometers import Driver as BaseDriver
-from hardware.spectrometers.spectrometers import GUI as BaseGUI
-
+import pycmds.hardware.hardware as hw
+import pathlib
+import appdirs
+import toml
 import yaqc
 
 
 ### driver ####################################################################
 
 
-class Driver(BaseDriver):
+class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
         self._yaqd_port = kwargs.pop("yaqd_port")
-        BaseDriver.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.grating_index = pc.Combo(
             name="Grating",
             allowed_values=[1, 2],
@@ -40,9 +39,8 @@ class Driver(BaseDriver):
         self.serial_number = id_dict["serial"]
         self.position.write(self.ctrl.get_position())
         # recorded
-        self.recorded["wm"] = [self.position, "nm", 1.0, "m", False]
-        while self.is_busy():
-            time.sleep(0.1)
+        self.recorded[self.name] = [self.position, self.native_units, 1.0, "m", False]
+        self.wait_until_still()
         # finish
         self.initialized.write(True)
         self.initialized_signal.emit()
@@ -52,8 +50,7 @@ class Driver(BaseDriver):
 
     def set_position(self, destination):
         self.ctrl.set_position(float(destination))
-        while self.is_busy():
-            time.sleep(0.01)
+        self.wait_until_still()
         self.get_position()
 
     def set_turret(self, destination_index):
@@ -63,18 +60,8 @@ class Driver(BaseDriver):
         destination_index_zero_based = int(destination_index) - 1
         self.ctrl.set_turret(destination_index_zero_based)
         self.grating_index.write(destination_index)
-        while self.is_busy():
-            time.sleep(0.01)
-
-        # TODO: move limit handling to daemon
-        # update own limits
-        max_limit = self.hardware_ini.read(
-            self.name, "grating_%i_maximum_wavelength" % self.grating_index.read()
-        )
-        if self.grating_index.read() == 1:
-            self.limits.write(0, max_limit, "nm")
-        elif self.grating_index.read() == 2:
-            self.limits.write(0, max_limit, "nm")
+        self.wait_until_still()
+        self.limits.write(*self.ctrl.get_limits(), self.native_units)
         # set position for new grating
         self.set_position(self.position.read(self.native_units))
 
@@ -82,5 +69,28 @@ class Driver(BaseDriver):
 ### gui #######################################################################
 
 
-class GUI(BaseGUI):
+class GUI(hw.GUI):
     pass
+
+
+### hardware ##################################################################
+
+
+class Hardware(hw.Hardware):
+    def __init__(self, *args, **kwargs):
+        self.kind = "spectrometer"
+        hw.Hardware.__init__(self, *args, **kwargs)
+
+
+### import ####################################################################
+
+
+conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = toml.load(conf)
+hardwares, gui, advanced_gui = hw.import_hardwares(
+    conf.get("hardware", {}).get("spectrometers", {}),
+    name="Spectrometers",
+    Driver=Driver,
+    GUI=GUI,
+    Hardware=Hardware,
+)

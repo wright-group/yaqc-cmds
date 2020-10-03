@@ -182,7 +182,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # import
         from . import hardware
         from .hardware.opas import opas
-        from .hardware.spectrometers import spectrometers
+        from .hardware import spectrometers
         from .hardware import delays
         from .hardware.filters import filters
         import pycmds._sensors
