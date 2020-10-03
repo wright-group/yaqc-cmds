@@ -161,7 +161,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(coset_widget, "Autonomic")
         self.tabs.addTab(self.queue_widget, "Queue")
         self.tabs.addTab(self.plot_widget, "Plot")
-        self.tabs.setCurrentIndex(3)  # start on sonomic tab
+        self.tabs.setCurrentIndex(2)  # start on queue tab
         self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
         box.addWidget(self.tabs)
         # vertical stretch
