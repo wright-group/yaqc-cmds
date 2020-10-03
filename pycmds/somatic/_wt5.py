@@ -1,4 +1,4 @@
-"""wt5 data file functions"""
+"""bwt5 data file functions"""
 
 
 import time
@@ -44,18 +44,21 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     data.attrs.update(headers)
 
     full_scan_shape = tuple(a.points.size for a in axes)
-    variables = ["labtime"] + [f"{a.name}_points" for a in axes] + [h.name for h in hardware]
-    variable_shapes = {n: full_scan_shape for n in variables}
-    variable_units = {n: None for n in variables}
-    variable_units["labtime"] = "s"
+    variable_shapes = {"labtime": full_scan_shape}
+    variable_units = {"labtime": "s"}
+    variable_labels = {}
+
     for i, axis in enumerate(axes):
         shape = [1] * len(axes)
         shape[i] = axis.points.size
         variable_shapes[f"{axis.name}_points"] = tuple(shape)
-        variable_units[f"{axis.name}_units"] = axis.units
+        variable_units[f"{axis.name}_points"] = axis.units
 
     for hw in hardware:
-        variable_units[hw.name] = hw.native_units
+        for rec, (_, units, _, label, _) in hw.recorded.items():
+            variable_shapes[rec] = full_scan_shape
+            variable_units[rec] = units
+            variable_labels[rec] = label
 
     channel_shapes = {}
     channel_units = {}
@@ -69,9 +72,15 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
             # TODO: channel units?
             channel_units[ch] = None
 
+    print(variable_units)
     for var, sh in variable_shapes.items():
         units = variable_units[var]
-        data.create_variable(var, shape=sh, units=units)
+        label = variable_labels.get(var)
+        print(f"{units}, {label}")
+        if label:
+            data.create_variable(var, shape=sh, units=units, label=label)
+        else:
+            data.create_variable(var, shape=sh, units=units)
 
     for axis in axes:
         sh = data[f"{axis.name}_points"].shape
@@ -101,7 +110,8 @@ def close_data():
 def write_data(idx, hardware, sensors):
     data["labtime"][idx] = time.time()
     for hw in hardware:
-        data[hw.name][idx] = hw.get_position()
+        for rec, (obj, *_) in hw.recorded.items():
+            data[rec][idx] = obj.read()
     for s in sensors:
         for ch, val in s.channels.items():
             data[ch][idx] = val
