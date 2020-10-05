@@ -21,13 +21,51 @@ import pycmds.project.widgets as pw
 config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
 
 
+class Data(QtCore.QMutex):
+    def __init__(self):
+        QtCore.QMutex.__init__(self)
+        self.WaitCondition = QtCore.QWaitCondition()
+        self.shape = (1,)
+        self.size = 1
+        self.channels = {}
+        self.signed = []
+        self.map = None
+
+    def read(self):
+        return self.channels
+
+    def write(self, channels):
+        self.lock()
+        self.channels = channels
+        self.WaitCondition.wakeAll()
+        self.unlock()
+
+    def write_properties(self, shape, channels, signed=False, map=None):
+        self.lock()
+        self.shape = shape
+        self.size = np.prod(shape)
+        self.channels = channels
+        self.signed = signed
+        if not signed:
+            self.signed = [False] * len(self.channels)
+        self.map = map
+        self.WaitCondition.wakeAll()
+        self.unlock()
+
+    def wait_for_update(self, timeout=5000):
+        if self.value:
+            self.lock()
+            self.WaitCondition.wait(self, timeout)
+            self.unlock()
+
+
 class Sensor(pc.Hardware):
     settings_updated = QtCore.Signal()
 
     def __init__(self, *args, **kwargs):
         self.freerun = pc.Bool(initial_value=False)
         self.Widget = kwargs.pop("Widget")
-        self.data = pc.Data()
+        self.data = Data()
         self.active = True
         # shape
         if "shape" in kwargs.keys():
@@ -41,8 +79,18 @@ class Sensor(pc.Hardware):
             self.has_map = False
         self.has_map = False  # turning this feature off for now  --Blaise 2020-09-25
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
-        pc.Hardware.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.settings_updated.emit()
+        self.freerun.write(True)
+        self.on_freerun_updated()
+
+    @property
+    def channel_names(self):
+        return list(self.data.channels.keys())
+
+    @property
+    def channels(self):
+        return self.data.channels
 
     def get_headers(self):
         out = collections.OrderedDict()
@@ -86,7 +134,7 @@ class Driver(pc.Driver):
     running = False
 
     def __init__(self, sensor, yaqd_port):
-        pc.Driver.__init__(self)
+        super().__init__()
         self.client = yaqc.Client(yaqd_port)
         # attributes
         self.name = self.client.id()["name"]
@@ -113,10 +161,10 @@ class Driver(pc.Driver):
             self.client.measure(loop=False)
             while self.client.busy():
                 time.sleep(0.1)
-            out_names = self.client.get_channel_names()
-            signed = [False for _ in out_names]
-            out = list(self.client.get_measured().values())[:-1]
-            self.data.write_properties(self.shape, out_names, out, signed)
+            out = self.client.get_measured()
+            del out["measurement_id"]
+            signed = [False for _ in out]
+            self.data.write_properties(self.shape, out, signed)
             self.busy.write(False)
         self.measure_time.write(timer.interval)
         self.update_ui.emit()
@@ -159,3 +207,20 @@ class Widget(QtWidgets.QWidget):
         ini = wt.kit.INI(aqn_path)
         ini.add_section("virtual")
         ini.write("virtual", "use", self.use.read())
+
+
+sensors = []
+for section in config["sensors"].keys():
+    if section == "settings":
+        continue
+    if config["sensors"][section]["enable"]:
+        # collect arguments
+        kwargs = collections.OrderedDict()
+        for option in config["sensors"][section].keys():
+            if option in ["enable", "model", "serial", "path", "__name__"]:
+                continue
+            else:
+                kwargs[option] = config["sensors"][section][option]
+        sensor = Sensor(Driver, kwargs, None, Widget=SensorWidget, name=section, model="Virtual",)
+        sensors.append(sensor)
+        sensor.initialize()

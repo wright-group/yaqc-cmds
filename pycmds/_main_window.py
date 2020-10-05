@@ -141,8 +141,6 @@ class MainWindow(QtWidgets.QMainWindow):
         progress_bar.layout().addStretch(1)
         progress_bar.layout().addWidget(time_remaining)
         g.progress_bar.give_time_display_elements(time_elapsed, time_remaining)
-        # program box
-        program_widget = QtWidgets.QWidget(parent=self.main_frame)
         # hardware box
         hardware_advanced_widget = QtWidgets.QWidget(parent=self.main_frame)
         hardware_advanced_box = QtWidgets.QVBoxLayout()
@@ -154,27 +152,16 @@ class MainWindow(QtWidgets.QMainWindow):
         coset_widget = QtWidgets.QWidget(parent=self.main_frame)
         g.coset_widget.write(coset_widget)
         # sonomic box
-        somatic_widget = QtWidgets.QWidget(parent=self.main_frame)
-        layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(0, 10, 0, 0)
-        somatic_widget.setLayout(layout)
-        somatic_tabs = pw.TabWidget()
         self.queue_widget = QtWidgets.QWidget(parent=self.main_frame)
-        somatic_tabs.addTab(self.queue_widget, "Queue")
-        self.scan_widget = QtWidgets.QWidget(parent=self.main_frame)
-        somatic_tabs.addTab(self.scan_widget, "Scan")
-        somatic_tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
-        layout.addWidget(somatic_tabs)
         # plot box
-        plot_widget = QtWidgets.QWidget(parent=self.main_frame)
+        self.plot_widget = QtWidgets.QWidget(parent=self.main_frame)
         # tab widget
         self.tabs = pw.TabWidget()
-        self.tabs.addTab(program_widget, "Program")
         self.tabs.addTab(hardware_advanced_widget, "Hardware")
         self.tabs.addTab(coset_widget, "Autonomic")
-        self.tabs.addTab(somatic_widget, "Somatic")
-        self.tabs.addTab(plot_widget, "Plot")
-        self.tabs.setCurrentIndex(3)  # start on sonomic tab
+        self.tabs.addTab(self.queue_widget, "Queue")
+        self.tabs.addTab(self.plot_widget, "Plot")
+        self.tabs.setCurrentIndex(2)  # start on queue tab
         self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
         box.addWidget(self.tabs)
         # vertical stretch
@@ -195,7 +182,6 @@ class MainWindow(QtWidgets.QMainWindow):
         from .hardware import spectrometers
         from .hardware import delays
         from .hardware.filters import filters
-        import pycmds._record
         import pycmds._sensors
 
     def _initialize_widgets(self):
@@ -203,6 +189,7 @@ class MainWindow(QtWidgets.QMainWindow):
             print("initialize widgets")
         # import widgets
         import pycmds.autonomic.coset
+        import pycmds._plot
 
     def _load_google_drive(self):
         g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))

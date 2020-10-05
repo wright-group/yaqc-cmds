@@ -45,13 +45,7 @@ class Driver(hw.Driver):
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
         self.set_zero(self.zero_position.read(self.motor_units))
-        self.recorded["_".join([self.name, "zero"])] = [
-            self.zero_position,
-            "mm",
-            0.001,
-            self.label.read(),
-            True,
-        ]
+        self.update_recorded()
 
     def initialize(self):
         # This should be unnecessary at some point, once everything is yaq

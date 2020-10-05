@@ -20,9 +20,10 @@ import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters.filters as filters
+from pycmds._sensors import sensors
+from pycmds.somatic import _wt5
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-import pycmds._record as record
 
 
 ### define ####################################################################
@@ -36,7 +37,6 @@ module_name = "SCAN"
 
 class Axis:
     def __init__(self, units_kind, axis_index):
-        print(filters.hardwares)
         self.units_kind = units_kind
         if self.units_kind == "energy":
             self.units = "wn"
@@ -110,10 +110,7 @@ class Constant:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        # get path
-        data_path = record.data_path.read()
-        # make data object
-        data = wt.data.from_PyCMDS(data_path, verbose=False)
+        data = _wt5.get_data_readonly().copy()
         # decide which channels to make plots for
         main_channel = self.aqn.read("processing", "main channel")
         if self.aqn.read("processing", "process all channels"):
@@ -121,10 +118,8 @@ class Worker(acquisition.Worker):
         else:
             channels = [main_channel]
         # make figures for each channel
-        data_path = pathlib.Path(data_path)
+        data_path = pathlib.Path(_wt5.data_filepath)
         data_folder = data_path.parent
-        file_name = data_path.stem
-        file_extension = data_path.suffix
         # make all images
         for channel_name in channels:
             channel_path = data_folder / channel_name
@@ -278,13 +273,14 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
+        channel_names = [l for s in sensors for l in s.channel_names]
         if (
             "main_channel" not in self.state.keys()
-            or self.state["main_channel"] not in record.control.channel_names
+            or self.state["main_channel"] not in channel_names
         ):
-            self.state["main_channel"] = record.control.channel_names[0]
+            self.state["main_channel"] = channel_names[0]
         self.channel_combo = pc.Combo(
-            allowed_values=record.control.channel_names, initial_value=self.state["main_channel"],
+            allowed_values=channel_names, initial_value=self.state["main_channel"],
         )
         self.channel_combo.updated.connect(self.save_state)
         input_table.add("Main Channel", self.channel_combo)
@@ -391,7 +387,7 @@ class GUI(acquisition.GUI):
         aqn.write("processing", "main channel", self.channel_combo.read())
         aqn.write("processing", "process all channels", self.process_all_channels.read())
         # allow devices to write settings
-        self.device_widget.save(aqn_path)
+        # self.device_widget.save(aqn_path)
 
     def save_state(self):
         self.state["main_channel"] = self.channel_combo.read()
