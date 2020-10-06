@@ -1,4 +1,4 @@
-### import ####################################################################
+## import ####################################################################
 
 
 import time
@@ -11,6 +11,7 @@ from PySide2 import QtWidgets
 
 import WrightTools as wt
 import attune
+import yaqc
 
 import pycmds.project.project_globals as g
 import pycmds.project.widgets as pw
@@ -42,7 +43,7 @@ class Driver(hw.Driver):
 
     def get_motor_positions(self):
         positions = self.client.get_setable_positions()
-        for k, v in self.motors.items():
+        for k, v in self.motor_positions.items():
             v.write(positions[k])
 
     def home_all(self, inputs=[]):
@@ -129,7 +130,7 @@ class GUI(hw.GUI):
         # plot control
         input_table = pw.InputTable()
         input_table.add("Display", None)
-        self.plot_motor = pc.Combo(allowed_values=self.driver.curve.dependent_names)
+        self.plot_motor = pc.Combo(allowed_values=self.driver.curve.setables.keys())
         self.plot_motor.updated.connect(self.update_plot)
         input_table.add("Motor", self.plot_motor)
         allowed_values = list(wt.units.energy.keys())
@@ -202,23 +203,23 @@ class GUI(hw.GUI):
         # units
         units = self.plot_units.read()
         # xi
-        colors = self.driver.curve.setpoints[:]
-        xi = wt.units.converter(colors, self.driver.curve.setpoints.units, units)
+        # colors = self.driver.curve.setpoints[:]
+        # xi = wt.units.converter(colors, self.driver.curve.setpoints.units, units)
         # yi
         self.plot_motor.set_allowed_values(
             list(self.driver.curve.setables.keys())
         )  # can be done on initialization?
         motor_name = self.plot_motor.read()
-        yi = self.driver.curve(xi, units)[motor_name]
+        # yi = self.driver.curve(xi, units)[motor_name]
         self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
         self.plot_curve.clear()
-        try:
-            self.plot_curve.setData(xi, yi)
-        except ValueError:
-            pass
+        # try:
+        #    self.plot_curve.setData(xi, yi)
+        # except ValueError:
+        #    pass
         self.plot_widget.graphics_layout.update()
         self.update()
-        self.plot_motor.set_allowed_values(self.driver.curve.dependent_names)
+        self.plot_motor.set_allowed_values(self.driver.curve.setables.keys())
 
     def on_curve_paths_updated(self):
         self.driver.load_curve()  # TODO: better
