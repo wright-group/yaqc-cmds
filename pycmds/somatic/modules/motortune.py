@@ -16,7 +16,7 @@ import pycmds.project.widgets as pw
 import somatic.acquisition as acquisition
 
 import pycmds.hardware.opas as opas
-import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.spectrometers as spectrometers
 import pycmds.devices.devices as devices
 
 

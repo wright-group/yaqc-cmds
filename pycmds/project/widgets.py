@@ -186,9 +186,7 @@ class InputTable(QtWidgets.QWidget):
             "custom_color", colors["heading_0"]
         )
         heading.setStyleSheet(StyleSheet)
-        heading.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self.layout().addWidget(heading, self.row_number, 0)
         self.controls.append(None)
         self.row_number += 1
@@ -200,9 +198,7 @@ class InputTable(QtWidgets.QWidget):
             "custom_color", colors["text_light"]
         )
         heading.setStyleSheet(StyleSheet)
-        heading.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self.layout().addWidget(heading, self.row_number, 0)
         # layout
         container_widget = QtWidgets.QWidget()
@@ -274,9 +270,7 @@ class InputTable(QtWidgets.QWidget):
     def string(self, name, global_object):
         # heading
         heading = QtWidgets.QLabel(name)
-        heading.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = "QLabel{color: custom_color; font: 14px;}".replace(
             "custom_color", colors["text_light"]
         )
@@ -314,9 +308,7 @@ class InputTable(QtWidgets.QWidget):
     def combo(self, name, global_object):
         # heading
         heading = QtWidgets.QLabel(name)
-        heading.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = "QLabel{color: custom_color; font: 14px;}".replace(
             "custom_color", colors["text_light"]
         )
@@ -366,9 +358,7 @@ class InputTable(QtWidgets.QWidget):
     def checkbox(self, name, global_object):
         # heading
         heading = QtWidgets.QLabel(name)
-        heading.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = "QLabel{color: custom_color; font: 14px;}".replace(
             "custom_color", colors["text_light"]
         )
@@ -388,9 +378,7 @@ class InputTable(QtWidgets.QWidget):
     def filepath(self, name, global_object):
         # heading
         heading = QtWidgets.QLabel(name)
-        heading.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
+        heading.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         StyleSheet = "QLabel{color: custom_color; font: 14px;}".replace(
             "custom_color", colors["text_light"]
         )
@@ -689,9 +677,7 @@ class HardwareFrontPanel(QtCore.QObject):
     def initialize(self):
         # will fire each time ANY hardware contained within finishes initialize
         # not ideal behavior, but good enough
-        for hardware, front_panel_elements in zip(
-            self.hardwares, self.front_panel_elements
-        ):
+        for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
             if hardware.initialized:
                 for current_object, destination_object in zip(
                     front_panel_elements[0], front_panel_elements[1]
@@ -716,22 +702,16 @@ class HardwareFrontPanel(QtCore.QObject):
                 dl[0].set_units(pl[0].units)
 
     def on_set(self):
-        for hardware, front_panel_elements in zip(
-            self.hardwares, self.front_panel_elements
-        ):
+        for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
             for current_object, destination_object in zip(
                 front_panel_elements[0], front_panel_elements[1]
             ):
                 if current_object.set_method == "set_position":
                     hardware.set_position(
-                        destination_object.read(),
-                        destination_object.units,
-                        force_send=True,
+                        destination_object.read(), destination_object.units, force_send=True,
                     )
                 else:
-                    hardware.q.push(
-                        current_object.set_method, [destination_object.read()]
-                    )
+                    hardware.q.push(current_object.set_method, [destination_object.read()])
         g.coset_control.read().launch()
 
     def stop(self):
@@ -759,9 +739,7 @@ class HardwareAdvancedPanel(QtCore.QObject):
         self.advanced_button = advanced_button
         self.advanced_button.clicked.connect(self.on_advanced)
         main_window = g.main_window.read()
-        self.advanced_button.clicked.connect(
-            lambda: main_window.tabs.setCurrentIndex(1)
-        )
+        self.advanced_button.clicked.connect(lambda: main_window.tabs.setCurrentIndex(0))
         hardware_advanced_panels.append(self)
         self.hide()
 
@@ -857,9 +835,7 @@ class Plot1D(pg.GraphicsView):
         self.plot_object.addItem(curve)
         return curve
 
-    def add_infinite_line(
-        self, color="y", style="solid", angle=90.0, movable=False, hide=True
-    ):
+    def add_infinite_line(self, color="y", style="solid", angle=90.0, movable=False, hide=True):
         """
         Add an InfiniteLine object.
 

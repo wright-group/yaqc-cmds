@@ -27,14 +27,15 @@ import WrightTools as wt
 
 import pycmds.project.project_globals as g
 
-import pycmds.hardware.spectrometers.spectrometers as spectrometers
+import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas as opas
 import pycmds.hardware.filters.filters as filters
+from pycmds._sensors import sensors
+
+from pycmds.somatic._wt5 import create_data, write_data, close_data
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-
-import pycmds._record as record
 
 from . import constant_resolver
 
@@ -83,7 +84,7 @@ class Constant:
 
 class Destinations:
     def __init__(self, arr, units, hardware, method, passed_args):
-        self.arr = arr
+        self.arr = arr  # full scan shape
         self.units = units
         self.hardware = hardware
         self.method = method
@@ -147,6 +148,7 @@ class Worker(QtCore.QObject):
 
     def process(self, scan_folder):
         # get path
+        return  # TODO:
         data_path = record.data_path.read()
         # make data object
         data = wt.data.from_PyCMDS(data_path, verbose=False)
@@ -274,55 +276,34 @@ class Worker(QtCore.QObject):
         self.fraction_complete.write(0.0)
         g.logger.log("info", "Scan begun", "")
         # put info into headers -----------------------------------------------
-        # clear values from previous scan
-        record.headers.clear()
-        # data info
-        record.headers.data_info["data name"] = self.aqn.read("info", "name")
-        record.headers.data_info["data info"] = self.aqn.read("info", "info")
-        record.headers.data_info["data origin"] = self.aqn.read("info", "module")
-        # axes (will be added onto in devices, potentially)
-        record.headers.axis_info["axis names"] = [a.name for a in axes]
-        record.headers.axis_info["axis identities"] = [a.identity for a in axes]
-        record.headers.axis_info["axis units"] = [a.units for a in axes]
-        record.headers.axis_info["axis interpolate"] = [False for a in axes]
-        for axis in axes:
-            record.headers.axis_info[axis.name + " points"] = axis.points
-            if axis.identity[0] == "D":
-                record.headers.axis_info[axis.name + " centers"] = axis.centers
-        # constants
-        record.headers.constant_info["constant names"] = [c.name for c in constants]
-        record.headers.constant_info["constant identities"] = [c.identity for c in constants]
         # create scan folder
-        scan_index_str = str(self.scan_index).zfill(3)
-        axis_names = str([str(a.name) for a in axes]).replace("'", "")
-        if multiple_scans:
-            scan_folder_name = " ".join([scan_index_str, axis_names, module_reserved]).rstrip()
-            scan_folder = os.path.join(self.folder, scan_folder_name)
-            os.mkdir(scan_folder)
-            self.scan_folders.append(scan_folder)
-        else:
-            scan_folder = str(self.folder)
-            self.scan_folders.append(self.folder)
+        scan_folder = str(self.folder)
+        self.scan_folders.append(self.folder)
         # create scan folder on google drive
         if g.google_drive_enabled.read():
             scan_url = g.google_drive_control.read().reserve_id(scan_folder)
             self.scan_urls.append(g.google_drive_control.read().id_to_open_url(scan_folder))
         else:
             self.scan_urls.append(None)
-        # add urls to headers
+        # create data
+        headers = dict()
+        headers["name"] = self.aqn.read("info", "name")
+        headers["data info"] = self.aqn.read("info", "info")
+        headers["data origin"] = self.aqn.read("info", "module")
         if g.google_drive_enabled.read():
-            record.headers.scan_info["queue url"] = self.queue_worker.queue_url
-            record.headers.scan_info["acquisition url"] = self.aqn.read("info", "url")
-            record.headers.scan_info["scan url"] = scan_url
-        # initialize devices
-        record.control.initialize_scan(self.aqn, scan_folder, destinations_list)
+            headers["queue url"] = self.queue_worker.queue_url
+            headers["acquisition url"] = self.aqn.read("info", "url")
+            headers["scan url"] = scan_url
+        path = scan_folder + os.sep + "data.wt5"
+        create_data(
+            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=sensors
+        )
         # acquire -------------------------------------------------------------
         self.fraction_complete.write(0.0)
         slice_index = 0
         npts = float(len(idxs))
         for i, idx in enumerate(idxs):
             idx = tuple(idx)
-            record.idx.write(idx)
             # launch hardware
             for d in destinations_list:
                 destination = d.arr[idx]
@@ -342,14 +323,17 @@ class Worker(QtCore.QObject):
             # slice
             if slice_index < len(slices):  # takes care of last slice
                 if slices[slice_index]["index"] == i:
-                    record.current_slice.index(slices[slice_index])
                     slice_index += 1
             # wait for hardware
             g.hardware_waits.wait()
-            # launch devices
-            record.control.acquire(save=True, index=idx)
-            # wait for devices
-            record.control.wait_until_done()
+            # launch sensors
+            for s in sensors:
+                s.measure()
+            # wait for sensors
+            for s in sensors:
+                s.wait_until_still()
+            # save
+            write_data(idx=idx, hardware=all_hardwares, sensors=sensors)
             # update
             self.fraction_complete.write(i / npts)
             self.update_ui.emit()
@@ -362,7 +346,7 @@ class Worker(QtCore.QObject):
                 self.stopped.write(True)
                 break
         # finish scan ---------------------------------------------------------
-        record.control.wait_until_file_done()
+        close_data()
         self.fraction_complete.write(1.0)
         self.going.write(False)
         g.queue_control.write(False)
@@ -419,6 +403,8 @@ class Worker(QtCore.QObject):
 
 
 class GUI(QtCore.QObject):
+    """Acquisition module gui."""
+
     def __init__(self, module_name):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
@@ -436,13 +422,11 @@ class GUI(QtCore.QObject):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.create_frame()  # add module-specific widgets to out layout
         # device widget
-        self.device_widget = record.Widget()
-        self.layout.addWidget(self.device_widget)
+        # self.device_widget = record.Widget()
+        # self.layout.addWidget(self.device_widget)
         # finish
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(self.layout)
-        # signals and slots
-        record.control.settings_updated.connect(self.on_sensor_settings_updated)
 
     def create_frame(self):
         layout = QtWidgets.QVBoxLayout()
