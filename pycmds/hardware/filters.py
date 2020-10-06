@@ -24,8 +24,6 @@ class Driver(hw.Driver):
         self.yaqd_host = kwargs.get("yaqd_host", "127.0.0.1")
         self.motor = yaqc.Client(self.yaqd_port, host=self.yaqd_host)
         self.motor_units = self.motor.get_units()
-        if self.motor_units == "deg":
-            self.motor_units = "deg"
         self.native_units = kwargs.get("native_units", "deg")
         self.native_per_motor = float(wt.units.convert(1, self.motor_units, self.native_units))
         hw.Driver.__init__(self, *args, **kwargs)
@@ -58,6 +56,10 @@ class Driver(hw.Driver):
         self.initialized.write(True)
         self.initialized_signal.emit()
         
+    def home(self):
+        self.motor.home()
+        self.wait_until_still()
+        
     def is_busy(self):
         return self.motor.busy()
         
@@ -84,8 +86,7 @@ class Driver(hw.Driver):
     def set_motor_position(self, motor_position):
         self.motor.set_position(motor_position)
         time.sleep(0.01)
-        while self.is_busy():
-            self.get_position()
+        self.wait_until_still()
         self.get_position()
         
     def set_position(self, destination):
