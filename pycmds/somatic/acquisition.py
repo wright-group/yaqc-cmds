@@ -30,7 +30,7 @@ import pycmds.project.project_globals as g
 import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.filters.filters as filters
+import pycmds.hardware.filters as filters
 from pycmds._sensors import sensors
 
 from pycmds.somatic._wt5 import create_data, write_data, close_data

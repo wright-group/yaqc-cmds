@@ -52,6 +52,10 @@ class Driver(hw.Driver):
         self.get_position()
         self.initialized.write(True)
         self.initialized_signal.emit()
+        
+    def home(self):
+        self.motor.home()
+        self.wait_until_still()
 
     def is_busy(self):
         return self.motor.busy()

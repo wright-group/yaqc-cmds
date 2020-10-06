@@ -19,7 +19,7 @@ import pycmds.somatic.acquisition as acquisition
 import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.filters.filters as filters
+import pycmds.hardware.filters as filters
 from pycmds._sensors import sensors
 from pycmds.somatic import _wt5
 
