@@ -36,6 +36,9 @@ class Driver(hw.Driver):
         self.get_motor_positions()
         self.get_position()
 
+    def is_busy(self):
+        return self.client.busy()
+
     def get_position(self):
         position = self.client.get_position()
         self.position.write(position, self.native_units)
@@ -46,17 +49,14 @@ class Driver(hw.Driver):
         for k, v in self.motor_positions.items():
             v.write(positions[k])
 
-    def home_all(self, inputs=[]):
+    def home_all(self, inputs=None):
         self.client.home()
 
     def home_motor(self, inputs):
-        # TODO: clean up for new inputs behavior
-        motor_name = inputs[0]
-        self._client.home([motor_name])
+        self.client.home_setables([inputs])
 
     def load_curve(self, path=None):
-        # update limits
-        self.limits.write(*self.client.get_limits(), self.native_units)
+        ...
 
     def set_motor(self, motor_name, destination, wait=True):
         self.client.set_setable_positions({motor_name: destination})
@@ -89,7 +89,19 @@ class Driver(hw.Driver):
         while self.is_busy():
             time.sleep(0.01)
             self.get_motor_positions()
+            self.get_position()
         self.get_motor_positions()
+        self.get_position()
+
+    def set_arrangement(self, arrangement):
+        self.client.set_arrangement(arrangement)
+        self.limits.write(*self.client.get_limits(), self.native_units)
+
+    def get_arrangement(self):
+        return self.client.get_arrangement()
+
+    def get_all_arrangements(self):
+        return self.client.get_all_arrangements()
 
 
 ### gui #######################################################################
@@ -97,6 +109,7 @@ class Driver(hw.Driver):
 
 class GUI(hw.GUI):
     def initialize(self):
+        arr = self.driver.get_arrangement()
         # self.hardware.driver.initialize()
         # container widget
         display_container_widget = QtWidgets.QWidget()
@@ -130,7 +143,7 @@ class GUI(hw.GUI):
         # plot control
         input_table = pw.InputTable()
         input_table.add("Display", None)
-        self.plot_motor = pc.Combo(allowed_values=self.driver.curve.setables.keys())
+        self.plot_motor = pc.Combo(allowed_values=self.driver.curve.arrangements[arr].keys())
         self.plot_motor.updated.connect(self.update_plot)
         input_table.add("Motor", self.plot_motor)
         allowed_values = list(wt.units.energy.keys())
@@ -143,8 +156,10 @@ class GUI(hw.GUI):
         # curves
         input_table = pw.InputTable()
         # input_table.add("Curves", None)
-        self.arrangment_combo = pc.Combo(allowed_values=["sig"])
-        input_table.add("Arrangement", self.arrangment_combo)
+        self.arrangement_combo = pc.Combo(allowed_values=self.driver.curve.arrangements.keys())
+        self.arrangement_combo.write(arr)
+        self.arrangement_combo.updated.connect(self.on_arrangement_updated)
+        input_table.add("Arrangement", self.arrangement_combo)
         # limits
         limits = pc.NumberLimits()  # units None
         self.low_energy_limit_display = pc.Number(
@@ -154,12 +169,12 @@ class GUI(hw.GUI):
         self.high_energy_limit_display = pc.Number(
             units=self.driver.native_units, display=True, limits=limits
         )
-        input_table.add("High Energy LImit", self.high_energy_limit_display)
+        input_table.add("High Energy Limit", self.high_energy_limit_display)
         settings_layout.addWidget(input_table)
         self.driver.limits.updated.connect(self.on_limits_updated)
         # motors
         input_table = pw.InputTable()
-        input_table.add("Tune", None)
+        input_table.add("Setable", None)
         settings_layout.addWidget(input_table)
         for motor_name, motor_mutex in self.driver.motor_positions.items():
             settings_layout.addWidget(MotorControlGUI(motor_name, motor_mutex, self.driver))
@@ -170,7 +185,7 @@ class GUI(hw.GUI):
         # stretch
         settings_layout.addStretch(1)
         # signals and slots
-        self.arrangment_combo.updated.connect(self.update_plot)
+        self.arrangement_combo.updated.connect(self.update_plot)
         self.driver.update_ui.connect(self.update)
         # finish
         self.update()
@@ -200,26 +215,24 @@ class GUI(hw.GUI):
         self.plot_v_line.setValue(self.driver.position.read(units))
 
     def update_plot(self):
+        arr = self.arrangement_combo.read()
+        motor_name = self.plot_motor.read()
+        tune = self.driver.curve.arrangements[arr][motor_name]
         # units
         units = self.plot_units.read()
         # xi
-        # colors = self.driver.curve.setpoints[:]
-        # xi = wt.units.converter(colors, self.driver.curve.setpoints.units, units)
+        colors = tune.independent
+        xi = wt.units.converter(colors, tune.ind_units, units)
         # yi
-        self.plot_motor.set_allowed_values(
-            list(self.driver.curve.setables.keys())
-        )  # can be done on initialization?
-        motor_name = self.plot_motor.read()
-        # yi = self.driver.curve(xi, units)[motor_name]
+        yi = tune.dependent
         self.plot_widget.set_labels(xlabel=units, ylabel=motor_name)
         self.plot_curve.clear()
-        # try:
-        #    self.plot_curve.setData(xi, yi)
-        # except ValueError:
-        #    pass
+        try:
+            self.plot_curve.setData(xi, yi)
+        except ValueError:
+            pass
         self.plot_widget.graphics_layout.update()
         self.update()
-        self.plot_motor.set_allowed_values(self.driver.curve.setables.keys())
 
     def on_curve_paths_updated(self):
         self.driver.load_curve()  # TODO: better
@@ -232,6 +245,12 @@ class GUI(hw.GUI):
         low_energy_limit, high_energy_limit = self.driver.limits.read("wn")
         self.low_energy_limit_display.write(low_energy_limit, "wn")
         self.high_energy_limit_display.write(high_energy_limit, "wn")
+
+    def on_arrangement_updated(self):
+        arr = self.arrangement_combo.read()
+        self.driver.set_arrangement(arr)
+        self.plot_motor.set_allowed_values(self.driver.curve.arrangements[arr].keys())
+        update()
 
 
 class MotorControlGUI(QtWidgets.QWidget):
@@ -288,7 +307,7 @@ class MotorControlGUI(QtWidgets.QWidget):
         return [button1, button2]
 
     def on_home(self):
-        self.driver.hardware.q.push("home_motor", [self.motor_name])
+        self.hardware.home_motor(self.motor_name)
 
     def on_set(self):
         destination = self.destination.read()
@@ -308,9 +327,6 @@ class Hardware(hw.Hardware):
         return self.driver.curve
 
     def home_motor(self, motor):
-        """
-        motor list [name]
-        """
         self.q.push("home_motor", motor)
 
     def load_curve(self, name, path):
