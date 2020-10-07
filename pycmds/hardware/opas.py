@@ -31,6 +31,12 @@ class Driver(hw.Driver):
             k: pc.Number(name=k, decimals=6, display=True) for k in self.client.get_setable_names()
         }
         hw.Driver.__init__(self, *args, **kwargs)
+        self.shutter_port = kwargs.get("shutter_yaqd_port")
+        if self.shutter_port:
+            self.shutter_position = pc.Bool(name="Shutter", display=True, set_method="set_shutter")
+            self.shutter = yaqc.Client(self.shutter_port)
+            self.shutter.set_identifier("closed")
+            self.exposed += [self.shutter_position]
         self.curve = attune.Instrument(**self.client.get_instrument())
         self.load_curve()
         self.get_motor_positions()
@@ -50,13 +56,26 @@ class Driver(hw.Driver):
             v.write(positions[k])
 
     def home_all(self, inputs=None):
+        if self.shutter_port:
+            self.set_shutter([0])
         self.client.home()
 
     def home_motor(self, inputs):
+        if self.shutter_port:
+            self.set_shutter([0])
         self.client.home_setables([inputs])
 
     def load_curve(self, path=None):
-        ...
+        self.recorded[self.name] = [
+            self.position,
+            self.native_units,
+            None,
+            self.label.read(),
+            None,
+        ]
+        for name, sa in self.motor_positions.items():
+            self.recorded[f"{self.name}_{name}"] = [sa, None, None, name.lower(), None]
+        self.set_arrangement(self.get_arrangement())
 
     def set_motor(self, motor_name, destination, wait=True):
         self.client.set_setable_positions({motor_name: destination})
@@ -102,6 +121,16 @@ class Driver(hw.Driver):
 
     def get_all_arrangements(self):
         return self.client.get_all_arrangements()
+
+    def set_shutter(self, inputs):
+        shutter_state = inputs[0]
+        error = self.shutter.set_position(shutter_state)
+        self.shutter_position.write(shutter_state)
+        return error
+
+    def close(self):
+        if self.shutter_port:
+            self.set_shutter([0])
 
 
 ### gui #######################################################################
