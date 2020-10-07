@@ -22,7 +22,7 @@ import pycmds.project.project_globals as g
 import pycmds.hardware.opas as opas
 import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
-import pycmds.hardware.filters.filters as filters
+import pycmds.hardware.filters as filters
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
