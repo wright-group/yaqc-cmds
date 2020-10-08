@@ -1,3 +1,5 @@
+__all__ = ["colors", "set_style"]
+
 from PySide2 import QtWidgets
 from . import project_globals as g
 
@@ -57,7 +59,9 @@ def set_style():
     StyleSheet += "QScrollArea::QWidget::QWidget{backround: transparent;}"
 
     # group box
-    StyleSheet += "QGroupBox{border: 2px solid gray; font: bold 14px; margin-top: 0ex; border-radius: 0 px;}"
+    StyleSheet += (
+        "QGroupBox{border: 2px solid gray; font: bold 14px; margin-top: 0ex; border-radius: 0 px;}"
+    )
     StyleSheet += "QGroupBox::title{subcontrol-origin: margin; padding: 0 0px}"
 
     app = g.app.read()

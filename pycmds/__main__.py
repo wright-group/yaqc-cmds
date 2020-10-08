@@ -22,7 +22,8 @@ def main(ctx):
 
 @main.command()
 def launch():
-    from ._main_window import app, MainWindow, style
+    from ._main_window import app, MainWindow
+    from .project import style
 
     global window
     window = MainWindow()

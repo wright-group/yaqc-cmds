@@ -49,20 +49,20 @@ class Driver(hw.Driver):
             self.label.read(),
             True,
         ]
-        
+
     def initialize(self):
         # This should be unnecessary at some point, once everything is yaq
         self.get_position()
         self.initialized.write(True)
         self.initialized_signal.emit()
-        
+
     def home(self):
         self.motor.home()
         self.wait_until_still()
-        
+
     def is_busy(self):
         return self.motor.busy()
-        
+
     def get_position(self):
         position = self.motor.get_position()
         self.motor_position.write(position)
@@ -78,23 +78,23 @@ class Driver(hw.Driver):
         state = super().get_state()
         state["zero_position"] = float(self.zero_position.read(self.motor_units))
         return state
-    
+
     def load_state(self, state):
         super().load_state(state)
         self.hardware.zero_position.write(state.get("zero_position", 0))
-        
+
     def set_motor_position(self, motor_position):
         self.motor.set_position(motor_position)
         time.sleep(0.01)
         self.wait_until_still()
         self.get_position()
-        
+
     def set_position(self, destination):
         destination_motor = self.zero_position.read(self.motor_units) + destination / (
             self.native_per_motor * self.factor.read()
         )
         self.set_motor_position(destination_motor)
-        
+
     def set_offset(self, offset):
         # update zero
         offset_from_here = offset - self.offset.read(self.native_units)
@@ -105,7 +105,7 @@ class Driver(hw.Driver):
         # return to old position
         destination = self.hardware.destination.read(self.native_units)
         self.set_position(destination)
-        
+
     def update_recorded(self):
         self.recorded.clear()
         self.recorded[self.name] = [
@@ -137,7 +137,8 @@ class Driver(hw.Driver):
         max_ = (motor_max - new_zero) * self.native_per_motor * self.factor.read()
         self.limits.write(min_, max_, self.native_units)
         self.get_position()
-        
+
+
 # --- gui -----------------------------------------------------------------------------------------
 
 
@@ -175,7 +176,6 @@ class GUI(hw.GUI):
         # horizontal line
         self.scroll_layout.addWidget(pw.line("H"))
         # home button
-        input_table = pw.InputTable()
         self.home_button = pw.SetButton("HOME", "advanced")
         self.scroll_layout.addWidget(self.home_button)
         self.home_button.clicked.connect(self.on_home)
@@ -184,14 +184,14 @@ class GUI(hw.GUI):
         self.scroll_layout.addStretch(1)
         self.layout.addStretch(1)
         self.hardware.update_ui.connect(self.update)
-        
+
     def on_home(self):
         self.driver.hardware.q.push("home")
-        
+
     def on_set_motor(self):
         new_deg = self.motor_destination.read("deg")
         self.hardware.set_motor_position(new_deg, units="deg")
-        
+
     def on_set_zero(self):
         new_zero = self.zero_destination.read("deg")
         print("on_set_new_zero", new_zero)
@@ -201,10 +201,11 @@ class GUI(hw.GUI):
         g.coset_control.read().zero(name)
         self.driver.get_position()
         self.driver.save_status()
-        
+
     def update(self):
         pass
-    
+
+
 # --- hardware ------------------------------------------------------------------------------------
 
 
@@ -217,11 +218,12 @@ class Hardware(hw.Hardware):
         self.zero_position = pc.Number(display=True, units="deg", limits=self.motor_limits)
         hw.Hardware.__init__(self, *arks, **kwargs)
         self.label = pc.String(self.name, display=True)
-        
+
     def set_motor_position(self, motor_position, units="deg"):
         # TODO: should probably support 'motor native units'
         self.q.push("set_motor_position", motor_position)
-        
+
+
 # --- import --------------------------------------------------------------------------------------
 
 

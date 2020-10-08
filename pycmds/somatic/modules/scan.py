@@ -50,6 +50,8 @@ class Axis:
             self.units = "deg"
             initial_start = 0.0
             initial_stop = 360.0
+        else:
+            raise ValueError(f"unexpected units kind: {self.units_kind}")
         self.widget = pw.InputTable()
         self.widget.add(str(axis_index) + " (" + self.units_kind + ")", None)
         # start
