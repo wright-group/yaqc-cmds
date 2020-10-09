@@ -52,7 +52,7 @@ class Driver(hw.Driver):
         self.get_position()
         self.initialized.write(True)
         self.initialized_signal.emit()
-        
+
     def home(self):
         self.motor.home()
         self.wait_until_still()
@@ -174,7 +174,6 @@ class GUI(hw.GUI):
         # horizontal line
         self.scroll_layout.addWidget(pw.line("H"))
         # home button
-        input_table = pw.InputTable()
         self.home_button = pw.SetButton("HOME", "advanced")
         self.scroll_layout.addWidget(self.home_button)
         self.home_button.clicked.connect(self.on_home)

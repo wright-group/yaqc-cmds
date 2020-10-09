@@ -16,12 +16,6 @@ class SimpleGlobal:
         self.value = value
 
 
-### order sensitive globals  ##################################################
-
-
-import pycmds.project.ini_handler as ini
-
-
 debug = SimpleGlobal(False)
 
 

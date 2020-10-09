@@ -1271,7 +1271,6 @@ class GUI(QtCore.QObject):
         if self.queue:
             queue_go = self.queue_status.go.read()
             queue_going = self.queue_status.going.read()
-            queue_has_items = not len(self.queue.items) == 0
             # queue control
             self.queue_control.setDisabled(False)
             if queue_go:

@@ -24,10 +24,7 @@ g.logger.load()
 
 g.logger.log("info", "Startup", "PyCMDS is attempting startup")
 
-from .project import style
 from .project import widgets as pw
-from .project import classes as pc
-from .project import file_dialog_handler
 
 from .hardware.hardware import all_initialized
 
