@@ -14,6 +14,7 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 import yaqc
 
+import pycmds
 import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 
@@ -148,6 +149,8 @@ class Driver(pc.Driver):
 
     def initialize(self):
         self.measure()
+        pycmds.sensors.signals.sensors_changed.emit()
+        pycmds.sensors.signals.channels_changed.emit()
 
     def loop(self):
         while self.freerun.read() and not self.enqueued.read():
@@ -209,18 +212,4 @@ class Widget(QtWidgets.QWidget):
         ini.write("virtual", "use", self.use.read())
 
 
-sensors = []
-for section in config["sensors"].keys():
-    if section == "settings":
-        continue
-    if config["sensors"][section]["enable"]:
-        # collect arguments
-        kwargs = collections.OrderedDict()
-        for option in config["sensors"][section].keys():
-            if option in ["enable", "model", "serial", "path", "__name__"]:
-                continue
-            else:
-                kwargs[option] = config["sensors"][section][option]
-        sensor = Sensor(Driver, kwargs, None, Widget=SensorWidget, name=section, model="Virtual",)
-        sensors.append(sensor)
-        sensor.initialize()
+

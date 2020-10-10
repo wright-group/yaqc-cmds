@@ -179,7 +179,7 @@ class MainWindow(QtWidgets.QMainWindow):
         from .hardware import spectrometers
         from .hardware import delays
         from .hardware import filters
-        import pycmds._sensors
+        import pycmds.sensors
 
     def _initialize_widgets(self):
         if g.debug.read():
