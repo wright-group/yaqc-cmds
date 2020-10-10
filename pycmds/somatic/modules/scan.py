@@ -16,11 +16,11 @@ import pycmds.project.classes as pc
 import pycmds.project.widgets as pw
 import pycmds.somatic.acquisition as acquisition
 
+import pycmds
 import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters as filters
-from pycmds._sensors import sensors
 from pycmds.somatic import _wt5
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
@@ -275,7 +275,7 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
-        channel_names = [l for s in sensors for l in s.channel_names]
+        channel_names = list(pycmds.sensors.get_channels_dict().keys())
         if (
             "main_channel" not in self.state.keys()
             or self.state["main_channel"] not in channel_names
@@ -336,7 +336,7 @@ class GUI(acquisition.GUI):
             pass  # TODO: log warning or something
         self.process_all_channels.write(aqn.read("processing", "process all channels"))
         # allow record to load settings
-        self.device_widget.load(aqn_path)
+        #self.device_widget.load(aqn_path)
 
     def on_device_settings_updated(self):
         self.channel_combo.set_allowed_values(record.control.channel_names)

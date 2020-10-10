@@ -7,9 +7,12 @@ import h5py
 import WrightTools as wt
 
 import pycmds.project.project_globals as g
+import pycmds.somatic as somatic
+
 
 data = None
 data_filepath = None
+last_idx_written = None
 
 
 def create_data(path, headers, destinations, axes, constants, hardware, sensors):
@@ -72,11 +75,9 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
             # TODO: channel units?
             channel_units[ch] = None
 
-    print(variable_units)
     for var, sh in variable_shapes.items():
         units = variable_units[var]
         label = variable_labels.get(var)
-        print(f"{units}, {label}")
         if label:
             data.create_variable(var, shape=sh, units=units, label=label)
         else:
@@ -96,11 +97,13 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
 
     f.swmr_mode = True
     f.flush()
+    somatic.signals.data_file_created.emit()
 
 
 def get_data_readonly():
-    f = h5py.File(data_filepath, "r", libver="latest", swmr=True)
-    return wt.Data(f)
+    if data_filepath is not None:
+        f = h5py.File(data_filepath, "r", libver="latest", swmr=True)
+        return wt.Data(f)
 
 
 def close_data():
@@ -115,3 +118,7 @@ def write_data(idx, hardware, sensors):
     for s in sensors:
         for ch, val in s.channels.items():
             data[ch][idx] = val
+    data.flush()
+    global last_idx_written
+    last_idx_written = idx
+    somatic.signals.data_file_written.emit()

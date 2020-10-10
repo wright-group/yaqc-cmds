@@ -27,11 +27,11 @@ import WrightTools as wt
 
 import pycmds.project.project_globals as g
 
+import pycmds
 import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters as filters
-from pycmds._sensors import sensors
 
 from pycmds.somatic._wt5 import create_data, write_data, close_data
 
@@ -296,7 +296,7 @@ class Worker(QtCore.QObject):
             headers["scan url"] = scan_url
         path = scan_folder + os.sep + "data.wt5"
         create_data(
-            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=sensors
+            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=pycmds.sensors.sensors
         )
         # acquire -------------------------------------------------------------
         self.fraction_complete.write(0.0)
@@ -327,13 +327,13 @@ class Worker(QtCore.QObject):
             # wait for hardware
             g.hardware_waits.wait()
             # launch sensors
-            for s in sensors:
+            for s in pycmds.sensors.sensors:
                 s.measure()
             # wait for sensors
-            for s in sensors:
+            for s in pycmds.sensors.sensors:
                 s.wait_until_still()
             # save
-            write_data(idx=idx, hardware=all_hardwares, sensors=sensors)
+            write_data(idx=idx, hardware=all_hardwares, sensors=pycmds.sensors.sensors)
             # update
             self.fraction_complete.write(i / npts)
             self.update_ui.emit()

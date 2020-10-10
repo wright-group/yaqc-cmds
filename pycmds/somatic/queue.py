@@ -26,6 +26,7 @@ import pycmds.hardware.spectrometers as spectrometers
 import pycmds.hardware.delays as delays
 import pycmds.hardware.opas.opas as opas
 import pycmds.hardware.filters as filters
+import pycmds.somatic as somatic
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -161,6 +162,7 @@ class Worker(QtCore.QObject):
         # the queue should only be adding items to execute
         item = args[0]
         g.queue_control.write(True)
+        somatic.signals.queue_taking_control.emit()
         self.queue_status.going.write(True)
         self.fraction_complete.write(0.0)
         item.started = wt.kit.TimeStamp()
@@ -178,6 +180,7 @@ class Worker(QtCore.QObject):
         self.fraction_complete.write(1.0)
         self.queue_status.going.write(False)
         g.queue_control.write(False)
+        somatic.signals.queue_relinquishing_control.emit()
         self.action_complete.emit()
         # remove item from enqueued
         self.enqueued.pop()
