@@ -3,6 +3,7 @@
 
 import appdirs
 import pathlib
+import time
 
 import collections
 
@@ -132,7 +133,6 @@ class Sensor(pc.Hardware):
 
 class Driver(pc.Driver):
     settings_updated = QtCore.Signal()
-    running = False
 
     def __init__(self, sensor, yaqd_port):
         super().__init__()
