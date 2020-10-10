@@ -409,7 +409,7 @@ class GUI(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
         self.state_path = (
-            pathlib.Path(appdirs.user_data_dir("yaqc_cmds", "yaqc_cmds"))
+            pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds"))
             / "modules"
             / f"{self.module_name.lower()}.toml"
         )

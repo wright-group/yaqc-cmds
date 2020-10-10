@@ -46,7 +46,7 @@ class Driver(pc.Driver):
         self.label = pc.String(kwargs["label"], display=True)
         self.native_units = kwargs["native_units"]
         self.state_filepath = (
-            pathlib.Path(appdirs.user_data_dir("yaqc_cmds", "yaqc_cmds"))
+            pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds"))
             / "hardware"
             / f"{self.name}-state.toml"
         )

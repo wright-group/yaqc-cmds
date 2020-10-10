@@ -26,7 +26,7 @@ import yaqc_cmds.hardware.filters as filters
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
-ini_path = pathlib.Path(appdirs.user_data_dir("yaqc_cmds", "yaqc_cmds")) / "coset.ini"
+ini_path = pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds")) / "coset.ini"
 ini = ini_handler.Ini(ini_path)
 ini.return_raw = True
 
