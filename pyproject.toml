@@ -3,7 +3,7 @@ requires = ["flit_core >=2,<4"]
 build-backend = "flit_core.buildapi"
 
 [tool.flit.metadata]
-module = "pycmds"
+module = "yaqc-cmds"
 author = "Blaise Thompson"
 author-email = "blaise@untzag.com"
 home-page = "https://github.com/wright-group/PyCMDS"
@@ -21,13 +21,12 @@ requires = ["appdirs",
 	    "slacker",
 	    "sympy",
 	    "toml",
-	    "tidy_headers>=1.0.0",
 	    "wrighttools",
 	    "yaqc",
 	    ]
 
 [tool.flit.scripts]
-pycmds = "pycmds.__main__:main"
+yac-cmds = "yaqc_cmds.__main__:main"
 
 [tool.black]
 line-length = 99
