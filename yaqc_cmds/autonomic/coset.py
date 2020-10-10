@@ -19,7 +19,7 @@ import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.project_globals as g
 
 # hardwares (also ensure present in GUI)
-import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.hardware.delays as delays
 import yaqc_cmds.hardware.filters as filters

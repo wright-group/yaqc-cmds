@@ -5,7 +5,7 @@ import WrightTools as wt
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 import somatic.acquisition as acquisition
-import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.opas as opas
 
 
 ### define ####################################################################

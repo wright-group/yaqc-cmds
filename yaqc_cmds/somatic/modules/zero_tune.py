@@ -20,7 +20,7 @@ from yaqc_cmds.somatic.modules.scan import Constant
 
 import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.hardware.delays as delays
-import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.filters.filters as filters
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares

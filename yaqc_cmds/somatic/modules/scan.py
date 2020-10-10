@@ -19,7 +19,7 @@ import yaqc_cmds.somatic.acquisition as acquisition
 import yaqc_cmds
 import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.hardware.delays as delays
-import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.filters as filters
 from yaqc_cmds.somatic import _wt5
 

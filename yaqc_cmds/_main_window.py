@@ -175,7 +175,7 @@ class MainWindow(QtWidgets.QMainWindow):
             print("initialize hardware")
         # import
         from . import hardware
-        from .hardware.opas import opas
+        from .hardware import opas
         from .hardware import spectrometers
         from .hardware import delays
         from .hardware import filters

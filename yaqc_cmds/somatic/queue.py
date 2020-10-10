@@ -24,7 +24,7 @@ import yaqc_cmds.project.file_dialog_handler as file_dialog_handler
 
 import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.hardware.delays as delays
-import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.filters as filters
 import yaqc_cmds.somatic as somatic
 
