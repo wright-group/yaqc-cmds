@@ -10,10 +10,10 @@ import toml
 import WrightTools as wt
 import yaqc
 
-import pycmds.project.project_globals as g
-import pycmds.project.widgets as pw
-import pycmds.project.classes as pc
-import pycmds.hardware.hardware as hw
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.hardware.hardware as hw
 
 
 # --- driver --------------------------------------------------------------------------------------
@@ -225,7 +225,7 @@ class Hardware(hw.Hardware):
 # --- import --------------------------------------------------------------------------------------
 
 
-conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
     conf.get("hardware", {}).get("delays", {}),

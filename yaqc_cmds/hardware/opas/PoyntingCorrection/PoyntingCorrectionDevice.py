@@ -4,8 +4,8 @@
 import time
 import collections
 
-import pycmds.project.classes as pc
-import pycmds.project.project_globals as g
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.project_globals as g
 
 
 ### driver ####################################################################

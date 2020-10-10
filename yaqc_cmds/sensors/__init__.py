@@ -8,7 +8,7 @@ from ._sensors import Sensor, Driver, SensorWidget
 
 
 sensors = []
-config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+config = toml.load(pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
 for section in config["sensors"].keys():
     if section == "settings":
         continue
@@ -33,4 +33,3 @@ def get_channels_dict():
     if not channels:
         raise Exception("you must have at least one sensor with channels to run yaqc-cmds")
     return channels
-

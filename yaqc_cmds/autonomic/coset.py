@@ -12,21 +12,21 @@ from PySide2 import QtWidgets, QtCore
 import WrightTools as wt
 import attune
 
-import pycmds.project.ini_handler as ini_handler
-import pycmds.project.file_dialog_handler as file_dialog_handler
-import pycmds.project.classes as pc
-import pycmds.project.widgets as pw
-import pycmds.project.project_globals as g
+import yaqc_cmds.project.ini_handler as ini_handler
+import yaqc_cmds.project.file_dialog_handler as file_dialog_handler
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.project.project_globals as g
 
 # hardwares (also ensure present in GUI)
-import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.spectrometers as spectrometers
-import pycmds.hardware.delays as delays
-import pycmds.hardware.filters as filters
+import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.spectrometers as spectrometers
+import yaqc_cmds.hardware.delays as delays
+import yaqc_cmds.hardware.filters as filters
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
-ini_path = pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds")) / "coset.ini"
+ini_path = pathlib.Path(appdirs.user_data_dir("yaqc_cmds", "yaqc_cmds")) / "coset.ini"
 ini = ini_handler.Ini(ini_path)
 ini.return_raw = True
 
@@ -54,7 +54,7 @@ for section in all_hardware_names:
 class CoSetHW:
     def __init__(self, hardware):
         self.hardware = hardware
-        self.curves_directory = pathlib.Path().home() / "pycmds-curves"
+        self.curves_directory = pathlib.Path().home() / "yaqc_cmds-curves"
         # directly write stored offset to hardware
         stored_offset = float(ini.read(self.hardware.name, "offset"))
         self.hardware.offset.write(stored_offset)

@@ -3,9 +3,9 @@
 
 import time
 
-import pycmds.library.zaber.binary as zb
-import pycmds.project.classes as pc
-from pycmds.hardware.opas.PoyntingCorrection.PoyntingCorrectionDevice import PoyntingCorrectionDevice
+import yaqc_cmds.library.zaber.binary as zb
+import yaqc_cmds.project.classes as pc
+from yaqc_cmds.hardware.opas.PoyntingCorrection.PoyntingCorrectionDevice import PoyntingCorrectionDevice
 
 
 ### define ####################################################################

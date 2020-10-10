@@ -12,8 +12,8 @@ import time
 from PySide2 import QtCore
 from PySide2 import QtWidgets
 
-from pycmds.project import project_globals as g
-from pycmds.project import classes as pc
+from yaqc_cmds.project import project_globals as g
+from yaqc_cmds.project import classes as pc
 
 
 ### FileDialog object #########################################################

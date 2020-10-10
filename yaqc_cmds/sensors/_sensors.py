@@ -14,12 +14,12 @@ from PySide2 import QtCore, QtWidgets
 import WrightTools as wt
 import yaqc
 
-import pycmds
-import pycmds.project.classes as pc
-import pycmds.project.widgets as pw
+import yaqc_cmds
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
 
 
-config = toml.load(pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+config = toml.load(pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
 
 
 class Data(QtCore.QMutex):
@@ -149,8 +149,8 @@ class Driver(pc.Driver):
 
     def initialize(self):
         self.measure()
-        pycmds.sensors.signals.sensors_changed.emit()
-        pycmds.sensors.signals.channels_changed.emit()
+        yaqc_cmds.sensors.signals.sensors_changed.emit()
+        yaqc_cmds.sensors.signals.channels_changed.emit()
 
     def loop(self):
         while self.freerun.read() and not self.enqueued.read():
@@ -210,6 +210,3 @@ class Widget(QtWidgets.QWidget):
         ini = wt.kit.INI(aqn_path)
         ini.add_section("virtual")
         ini.write("virtual", "use", self.use.read())
-
-
-

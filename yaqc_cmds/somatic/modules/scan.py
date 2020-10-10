@@ -11,17 +11,17 @@ matplotlib.pyplot.ioff()
 from PySide2 import QtWidgets
 import WrightTools as wt
 
-import pycmds.project.project_globals as g
-import pycmds.project.classes as pc
-import pycmds.project.widgets as pw
-import pycmds.somatic.acquisition as acquisition
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.somatic.acquisition as acquisition
 
-import pycmds
-import pycmds.hardware.spectrometers as spectrometers
-import pycmds.hardware.delays as delays
-import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.filters as filters
-from pycmds.somatic import _wt5
+import yaqc_cmds
+import yaqc_cmds.hardware.spectrometers as spectrometers
+import yaqc_cmds.hardware.delays as delays
+import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.filters as filters
+from yaqc_cmds.somatic import _wt5
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -275,7 +275,7 @@ class GUI(acquisition.GUI):
         # processing
         input_table = pw.InputTable()
         input_table.add("Processing", None)
-        channel_names = list(pycmds.sensors.get_channels_dict().keys())
+        channel_names = list(yaqc_cmds.sensors.get_channels_dict().keys())
         if (
             "main_channel" not in self.state.keys()
             or self.state["main_channel"] not in channel_names

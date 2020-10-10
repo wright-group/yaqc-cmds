@@ -2,10 +2,10 @@
 
 import WrightTools as wt
 
-import pycmds.project.classes as pc
-import pycmds.project.widgets as pw
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
 import somatic.acquisition as acquisition
-import pycmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.opas.opas as opas
 
 
 ### define ####################################################################

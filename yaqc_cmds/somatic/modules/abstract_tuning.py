@@ -6,19 +6,19 @@ import WrightTools as wt
 
 import somatic.acquisition as acquisition
 
-import pycmds.project.widgets as pw
-import pycmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.project.classes as pc
 
-import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.spectrometers as spectrometers
-import pycmds.devices.devices as devices
+import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.spectrometers as spectrometers
+import yaqc_cmds.devices.devices as devices
 
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
         config = self.config_dictionary
         data_path = wt.kit.glob_handler(".data", folder=str(scan_folder))[0]
-        data = wt.data.from_PyCMDS(data_path)
+        data = wt.data.from_Yaqc_cmds(data_path)
         kwargs = {k.lower(): v for k, v in config["Processing"].items()}
         apply_ = kwargs.pop("apply")
         old_path = self.curve.save(scan_folder, plot=False)

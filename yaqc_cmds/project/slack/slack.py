@@ -1,4 +1,4 @@
-# Slacker implementation for pyCMDS
+# Slacker implementation for yaqc_cmds
 
 
 import os
@@ -11,9 +11,9 @@ import toml
 
 from PySide2 import QtGui, QtCore
 
-import pycmds.project.classes as pc
-import pycmds.project.logging_handler as logging_handler
-import pycmds.project.project_globals as g
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.logging_handler as logging_handler
+import yaqc_cmds.project.project_globals as g
 from . import bots
 
 
@@ -127,7 +127,7 @@ class Control:
     def __init__(self):
         self.most_recent_delete = time.time()
         self.config = toml.load(
-            pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+            pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
         )
         # create control containers
         self.busy = pc.Busy()
@@ -239,7 +239,7 @@ class Control:
         # get files
         folder_names = self._get_data_folders()
         if len(folder_names) == 0:
-            self.send_message("PyCMDS currently has no data")
+            self.send_message("yaqc_cmds currently has no data")
             return
         num_folders = len(folder_names)
         if len(folder_names) < number:
@@ -339,7 +339,7 @@ class Control:
     def send_help(self, channel):
         command_fields = []
         command_fields.append(
-            self.make_field("status [--full]", "Get the current status of PyCMDS.")
+            self.make_field("status [--full]", "Get the current status of yaqc_cmds.")
         )
         # command_fields.append(self.make_field('remove i', 'Remove the ith item from the queue.'))
         # command_fields.append(self.make_field('move i to j', 'Move item i to position j. All other items retain their order.'))

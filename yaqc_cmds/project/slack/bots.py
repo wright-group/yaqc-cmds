@@ -1,4 +1,4 @@
-# Slack implementation for pyCMDS
+# Slack implementation for yaqc_cmds
 
 import sys
 import time
@@ -10,12 +10,12 @@ import toml
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot
 
-config = toml.load(pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml")
+config = toml.load(pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]
 
 
-class PyCMDS_bot(object):
+class Bot(object):
     def __init__(self, token):
         self.slacker = Slacker(token)
         self.rtmbot = RtmBot(token)
@@ -159,11 +159,11 @@ class PyCMDS_bot(object):
             return False
 
     def sign_off(self):
-        "Use to signal that PyCMDS is shutting down."
+        "Use to signal that yaqc_cmds is shutting down."
         self.send_message("Picosecond system signing off.")
 
 
-witch = PyCMDS_bot(witch_token)
+witch = Bot(witch_token)
 """
 g = []
 for i in range(100):

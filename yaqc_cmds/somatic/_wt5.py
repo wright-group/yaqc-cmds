@@ -6,8 +6,8 @@ import time
 import h5py
 import WrightTools as wt
 
-import pycmds.project.project_globals as g
-import pycmds.somatic as somatic
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.somatic as somatic
 
 
 data = None
@@ -24,15 +24,15 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         Full path to new file.
     headers : dictionary
         Metadata
-    destinations : list of pycmds.acquisition.Destination objects
+    destinations : list of yaqc_cmds.acquisition.Destination objects
         New scan destinations.
-    axes : list of pycmds.acqusition.Axis objects
+    axes : list of yaqc_cmds.acqusition.Axis objects
         New scan axes.
-    constants : list of pycmds.acquisition.Constant objects
+    constants : list of yaqc_cmds.acquisition.Constant objects
         New scan constants.
-    hardware: list of pycmds.hardware.Hardware objects
+    hardware: list of yaqc_cmds.hardware.Hardware objects
         all active hardware
-    sensors: list of pycmds._sensors.Sensor objects
+    sensors: list of yaqc_cmds._sensors.Sensor objects
         all active sensors
     """
     f = h5py.File(path, "w", libver="latest")
@@ -40,8 +40,8 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     data = wt.Data(f, name=headers["name"])
     data_filepath = path
 
-    # fill out pycmds_information in headers
-    headers["PyCMDS version"] = g.version.read()
+    # fill out yaqc_cmds_information in headers
+    headers["Yaqc_cmds version"] = g.version.read()
     headers["system name"] = g.system_name.read()
 
     data.attrs.update(headers)

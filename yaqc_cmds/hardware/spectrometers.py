@@ -1,8 +1,8 @@
 ### import ####################################################################
 
 
-import pycmds.project.classes as pc
-import pycmds.hardware.hardware as hw
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.hardware.hardware as hw
 import pathlib
 import appdirs
 import toml
@@ -82,7 +82,7 @@ class Hardware(hw.Hardware):
 ### import ####################################################################
 
 
-conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
     conf.get("hardware", {}).get("spectrometers", {}),

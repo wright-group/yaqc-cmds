@@ -20,9 +20,9 @@ import toml
 
 import WrightTools as wt
 
-from pycmds.project import classes as pc
-from pycmds.project import widgets as pw
-from pycmds.project import project_globals as g
+from yaqc_cmds.project import classes as pc
+from yaqc_cmds.project import widgets as pw
+from yaqc_cmds.project import project_globals as g
 
 
 __here__ = pathlib.Path(__file__)
@@ -46,7 +46,7 @@ class Driver(pc.Driver):
         self.label = pc.String(kwargs["label"], display=True)
         self.native_units = kwargs["native_units"]
         self.state_filepath = (
-            pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds"))
+            pathlib.Path(appdirs.user_data_dir("yaqc_cmds", "yaqc_cmds"))
             / "hardware"
             / f"{self.name}-state.toml"
         )

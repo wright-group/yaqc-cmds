@@ -25,15 +25,15 @@ from PySide2 import QtCore, QtWidgets
 
 import WrightTools as wt
 
-import pycmds.project.project_globals as g
+import yaqc_cmds.project.project_globals as g
 
-import pycmds
-import pycmds.hardware.spectrometers as spectrometers
-import pycmds.hardware.delays as delays
-import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.filters as filters
+import yaqc_cmds
+import yaqc_cmds.hardware.spectrometers as spectrometers
+import yaqc_cmds.hardware.delays as delays
+import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.filters as filters
 
-from pycmds.somatic._wt5 import create_data, write_data, close_data
+from yaqc_cmds.somatic._wt5 import create_data, write_data, close_data
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -151,7 +151,7 @@ class Worker(QtCore.QObject):
         return  # TODO:
         data_path = record.data_path.read()
         # make data object
-        data = wt.data.from_PyCMDS(data_path, verbose=False)
+        data = wt.data.from_Yaqc_cmds(data_path, verbose=False)
         data.save(data_path.replace(".data", ".p"), verbose=False)
         # make figures for each channel
         data_path = pathlib.Path(data_path)
@@ -296,7 +296,7 @@ class Worker(QtCore.QObject):
             headers["scan url"] = scan_url
         path = scan_folder + os.sep + "data.wt5"
         create_data(
-            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=pycmds.sensors.sensors
+            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=yaqc_cmds.sensors.sensors
         )
         # acquire -------------------------------------------------------------
         self.fraction_complete.write(0.0)
@@ -327,13 +327,13 @@ class Worker(QtCore.QObject):
             # wait for hardware
             g.hardware_waits.wait()
             # launch sensors
-            for s in pycmds.sensors.sensors:
+            for s in yaqc_cmds.sensors.sensors:
                 s.measure()
             # wait for sensors
-            for s in pycmds.sensors.sensors:
+            for s in yaqc_cmds.sensors.sensors:
                 s.wait_until_still()
             # save
-            write_data(idx=idx, hardware=all_hardwares, sensors=pycmds.sensors.sensors)
+            write_data(idx=idx, hardware=all_hardwares, sensors=yaqc_cmds.sensors.sensors)
             # update
             self.fraction_complete.write(i / npts)
             self.update_ui.emit()
@@ -409,7 +409,7 @@ class GUI(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.module_name = module_name
         self.state_path = (
-            pathlib.Path(appdirs.user_data_dir("pycmds", "pycmds"))
+            pathlib.Path(appdirs.user_data_dir("yaqc_cmds", "yaqc_cmds"))
             / "modules"
             / f"{self.module_name.lower()}.toml"
         )

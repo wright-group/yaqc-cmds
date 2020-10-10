@@ -1,5 +1,5 @@
 """
-PyCMDS thread safe wrapper for serial communication.
+Yaqc_cmds thread safe wrapper for serial communication.
 """
 
 
@@ -12,8 +12,8 @@ from PySide2 import QtCore
 
 import serial
 
-import pycmds.project.project_globals as g
-import pycmds.project.classes as pc
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.project.classes as pc
 
 
 ### define ####################################################################
@@ -129,9 +129,9 @@ def Serial(port, baud_rate=9600, timeout=1, **kwargs):
 def get_com(port, baud_rate=57600, timeout=1000, **kwargs):
     """
     int port
-    
+
     returns com object
-    
+
     timeout in ms
     """
     # one at a time

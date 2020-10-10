@@ -16,11 +16,11 @@ from PySide2 import QtWidgets
 import WrightTools as wt
 import attune
 
-import pycmds.project.project_globals as g
-import pycmds.project.widgets as pw
-import pycmds.project.classes as pc
-from pycmds.hardware import hardware as hw
-from pycmds.hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.project.classes as pc
+from yaqc_cmds.hardware import hardware as hw
+from yaqc_cmds.hardware.opas.PoyntingCorrection.ZaberCorrectionDevice import ZaberCorrectionDevice
 
 
 ### driver ####################################################################
@@ -501,7 +501,7 @@ class Hardware(hw.Hardware):
 ### initialize ################################################################
 
 
-conf = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+conf = pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
 conf = toml.load(conf)
 hardwares, gui, advanced_gui = hw.import_hardwares(
     conf.get("hardware", {}).get("opas", {}),

@@ -1,6 +1,6 @@
 import time
 
-import pycmds.project.slack.bots as bots
+import yaqc_cmds.project.slack.bots as bots
 
 channel = "C0DD6BG9L"
 

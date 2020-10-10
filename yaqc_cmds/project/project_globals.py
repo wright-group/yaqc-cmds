@@ -33,15 +33,15 @@ class logger:  # must come before other globals
         pass
 
     def load(self):
-        import pycmds.project.logging_handler as logging_handler
+        import yaqc_cmds.project.logging_handler as logging_handler
 
         self.value = logging_handler.log
         if debug.read():
-            self.log("info", "Debug", "PyCMDS is in debug mode")
+            self.log("info", "Debug", "Yaqc_cmds is in debug mode")
 
     def log(self, level, name, message="", origin="name"):
         """
-        wrapper of logging method for PyCMDS
+        wrapper of logging method for Yaqc_cmds
 
         accepts strings
 

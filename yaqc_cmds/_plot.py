@@ -5,11 +5,11 @@ import collections
 
 from PySide2 import QtCore, QtWidgets
 
-import pycmds.project.project_globals as g
-import pycmds.sensors as sensors
-import pycmds.project.widgets as pw
-import pycmds.project.classes as pc
-import pycmds.somatic as somatic
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.sensors as sensors
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.somatic as somatic
 
 
 class GUI(QtCore.QObject):

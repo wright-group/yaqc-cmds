@@ -11,20 +11,20 @@ from PySide2 import QtWidgets
 import WrightTools as wt
 import attune
 
-import pycmds.project.project_globals as g
-import pycmds.project.classes as pc
-import pycmds.project.widgets as pw
-import pycmds.somatic.acquisition as acquisition
-from pycmds.somatic.modules.scan import Axis as ScanAxisGUI
-from pycmds.somatic.modules.scan import Constant
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.somatic.acquisition as acquisition
+from yaqc_cmds.somatic.modules.scan import Axis as ScanAxisGUI
+from yaqc_cmds.somatic.modules.scan import Constant
 
-import pycmds.hardware.spectrometers as spectrometers
-import pycmds.hardware.delays as delays
-import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.filters.filters as filters
+import yaqc_cmds.hardware.spectrometers as spectrometers
+import yaqc_cmds.hardware.delays as delays
+import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.filters.filters as filters
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-import pycmds.devices.devices as devices
+import yaqc_cmds.devices.devices as devices
 
 
 ### define ####################################################################
@@ -39,7 +39,7 @@ module_name = "ZERO TUNE"
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
         data_path = wt.kit.glob_handler(".data", folder=str(scan_folder))[0]
-        data = wt.data.from_PyCMDS(data_path)
+        data = wt.data.from_Yaqc_cmds(data_path)
         delays = self.aqn.read("delay", "delays")
         channel_name = self.aqn.read("processing", "channel")
         transform = list(data.axis_expressions)[:2]

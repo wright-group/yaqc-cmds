@@ -10,7 +10,7 @@ import appdirs
 
 from PySide2 import QtCore
 
-from pycmds.project import project_globals as g
+from yaqc_cmds.project import project_globals as g
 
 app = g.app.read()
 
@@ -46,7 +46,7 @@ busy = busy()
 
 # filepath
 filepath = (
-    pathlib.Path(appdirs.user_log_dir("pycmds", "pycmds"))
+    pathlib.Path(appdirs.user_log_dir("yaqc_cmds", "yaqc_cmds"))
     / f"{str(time.strftime('%Y%m%dT%H%M%S%z'))}.log"
 )
 filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -54,7 +54,7 @@ log_file = open(filepath, "w")
 log_file.close()
 
 # setup
-logger = logging.getLogger("PyCMDS")
+logger = logging.getLogger("Yaqc_cmds")
 formatter = logging.Formatter(
     fmt="%(asctime)s.%(msecs).03d | %(levelname)-8s | Thread %(thread)-5s | %(origin)-20s | %(name)-20s | %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S%z",
@@ -78,7 +78,7 @@ class ContextFilter(logging.Filter):
 
 def log(level, name, message="", origin="name"):
     """
-    logging method for PyCMDS
+    logging method for Yaqc_cmds
     accepts strings
     levels: debug, info, warning, error, critical
     """

@@ -22,7 +22,7 @@ from .project import project_globals as g
 g.app.write(app)
 g.logger.load()
 
-g.logger.log("info", "Startup", "PyCMDS is attempting startup")
+g.logger.log("info", "Startup", "Yaqc_cmds is attempting startup")
 
 from .project import widgets as pw
 
@@ -57,12 +57,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self, parent=None)
         self.config = toml.load(
-            pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+            pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
         )
         g.system_name.write(self.config["system_name"])
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
-        self.setWindowTitle("PyCMDS %s" % __version__)
+        self.setWindowTitle("Yaqc_cmds %s" % __version__)
         # disable 'x'
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
@@ -80,17 +80,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self._load_google_drive()
         self._load_witch()
         # populate self
-        self.data_folder = pathlib.Path.home() / "pycmds-data"
+        self.data_folder = pathlib.Path.home() / "yaqc_cmds-data"
         self.data_folder.mkdir(exist_ok=True)
         # somatic system
-        from pycmds.somatic import queue
+        from yaqc_cmds.somatic import queue
 
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
         self.queue_gui.load_modules()
         # log completion
         if g.debug.read():
-            print("PyCMDS_ui.MainWindow.__init__ complete")
-        g.logger.log("info", "Startup", "PyCMDS MainWindow __init__ finished")
+            print("Yaqc_cmds_ui.MainWindow.__init__ complete")
+        g.logger.log("info", "Startup", "Yaqc_cmds MainWindow __init__ finished")
         all_initialized()
 
     def _create_main_frame(self):
@@ -179,14 +179,14 @@ class MainWindow(QtWidgets.QMainWindow):
         from .hardware import spectrometers
         from .hardware import delays
         from .hardware import filters
-        import pycmds.sensors
+        import yaqc_cmds.sensors
 
     def _initialize_widgets(self):
         if g.debug.read():
             print("initialize widgets")
         # import widgets
-        import pycmds.autonomic.coset
-        import pycmds._plot
+        import yaqc_cmds.autonomic.coset
+        import yaqc_cmds._plot
 
     def _load_google_drive(self):
         g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))
@@ -197,7 +197,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # check if witch is enabled
         g.slack_enabled.write(self.config.get("slack", {}).get("enable", False))
         if g.slack_enabled.read():
-            import pycmds.project.slack as slack
+            import yaqc_cmds.project.slack as slack
 
             # create witch
             self.witch = slack.control
@@ -214,7 +214,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         if g.debug.read():
             print("shutdown")
-        g.logger.log("info", "Shutdown", "PyCMDS is attempting shutdown")
+        g.logger.log("info", "Shutdown", "Yaqc_cmds is attempting shutdown")
         self.shutdown.emit()
         g.shutdown.fire()
 

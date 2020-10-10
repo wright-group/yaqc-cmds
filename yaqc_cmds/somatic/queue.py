@@ -17,16 +17,16 @@ import toml
 
 import WrightTools as wt
 
-import pycmds.project.project_globals as g
-import pycmds.project.classes as pc
-import pycmds.project.widgets as pw
-import pycmds.project.file_dialog_handler as file_dialog_handler
+import yaqc_cmds.project.project_globals as g
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
+import yaqc_cmds.project.file_dialog_handler as file_dialog_handler
 
-import pycmds.hardware.spectrometers as spectrometers
-import pycmds.hardware.delays as delays
-import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.filters as filters
-import pycmds.somatic as somatic
+import yaqc_cmds.hardware.spectrometers as spectrometers
+import yaqc_cmds.hardware.delays as delays
+import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.filters as filters
+import yaqc_cmds.somatic as somatic
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -569,7 +569,7 @@ class Queue:
         # update ini
         self.ini.clear()
         self.ini.add_section("info")
-        self.ini.write("info", "PyCMDS version", g.version.read())
+        self.ini.write("info", "Yaqc_cmds version", g.version.read())
         self.ini.write("info", "created", self.timestamp.RFC3339)
         self.ini.write("info", "runtime", self.get_runtime())
         self.ini.write("info", "name", self.name)
@@ -995,7 +995,7 @@ class GUI(QtCore.QObject):
         # done from modules.ini
         # modules appear in order of import (order of appearance in ini)
         config = toml.load(
-            pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+            pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
         )
         self.modules = {}
         for name, load in config["modules"].items():
@@ -1258,7 +1258,7 @@ class GUI(QtCore.QObject):
         # fill with general information
         ini = wt.kit.INI(p)
         ini.add_section("info")
-        ini.write("info", "PyCMDS version", g.version.read())
+        ini.write("info", "Yaqc_cmds version", g.version.read())
         ini.write("info", "created", timestamp.RFC3339)
         ini.write("info", "module", module_name)
         ini.write("info", "name", name)

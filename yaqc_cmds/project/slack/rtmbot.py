@@ -17,7 +17,7 @@ import toml
 import pathlib
 
 config = toml.load(
-    pathlib.path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+    pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
 )
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]
@@ -178,4 +178,3 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("-c", "--config", help="Full path to config file.", metavar="path")
     return parser.parse_args()
-

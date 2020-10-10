@@ -1,8 +1,8 @@
 import attune
 
 import somatic.modules.abstract_tuning as abstract_tuning
-import pycmds.project.classes as pc
-import pycmds.hardware.opas.opas as opas
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.hardware.opas.opas as opas
 
 
 ### define ####################################################################

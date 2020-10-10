@@ -35,7 +35,7 @@ def launch():
 
 @main.command(name="edit-config")
 def edit_config():
-    config_filepath = pathlib.Path(appdirs.user_config_dir("pycmds", "pycmds")) / "config.toml"
+    config_filepath = pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
     config_filepath.parent.mkdir(parents=True, exist_ok=True)
     if not config_filepath.exists():
         if click.confirm(

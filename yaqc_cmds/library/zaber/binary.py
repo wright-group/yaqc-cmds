@@ -2,14 +2,14 @@
 protocol.
 """
 
-# Changed from 'import serial' for PyCMDS
-import pycmds.project.com_handler as serial
+# Changed from 'import serial' for Yaqc_cmds
+import yaqc_cmds.project.com_handler as serial
 import struct
 import logging
 import sys
 
 # Changed path to accurately import
-from pycmds.library.zaber.exceptions import TimeoutError, UnexpectedReplyError
+from yaqc_cmds.library.zaber.exceptions import TimeoutError, UnexpectedReplyError
 
 # See https://docs.python.org/2/howto/logging.html#configuring-logging-
 # for-a-library for info on why we have these two lines here.

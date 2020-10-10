@@ -6,9 +6,9 @@ import pathlib
 import attune
 import yaqc
 
-import pycmds.project
-import pycmds.project.classes as pc
-import pycmds.project.project_globals as g
+import yaqc_cmds.project
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.project_globals as g
 from project.ini_handler import Ini
 from hardware.opas.opas import Driver as BaseDriver
 from hardware.opas.opas import GUI as BaseGUI

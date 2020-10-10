@@ -11,13 +11,13 @@ matplotlib.pyplot.ioff()
 
 import WrightTools as wt
 
-import pycmds.project.classes as pc
-import pycmds.project.widgets as pw
+import yaqc_cmds.project.classes as pc
+import yaqc_cmds.project.widgets as pw
 import somatic.acquisition as acquisition
 
-import pycmds.hardware.opas.opas as opas
-import pycmds.hardware.spectrometers as spectrometers
-import pycmds.devices.devices as devices
+import yaqc_cmds.hardware.opas.opas as opas
+import yaqc_cmds.hardware.spectrometers as spectrometers
+import yaqc_cmds.devices.devices as devices
 
 
 ### define ####################################################################
@@ -96,7 +96,7 @@ class Worker(acquisition.Worker):
         # get path
         data_path = devices.data_path.read()
         # make data object
-        data = wt.data.from_PyCMDS(data_path, verbose=False)
+        data = wt.data.from_Yaqc_cmds(data_path, verbose=False)
         data_path = pathlib.Path(data_path)
         data_folder = data_path.parent
         ouput_folder = data_folder
