@@ -62,7 +62,7 @@ class MainWindow(QtWidgets.QMainWindow):
         g.system_name.write(self.config["system_name"])
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
-        self.setWindowTitle("Yaqc_cmds %s" % __version__)
+        self.setWindowTitle("yaqc-cmds %s" % __version__)
         # disable 'x'
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
@@ -80,7 +80,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._load_google_drive()
         self._load_witch()
         # populate self
-        self.data_folder = pathlib.Path.home() / "yaqc_cmds-data"
+        self.data_folder = pathlib.Path.home() / "yaqc-cmds-data"
         self.data_folder.mkdir(exist_ok=True)
         # somatic system
         from yaqc_cmds.somatic import queue
