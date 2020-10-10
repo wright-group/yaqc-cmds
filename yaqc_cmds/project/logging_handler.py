@@ -46,7 +46,7 @@ busy = busy()
 
 # filepath
 filepath = (
-    pathlib.Path(appdirs.user_log_dir("yaqc_cmds", "yaqc_cmds"))
+    pathlib.Path(appdirs.user_log_dir("yaqc-cmds", "yaqc-cmds"))
     / f"{str(time.strftime('%Y%m%dT%H%M%S%z'))}.log"
 )
 filepath.parent.mkdir(parents=True, exist_ok=True)
