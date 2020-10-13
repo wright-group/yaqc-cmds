@@ -171,7 +171,7 @@ class Worker(acquisition.Worker):
             number = self.aqn.read(axis_name, "number")
             points = np.linspace(start, stop, int(number))
             units = self.aqn.read(axis_name, "units")
-            axis = acquisition.Axis(points, units, axis_name, axis_name)
+            axis = acquisition.Axis(points, units, axis_name)
             axes.append(axis)
         # constants
         constants = []
@@ -183,10 +183,7 @@ class Worker(acquisition.Worker):
                         units = "wn"
                     break
             name = constant_name
-            identity = expression = self.aqn.read(constant_name, "expression")
-            constant = acquisition.Constant(
-                units, name, identity, expression=expression, static=False
-            )
+            constant = acquisition.Constant(units, name, expression=expression, static=False)
             constants.append(constant)
         # do scan
         self.scan(axes, constants)
@@ -336,7 +333,7 @@ class GUI(acquisition.GUI):
             pass  # TODO: log warning or something
         self.process_all_channels.write(aqn.read("processing", "process all channels"))
         # allow record to load settings
-        #self.device_widget.load(aqn_path)
+        # self.device_widget.load(aqn_path)
 
     def on_device_settings_updated(self):
         self.channel_combo.set_allowed_values(record.control.channel_names)

@@ -50,33 +50,26 @@ __here__ = pathlib.Path(__file__).parent
 
 
 class Axis:
-    def __init__(self, points, units, name, identity, hardware_dict={}, **kwargs):
+    def __init__(self, points, units, name, hardware_dict={}, **kwargs):
         self.points = points
         self.units = units
         self.name = name
-        self.identity = identity
         self.hardware_dict = hardware_dict.copy()
         self.__dict__.update(kwargs)
         # fill hardware dictionary with defaults
-        names = re.split("[=F]+", self.identity)
-        # KFS 2018-12-07: Is this still used at all? replacing wt2 kit.parse_identity
-        if "F" in self.identity:  # last name should be a 'following' in this case
-            names.pop(-1)
+        # Not sure if this re.split does what we want now, getting rid of identity
+        # KFS 200-10-13
+        names = re.split("[=F]+", self.name)
         for name in names:
-            if name[0] == "D":
-                clean_name = name.replace("D", "", 1)
-            else:
-                clean_name = name
-            if clean_name not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.name == clean_name][0]
+            if name not in self.hardware_dict.keys():
+                hardware_object = next(h for h in all_hardwares if h.name == name)
                 self.hardware_dict[name] = [hardware_object, "set_position", None]
 
 
 class Constant:
-    def __init__(self, units, name, identity, static=True, expression=""):
+    def __init__(self, units, name, static=True, expression=""):
         self.units = units
         self.name = name
-        self.identity = identity
         self.static = static
         self.expression = expression
         self.hardware = [h for h in all_hardwares if h.name == self.name][0]
@@ -212,7 +205,7 @@ class Worker(QtCore.QObject):
             arrs = np.meshgrid(*[a.points for a in axes], indexing="ij")
         # treat 'scan about center' axes
         for axis_index, axis in enumerate(axes):
-            if axis.identity[0] == "D":
+            if hasattr(axis, "centers"):
                 centers = axis.centers
                 # transpose so own index is first (all others slide down)
                 transpose_order = list(range(len(axes)))
@@ -296,7 +289,13 @@ class Worker(QtCore.QObject):
             headers["scan url"] = scan_url
         path = scan_folder + os.sep + "data.wt5"
         create_data(
-            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=yaqc_cmds.sensors.sensors
+            path,
+            headers,
+            destinations,
+            axes,
+            constants,
+            hardware=all_hardwares,
+            sensors=yaqc_cmds.sensors.sensors,
         )
         # acquire -------------------------------------------------------------
         self.fraction_complete.write(0.0)

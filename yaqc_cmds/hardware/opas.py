@@ -75,7 +75,7 @@ class Driver(hw.Driver):
         ]
         for name, sa in self.motor_positions.items():
             self.recorded[f"{self.name}_{name}"] = [sa, None, None, name.lower(), None]
-        self.set_arrangement(self.get_arrangement())
+        self.set_arrangement(self.arrangement)
 
     def set_motor(self, motor_name, destination, wait=True):
         self.client.set_setable_positions({motor_name: destination})
@@ -116,7 +116,8 @@ class Driver(hw.Driver):
         self.client.set_arrangement(arrangement)
         self.limits.write(*self.client.get_limits(), self.native_units)
 
-    def get_arrangement(self):
+    @property
+    def arrangement(self):
         return self.client.get_arrangement()
 
     def get_all_arrangements(self):
@@ -138,7 +139,7 @@ class Driver(hw.Driver):
 
 class GUI(hw.GUI):
     def initialize(self):
-        arr = self.driver.get_arrangement()
+        arr = self.driver.arrangement
         # self.hardware.driver.initialize()
         # container widget
         display_container_widget = QtWidgets.QWidget()
@@ -279,7 +280,7 @@ class GUI(hw.GUI):
         arr = self.arrangement_combo.read()
         self.driver.set_arrangement(arr)
         self.plot_motor.set_allowed_values(self.driver.curve.arrangements[arr].keys())
-        update()
+        self.update_plot()
 
 
 class MotorControlGUI(QtWidgets.QWidget):
@@ -367,6 +368,10 @@ class Hardware(hw.Hardware):
 
     def set_motor(self, motor, destination):
         self.q.push("set_motor", motor, destination)
+
+    @property
+    def arrangement(self):
+        return self.driver.arrangement
 
 
 ### initialize ################################################################

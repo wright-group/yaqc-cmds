@@ -106,6 +106,8 @@ class GUI(QtCore.QObject):
         # data
         idx = last_idx_written
         axis = next(a for a in data.axes if a.expression == self.axis.read())
+        if f"{axis.expression}_points" in data:
+            axis = data[f"{axis.expression}_points"]
         channel = data[self.channel.read()]
         xi = axis[idx[:-1]]
         yi = channel[idx[:-1]]
