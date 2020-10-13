@@ -6,3 +6,5 @@
 [![black](https://img.shields.io/badge/code--style-black-black)](https://black.readthedocs.io/)
 
 A qt-based graphical client for [yaq](https://yaq.fyi/) with a focus on controlling hardware and collecting data in multidimensional spectroscopy experiments.
+
+Documentation at [yaqc-cmds.wright.tools](https://yaqc-cmds.wright.tools).
