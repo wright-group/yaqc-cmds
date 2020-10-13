@@ -37,7 +37,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     """
     f = h5py.File(path, "w", libver="latest")
     global data, data_filepath
-    data = wt.Data(f, name=headers["name"])
+    data = wt.Data(f, name=headers["name"], edit_local=True)
     data_filepath = path
 
     # fill out yaqc_cmds_information in headers
@@ -103,7 +103,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
 def get_data_readonly():
     if data_filepath is not None:
         f = h5py.File(data_filepath, "r", libver="latest", swmr=True)
-        return wt.Data(f)
+        return wt.Data(f, edit_local=True)
 
 
 def close_data():

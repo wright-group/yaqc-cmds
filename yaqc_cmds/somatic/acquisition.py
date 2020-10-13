@@ -140,47 +140,8 @@ class Worker(QtCore.QObject):
         self.scan_urls = []
 
     def process(self, scan_folder):
-        # get path
-        return  # TODO:
-        data_path = record.data_path.read()
-        # make data object
-        data = wt.data.from_Yaqc_cmds(data_path, verbose=False)
-        data.save(data_path.replace(".data", ".p"), verbose=False)
-        # make figures for each channel
-        data_path = pathlib.Path(data_path)
-        data_folder = data_path.parent
-        file_name = data_path.stem
-        file_extension = data_path.suffix
-        # chop data if over 2D
-        for channel_index, channel_name in enumerate(data.channel_names):
-            output_folder = data_folder if data.ndim <= 2 else data_folder / channel_name
-            output_folder.mkdir(exist_ok=True)
-            image_fname = channel_name + " " + file_name
-            if len(data.shape) == 1:
-                outs = wt.artists.quick1D(
-                    data,
-                    channel=channel_index,
-                    autosave=True,
-                    save_directory=output_folder,
-                    fname=image_fname,
-                    verbose=False,
-                )
-            else:
-                outs = wt.artists.quick2D(
-                    data,
-                    -1,
-                    -2,
-                    channel=channel_index,
-                    autosave=True,
-                    save_directory=output_folder,
-                    fname=image_fname,
-                    verbose=False,
-                )
-            # hack in a way to get the first image written
-            if channel_index == 0:
-                output_image_path = outs[0]
-        # upload
-        self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
+        # By default, nothing to do
+        return
 
     def scan(
         self,

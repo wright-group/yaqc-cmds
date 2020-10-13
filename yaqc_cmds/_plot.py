@@ -18,6 +18,7 @@ class GUI(QtCore.QObject):
         self.create_frame()
         self.create_settings()
         self.on_sensors_changed()
+        self.data = None
 
     def create_frame(self):
         self.main_widget = g.main_window.read().plot_widget
@@ -94,21 +95,24 @@ class GUI(QtCore.QObject):
         self.channel.set_allowed_values(new)
 
     def on_data_file_created(self):
-        data = somatic._wt5.get_data_readonly()
-        self.axis.set_allowed_values(data.axis_expressions)
+        if self.data is not None:
+            self.data.close()
+        self.data = somatic._wt5.get_data_readonly()
+        self.axis.set_allowed_values(self.data.axis_expressions)
 
     def on_data_file_written(self):
-        data = somatic._wt5.get_data_readonly()
+        for dset in self.data.values():
+            dset.id.refresh()
         last_idx_written = somatic._wt5.last_idx_written
         self.idx_string.write(str(last_idx_written))
-        if data is None or last_idx_written is None:
+        if self.data is None or last_idx_written is None:
             return
         # data
         idx = last_idx_written
-        axis = next(a for a in data.axes if a.expression == self.axis.read())
-        if f"{axis.expression}_points" in data:
-            axis = data[f"{axis.expression}_points"]
-        channel = data[self.channel.read()]
+        axis = [a for a in self.data.axes if a.expression == self.axis.read()][-1]
+        if f"{axis.expression}_points" in self.data:
+            axis = self.data[f"{axis.expression}_points"]
+        channel = self.data[self.channel.read()]
         xi = axis[idx[:-1]]
         yi = channel[idx[:-1]]
         self.plot_scatter.setData(xi, yi)
