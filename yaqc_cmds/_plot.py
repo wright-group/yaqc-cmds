@@ -105,7 +105,8 @@ class GUI(QtCore.QObject):
             for dset in self.data.values():
                 dset.id.refresh()
         except TypeError:
-            pass  # happens when done writing
+            # happens when done writing
+            self.on_data_file_created()
         last_idx_written = somatic._wt5.last_idx_written
         self.idx_string.write(str(last_idx_written))
         if self.data is None or last_idx_written is None:

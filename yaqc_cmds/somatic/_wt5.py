@@ -95,7 +95,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
             sh = data[f"{axis.name}_centers"].shape
             data[f"{axis.name}_centers"][:] = axis.centers.reshape(sh)
 
-    data.transform(*[a.name for a in axes])
+    data.transform(*[f"{a.name}_points" if hasattr(a, "centers") else a.name for a in axes])
 
     for ch, sh in channel_shapes.items():
         units = channel_units[ch]
