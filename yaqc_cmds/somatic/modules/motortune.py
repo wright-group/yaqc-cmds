@@ -147,7 +147,7 @@ class Worker(acquisition.Worker):
         arrangement = opa_hardware.curve.arrangements[opa_hardware.arrangement]
         motor_names = self.aqn.read("motortune", "motor names")
         scanned_motors = [m for m in motor_names if self.aqn.read(m, "method") == "Scan"]
-        tune_points = get_tune_points(arrangement, scanned_motors)
+        tune_points = get_tune_points(curve, arrangement, scanned_motors)
         tune_units = "nm"  # needs update if/when attune supports other units for independents
         # tune points
         if self.aqn.read("motortune", "use tune points"):
@@ -414,14 +414,29 @@ def load():
     return True
 
 
-def get_tune_points(arrangement, scanned_motors):
+def get_tune_points(instrument, arrangement, scanned_motors):
     min_ = arrangement.ind_min
     max_ = arrangement.ind_max
     if scanned_motors is None:
-        scanned_motors = arrangment.keys()
-    # TODO limit points to those scanned...
-    inds = [x.independent for x in arrangement.values()]
-    unique = np.unique(np.append(*inds))
+        scanned_motors = arrangement.keys()
+    inds = []
+    for scanned in scanned_motors:
+        if scanned in arrangement.keys():
+            inds += [arrangement[scanned].independent]
+            continue
+        for name in arrangement.keys():
+            if (
+                name in instrument.arrangements
+                and scanned in instrument(instrument[name].ind_min, name).keys()
+            ):
+                inds += [arrangement[scanned].independent]
+    print(inds)
+    if len(inds) > 1:
+        inds = np.append(*inds)
+    else:
+        inds = inds[0]
+
+    unique = np.unique(inds)
     tol = 1e-3 * (max_ - min_)
     diff = np.append(tol * 2, np.diff(unique))
     return unique[diff > tol]
