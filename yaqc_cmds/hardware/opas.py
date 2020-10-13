@@ -88,21 +88,27 @@ class Driver(hw.Driver):
         if wait:
             self.wait_until_still()
 
-    def set_position(self, destination):
+    def set_position(self, destination, units=None):
+        if units:
+            destination = wt.units.convert(destination, units, self.native_units)
         self.client.set_position(destination)
         self.wait_until_still()
         self.get_position()
         self.save_status()
 
-    def set_position_except(self, destination, exceptions):
+    def set_position_except(self, destination, exceptions, units=None):
         """
         set position, except for motors that follow
 
         does not wait until still...
         """
+        if units:
+            destination = wt.units.convert(destination, units, self.native_units)
         self.hardware.destination.write(destination, self.native_units)
         self.position.write(destination, self.native_units)
-        self.client.set_setable_positions_except(destination, exceptions)
+        self.client.set_position_except(destination, exceptions)
+        self.get_position()
+        self.save_status()
 
     def wait_until_still(self):
         while self.is_busy():

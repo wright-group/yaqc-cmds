@@ -143,10 +143,12 @@ class Worker(acquisition.Worker):
         opa_index = opa_names.index(opa_name)
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.name
+        curve = opa_hardware.curve
         arrangement = opa_hardware.curve.arrangements[opa_hardware.arrangement]
-        tune_points = get_tune_points(arrangement)
-        tune_units = "nm"  # needs update if/when attune supports other units for independents
         motor_names = self.aqn.read("motortune", "motor names")
+        scanned_motors = [m for m in motor_names if self.aqn.read(m, "method") == "Scan"]
+        tune_points = get_tune_points(arrangement, scanned_motors)
+        tune_units = "nm"  # needs update if/when attune supports other units for independents
         # tune points
         if self.aqn.read("motortune", "use tune points"):
             motors_excepted = []  # list of indicies
@@ -158,7 +160,7 @@ class Worker(acquisition.Worker):
                     opa_friendly_name: [
                         opa_hardware,
                         "set_position_except",
-                        ["destination", motors_excepted],
+                        ["destination", motors_excepted, "units"],
                     ],
                     "wm": [spectrometers.hardwares[0], "set_position", None],
                 }
@@ -169,7 +171,7 @@ class Worker(acquisition.Worker):
                     opa_friendly_name: [
                         opa_hardware,
                         "set_position_except",
-                        ["destination", motors_excepted],
+                        ["destination", motors_excepted, "units"],
                     ]
                 }
                 axis = acquisition.Axis(
@@ -185,7 +187,9 @@ class Worker(acquisition.Worker):
                 npts = self.aqn.read(motor_name, "number")
                 if self.aqn.read("motortune", "use tune points"):
                     center = 0.0
-                    kwargs = {"centers": tune_points}
+                    kwargs = {
+                        "centers": [curve(t, arrangement.name)[motor_name] for t in tune_points]
+                    }
                 else:
                     center = self.aqn.read(motor_name, "center")
                     kwargs = {}
@@ -410,11 +414,12 @@ def load():
     return True
 
 
-def get_tune_points(arrangement):
+def get_tune_points(arrangement, scanned_motors):
     min_ = arrangement.ind_min
     max_ = arrangement.ind_max
-    print(arrangement.values())
-    print(type(arrangement))
+    if scanned_motors is None:
+        scanned_motors = arrangment.keys()
+    # TODO limit points to those scanned...
     inds = [x.independent for x in arrangement.values()]
     unique = np.unique(np.append(*inds))
     tol = 1e-3 * (max_ - min_)

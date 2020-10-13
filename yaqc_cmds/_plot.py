@@ -101,8 +101,11 @@ class GUI(QtCore.QObject):
         self.axis.set_allowed_values(self.data.axis_expressions)
 
     def on_data_file_written(self):
-        for dset in self.data.values():
-            dset.id.refresh()
+        try:
+            for dset in self.data.values():
+                dset.id.refresh()
+        except TypeError:
+            pass  # happens when done writing
         last_idx_written = somatic._wt5.last_idx_written
         self.idx_string.write(str(last_idx_written))
         if self.data is None or last_idx_written is None:
