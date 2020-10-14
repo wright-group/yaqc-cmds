@@ -18,6 +18,7 @@ class GUI(QtCore.QObject):
         self.create_frame()
         self.create_settings()
         self.on_sensors_changed()
+        self.data = None
 
     def create_frame(self):
         self.main_widget = g.main_window.read().plot_widget
@@ -94,24 +95,35 @@ class GUI(QtCore.QObject):
         self.channel.set_allowed_values(new)
 
     def on_data_file_created(self):
-        data = somatic._wt5.get_data_readonly()
-        self.axis.set_allowed_values(data.axis_expressions)
+        if self.data is not None:
+            self.data.close()
+        self.data = somatic._wt5.get_data_readonly()
+        self.axis.set_allowed_values(self.data.axis_expressions)
 
     def on_data_file_written(self):
-        data = somatic._wt5.get_data_readonly()
+        try:
+            for dset in self.data.values():
+                dset.id.refresh()
+        except TypeError:
+            # happens when done writing
+            self.on_data_file_created()
         last_idx_written = somatic._wt5.last_idx_written
         self.idx_string.write(str(last_idx_written))
-        if data is None or last_idx_written is None:
+        if self.data is None or last_idx_written is None:
             return
         # data
         idx = last_idx_written
-        axis = next(a for a in data.axes if a.expression == self.axis.read())
-        channel = data[self.channel.read()]
+        axis = next(a for a in self.data.axes if a.expression == self.axis.read())
+        if f"{axis.expression}_points" in self.data:
+            limits_axis = self.data[f"{axis.expression}_points"]
+        else:
+            limits_axis = axis
+        channel = self.data[self.channel.read()]
         xi = axis[idx[:-1]]
         yi = channel[idx[:-1]]
         self.plot_scatter.setData(xi, yi)
         # limits
-        self.plot_widget.set_xlim(axis.min(), axis.max())
+        self.plot_widget.set_xlim(limits_axis.min(), limits_axis.max())
         self.plot_widget.set_ylim(channel.min(), channel.max())
 
     def on_sensors_changed(self):

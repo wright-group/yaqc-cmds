@@ -37,7 +37,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     """
     f = h5py.File(path, "w", libver="latest")
     global data, data_filepath
-    data = wt.Data(f, name=headers["name"])
+    data = wt.Data(f, name=headers["name"], edit_local=True)
     data_filepath = path
 
     # fill out yaqc_cmds_information in headers
@@ -56,6 +56,11 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         shape[i] = axis.points.size
         variable_shapes[f"{axis.name}_points"] = tuple(shape)
         variable_units[f"{axis.name}_points"] = axis.units
+        if hasattr(axis, "centers"):
+            shape = list(full_scan_shape)
+            shape[i] = 1
+            variable_shapes[f"{axis.name}_centers"] = tuple(shape)
+            variable_units[f"{axis.name}_centers"] = axis.units
 
     for hw in hardware:
         for rec, (_, units, _, label, _) in hw.recorded.items():
@@ -86,8 +91,11 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     for axis in axes:
         sh = data[f"{axis.name}_points"].shape
         data[f"{axis.name}_points"][:] = axis.points.reshape(sh)
+        if hasattr(axis, "centers"):
+            sh = data[f"{axis.name}_centers"].shape
+            data[f"{axis.name}_centers"][:] = axis.centers.reshape(sh)
 
-    data.transform(*[a.name for a in axes])
+    data.transform(*[f"{a.name}_points" if hasattr(a, "centers") else a.name for a in axes])
 
     for ch, sh in channel_shapes.items():
         units = channel_units[ch]
@@ -103,7 +111,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
 def get_data_readonly():
     if data_filepath is not None:
         f = h5py.File(data_filepath, "r", libver="latest", swmr=True)
-        return wt.Data(f)
+        return wt.Data(f, edit_local=True)
 
 
 def close_data():

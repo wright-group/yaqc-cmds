@@ -50,33 +50,26 @@ __here__ = pathlib.Path(__file__).parent
 
 
 class Axis:
-    def __init__(self, points, units, name, identity, hardware_dict={}, **kwargs):
+    def __init__(self, points, units, name, hardware_dict={}, **kwargs):
         self.points = points
         self.units = units
         self.name = name
-        self.identity = identity
         self.hardware_dict = hardware_dict.copy()
         self.__dict__.update(kwargs)
         # fill hardware dictionary with defaults
-        names = re.split("[=F]+", self.identity)
-        # KFS 2018-12-07: Is this still used at all? replacing wt2 kit.parse_identity
-        if "F" in self.identity:  # last name should be a 'following' in this case
-            names.pop(-1)
+        # Not sure if this re.split does what we want now, getting rid of identity
+        # KFS 200-10-13
+        names = re.split("[=F]+", self.name)
         for name in names:
-            if name[0] == "D":
-                clean_name = name.replace("D", "", 1)
-            else:
-                clean_name = name
-            if clean_name not in self.hardware_dict.keys():
-                hardware_object = [h for h in all_hardwares if h.name == clean_name][0]
+            if name not in self.hardware_dict.keys():
+                hardware_object = next(h for h in all_hardwares if h.name == name)
                 self.hardware_dict[name] = [hardware_object, "set_position", None]
 
 
 class Constant:
-    def __init__(self, units, name, identity, static=True, expression=""):
+    def __init__(self, units, name, static=True, expression=""):
         self.units = units
         self.name = name
-        self.identity = identity
         self.static = static
         self.expression = expression
         self.hardware = [h for h in all_hardwares if h.name == self.name][0]
@@ -147,47 +140,8 @@ class Worker(QtCore.QObject):
         self.scan_urls = []
 
     def process(self, scan_folder):
-        # get path
-        return  # TODO:
-        data_path = record.data_path.read()
-        # make data object
-        data = wt.data.from_Yaqc_cmds(data_path, verbose=False)
-        data.save(data_path.replace(".data", ".p"), verbose=False)
-        # make figures for each channel
-        data_path = pathlib.Path(data_path)
-        data_folder = data_path.parent
-        file_name = data_path.stem
-        file_extension = data_path.suffix
-        # chop data if over 2D
-        for channel_index, channel_name in enumerate(data.channel_names):
-            output_folder = data_folder if data.ndim <= 2 else data_folder / channel_name
-            output_folder.mkdir(exist_ok=True)
-            image_fname = channel_name + " " + file_name
-            if len(data.shape) == 1:
-                outs = wt.artists.quick1D(
-                    data,
-                    channel=channel_index,
-                    autosave=True,
-                    save_directory=output_folder,
-                    fname=image_fname,
-                    verbose=False,
-                )
-            else:
-                outs = wt.artists.quick2D(
-                    data,
-                    -1,
-                    -2,
-                    channel=channel_index,
-                    autosave=True,
-                    save_directory=output_folder,
-                    fname=image_fname,
-                    verbose=False,
-                )
-            # hack in a way to get the first image written
-            if channel_index == 0:
-                output_image_path = outs[0]
-        # upload
-        self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
+        # By default, nothing to do
+        return
 
     def scan(
         self,
@@ -212,7 +166,7 @@ class Worker(QtCore.QObject):
             arrs = np.meshgrid(*[a.points for a in axes], indexing="ij")
         # treat 'scan about center' axes
         for axis_index, axis in enumerate(axes):
-            if axis.identity[0] == "D":
+            if hasattr(axis, "centers"):
                 centers = axis.centers
                 # transpose so own index is first (all others slide down)
                 transpose_order = list(range(len(axes)))
@@ -296,7 +250,13 @@ class Worker(QtCore.QObject):
             headers["scan url"] = scan_url
         path = scan_folder + os.sep + "data.wt5"
         create_data(
-            path, headers, destinations, axes, constants, hardware=all_hardwares, sensors=yaqc_cmds.sensors.sensors
+            path,
+            headers,
+            destinations,
+            axes,
+            constants,
+            hardware=all_hardwares,
+            sensors=yaqc_cmds.sensors.sensors,
         )
         # acquire -------------------------------------------------------------
         self.fraction_complete.write(0.0)

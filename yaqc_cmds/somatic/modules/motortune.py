@@ -13,11 +13,13 @@ import WrightTools as wt
 
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
-import somatic.acquisition as acquisition
+import yaqc_cmds.somatic.acquisition as acquisition
 
+import yaqc_cmds
 import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.spectrometers as spectrometers
-import yaqc_cmds.devices.devices as devices
+import yaqc_cmds.sensors as sensors
+from yaqc_cmds.somatic import _wt5
 
 
 ### define ####################################################################
@@ -90,53 +92,47 @@ class OPA_GUI:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        if not self.aqn.read("processing", "do post process"):
-            self.upload(self.scan_folders[self.scan_index], reference_image=None)
-            return
-        # get path
-        data_path = devices.data_path.read()
-        # make data object
-        data = wt.data.from_Yaqc_cmds(data_path, verbose=False)
-        data_path = pathlib.Path(data_path)
+        data = _wt5.get_data_readonly().copy()
+        # decide which channels to make plots for
+        channel_name = self.aqn.read("processing", "channel")
+        # make figures for each channel
+        data_path = pathlib.Path(_wt5.data_filepath)
         data_folder = data_path.parent
-        ouput_folder = data_folder
-        channel_path = data_folder / channel
-        if data.ndim > 2:
-            output_folder = channel_path
-            channel_path.mkdir()
-        file_name = data_path.stem
-        file_extension = data_path.suffix
         # make all images
-        channel = self.aqn.read("processing", "channel")
-        image_fname = channel
+        channel_path = data_folder / channel_name
+        output_path = data_folder
+        if data.ndim > 2:
+            output_path = channel_path
+            channel_path.mkdir()
+        image_fname = channel_name
         if data.ndim == 1:
-            filepaths = wt.artists.quick1D(
+            outs = wt.artists.quick1D(
                 data,
-                channel=channel,
+                channel=channel_name,
                 autosave=True,
-                save_directory=output_folder,
+                save_directory=output_path,
                 fname=image_fname,
                 verbose=False,
             )
         else:
-            filepaths = wt.artists.quick2D(
+            outs = wt.artists.quick2D(
                 data,
                 -1,
                 -2,
-                channel=channel,
+                channel=channel_name,
                 autosave=True,
-                save_directory=output_folder,
+                save_directory=output_path,
                 fname=image_fname,
                 verbose=False,
             )
         # get output image
-        if len(filepaths) == 1:
-            output_image_path = filepaths[0]
+        if len(outs) == 1:
+            output_image_path = outs[0]
         else:
-            output_image_path = str(output_folder / "animation.gif")
-            wt.artists.stitch_to_animation(images=filepaths, outpath=output_image_path)
+            output_image_path = output_path / "animation.gif"
+            wt.artists.stitch_to_animation(images=outs, outpath=output_image_path)
         # upload
-        self.upload(self.scan_folders[self.scan_index], reference_image=output_image_path)
+        self.upload(scan_folder, reference_image=str(output_image_path))
 
     def run(self):
         # assemble axes
@@ -148,7 +144,11 @@ class Worker(acquisition.Worker):
         opa_hardware = opas.hardwares[opa_index]
         opa_friendly_name = opa_hardware.name
         curve = opa_hardware.curve
+        arrangement = opa_hardware.curve.arrangements[opa_hardware.arrangement]
         motor_names = self.aqn.read("motortune", "motor names")
+        scanned_motors = [m for m in motor_names if self.aqn.read(m, "method") == "Scan"]
+        tune_points = get_tune_points(curve, arrangement, scanned_motors)
+        tune_units = "nm"  # needs update if/when attune supports other units for independents
         # tune points
         if self.aqn.read("motortune", "use tune points"):
             motors_excepted = []  # list of indicies
@@ -156,37 +156,26 @@ class Worker(acquisition.Worker):
                 if not self.aqn.read(motor_name, "method") == "Set":
                     motors_excepted.append(motor_name)
             if self.aqn.read("spectrometer", "method") == "Set":
-                identity = opa_friendly_name + "=wm"
                 hardware_dict = {
                     opa_friendly_name: [
                         opa_hardware,
                         "set_position_except",
-                        ["destination", motors_excepted],
+                        ["destination", motors_excepted, "units"],
                     ],
                     "wm": [spectrometers.hardwares[0], "set_position", None],
                 }
-                axis = acquisition.Axis(
-                    curve.setpoints[:],
-                    curve.setpoints.units,
-                    opa_friendly_name,
-                    identity,
-                    hardware_dict,
-                )
+                axis = acquisition.Axis(tune_points, tune_units, opa_friendly_name, hardware_dict,)
                 axes.append(axis)
             else:
                 hardware_dict = {
                     opa_friendly_name: [
                         opa_hardware,
                         "set_position_except",
-                        ["destination", motors_excepted],
+                        ["destination", motors_excepted, "units"],
                     ]
                 }
                 axis = acquisition.Axis(
-                    curve.setpoints[:],
-                    curve.setpoints.units,
-                    opa_friendly_name,
-                    opa_friendly_name,
-                    hardware_dict,
+                    tune_points, tune_units, opa_friendly_name, opa_friendly_name, hardware_dict,
                 )
                 axes.append(axis)
         # motor
@@ -198,18 +187,15 @@ class Worker(acquisition.Worker):
                 npts = self.aqn.read(motor_name, "number")
                 if self.aqn.read("motortune", "use tune points"):
                     center = 0.0
-                    identity = "D" + name
-                    motor_positions = curve[motor_name][:]
-                    kwargs = {"centers": motor_positions}
+                    kwargs = {
+                        "centers": [curve(t, arrangement.name)[motor_name] for t in tune_points]
+                    }
                 else:
                     center = self.aqn.read(motor_name, "center")
-                    identity = name
                     kwargs = {}
                 points = np.linspace(center - width, center + width, npts)
                 hardware_dict = {name: [opa_hardware, "set_motor", [motor_name, "destination"]]}
-                axis = acquisition.Axis(
-                    points, motor_units, name, identity, hardware_dict, **kwargs
-                )
+                axis = acquisition.Axis(points, motor_units, name, hardware_dict, **kwargs)
                 axes.append(axis)
             elif self.aqn.read(motor_name, "method") == "Set":
                 pass
@@ -223,21 +209,15 @@ class Worker(acquisition.Worker):
             npts = self.aqn.read("spectrometer", "number")
             if self.aqn.read("motortune", "use tune points"):
                 center = 0.0
-                identity = "D" + name
-                curve = curve.copy()
-                curve.convert("wn")
-                # centers_shape = [a.points.size for a in axes]
-                # centers = np.transpose(curve.setpoints[:] * np.ones(centers_shape).T)
-                kwargs = {"centers": curve.setpoints[:]}
+                kwargs = {"centers": wt.units.convert(tune_points, tune_units, units)}
             else:
                 center = self.aqn.read("spectrometer", "center")
                 center = wt.units.convert(
                     center, self.aqn.read("spectrometer", "center units"), "wn"
                 )
-                identity = name
                 kwargs = {}
             points = np.linspace(center - width, center + width, npts)
-            axis = acquisition.Axis(points, units, name, identity, **kwargs)
+            axis = acquisition.Axis(points, units, name, **kwargs)
             axes.append(axis)
         elif self.aqn.read("spectrometer", "method") == "Set":
             if self.aqn.read("motortune", "use tune points"):
@@ -317,7 +297,15 @@ class GUI(acquisition.GUI):
         self.do_post_process = pc.Bool(initial_value=True)
         input_table.add("Process", self.do_post_process)
         # TODO: allowed values, update
-        self.main_channel = pc.Combo()
+        channel_names = list(yaqc_cmds.sensors.get_channels_dict().keys())
+        if (
+            "main_channel" not in self.state.keys()
+            or self.state["main_channel"] not in channel_names
+        ):
+            self.state["main_channel"] = channel_names[0]
+        self.main_channel = pc.Combo(
+            allowed_values=channel_names, initial_value=self.state["main_channel"],
+        )
         input_table.add("Channel", self.main_channel)
         self.layout.addWidget(input_table)
 
@@ -341,11 +329,11 @@ class GUI(acquisition.GUI):
         # processing
         self.do_post_process.write(aqn.read("processing", "do post process"))
         self.main_channel.write(aqn.read("processing", "channel"))
-        # allow devices to read from aqn
-        self.device_widget.load(aqn_path)
+        # allow sensors to read from aqn
+        # self.device_widget.load(aqn_path)
 
     def on_device_settings_updated(self):
-        self.main_channel.set_allowed_values(devices.control.channel_names)
+        self.main_channel.set_allowed_values(sensors.control.channel_names)
 
     def on_opa_combo_updated(self):
         self.show_opa_gui(self.opa_combo.read_index())
@@ -390,8 +378,8 @@ class GUI(acquisition.GUI):
         aqn.add_section("processing")
         aqn.write("processing", "do post process", self.do_post_process.read())
         aqn.write("processing", "channel", self.main_channel.read())
-        # allow devices to save to aqn
-        self.device_widget.save(aqn_path)
+        # allow sensors to save to aqn
+        # self.device_widget.save(aqn_path)
 
     def show_opa_gui(self, index):
         for gui in self.opa_guis:
@@ -412,6 +400,10 @@ class GUI(acquisition.GUI):
         elif method == "Static":
             self.mono_center.set_disabled(False)
 
+    def save_state(self):
+        self.state["main_channel"] = self.channel_combo.read()
+        super().save_state()
+
 
 def mkGUI():
     global gui
@@ -420,3 +412,31 @@ def mkGUI():
 
 def load():
     return True
+
+
+def get_tune_points(instrument, arrangement, scanned_motors):
+    min_ = arrangement.ind_min
+    max_ = arrangement.ind_max
+    if scanned_motors is None:
+        scanned_motors = arrangement.keys()
+    inds = []
+    for scanned in scanned_motors:
+        if scanned in arrangement.keys():
+            inds += [arrangement[scanned].independent]
+            continue
+        for name in arrangement.keys():
+            if (
+                name in instrument.arrangements
+                and scanned in instrument(instrument[name].ind_min, name).keys()
+            ):
+                inds += [arrangement[scanned].independent]
+    print(inds)
+    if len(inds) > 1:
+        inds = np.append(*inds)
+    else:
+        inds = inds[0]
+
+    unique = np.unique(inds)
+    tol = 1e-3 * (max_ - min_)
+    diff = np.append(tol * 2, np.diff(unique))
+    return unique[diff > tol]
