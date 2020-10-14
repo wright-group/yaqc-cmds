@@ -113,15 +113,17 @@ class GUI(QtCore.QObject):
             return
         # data
         idx = last_idx_written
-        axis = [a for a in self.data.axes if a.expression == self.axis.read()][-1]
+        axis = next(a for a in self.data.axes if a.expression == self.axis.read())
         if f"{axis.expression}_points" in self.data:
-            axis = self.data[f"{axis.expression}_points"]
+            limits_axis = self.data[f"{axis.expression}_points"]
+        else:
+            limits_axis = axis
         channel = self.data[self.channel.read()]
         xi = axis[idx[:-1]]
         yi = channel[idx[:-1]]
         self.plot_scatter.setData(xi, yi)
         # limits
-        self.plot_widget.set_xlim(axis.min(), axis.max())
+        self.plot_widget.set_xlim(limits_axis.min(), limits_axis.max())
         self.plot_widget.set_ylim(channel.min(), channel.max())
 
     def on_sensors_changed(self):
