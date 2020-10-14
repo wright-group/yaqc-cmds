@@ -8,7 +8,6 @@ __all__ = ["Driver", "GUI", "Hardware", "import_hardwares"]
 
 
 import pathlib
-import imp
 import time
 import collections
 
@@ -321,16 +320,7 @@ def import_hardwares(config, name, Driver, GUI, Hardware):
             for option in ["__name__", "enable", "model", "serial", "path"]:
                 kwargs.pop(option, None)
             model = section.get("model", "yaq")
-            if model in ("Virtual", "yaq"):
-                hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model=model)
-            else:
-                path = (__here__.parent / pathlib.Path(section["path"])).resolve()
-                fname = path.stem
-                mod = imp.load_source(fname, path)
-                cls = getattr(mod, "Driver")
-                gui = getattr(mod, "GUI")
-                serial = section["serial"]
-                hardware = Hardware(cls, kwargs, gui, name=section, model=model, serial=serial)
+            hardware = Hardware(Driver, kwargs, GUI, name=hw_name, model=model)
             hardwares.append(hardware)
     gui = pw.HardwareFrontPanel(hardwares, name=name)
     advanced_gui = pw.HardwareAdvancedPanel(hardwares, gui.advanced_button)
