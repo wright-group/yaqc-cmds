@@ -8,7 +8,6 @@ Acquisition infrastructure shared by all modules.
 
 import re
 import os
-import imp
 import copy
 import shutil
 import pathlib
@@ -34,6 +33,7 @@ import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.filters as filters
 
 from yaqc_cmds.somatic._wt5 import create_data, write_data, close_data
+from yaqc_cmds.somatic.order import ndindex as order
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -82,17 +82,6 @@ class Destinations:
         self.hardware = hardware
         self.method = method
         self.passed_args = passed_args
-
-
-class Order:
-    def __init__(self, name, path):
-        self.name = name
-        self.module = imp.load_source(name, str(path))
-        self.process = self.module.process
-
-
-orderers = []
-orderers.append(Order("ndindex", __here__ / "order" / "ndindex.py"))
 
 
 ### Worker base ##############################################################
@@ -222,7 +211,6 @@ class Worker(QtCore.QObject):
         # check if scan is valid for hardware ---------------------------------
         # TODO: !!!
         # run through aquisition order handler --------------------------------
-        order = orderers[0]  # TODO: real orderer support
         idxs, slices = order.process(destinations_list)
         # initialize scan -----------------------------------------------------
         g.queue_control.write(True)
