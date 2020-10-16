@@ -388,6 +388,7 @@ class Queue:
         self.worker.action_complete.connect(self.on_action_complete)
         self.worker_thread = QtCore.QThread()
         self.worker.moveToThread(self.worker_thread)
+        g.shutdown.read().connect(self.worker_thread.quit)
         self.worker_thread.start()
         self.worker_q = pc.Q(self.worker_enqueued, self.worker_busy, self.worker)
         # message on slack
@@ -991,6 +992,7 @@ class GUI(QtCore.QObject):
         acquisition_thread = QtCore.QThread()
         g.scan_thread.write(acquisition_thread)
         acquisition_thread.start()
+        g.shutdown.read().connect(acquisition_thread.quit)
         # import modules
         # done from modules.ini
         # modules appear in order of import (order of appearance in ini)
