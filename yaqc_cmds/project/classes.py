@@ -104,11 +104,6 @@ class PyCMDS_Object(QtCore.QObject):
     def __init__(
         self,
         initial_value=None,
-        ini=None,
-        section="",
-        option="",
-        import_from_ini=True,
-        save_to_ini_at_shutdown=True,
         display=False,
         name="",
         label="",
@@ -127,18 +122,6 @@ class PyCMDS_Object(QtCore.QObject):
             self.disabled = True
         else:
             self.disabled = False
-        # ini
-        if ini:
-            self.has_ini = True
-            self.ini = ini
-            self.section = section
-            self.option = option
-        else:
-            self.has_ini = False
-        if import_from_ini:
-            self.get_saved()
-        if save_to_ini_at_shutdown:
-            g.shutdown.add_method(self.save)
         # name
         self.name = name
         if not label == "":
@@ -173,17 +156,6 @@ class PyCMDS_Object(QtCore.QObject):
     def write(self, value):
         self.value.write(value)
         self.updated.emit()
-
-    def get_saved(self):
-        if self.has_ini:
-            self.value.write(self.ini.read(self.section, self.option))
-        self.updated.emit()
-
-    def save(self, value=None):
-        if value is not None:
-            self.value.write(value)
-        if self.has_ini:
-            self.ini.write(self.section, self.option, self.value.read())
 
     def set_disabled(self, disabled):
         self.disabled = bool(disabled)
@@ -251,12 +223,6 @@ class Combo(PyCMDS_Object):
 
     def read_index(self):
         return self.allowed_values.index(self.read())
-
-    def save(self, value=None):
-        if value is not None:
-            self.value.write(value)
-        if self.has_ini:
-            self.ini.write(self.section, self.option, self.value.read(), with_apostrophe=True)
 
     def set_allowed_values(self, allowed_values):
         """
@@ -371,19 +337,6 @@ class Filepath(PyCMDS_Object):
     def read(self):
         # want python string, not QString
         return str(PyCMDS_Object.read(self))
-
-    def get_saved(self):
-        if self.has_ini:
-            read = self.ini.read(self.section, self.option)
-            self.value.write(os.path.normpath(read))
-        self.updated.emit()
-
-    def save(self, value=None):
-        if value is not None:
-            self.value.write(value)
-        if self.has_ini:
-            out = str(self.value.read().replace("\\", "/"))
-            self.ini.write(self.section, self.option, out)
 
 
 class NumberLimits(PyCMDS_Object):
