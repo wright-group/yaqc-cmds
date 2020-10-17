@@ -5,6 +5,7 @@ import collections
 
 from PySide2 import QtCore, QtWidgets
 
+import WrightTools as wt
 import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.sensors as sensors
 import yaqc_cmds.project.widgets as pw
@@ -71,7 +72,9 @@ class GUI(QtCore.QObject):
         self.channel = pc.Combo()
         input_table.add("Channel", self.channel)
         self.axis = pc.Combo()
-        input_table.add("Axis", self.axis)
+        input_table.add("X-Axis", self.axis)
+        self.axis_units = pc.Combo()
+        input_table.add("X-Units", self.axis_units)
         self.settings_layout.addWidget(input_table)
         # global daq settings
         input_table = pw.InputTable()
@@ -99,6 +102,12 @@ class GUI(QtCore.QObject):
             self.data.close()
         self.data = somatic._wt5.get_data_readonly()
         self.axis.set_allowed_values(self.data.axis_expressions)
+        self.on_axis_updated()
+
+    def on_axis_updated(self):
+        axis = next(a for a in self.data.axes if a.expression == self.axis.read())
+        units = [axis.units] + list(wt.units.get_valid_conversions(axis.units))
+        self.axis_units.set_allowed_values(units)
 
     def on_data_file_written(self):
         try:
@@ -112,18 +121,26 @@ class GUI(QtCore.QObject):
         if self.data is None or last_idx_written is None:
             return
         # data
+        x_units = self.axis_units.read()
         idx = last_idx_written
         axis = next(a for a in self.data.axes if a.expression == self.axis.read())
-        if f"{axis.expression}_points" in self.data:
-            limits_axis = self.data[f"{axis.expression}_points"]
-        else:
-            limits_axis = axis
+        limits = list(wt.units.convert([axis.min(), axis.max()], axis.units, x_units))
+        if (
+            f"{axis.expression}_points" in self.data
+            and f"{axis.expression}_centers" not in self.data
+        ):
+            points_axis = self.data[f"{axis.expression}_points"]
+            limits += list(
+                wt.units.convert(
+                    [points_axis.min(), points_axis.max()], points_axis.units, x_units
+                )
+            )
         channel = self.data[self.channel.read()]
-        xi = axis[idx[:-1]]
+        xi = wt.units.convert(axis[idx[:-1]], axis.units, x_units)
         yi = channel[idx[:-1]]
         self.plot_scatter.setData(xi, yi)
         # limits
-        self.plot_widget.set_xlim(limits_axis.min(), limits_axis.max())
+        self.plot_widget.set_xlim(min(limits), max(limits))
         self.plot_widget.set_ylim(channel.min(), channel.max())
 
     def on_sensors_changed(self):
@@ -149,3 +166,6 @@ somatic.signals.data_file_written.connect(gui.on_data_file_written)
 somatic.signals.data_file_created.connect(gui.on_data_file_created)
 sensors.signals.channels_changed.connect(gui.on_channels_changed)
 sensors.signals.sensors_changed.connect(gui.on_sensors_changed)
+gui.axis.updated.connect(gui.on_axis_updated)
+gui.axis.updated.connect(gui.on_data_file_written)
+gui.axis_units.updated.connect(gui.on_data_file_written)
