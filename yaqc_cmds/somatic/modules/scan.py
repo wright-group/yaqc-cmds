@@ -183,6 +183,7 @@ class Worker(acquisition.Worker):
                         units = "wn"
                     break
             name = constant_name
+            expression = self.aqn.read(constant_name, "expression")
             constant = acquisition.Constant(units, name, expression=expression, static=False)
             constants.append(constant)
         # do scan
