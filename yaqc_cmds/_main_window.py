@@ -54,11 +54,9 @@ class MainWindow(QtWidgets.QMainWindow):
     shutdown = QtCore.Signal()
     queue_control = QtCore.Signal()
 
-    def __init__(self):
+    def __init__(self, config):
         QtWidgets.QMainWindow.__init__(self, parent=None)
-        self.config = toml.load(
-            pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
-        )
+        self.config = config
         g.system_name.write(self.config["system_name"])
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)

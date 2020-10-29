@@ -10,6 +10,7 @@ import appdirs
 import WrightTools as wt
 import yaqc
 
+import yaqc_cmds.__main__
 import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc
@@ -227,8 +228,7 @@ class Hardware(hw.Hardware):
 # --- import --------------------------------------------------------------------------------------
 
 
-conf = pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
-conf = toml.load(conf)
+conf = yaqc_cmds.__main__.config
 hardwares, gui, advanced_gui = hw.import_hardwares(
     conf.get("hardware", {}).get("filters", {}),
     name="Filters",

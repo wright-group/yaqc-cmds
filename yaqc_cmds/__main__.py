@@ -11,6 +11,8 @@ import toml
 
 from .__version__ import __version__
 
+config = {}
+
 
 @click.group(invoke_without_command=True)
 @click.version_option(__version__)
@@ -21,12 +23,21 @@ def main(ctx):
 
 
 @main.command()
-def launch():
+@click.option("-c", "--config", "config_filepath")
+def launch(config_filepath):
     from ._main_window import app, MainWindow
     from .project import style
 
-    global window
-    window = MainWindow()
+    if config_filepath:
+        config_filepath = pathlib.Path(config_filepath)
+    else:
+        config_filepath = (
+            pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
+        )
+
+    global window, config
+    config = toml.load(config_filepath)
+    window = MainWindow(config)
     style.set_style()
     window.show()
     window.showMaximized()
@@ -35,7 +46,9 @@ def launch():
 
 @main.command(name="edit-config")
 def edit_config():
-    config_filepath = pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
+    config_filepath = (
+        pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
+    )
     config_filepath.parent.mkdir(parents=True, exist_ok=True)
     if not config_filepath.exists():
         if click.confirm(

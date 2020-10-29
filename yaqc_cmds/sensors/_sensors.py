@@ -20,9 +20,6 @@ import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 
 
-config = toml.load(pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
-
-
 class Data(QtCore.QMutex):
     def __init__(self):
         QtCore.QMutex.__init__(self)

@@ -5,10 +5,11 @@ import toml
 
 from . import signals
 from ._sensors import Sensor, Driver, SensorWidget
+import yaqc_cmds.__main__
 
 
 sensors = []
-config = toml.load(pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
+config = yaqc_cmds.__main__.config
 for section in config["sensors"].keys():
     if section == "settings":
         continue
@@ -20,7 +21,9 @@ for section in config["sensors"].keys():
                 continue
             else:
                 kwargs[option] = config["sensors"][section][option]
-                sensor = Sensor(Driver, kwargs, None, Widget=SensorWidget, name=section, model="Virtual",)
+                sensor = Sensor(
+                    Driver, kwargs, None, Widget=SensorWidget, name=section, model="Virtual",
+                )
                 sensors.append(sensor)
                 sensor.initialize()
 
