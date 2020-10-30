@@ -1,6 +1,7 @@
 ### import ####################################################################
 
 
+import yaqc_cmds.__main__
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.hardware.hardware as hw
 import pathlib
@@ -82,8 +83,7 @@ class Hardware(hw.Hardware):
 ### import ####################################################################
 
 
-conf = pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
-conf = toml.load(conf)
+conf = yaqc_cmds.__main__.config
 hardwares, gui, advanced_gui = hw.import_hardwares(
     conf.get("hardware", {}).get("spectrometers", {}),
     name="Spectrometers",

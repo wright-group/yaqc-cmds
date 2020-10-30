@@ -17,6 +17,7 @@ import toml
 
 import WrightTools as wt
 
+import yaqc_cmds.__main__
 import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
@@ -996,9 +997,7 @@ class GUI(QtCore.QObject):
         # import modules
         # done from modules.ini
         # modules appear in order of import (order of appearance in ini)
-        config = toml.load(
-            pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
-        )
+        config = yaqc_cmds.__main__.config
         self.modules = {}
         for name, load in config["modules"].items():
             if load:
