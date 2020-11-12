@@ -184,7 +184,7 @@ class Worker(acquisition.Worker):
                 motor_units = None
                 name = "_".join([opa_friendly_name, motor_name])
                 width = self.aqn.read(motor_name, "width") / 2.0
-                npts = self.aqn.read(motor_name, "number")
+                npts = int(self.aqn.read(motor_name, "number"))
                 if self.aqn.read("motortune", "use tune points"):
                     center = 0.0
                     kwargs = {
