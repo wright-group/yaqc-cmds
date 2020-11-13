@@ -57,7 +57,7 @@ class Driver(pc.Driver):
         else:
             state = {}
         self.load_state(state)
-        self.offset = pc.Number(units=self.native_units, name="Offset", display=True)
+        self.offset = pc.Number(initial_value=0, units=self.native_units, name="Offset", display=True)
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
@@ -251,6 +251,7 @@ class Hardware(pc.Hardware):
         pc.Hardware.close(self)
 
     def get_destination(self, output_units="same"):
+        print("get_destination", self.name, self.destination.read(output_units))
         return self.destination.read(output_units=output_units)
 
     def get_position(self, output_units="same"):
