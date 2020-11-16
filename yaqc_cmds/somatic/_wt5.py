@@ -75,10 +75,29 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         # TODO allow sensors to be inactive
         # TODO allow multi-D sensors
         sensor.active = True
-        for ch in sensor.channel_names:
-            channel_shapes[ch] = full_scan_shape
-            # TODO: channel units?
-            channel_units[ch] = None
+
+        # InGaAs array detector
+        if hasattr(sensor.driver.client, "get_map"):
+            map_shape = full_scan_shape + tuple(sensor.shape)
+            full_scan_shape = full_scan_shape + (1,)
+            for k,v in variable_shapes.items():
+                variable_shapes[k] = v + (1,)
+            for k,v in channel_shapes.items():
+                channel_shapes[k] = v + (1,)
+
+            variable_shapes["wa"] = map_shape
+            variable_units["wa"] = "nm"
+            variable_labels["wa"] = "a"
+
+            for ch in sensor.channel_names:
+                channel_shapes[ch] = map_shape
+                channel_units[ch] = None
+
+        else:
+            for ch in sensor.channel_names:
+                channel_shapes[ch] = full_scan_shape
+                # TODO: channel units?
+                channel_units[ch] = None
 
     for var, sh in variable_shapes.items():
         units = variable_units[var]
@@ -95,7 +114,15 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
             sh = data[f"{axis.name}_centers"].shape
             data[f"{axis.name}_centers"][:] = axis.centers.reshape(sh)
 
-    data.transform(*[f"{a.name}_points" if hasattr(a, "centers") else a.name for a in axes])
+    # This check was originally if there was _centers_ use the points arrays
+    # This was changed to always use the points arrays (except for the array detector)
+    # Because chopping full shaped arrays caused incorrect behavior for 3D+ data
+    # When we have some better hinting in WT itself, this should likely be reverted
+    # KFS 2020-11-13
+    transform = [f"{a.name}_points" if hasattr(a, "points") else a.name for a in axes]
+    if "wa" in variable_shapes:
+        transform += ["wa"]
+    data.transform(*transform)
 
     for ch, sh in channel_shapes.items():
         units = channel_units[ch]
@@ -119,6 +146,8 @@ def close_data():
 
 
 def write_data(idx, hardware, sensors):
+    in_idx = idx
+    idx = idx + (...,)
     data["labtime"][idx] = time.time()
     for hw in hardware:
         for rec, (obj, *_) in hw.recorded.items():
@@ -126,7 +155,8 @@ def write_data(idx, hardware, sensors):
     for s in sensors:
         for ch, val in s.channels.items():
             data[ch][idx] = val
+        if s.shape[0] > 1:
+            data["wa"][idx] = s.driver.client.get_map(data["wm"][idx])
     data.flush()
     global last_idx_written
-    last_idx_written = idx
-    somatic.signals.data_file_written.emit()
+    last_idx_written = in_idx

@@ -67,13 +67,13 @@ class Sensor(pc.Hardware):
         self.data = Data()
         self.active = True
         # shape
-        if "shape" in kwargs.keys():
-            self.shape = kwargs.pop("shape")
+        if "shape" in args[1]:
+            self.shape = args[1].pop("shape")
         else:
             self.shape = (1,)
         # map
-        if "has_map" in kwargs.keys():
-            self.has_map = kwargs.pop("has_map")
+        if "has_map" in args[1]:
+            self.has_map = args[1].pop("has_map")
         else:
             self.has_map = False
         self.has_map = False  # turning this feature off for now  --Blaise 2020-09-25

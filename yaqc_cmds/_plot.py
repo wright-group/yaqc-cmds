@@ -1,9 +1,7 @@
 """GUI for displaying scans in progress, current slice etc."""
 
-
-import collections
-
 from PySide2 import QtCore, QtWidgets
+import numpy as np
 
 import WrightTools as wt
 import yaqc_cmds.project.project_globals as g
@@ -95,13 +93,18 @@ class GUI(QtCore.QObject):
 
     def on_channels_changed(self):
         new = list(sensors.get_channels_dict())
+        if "ingaas" in new:
+            new.remove("ingaas")
         self.channel.set_allowed_values(new)
 
     def on_data_file_created(self):
         if self.data is not None:
             self.data.close()
         self.data = somatic._wt5.get_data_readonly()
-        self.axis.set_allowed_values(self.data.axis_expressions)
+        allowed = list(self.data.axis_expressions)
+        if "wa" in allowed:
+            allowed.remove("wa")
+        self.axis.set_allowed_values(allowed)
         self.on_axis_updated()
 
     def on_axis_updated(self):
@@ -136,12 +139,20 @@ class GUI(QtCore.QObject):
                 )
             )
         channel = self.data[self.channel.read()]
-        xi = wt.units.convert(axis[idx[:-1]], axis.units, x_units)
-        yi = channel[idx[:-1]]
-        self.plot_scatter.setData(xi, yi)
+        plot_idx = list(last_idx_written + (0,) * (self.data.ndim - len(last_idx_written)))
+        plot_idx[wt.kit.get_index(self.data.axis_names, self.axis.read())] = slice(None)
+        try:
+            xi = wt.units.convert(axis[plot_idx], axis.units, x_units)
+            yi = channel[plot_idx]
+            self.plot_scatter.setData(xi, yi)
+        except (TypeError, ValueError):
+            pass
         # limits
-        self.plot_widget.set_xlim(min(limits), max(limits))
-        self.plot_widget.set_ylim(channel.min(), channel.max())
+        try:
+            self.plot_widget.set_xlim(min(limits), max(limits))
+            self.plot_widget.set_ylim(channel.min(), channel.max())
+        except Exception:
+            pass
 
     def on_sensors_changed(self):
         for s in sensors.sensors:
@@ -157,6 +168,9 @@ class GUI(QtCore.QObject):
             return
         sensor = sensors.get_channels_dict()[channel]
         num = sensor.channels[channel]
+        if not np.isscalar(num):
+            channel = f"max({channel})"
+            num = np.max(num)
         self.big_channel.setText(channel)
         self.big_display.setValue(num)
 

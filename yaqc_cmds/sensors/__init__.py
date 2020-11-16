@@ -10,6 +10,7 @@ import yaqc_cmds.__main__
 
 sensors = []
 config = yaqc_cmds.__main__.config
+
 for section in config["sensors"].keys():
     if section == "settings":
         continue
@@ -21,11 +22,11 @@ for section in config["sensors"].keys():
                 continue
             else:
                 kwargs[option] = config["sensors"][section][option]
-                sensor = Sensor(
-                    Driver, kwargs, None, Widget=SensorWidget, name=section, model="Virtual",
-                )
-                sensors.append(sensor)
-                sensor.initialize()
+        sensor = Sensor(
+            Driver, kwargs, None, Widget=SensorWidget, name=section, model="yaq",
+        )
+        sensors.append(sensor)
+        sensor.initialize()
 
 
 def get_channels_dict():

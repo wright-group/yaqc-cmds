@@ -34,6 +34,7 @@ import yaqc_cmds.hardware.filters as filters
 
 from yaqc_cmds.somatic._wt5 import create_data, write_data, close_data
 from yaqc_cmds.somatic.order import ndindex as order
+from .signals import data_file_written
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -282,6 +283,8 @@ class Worker(QtCore.QObject):
                 s.wait_until_still()
             # save
             write_data(idx=idx, hardware=all_hardwares, sensors=yaqc_cmds.sensors.sensors)
+            if i != npts - 1:
+                data_file_written.emit()
             # update
             self.fraction_complete.write(i / npts)
             self.update_ui.emit()
@@ -299,6 +302,7 @@ class Worker(QtCore.QObject):
         self.going.write(False)
         g.queue_control.write(False)
         g.logger.log("info", "Scan done", "")
+        data_file_written.emit()
         self.update_ui.emit()
         self.scan_complete.emit()
         # process scan --------------------------------------------------------
