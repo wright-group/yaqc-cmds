@@ -44,7 +44,7 @@ def grating_linear_dispersion(
         Pixel width (um)
     calibration_pixel : int
         Pixel on which the spec_central_wavelength falls.
-        
+
     Returns
     -------
     np.ndarray
