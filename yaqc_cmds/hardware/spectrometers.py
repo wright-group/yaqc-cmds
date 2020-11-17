@@ -41,6 +41,7 @@ class Driver(hw.Driver):
         self.position.write(self.ctrl.get_position())
         # recorded
         self.recorded[self.name] = [self.position, self.native_units, 1.0, "m", False]
+        self.limits.write(*self.ctrl.get_limits())
         self.wait_until_still()
         # finish
         self.initialized.write(True)
