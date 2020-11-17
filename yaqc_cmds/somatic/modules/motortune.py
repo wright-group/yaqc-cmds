@@ -175,7 +175,7 @@ class Worker(acquisition.Worker):
                     ]
                 }
                 axis = acquisition.Axis(
-                    tune_points, tune_units, opa_friendly_name, opa_friendly_name, hardware_dict,
+                    tune_points, tune_units, opa_friendly_name, hardware_dict,
                 )
                 axes.append(axis)
         # motor
@@ -206,7 +206,7 @@ class Worker(acquisition.Worker):
             name = "wm"
             units = "wn"
             width = self.aqn.read("spectrometer", "width") / 2.0
-            npts = self.aqn.read("spectrometer", "number")
+            npts = int(self.aqn.read("spectrometer", "number"))
             if self.aqn.read("motortune", "use tune points"):
                 center = 0.0
                 kwargs = {"centers": wt.units.convert(tune_points, tune_units, units)}
@@ -417,7 +417,7 @@ def load():
 def get_tune_points(instrument, arrangement, scanned_motors):
     min_ = arrangement.ind_min
     max_ = arrangement.ind_max
-    if scanned_motors is None:
+    if not scanned_motors:
         scanned_motors = arrangement.keys()
     inds = []
     for scanned in scanned_motors:
@@ -430,9 +430,8 @@ def get_tune_points(instrument, arrangement, scanned_motors):
                 and scanned in instrument(instrument[name].ind_min, name).keys()
             ):
                 inds += [arrangement[scanned].independent]
-    print(inds)
     if len(inds) > 1:
-        inds = np.append(*inds)
+        inds = np.concatenate(inds)
     else:
         inds = inds[0]
 
