@@ -240,6 +240,8 @@ class Combo(PyCMDS_Object):
         """
         if allowed_values == self.allowed_values:
             return
+        if not allowed_values:  # case of empty list
+            return
         self.allowed_values = list(allowed_values)
         # update widget
         if self.has_widget:

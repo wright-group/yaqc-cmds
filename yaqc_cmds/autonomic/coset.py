@@ -1,114 +1,55 @@
-### import ####################################################################
-
 import os
 import pathlib
 import ast
+
 import appdirs
-
 import numpy as np
-
+import toml
 from PySide2 import QtWidgets, QtCore
-
 import WrightTools as wt
 import attune
 
-import yaqc_cmds.project.ini_handler as ini_handler
-import yaqc_cmds.project.file_dialog_handler as file_dialog_handler
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.project_globals as g
-
-# hardwares (also ensure present in GUI)
 import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.hardware.delays as delays
 import yaqc_cmds.hardware.filters as filters
-
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-
-ini_path = pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds")) / "coset.ini"
-ini = ini_handler.Ini(ini_path)
-ini.return_raw = True
-
-# ensure that all elements are in the ini file
-all_hardware_names = [hw.name for hw in all_hardwares]
-ini.config.read(ini.filepath)
-for section in all_hardware_names:
-    if not ini.config.has_section(section):
-        ini.config.add_section(section)
-        ini.write(section, "offset", 0.0)
-    # 'use' bool
-    if not ini.config.has_option(section, "use"):
-        ini.write(section, "use", False)
-    # hardware names
-    for option in all_hardware_names:
-        if not section == option:
-            if not ini.config.has_option(section, option):
-                ini.write(section, option, None)
-                ini.write(section, option + " offset", 0.0)
+import yaqc_cmds.somatic as somatic
 
 
-### objects ###################################################################
+all_hardwares = {}
+all_hardwares.update({h.name: h for h in opas.hardwares})
+all_hardwares.update({h.name: h for h in spectrometers.hardwares})
+all_hardwares.update({h.name: h for h in delays.hardwares})
 
 
 class CoSetHW:
     def __init__(self, hardware):
+        """
+        This object contains all of the GUI and state for one low-level tab of the
+        autonomic system.
+        """
         self.hardware = hardware
-        self.curves_directory = pathlib.Path().home() / "yaqc_cmds-curves"
-        # directly write stored offset to hardware
-        stored_offset = float(ini.read(self.hardware.name, "offset"))
-        self.hardware.offset.write(stored_offset)
-        self.corrs = []
-        self.control_hardware = []
+        self.state_path = pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds")) / "autonomic" / f"{self.hardware.name}.toml"
+        self.state_path.parent.mkdir(exist_ok=True)
+        # instrument
+        try:
+            self.instrument = attune.load(f"autonomic_{self.hardware.name}")
+        except ValueError:
+            self.instrument = attune.Instrument(arrangements={}, setables={}, 
+                                     name=f"autonomic_{self.hardware.name}")
+            attune.store(self.instrument)
         # make own widget
         self.widget = QtWidgets.QWidget()
         self.box = QtWidgets.QHBoxLayout()
         self.box.setContentsMargins(0, 10, 0, 0)
         self.widget.setLayout(self.box)
         self.create_frame(self.box)
-        # load files
-        ini.config.read(ini.filepath)
-        for option in ini.config.options(self.hardware.name):
-            if "offset" in option:
-                continue
-            value = ini.read(self.hardware.name, option)
-            if value not in ["None", "False", "True"]:
-                value = value[1:]
-                value = value[:-1]
-                self.load_file(value)
-        stored_use_state = ast.literal_eval(ini.read(self.hardware.name, "use"))
-        self.use_bool.write(stored_use_state)
         # initialize
+        self.visit_store()
         self.update_display()
-        self.update_use_bool()
-
-    @property
-    def control_position(self):
-        return [
-            np.clip(hw.get_destination(corr.setpoints.units), *corr.get_limits())
-            for hw, corr in zip(self.control_hardware, self.corrs)
-        ]
-
-    def add_table_row(self, corr):
-        # insert into table
-        new_row_index = self.table.rowCount()
-        self.table.insertRow(new_row_index)
-        # hardware
-        label = pw.Label(corr.setpoints.name)
-        label.setMargin(3)
-        self.table.setCellWidget(new_row_index, 0, label)
-        # path
-        name = pathlib.Path(corr.path).stem
-        label = pw.Label(name)
-        label.setMargin(3)
-        label.setToolTip(str(corr.path))
-        self.table.setCellWidget(new_row_index, 1, label)
-        # button
-        button = pw.SetButton("REMOVE", color="stop")
-        g.queue_control.disable_when_true(button)
-        button.setProperty("TableRowIndex", new_row_index)
-        button.clicked.connect(lambda: self.on_remove_file(button.property("TableRowIndex")))
-        self.table.setCellWidget(new_row_index, 2, button)
 
     def create_frame(self, layout):
         # container widget
@@ -137,170 +78,93 @@ class CoSetHW:
         # input table
         input_table = pw.InputTable()
         input_table.add("Display", None)
-        self.display_combobox = pc.Combo()
-        self.display_combobox.updated.connect(self.update_display)
-        input_table.add("Hardware", self.display_combobox)
+        self.hardware_combobox = pc.Combo()  # which control hardware is currently displayed
+        self.hardware_combobox.updated.connect(self.on_hardware_combobox_updated)
+        input_table.add("Hardware", self.hardware_combobox)
+        self.arrangement_combobox = pc.Combo()  # which arrangement of the control hardware
+        self.arrangement_combobox.updated.connect(self.update_display)
+        input_table.add("Arrangement", self.arrangement_combobox)
         input_table.add("Settings", None)
-        self.use_bool = pc.Bool()
-        self.use_bool.updated.connect(self.on_toggle_use)
-        g.queue_control.disable_when_true(self.use_bool)
-        input_table.add("Use", self.use_bool)
         input_table.add("Current Offset", self.hardware.offset)
         settings_layout.addWidget(input_table)
-        # add button
-        self.add_button = pw.SetButton("ADD FILE", color="go")
-        self.add_button.clicked.connect(self.on_add_file)
-        g.queue_control.disable_when_true(self.add_button)
-        settings_layout.addWidget(self.add_button)
-        # table
-        self.table = pw.TableWidget()
-        self.table.verticalHeader().hide()
-        self.table.insertColumn(0)
-        self.table.insertColumn(1)
-        self.table.insertColumn(2)
-        self.table.setHorizontalHeaderLabels(["Hardware", "File Name", ""])
-        self.table.setColumnWidth(0, 100)
-        self.table.setColumnWidth(1, 100)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        settings_layout.addWidget(self.table)
+        # control arrangement choice table
+        self.control_arrangement_table = pw.InputTable()
+        self.control_arrangement_bools = {}
+        settings_layout.addWidget(self.control_arrangement_table)
+        # button
+        self.visit_store_button = pw.SetButton("VISIT STORE", color="go")
+        g.queue_control.disable_when_true(self.visit_store_button)
+        settings_layout.addWidget(self.visit_store_button)
+        # stretch
+        settings_layout.addStretch(1)
 
     def launch(self):
         """
         Apply offsets.
         """
-        if self.use_bool.read():
-            corr_results = [
-                wt.units.converter(
-                    list(corr(self.control_position[i]).values())[0],
-                    list(corr.dependents.values())[0].units,
-                    self.hardware.native_units,
-                )
-                for i, corr in enumerate(self.corrs)
-            ]
-            new_offset = np.sum(corr_results)
-            if g.hardware_initialized.read():
-                self.hardware.set_offset(new_offset, self.hardware.native_units)
-                ini.write(self.hardware.name, "offset", new_offset)
+        new = 0
+        for control in self.instrument.arrangements.keys():
+            if not self.control_arrangement_bools[control].read():
+                continue
+            position = all_hardwares[control].get_position(all_hardwares[control].native_units)
+            note = self.instrument(position, arrangement_name=control)
+            try:
+                key = all_hardwares[control].driver.client.get_arrangement()
+                new += note[key]
+            except Exception as e:  # TODO: better exception handling
+                new += note["auto"]  # default key
+        if g.hardware_initialized.read():
+            self.hardware.set_offset(new, self.hardware.native_units)
 
-    def load_file(self, path):
-        """
-        Load a file.
-        """
-        corr = attune.Curve.read(path)
-        setattr(corr, "path", path)
-        self.corrs.append(corr)
-        self.control_hardware.append(
-            next(hw for hw in all_hardwares if hw.name == corr.setpoints.name)
-        )
-        self.add_table_row(corr)
-        self.update_combobox()
-        self.update_use_bool()
-        return corr
+    def on_control_arrangement_bools_updated(self):
+        out = {k: v.read() for k, v in self.control_arrangement_bools.items()}
+        with open(self.state_path, "w") as f:
+            toml.dump(out, f)
 
-    def on_add_file(self):
-        """
-        Add a file through file dialog.
-        """
-        # get filepath
-        caption = "Import a coset file"
-        options = "COSET (*.curve);;All Files (*.*)"
-        path = file_dialog_handler.open_dialog(caption, self.curves_directory, options)
-        if not os.path.isfile(path):  # presumably user canceled
-            return
-        corr = attune.Curve.read(path)  # this object is throwaway
-        setattr(corr, "path", path)
-        if not list(corr.dependents.keys())[0] == self.hardware.name:
-            warnings.warn("incorrect hardware")
-            return
-        for i, loaded_corr in enumerate(self.corrs):
-            if (
-                loaded_corr.setpoints.name == corr.setpoints.name
-            ):  # will not allow two of same control
-                self.unload_file(i)  # unload old one
-                break  # should only be one
-        # load in
-        self.load_file(path)
-        ini.write(
-            self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True,
-        )
-        self.display_combobox.write(corr.setpoints.name)
-
-    def on_remove_file(self, row):
-        """
-        Fires when one of the REMOVE buttons gets pushed.
-        """
-        # get row as int (given as QVariant)
+    def on_hardware_combobox_updated(self):
         try:
-            row = row.toInt()[0]
-        except AttributeError:
-            pass  # already an int?
-        self.unload_file(row)
-
-    def on_toggle_use(self):
-        ini.write(self.hardware.name, "use", self.use_bool.read())
-        if self.use_bool.read():
-            self.launch()
-        else:
-            if g.hardware_initialized.read():
-                self.hardware.set_offset(0.0, self.hardware.native_units)
-                ini.write(self.hardware.name, "offset", 0.0)
-
-    def unload_file(self, index):
-        removed_corr = self.corrs.pop(index)
-        self.control_hardware.pop(index)
-        ini.write(self.hardware.name, removed_corr.setpoints.name, None)
-        ini.write(self.hardware.name, list(removed_corr.dependents.keys())[0] + " offset", 0.0)
-        # clear table
-        for i in range(self.table.rowCount()):
-            self.table.removeRow(0)
-        # remake table
-        for corr in self.corrs:
-            self.add_table_row(corr)
-        self.update_combobox()
-        self.update_use_bool()
-
-    def update_combobox(self):
-        if len(self.corrs) == 0:
-            allowed_values = [None]
-        else:
-            allowed_values = [corr.setpoints.name for corr in self.corrs]
-        self.display_combobox.set_allowed_values(allowed_values)
+            current_control_arrangement = self.instrument.arrangements[self.hardware_combobox.read()]
+            self.arrangement_combobox.set_allowed_values(current_control_arrangement.tunes.keys())
+        except KeyError:  # probably an instrument without any arrangements
+            pass
         self.update_display()
 
-    def update_use_bool(self):
-        if len(self.corrs) == 0:
-            self.use_bool.write(False)
-            self.use_bool.set_disabled(True)
-        else:
-            self.use_bool.set_disabled(False)
-
     def update_display(self):
-        if len(self.corrs) > 0:
-            corr = self.corrs[self.display_combobox.read_index()]
-            xi = corr.setpoints[:]
-            yi = list(corr.dependents.values())[0][:]
-            x_label = corr.setpoints.name + " (" + corr.setpoints.units + ")"
-            y_label = (
-                list(corr.dependents.keys())[0]
-                + " ("
-                + list(corr.dependents.values())[0].units
-                + ")"
-            )
-            self.plot_widget.set_labels(x_label, y_label)
-            self.plot_scatter.clear()
-            self.plot_scatter.setData(xi, yi)
-        else:
-            # this doesn't work as expected, but that isn't crucial right now
-            # - Blaise 2015.10.24
-            self.plot_widget.set_labels("", "")
-            self.plot_scatter.clear()
-            self.plot_widget.update()
-            self.plot_scatter.update()
+        try:
+            arrangement = self.instrument.arrangements[self.hardware_combobox.read()]
+            tune = arrangement.tunes[self.arrangement_combobox.read()]
+        except KeyError:  # probably an empty instrument
+            return
+        self.plot_widget.set_labels(tune.ind_units, tune.dep_units)
+        self.plot_scatter.clear()
+        self.plot_scatter.setData(tune.independent, tune.dependent)
+
+    def visit_store(self):
+        self.instrument = attune.load(f"autonomic_{self.hardware.name}")
+        # update hardware combobox options
+        self.hardware_combobox.set_allowed_values(self.instrument.arrangements.keys())
+        self.on_hardware_combobox_updated()
+        # add new checkboxes if needed
+        for control_name in self.instrument.arrangements.keys():
+            if control_name in self.control_arrangement_bools.keys():
+                continue
+            checkbox = pc.Bool()
+            self.control_arrangement_table.add(control_name, checkbox)
+            self.control_arrangement_bools[control_name] = checkbox
+            checkbox.updated.connect(self.on_control_arrangement_bools_updated)
+        # update checkboxes based on saved state
+        if not self.state_path.exists():
+            self.on_control_arrangement_bools_updated()  # initializes state as false
+        for k, v in toml.load(self.state_path).items():
+            if k in self.control_arrangement_bools.keys():
+                self.control_arrangement_bools[k].write(v)
+        self.update_display()
 
     def zero(self):
         """
         Offsets to zero for all corrs based on current positions.
         """
+        return  # TODO
         use = self.use_bool.read()
         paths = []
         for i, corr in enumerate(self.corrs):
@@ -320,10 +184,7 @@ class CoSetHW:
         self.update_display()
 
 
-coset_hardwares = []  # list to contain all coset hardware objects
-
-
-### control ###################################################################
+coset_hardwares = []  # gets filled by GUI.create_hardware_frame
 
 
 class Control:
@@ -333,6 +194,10 @@ class Control:
     def launch(self):
         for coset_hardware in coset_hardwares:
             coset_hardware.launch()
+
+    def visit_store(self):
+        for coset_hardware in coset_hardwares:
+            coset_hardware.visit_store()
 
     def zero(self, hardware_name):
         """
@@ -347,12 +212,12 @@ class Control:
 control = Control()
 g.hardware_waits.give_coset_control(control)
 g.coset_control.write(control)
-
-### gui #######################################################################
+somatic.signals.updated_attune_store.connect(control.visit_store)
 
 
 class GUI(QtCore.QObject):
     def __init__(self):
+        """Top-level GUI"""
         QtCore.QObject.__init__(self)
         self.create_frame()
 
@@ -395,9 +260,3 @@ class GUI(QtCore.QObject):
 
 gui = GUI()
 
-
-### testing ###################################################################
-
-
-if __name__ == "__main__":
-    pass

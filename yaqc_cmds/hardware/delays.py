@@ -82,6 +82,7 @@ class Driver(hw.Driver):
         self.hardware.zero_position.write(state.get("zero_position", 0))
 
     def set_motor_position(self, motor_position):
+        print("set_motor_position", self.name, motor_position)
         self.motor.set_position(motor_position)
         time.sleep(0.01)
         while self.is_busy():
@@ -95,14 +96,17 @@ class Driver(hw.Driver):
         self.set_motor_position(destination_motor)
 
     def set_offset(self, offset):
+        print("delays set_offset", self.name, offset)
         # update zero
         offset_from_here = offset - self.offset.read(self.native_units)
         offset_motor = offset_from_here / (self.native_per_motor * self.factor.read())
         new_zero = self.zero_position.read(self.motor_units) + offset_motor
         self.set_zero(new_zero)
         self.offset.write(offset, self.native_units)
+        print("new offset", self.name, self.offset.read())
         # return to old position
         destination = self.hardware.destination.read(self.native_units)
+        print("new destination", self.name, destination)
         self.set_position(destination)
 
     def update_recorded(self):

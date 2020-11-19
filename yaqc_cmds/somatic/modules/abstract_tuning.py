@@ -4,11 +4,10 @@ import pathlib
 import numpy as np
 import WrightTools as wt
 
+import yaqc_cmds
 import somatic.acquisition as acquisition
-
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc
-
 import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.devices.devices as devices
@@ -27,6 +26,7 @@ class Worker(acquisition.Worker):
         if apply_ and not self.stopped.read():
             path = curve.save(pathlib.Path(self.opa_hardware.curve_paths[self.curve_id]).parent)
             self.opa_hardware.driver.curve_paths[self.curve_id].write(str(path))
+            yaqc_cmds.somatic.updated_attune_store.emit()
         self.upload(
             scan_folder, reference_image=str(pathlib.Path(scan_folder) / self.reference_image),
         )
