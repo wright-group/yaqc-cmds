@@ -3,14 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to yaqc-cmds's documentation!
-=====================================
+yaqc-cmds
+=========
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   autonomic
 
+.. raw:: html
+
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/FpfVqoIRadA" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 Indices and tables
 ==================
