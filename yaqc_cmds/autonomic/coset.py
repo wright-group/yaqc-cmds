@@ -1,35 +1,28 @@
-### import ####################################################################
-
 import os
 import pathlib
 import ast
+
 import appdirs
-
 import numpy as np
-
+import toml
 from PySide2 import QtWidgets, QtCore
-
 import WrightTools as wt
 import attune
 
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.project_globals as g
-
-# hardwares (also ensure present in GUI)
 import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.hardware.delays as delays
 import yaqc_cmds.hardware.filters as filters
+import yaqc_cmds.somatic as somatic
+
 
 all_hardwares = {}
 all_hardwares.update({h.name: h for h in opas.hardwares})
 all_hardwares.update({h.name: h for h in spectrometers.hardwares})
 all_hardwares.update({h.name: h for h in delays.hardwares})
-all_hardwares.update({h.name: h for h in filters.hardwares})
-
-
-### objects ###################################################################
 
 
 class CoSetHW:
@@ -39,6 +32,8 @@ class CoSetHW:
         autonomic system.
         """
         self.hardware = hardware
+        self.state_path = pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds")) / "autonomic" / f"{self.hardware.name}.toml"
+        self.state_path.parent.mkdir(exist_ok=True)
         # instrument
         try:
             self.instrument = attune.load(f"autonomic_{self.hardware.name}")
@@ -111,16 +106,20 @@ class CoSetHW:
         for control in self.instrument.arrangements.keys():
             if not self.control_arrangement_bools[control].read():
                 continue
-            position = all_hardwares[control].get_position()
+            position = all_hardwares[control].get_position(all_hardwares[control].native_units)
             note = self.instrument(position, arrangement_name=control)
             try:
-                key = hardware.yaq_client.get_arrangement()
+                key = all_hardwares[control].driver.client.get_arrangement()
                 new += note[key]
             except Exception as e:  # TODO: better exception handling
                 new += note["auto"]  # default key
         if g.hardware_initialized.read():
-            print("launch new being set", new)
             self.hardware.set_offset(new, self.hardware.native_units)
+
+    def on_control_arrangement_bools_updated(self):
+        out = {k: v.read() for k, v in self.control_arrangement_bools.items()}
+        with open(self.state_path, "w") as f:
+            toml.dump(out, f)
 
     def on_hardware_combobox_updated(self):
         try:
@@ -152,6 +151,14 @@ class CoSetHW:
             checkbox = pc.Bool()
             self.control_arrangement_table.add(control_name, checkbox)
             self.control_arrangement_bools[control_name] = checkbox
+            checkbox.updated.connect(self.on_control_arrangement_bools_updated)
+        # update checkboxes based on saved state
+        if not self.state_path.exists():
+            self.on_control_arrangement_bools_updated()  # initializes state as false
+        for k, v in toml.load(self.state_path).items():
+            if k in self.control_arrangement_bools.keys():
+                self.control_arrangement_bools[k].write(v)
+        self.update_display()
 
     def zero(self):
         """
@@ -177,10 +184,7 @@ class CoSetHW:
         self.update_display()
 
 
-coset_hardwares = []  # list to contain all coset hardware objects
-
-
-### control ###################################################################
+coset_hardwares = []  # gets filled by GUI.create_hardware_frame
 
 
 class Control:
@@ -190,6 +194,10 @@ class Control:
     def launch(self):
         for coset_hardware in coset_hardwares:
             coset_hardware.launch()
+
+    def visit_store(self):
+        for coset_hardware in coset_hardwares:
+            coset_hardware.visit_store()
 
     def zero(self, hardware_name):
         """
@@ -204,12 +212,12 @@ class Control:
 control = Control()
 g.hardware_waits.give_coset_control(control)
 g.coset_control.write(control)
-
-### gui #######################################################################
+somatic.signals.updated_attune_store.connect(control.visit_store)
 
 
 class GUI(QtCore.QObject):
     def __init__(self):
+        """Top-level GUI"""
         QtCore.QObject.__init__(self)
         self.create_frame()
 
@@ -252,9 +260,3 @@ class GUI(QtCore.QObject):
 
 gui = GUI()
 
-
-### testing ###################################################################
-
-
-if __name__ == "__main__":
-    pass
