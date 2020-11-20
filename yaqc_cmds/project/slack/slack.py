@@ -127,7 +127,7 @@ class Control:
     def __init__(self):
         self.most_recent_delete = time.time()
         self.config = toml.load(
-            pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
+            pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
         )
         # create control containers
         self.busy = pc.Busy()

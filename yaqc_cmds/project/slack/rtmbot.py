@@ -17,7 +17,7 @@ import toml
 import pathlib
 
 config = toml.load(
-    pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
+    pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
 )
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]

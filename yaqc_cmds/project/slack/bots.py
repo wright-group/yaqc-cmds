@@ -10,7 +10,7 @@ import toml
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot
 
-config = toml.load(pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
+config = toml.load(pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]
 
