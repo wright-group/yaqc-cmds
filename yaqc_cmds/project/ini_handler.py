@@ -55,5 +55,9 @@ class Ini(QtCore.QMutex):
         if type(value) in [str] and not self.return_raw:
             with_apostrophe = True
         self._do(
-            "write", section=section, option=option, value=value, with_apostrophe=with_apostrophe,
+            "write",
+            section=section,
+            option=option,
+            value=value,
+            with_apostrophe=with_apostrophe,
         )

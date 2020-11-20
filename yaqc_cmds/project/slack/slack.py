@@ -17,7 +17,6 @@ import yaqc_cmds.project.project_globals as g
 from . import bots
 
 
-
 ### container objects #########################################################
 
 
@@ -353,7 +352,8 @@ class Control:
         )
         command_fields.append(
             self.make_field(
-                "screenshot", "Take a screenshot of the current window and post to slack.",
+                "screenshot",
+                "Take a screenshot of the current window and post to slack.",
             )
         )
         command_fields.append(self.make_field("help", "Show this help message."))

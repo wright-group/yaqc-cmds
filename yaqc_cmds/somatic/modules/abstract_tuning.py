@@ -28,7 +28,8 @@ class Worker(acquisition.Worker):
             self.opa_hardware.driver.curve_paths[self.curve_id].write(str(path))
             yaqc_cmds.somatic.updated_attune_store.emit()
         self.upload(
-            scan_folder, reference_image=str(pathlib.Path(scan_folder) / self.reference_image),
+            scan_folder,
+            reference_image=str(pathlib.Path(scan_folder) / self.reference_image),
         )
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):

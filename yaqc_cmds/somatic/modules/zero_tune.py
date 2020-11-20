@@ -245,7 +245,9 @@ class GUI(acquisition.GUI):
                 hardwares.append(key)
         aqn.write("delay", "delays", hardwares)
         aqn.write(
-            "info", "description", "{} {} zero tune".format(self.opa_combo.read(), hardwares),
+            "info",
+            "description",
+            "{} {} zero tune".format(self.opa_combo.read(), hardwares),
         )
         # constants
         aqn.add_section("scan")

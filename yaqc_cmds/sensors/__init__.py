@@ -23,7 +23,12 @@ for section in config["sensors"].keys():
             else:
                 kwargs[option] = config["sensors"][section][option]
         sensor = Sensor(
-            Driver, kwargs, None, Widget=SensorWidget, name=section, model="yaq",
+            Driver,
+            kwargs,
+            None,
+            Widget=SensorWidget,
+            name=section,
+            model="yaq",
         )
         sensors.append(sensor)
         sensor.initialize()

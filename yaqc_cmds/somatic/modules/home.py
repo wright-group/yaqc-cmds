@@ -111,7 +111,9 @@ class GUI(acquisition.GUI):
                 homed_motor_names.append(motor.name)
         homed_motor_names = str(homed_motor_names).replace("'", "")
         aqn.write(
-            "info", "description", "HOME: {} {}".format(self.opa_combo.read(), homed_motor_names),
+            "info",
+            "description",
+            "HOME: {} {}".format(self.opa_combo.read(), homed_motor_names),
         )
         # shared settings
         aqn.add_section("home")

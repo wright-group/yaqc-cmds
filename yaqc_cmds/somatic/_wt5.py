@@ -80,9 +80,9 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         if hasattr(sensor.driver.client, "get_map"):
             map_shape = full_scan_shape + tuple(sensor.shape)
             full_scan_shape = full_scan_shape + (1,)
-            for k,v in variable_shapes.items():
+            for k, v in variable_shapes.items():
                 variable_shapes[k] = v + (1,)
-            for k,v in channel_shapes.items():
+            for k, v in channel_shapes.items():
                 channel_shapes[k] = v + (1,)
 
             variable_shapes["wa"] = map_shape

@@ -32,14 +32,19 @@ class CoSetHW:
         autonomic system.
         """
         self.hardware = hardware
-        self.state_path = pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds")) / "autonomic" / f"{self.hardware.name}.toml"
+        self.state_path = (
+            pathlib.Path(appdirs.user_data_dir("yaqc-cmds", "yaqc-cmds"))
+            / "autonomic"
+            / f"{self.hardware.name}.toml"
+        )
         self.state_path.parent.mkdir(exist_ok=True)
         # instrument
         try:
             self.instrument = attune.load(f"autonomic_{self.hardware.name}")
         except ValueError:
-            self.instrument = attune.Instrument(arrangements={}, setables={}, 
-                                     name=f"autonomic_{self.hardware.name}")
+            self.instrument = attune.Instrument(
+                arrangements={}, setables={}, name=f"autonomic_{self.hardware.name}"
+            )
             attune.store(self.instrument)
         # make own widget
         self.widget = QtWidgets.QWidget()
@@ -123,7 +128,9 @@ class CoSetHW:
 
     def on_hardware_combobox_updated(self):
         try:
-            current_control_arrangement = self.instrument.arrangements[self.hardware_combobox.read()]
+            current_control_arrangement = self.instrument.arrangements[
+                self.hardware_combobox.read()
+            ]
             self.arrangement_combobox.set_allowed_values(current_control_arrangement.tunes.keys())
         except KeyError:  # probably an instrument without any arrangements
             pass
@@ -176,7 +183,10 @@ class CoSetHW:
         for path in paths:
             corr = self.load_file(path)
             ini.write(
-                self.hardware.name, corr.setpoints.name, str(corr.path), with_apostrophe=True,
+                self.hardware.name,
+                corr.setpoints.name,
+                str(corr.path),
+                with_apostrophe=True,
             )
 
         self.launch()
@@ -259,4 +269,3 @@ class GUI(QtCore.QObject):
 
 
 gui = GUI()
-

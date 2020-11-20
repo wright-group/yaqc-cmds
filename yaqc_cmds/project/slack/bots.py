@@ -108,7 +108,10 @@ class Bot(object):
             channel = self.channel
         if self._check_channel(channel):
             upload_ok = self.slacker.files.upload(
-                file_path, title=Title, initial_comment=first_comment, channels=[channel],
+                file_path,
+                title=Title,
+                initial_comment=first_comment,
+                channels=[channel],
             ).body["ok"]
             return upload_ok
         else:
