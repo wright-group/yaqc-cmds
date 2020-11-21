@@ -164,7 +164,12 @@ class Worker(acquisition.Worker):
                     ],
                     "wm": [spectrometers.hardwares[0], "set_position", None],
                 }
-                axis = acquisition.Axis(tune_points, tune_units, opa_friendly_name, hardware_dict,)
+                axis = acquisition.Axis(
+                    tune_points,
+                    tune_units,
+                    opa_friendly_name,
+                    hardware_dict,
+                )
                 axes.append(axis)
             else:
                 hardware_dict = {
@@ -175,7 +180,10 @@ class Worker(acquisition.Worker):
                     ]
                 }
                 axis = acquisition.Axis(
-                    tune_points, tune_units, opa_friendly_name, hardware_dict,
+                    tune_points,
+                    tune_units,
+                    opa_friendly_name,
+                    hardware_dict,
                 )
                 axes.append(axis)
         # motor
@@ -304,7 +312,8 @@ class GUI(acquisition.GUI):
         ):
             self.state["main_channel"] = channel_names[0]
         self.main_channel = pc.Combo(
-            allowed_values=channel_names, initial_value=self.state["main_channel"],
+            allowed_values=channel_names,
+            initial_value=self.state["main_channel"],
         )
         input_table.add("Channel", self.main_channel)
         self.layout.addWidget(input_table)

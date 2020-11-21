@@ -45,8 +45,10 @@ class Line(QtWidgets.QFrame):
             self.setFrameShape(QtWidgets.QFrame.VLine)
         else:
             self.setFrameShape(QtWidgets.QFrame.HLine)
-        StyleSheet = "QFrame{border: 2px solid custom_color; border-radius: 0px; padding: 0px;}".replace(
-            "custom_color", colors["widget_background"]
+        StyleSheet = (
+            "QFrame{border: 2px solid custom_color; border-radius: 0px; padding: 0px;}".replace(
+                "custom_color", colors["widget_background"]
+            )
         )
         self.setStyleSheet(StyleSheet)
 
@@ -106,8 +108,10 @@ class SpinboxAsDisplay(QtWidgets.QDoubleSpinBox):
         ).replace(
             "font_size", str(int(font_size))
         )
-        StyleSheet += "QScrollArea, QWidget{background: custom_color;  border-color: black;}".replace(
-            "custom_color", g.colors_dict.read()["background"]
+        StyleSheet += (
+            "QScrollArea, QWidget{background: custom_color;  border-color: black;}".replace(
+                "custom_color", g.colors_dict.read()["background"]
+            )
         )
         self.setStyleSheet(StyleSheet)
 
@@ -216,8 +220,10 @@ class InputTable(QtWidgets.QWidget):
             ).replace(
                 "font_size", str(int(14))
             )
-            StyleSheet += "QScrollArea, QWidget{background: custom_color;  border-color: black;}".replace(
-                "custom_color", g.colors_dict.read()["background"]
+            StyleSheet += (
+                "QScrollArea, QWidget{background: custom_color;  border-color: black;}".replace(
+                    "custom_color", g.colors_dict.read()["background"]
+                )
             )
         else:
             StyleSheet = "QDoubleSpinBox{color: custom_color; font: 14px;}".replace(
@@ -254,10 +260,10 @@ class InputTable(QtWidgets.QWidget):
             ).replace(
                 "custom_color_2", colors["widget_background"]
             )
-            StyleSheet += "QAbstractItemView{color: custom_color_1; font: 50px solid white;}".replace(
-                "custom_color_1", colors["text_light"]
-            ).replace(
-                "custom_color_2", colors["widget_background"]
+            StyleSheet += (
+                "QAbstractItemView{color: custom_color_1; font: 50px solid white;}".replace(
+                    "custom_color_1", colors["text_light"]
+                ).replace("custom_color_2", colors["widget_background"])
             )
             units.setStyleSheet(StyleSheet)
             layout.addWidget(units)
@@ -343,10 +349,10 @@ class InputTable(QtWidgets.QWidget):
             ).replace(
                 "custom_color_2", colors["widget_background"]
             )
-            StyleSheet += "QAbstractItemView{color: custom_color_1; font: 50px solid white;}".replace(
-                "custom_color_1", colors["text_light"]
-            ).replace(
-                "custom_color_2", colors["widget_background"]
+            StyleSheet += (
+                "QAbstractItemView{color: custom_color_1; font: 50px solid white;}".replace(
+                    "custom_color_1", colors["text_light"]
+                ).replace("custom_color_2", colors["widget_background"])
             )
         control.setStyleSheet(StyleSheet)
         global_object.give_control(control)
@@ -708,7 +714,9 @@ class HardwareFrontPanel(QtCore.QObject):
             ):
                 if current_object.set_method == "set_position":
                     hardware.set_position(
-                        destination_object.read(), destination_object.units, force_send=True,
+                        destination_object.read(),
+                        destination_object.units,
+                        force_send=True,
                     )
                 else:
                     hardware.q.push(current_object.set_method, [destination_object.read()])

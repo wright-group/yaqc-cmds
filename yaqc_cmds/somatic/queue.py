@@ -214,7 +214,9 @@ class Worker(QtCore.QObject):
         # upload aqn file
         if g.google_drive_enabled.read():
             g.google_drive_control.read().create_file(
-                path=str(item.aqn_path), parent_id=self.folder.read(), id=str(item.aqn_path),
+                path=str(item.aqn_path),
+                parent_id=self.folder.read(),
+                id=str(item.aqn_path),
             )
 
         # send message on slack
@@ -298,8 +300,10 @@ class Worker(QtCore.QObject):
     def execute_interrupt(self, item):
         self.queue_status.go.write(False)
         if g.slack_enabled.read():
-            message = ":octagonal_sign: Interrupted - {0}\n{1}\nUse `run` command to continue".format(
-                item.description, item.info
+            message = (
+                ":octagonal_sign: Interrupted - {0}\n{1}\nUse `run` command to continue".format(
+                    item.description, item.info
+                )
             )
             g.slack_control.read().send_message(message)
         item.finished.write(True)
@@ -383,7 +387,12 @@ class Queue:
         self.worker_enqueued = pc.Enqueued()
         self.worker_busy = pc.Busy()
         self.worker = Worker(
-            self.worker_enqueued, self.worker_busy, self.status, self.url, self.index, self.folder,
+            self.worker_enqueued,
+            self.worker_busy,
+            self.status,
+            self.url,
+            self.index,
+            self.folder,
         )
         self.worker.fraction_complete.updated.connect(self.update_progress)
         self.worker.action_complete.connect(self.on_action_complete)
@@ -1189,7 +1198,12 @@ class GUI(QtCore.QObject):
                 value = ini.read(section, "value")
                 units = ini.read(section, "units")
                 self.queue.append_hardware(
-                    hardwares, value, units, name=name, info=info, description=description,
+                    hardwares,
+                    value,
+                    units,
+                    name=name,
+                    info=info,
+                    description=description,
                 )
             elif item_type == "interrupt":
                 name = ini.read(section, "name")

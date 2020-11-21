@@ -57,7 +57,9 @@ class Driver(pc.Driver):
         else:
             state = {}
         self.load_state(state)
-        self.offset = pc.Number(initial_value=0, units=self.native_units, name="Offset", display=True)
+        self.offset = pc.Number(
+            initial_value=0, units=self.native_units, name="Offset", display=True
+        )
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()

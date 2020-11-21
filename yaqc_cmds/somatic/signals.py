@@ -15,4 +15,3 @@ data_file_written = _signal_container.data_file_written
 queue_relinquishing_control = _signal_container.queue_relinquishing_control
 queue_taking_control = _signal_container.queue_taking_control
 updated_attune_store = _signal_container.updated_attune_store
-

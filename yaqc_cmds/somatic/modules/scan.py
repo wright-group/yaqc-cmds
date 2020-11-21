@@ -285,7 +285,8 @@ class GUI(acquisition.GUI):
         ):
             self.state["main_channel"] = channel_names[0]
         self.channel_combo = pc.Combo(
-            allowed_values=channel_names, initial_value=self.state["main_channel"],
+            allowed_values=channel_names,
+            initial_value=self.state["main_channel"],
         )
         self.channel_combo.updated.connect(self.save_state)
         input_table.add("Main Channel", self.channel_combo)

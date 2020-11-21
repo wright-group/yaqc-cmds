@@ -10,7 +10,7 @@ import toml
 from slacker.__init__ import Slacker
 from .rtmbot import RtmBot
 
-config = toml.load(pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
+config = toml.load(pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]
 
@@ -108,7 +108,10 @@ class Bot(object):
             channel = self.channel
         if self._check_channel(channel):
             upload_ok = self.slacker.files.upload(
-                file_path, title=Title, initial_comment=first_comment, channels=[channel],
+                file_path,
+                title=Title,
+                initial_comment=first_comment,
+                channels=[channel],
             ).body["ok"]
             return upload_ok
         else:

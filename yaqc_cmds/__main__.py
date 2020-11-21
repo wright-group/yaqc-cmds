@@ -71,7 +71,8 @@ def edit_config():
             print(e, file=sys.stderr)
 
             if not click.confirm(
-                "Error parsing config toml. Would you like to re-edit?", default=True,
+                "Error parsing config toml. Would you like to re-edit?",
+                default=True,
             ):
                 break
 

@@ -320,7 +320,9 @@ class Worker(QtCore.QObject):
         if g.google_drive_enabled.read():
             folder_url = g.google_drive_control.read().id_to_open_url(scan_folder)
             g.google_drive_control.read().upload_folder(
-                path=scan_folder, parent_id=str(pathlib.Path(scan_folder).parent), id=scan_folder,
+                path=scan_folder,
+                parent_id=str(pathlib.Path(scan_folder).parent),
+                id=scan_folder,
             )
             image_url = None
             if reference_image is not None:

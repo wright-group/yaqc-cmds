@@ -16,9 +16,7 @@ import appdirs
 import toml
 import pathlib
 
-config = toml.load(
-    pathlib.path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml"
-)
+config = toml.load(pathlib.Path(appdirs.user_config_dir("yaqc-cmds", "yaqc-cmds")) / "config.toml")
 default_channel = config["slack"]["channel"]
 witch_token = config["slack"]["token"]
 
@@ -163,7 +161,9 @@ class UnknownChannel(Exception):
 def main_loop():
     if "LOGFILE" in config:
         logging.basicConfig(
-            filename=config["LOGFILE"], level=logging.INFO, format="%(asctime)s %(message)s",
+            filename=config["LOGFILE"],
+            level=logging.INFO,
+            format="%(asctime)s %(message)s",
         )
     logging.info(directory)
     try:
