@@ -134,15 +134,12 @@ class GUI(QtCore.QObject):
         )
         channel = self.data[self.channel.read()]
         plot_idx = list(last_idx_written + (0,) * (channel.ndim - len(last_idx_written)))
-        for i, s in enumerate(axis.shape):
-            if s == 1:
-                plot_idx[i] = 0
         plot_idx[self.axis.read_index()] = slice(None)
 
         plot_idx = tuple(plot_idx)
         try:
-            xi = wt.units.convert(axis[plot_idx], axis.attrs.get("units"), x_units)
-            yi = channel[plot_idx]
+            xi = wt.units.convert(axis[wt.kit.valid_index(plot_idx, axis.shape)], axis.attrs.get("units"), x_units)
+            yi = channel[wt.kit.valid_index(plot_idx, channel.shape)]
             self.plot_scatter.setData(xi, yi)
         except (TypeError, ValueError) as e:
             print(e)
