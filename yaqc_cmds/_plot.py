@@ -62,6 +62,7 @@ class GUI(QtCore.QObject):
         self.settings_layout = settings_container_widget.layout()
         self.settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
+        g.shutdown.read().connect(self.on_shutdown)
 
     def create_settings(self):
         # display settings
@@ -101,15 +102,16 @@ class GUI(QtCore.QObject):
         if self.data is not None:
             self.data.close()
         self.data = somatic._wt5.get_data_readonly()
-        allowed = list(self.data.axis_expressions)
+        allowed = [x.split()[0] for x in self.data.attrs["axes"]]
         if "wa" in allowed:
             allowed.remove("wa")
         self.axis.set_allowed_values(allowed)
         self.on_axis_updated()
 
     def on_axis_updated(self):
-        axis = next(a for a in self.data.axes if a.expression == self.axis.read())
-        units = [axis.units] + list(wt.units.get_valid_conversions(axis.units))
+        axis = self.data[self.axis.read()]
+        units = axis.attrs["units"]
+        units = [units] + list(wt.units.get_valid_conversions(units))
         self.axis_units.set_allowed_values(units)
 
     def on_data_file_written(self):
@@ -126,31 +128,27 @@ class GUI(QtCore.QObject):
         # data
         x_units = self.axis_units.read()
         idx = last_idx_written
-        axis = next(a for a in self.data.axes if a.expression == self.axis.read())
-        limits = list(wt.units.convert([axis.min(), axis.max()], axis.units, x_units))
-        if (
-            f"{axis.expression}_points" in self.data
-            and f"{axis.expression}_centers" not in self.data
-        ):
-            points_axis = self.data[f"{axis.expression}_points"]
-            limits += list(
-                wt.units.convert(
-                    [points_axis.min(), points_axis.max()], points_axis.units, x_units
-                )
-            )
+        axis = self.data[self.axis.read()]
+        limits = list(wt.units.convert([np.min(axis), np.max(axis)], axis.attrs["units"], x_units))
         channel = self.data[self.channel.read()]
-        plot_idx = list(last_idx_written + (0,) * (self.data.ndim - len(last_idx_written)))
-        plot_idx[wt.kit.get_index(self.data.axis_names, self.axis.read())] = slice(None)
+        plot_idx = list(last_idx_written + (0,) * (channel.ndim - len(last_idx_written)))
+        for i, s in enumerate(axis.shape):
+            if s == 1:
+                plot_idx[i] = 0
+        plot_idx[self.axis.read_index()] = slice(None)
+
+        plot_idx = tuple(plot_idx)
         try:
-            xi = wt.units.convert(axis[plot_idx], axis.units, x_units)
+            xi = wt.units.convert(axis[plot_idx], axis.attrs["units"], x_units)
             yi = channel[plot_idx]
             self.plot_scatter.setData(xi, yi)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            print(e)
             pass
         # limits
         try:
             self.plot_widget.set_xlim(min(limits), max(limits))
-            self.plot_widget.set_ylim(channel.min(), channel.max())
+            self.plot_widget.set_ylim(np.min(channel), np.max(channel))
         except Exception:
             pass
 
@@ -158,6 +156,9 @@ class GUI(QtCore.QObject):
         for s in sensors.sensors:
             s.update_ui.connect(self.update_big_number)
         self.on_channels_changed()
+
+    def on_shutdown(self):
+        self.data.close()
 
     def stop(self):
         pass

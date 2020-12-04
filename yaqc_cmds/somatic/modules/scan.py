@@ -1,6 +1,7 @@
 ### import ####################################################################
 
 import pathlib
+import time
 
 import numpy as np
 
@@ -113,10 +114,10 @@ class Constant:
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
         try:
-            data = _wt5.get_data_readonly().copy()
+            data = wt.Data(_wt5.get_data_readonly()).copy()
         except:
             time.sleep(0.1)
-            data = _wt5.get_data_readonly().copy()
+            data = wt.Data(_wt5.get_data_readonly()).copy()
 
         # decide which channels to make plots for
         main_channel = self.aqn.read("processing", "main channel")
