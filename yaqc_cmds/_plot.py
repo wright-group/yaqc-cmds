@@ -138,7 +138,9 @@ class GUI(QtCore.QObject):
 
         plot_idx = tuple(plot_idx)
         try:
-            xi = wt.units.convert(axis[wt.kit.valid_index(plot_idx, axis.shape)], axis.attrs.get("units"), x_units)
+            xi = wt.units.convert(
+                axis[wt.kit.valid_index(plot_idx, axis.shape)], axis.attrs.get("units"), x_units
+            )
             yi = channel[wt.kit.valid_index(plot_idx, channel.shape)]
             self.plot_scatter.setData(xi, yi)
         except (TypeError, ValueError) as e:
