@@ -129,7 +129,9 @@ class GUI(QtCore.QObject):
         x_units = self.axis_units.read()
         idx = last_idx_written
         axis = self.data[self.axis.read()]
-        limits = list(wt.units.convert([np.min(axis), np.max(axis)], axis.attrs.get("units"), x_units))
+        limits = list(
+            wt.units.convert([np.min(axis), np.max(axis)], axis.attrs.get("units"), x_units)
+        )
         channel = self.data[self.channel.read()]
         plot_idx = list(last_idx_written + (0,) * (channel.ndim - len(last_idx_written)))
         for i, s in enumerate(axis.shape):
