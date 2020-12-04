@@ -110,7 +110,7 @@ class GUI(QtCore.QObject):
 
     def on_axis_updated(self):
         axis = self.data[self.axis.read()]
-        units = axis.attrs["units"]
+        units = axis.attrs.get("units")
         units = [units] + list(wt.units.get_valid_conversions(units))
         self.axis_units.set_allowed_values(units)
 
@@ -129,7 +129,7 @@ class GUI(QtCore.QObject):
         x_units = self.axis_units.read()
         idx = last_idx_written
         axis = self.data[self.axis.read()]
-        limits = list(wt.units.convert([np.min(axis), np.max(axis)], axis.attrs["units"], x_units))
+        limits = list(wt.units.convert([np.min(axis), np.max(axis)], axis.attrs.get("units"), x_units))
         channel = self.data[self.channel.read()]
         plot_idx = list(last_idx_written + (0,) * (channel.ndim - len(last_idx_written)))
         for i, s in enumerate(axis.shape):
@@ -139,7 +139,7 @@ class GUI(QtCore.QObject):
 
         plot_idx = tuple(plot_idx)
         try:
-            xi = wt.units.convert(axis[plot_idx], axis.attrs["units"], x_units)
+            xi = wt.units.convert(axis[plot_idx], axis.attrs.get("units"), x_units)
             yi = channel[plot_idx]
             self.plot_scatter.setData(xi, yi)
         except (TypeError, ValueError) as e:
