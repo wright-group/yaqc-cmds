@@ -125,6 +125,7 @@ class Sensor(pc.Hardware):
 
     def wait_until_still(self):
         while self.busy.read():
+            print(f"{self.name} is busy")
             self.busy.wait_for_update()
 
 
@@ -153,6 +154,8 @@ class Driver(pc.Driver):
         while self.freerun.read() and not self.enqueued.read():
             self.measure()
             self.busy.write(False)
+            # Rate limit when just freerunning
+            time.sleep(0.1)
 
     def measure(self):
         timer = wt.kit.Timer(verbose=False)
