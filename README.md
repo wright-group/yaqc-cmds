@@ -8,3 +8,6 @@
 A qt-based graphical client for [yaq](https://yaq.fyi/) with a focus on controlling hardware and collecting data in multidimensional spectroscopy experiments.
 
 Documentation at [yaqc-cmds.wright.tools](https://yaqc-cmds.wright.tools).
+
+This project is archived using [Zenodo](https://zenodo.org/record/1198910).
+Please use DOI: 10.5281/zenodo.1198910 to cite yaqc-cmds.
