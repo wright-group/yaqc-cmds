@@ -18,6 +18,7 @@ import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc
 from yaqc_cmds.hardware import hardware as hw
+from yaqc_cmds.somatic import signals
 
 
 ### driver ####################################################################
@@ -28,6 +29,8 @@ class Driver(hw.Driver):
         self.yaqd_port = kwargs["yaqd_port"]
         self.yaqd_host = kwargs.get("yaqd_host", "127.0.0.1")
         self.client = yaqc.Client(self.yaqd_port, host=self.yaqd_host)
+        self.client.register_connection_callback(signals.updated_attune_store.emit)
+        signals.updated_attune_store.connect(self.on_updated_attune_store)
         self.motor_positions = {
             k: pc.Number(name=k, decimals=6, display=True) for k in self.client.get_setable_names()
         }
@@ -38,6 +41,9 @@ class Driver(hw.Driver):
             self.shutter = yaqc.Client(self.shutter_port)
             self.shutter.set_identifier("closed")
             self.exposed += [self.shutter_position]
+        self.on_updated_attune_store()
+
+    def on_updated_attune_store(self):
         self.curve = attune.Instrument(**self.client.get_instrument())
         self.load_curve()
         self.get_motor_positions()
@@ -228,6 +234,7 @@ class GUI(hw.GUI):
         self.update()
         self.update_plot()
         self.on_limits_updated()
+        signals.updated_attune_store.connect(self.update_plot)
 
     def update(self):
         # set button disable
