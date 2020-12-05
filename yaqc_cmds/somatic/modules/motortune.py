@@ -92,7 +92,7 @@ class OPA_GUI:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        data = _wt5.get_data_readonly().copy()
+        data = wt.Data(_wt5.get_data_readonly()).copy()
         # decide which channels to make plots for
         channel_name = self.aqn.read("processing", "channel")
         # make figures for each channel

@@ -138,7 +138,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
 def get_data_readonly():
     if data_filepath is not None:
         f = h5py.File(data_filepath, "r", libver="latest", swmr=True)
-        return wt.Data(f, edit_local=True)
+        return f
 
 
 def close_data():
