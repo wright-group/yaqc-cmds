@@ -171,27 +171,22 @@ class CoSetHW:
         """
         Offsets to zero for all corrs based on current positions.
         """
-        return  # TODO
-        use = self.use_bool.read()
-        paths = []
-        for i, corr in enumerate(self.corrs):
-            corr.offset_to(list(corr.dependents.keys())[0], 0, self.control_position[i])
-            corr.name = f"{next(iter(corr.dependents))}_{corr.setpoints.name} offset"
-            paths.append(corr.save(save_directory=self.curves_directory))
-        for i in range(len(self.corrs)):
-            self.unload_file(0)
-        for path in paths:
-            corr = self.load_file(path)
-            ini.write(
-                self.hardware.name,
-                corr.setpoints.name,
-                str(corr.path),
-                with_apostrophe=True,
+        instr = self.instrument
+        for control in self.instrument.arrangements.keys():
+            if not self.control_arrangement_bools[control].read():
+                continue
+            try:
+                tune = all_hardwares[control].driver.client.get_arrangement()
+                print(tune)
+            except (AttributeError, KeyError) as e:
+                print(e)
+                tune = "auto"
+            print(instr[control].keys(), tune)
+            instr = attune.offset_to(
+                instr, control, tune, 0, all_hardwares[control].get_position()
             )
-
-        self.launch()
-        use = self.use_bool.write(use)
-        self.update_display()
+        attune.store(instr)
+        somatic.signals.updated_attune_store.emit()
 
 
 coset_hardwares = []  # gets filled by GUI.create_hardware_frame
