@@ -42,7 +42,6 @@ class Driver(hw.Driver):
         self.motor_limits.write(*self.motor.get_limits())
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
-        self.set_zero(self.zero_position.read(self.motor_units))
         self.recorded["_".join([self.name, "zero"])] = [
             self.zero_position,
             "deg",
@@ -82,6 +81,7 @@ class Driver(hw.Driver):
 
     def load_state(self, state):
         super().load_state(state)
+        # called before self.zero_position aliases the hardware one
         self.hardware.zero_position.write(state.get("zero_position", 0))
 
     def set_motor_position(self, motor_position):

@@ -56,10 +56,10 @@ class Driver(pc.Driver):
             state = toml.load(self.state_filepath)
         else:
             state = {}
-        self.load_state(state)
         self.offset = pc.Number(
             initial_value=0, units=self.native_units, name="Offset", display=True
         )
+        self.load_state(state)
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
@@ -109,6 +109,7 @@ class Driver(pc.Driver):
         return {
             "position": float(self.position.read(self.native_units)),
             "display_units": self.position.units,
+            "offset": float(self.offset.read()),
         }
 
     def save_status(self):
@@ -126,6 +127,7 @@ class Driver(pc.Driver):
             limits=self.limits,
         )
         self.position.set_units(state.get("display_units", self.native_units))
+        self.offset.write(state.get("offset", 0))
 
     def set_offset(self, offset):
         self.offset.write(offset, self.native_units)
