@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## Fixed
+- offsets are stored and loaded properly, weird walking off behavior at startup fixed
+- offsets set to zero when hardware is zeroed
+
 ## [2020.12.0]
 
 ### Added
