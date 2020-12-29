@@ -39,6 +39,7 @@ class Driver(hw.Driver):
         id_dict = self.ctrl.id()
         self.serial_number = id_dict["serial"]
         self.position.write(self.ctrl.get_position())
+        self.grating_index.write(self.ctrl.get_turret() + 1)
         # recorded
         self.recorded[self.name] = [self.position, self.native_units, 1.0, "m", False]
         self.limits.write(*self.ctrl.get_limits())
