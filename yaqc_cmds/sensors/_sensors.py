@@ -163,7 +163,7 @@ class Driver(pc.Driver):
             self.busy.write(True)
             self.client.measure(loop=False)
             while self.client.busy():
-                time.sleep(0.1)
+                time.sleep(0.01)
             out = self.client.get_measured()
             del out["measurement_id"]
             signed = [False for _ in out]
