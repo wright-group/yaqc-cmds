@@ -92,11 +92,11 @@ class OPA_GUI:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        with yaqc_cmds.somatic._wt5.data_container as data:
+        with _wt5.data_container as data:
             # decide which channels to make plots for
             channel_name = self.aqn.read("processing", "channel")
             # make figures for each channel
-            data_path = pathlib.Path(_wt5.data_filepath)
+            data_path = pathlib.Path(_wt5.data_container.data_filepath)
             data_folder = data_path.parent
             # make all images
             channel_path = data_folder / channel_name
