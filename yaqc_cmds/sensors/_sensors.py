@@ -152,10 +152,11 @@ class Driver(pc.Driver):
 
     def loop(self):
         while self.freerun.read() and not self.enqueued.read():
+            initial_time = time.time()
             self.measure()
             self.busy.write(False)
             # Rate limit when just freerunning
-            time.sleep(0.1)
+            time.sleep(max(0.1 - time.time() + initial_time, 0))
 
     def measure(self):
         timer = wt.kit.Timer(verbose=False)
@@ -163,7 +164,7 @@ class Driver(pc.Driver):
             self.busy.write(True)
             self.client.measure(loop=False)
             while self.client.busy():
-                time.sleep(0.1)
+                time.sleep(0.01)
             out = self.client.get_measured()
             del out["measurement_id"]
             signed = [False for _ in out]
