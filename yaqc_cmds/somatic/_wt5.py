@@ -1,4 +1,4 @@
-"""bwt5 data file functions"""
+"""wt5 data file functions"""
 
 
 import time
