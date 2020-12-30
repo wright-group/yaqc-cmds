@@ -92,39 +92,39 @@ class OPA_GUI:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        data = wt.Data(_wt5.get_data_readonly()).copy()
-        # decide which channels to make plots for
-        channel_name = self.aqn.read("processing", "channel")
-        # make figures for each channel
-        data_path = pathlib.Path(_wt5.data_filepath)
-        data_folder = data_path.parent
-        # make all images
-        channel_path = data_folder / channel_name
-        output_path = data_folder
-        if data.ndim > 2:
-            output_path = channel_path
-            channel_path.mkdir()
-        image_fname = channel_name
-        if data.ndim == 1:
-            outs = wt.artists.quick1D(
-                data,
-                channel=channel_name,
-                autosave=True,
-                save_directory=output_path,
-                fname=image_fname,
-                verbose=False,
-            )
-        else:
-            outs = wt.artists.quick2D(
-                data,
-                -1,
-                -2,
-                channel=channel_name,
-                autosave=True,
-                save_directory=output_path,
-                fname=image_fname,
-                verbose=False,
-            )
+        with _wt5.data_container as data:
+            # decide which channels to make plots for
+            channel_name = self.aqn.read("processing", "channel")
+            # make figures for each channel
+            data_path = pathlib.Path(_wt5.data_container.data_filepath)
+            data_folder = data_path.parent
+            # make all images
+            channel_path = data_folder / channel_name
+            output_path = data_folder
+            if data.ndim > 2:
+                output_path = channel_path
+                channel_path.mkdir()
+            image_fname = channel_name
+            if data.ndim == 1:
+                outs = wt.artists.quick1D(
+                    data,
+                    channel=channel_name,
+                    autosave=True,
+                    save_directory=output_path,
+                    fname=image_fname,
+                    verbose=False,
+                )
+            else:
+                outs = wt.artists.quick2D(
+                    data,
+                    -1,
+                    -2,
+                    channel=channel_name,
+                    autosave=True,
+                    save_directory=output_path,
+                    fname=image_fname,
+                    verbose=False,
+                )
         # get output image
         if len(outs) == 1:
             output_image_path = outs[0]
