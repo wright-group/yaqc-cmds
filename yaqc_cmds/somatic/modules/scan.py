@@ -113,60 +113,55 @@ class Constant:
 
 class Worker(acquisition.Worker):
     def process(self, scan_folder):
-        try:
-            data = wt.Data(_wt5.get_data_readonly()).copy()
-        except:
-            time.sleep(0.1)
-            data = wt.Data(_wt5.get_data_readonly()).copy()
-
-        # decide which channels to make plots for
-        main_channel = self.aqn.read("processing", "main channel")
-        if self.aqn.read("processing", "process all channels"):
-            channels = data.channel_names
-        else:
-            channels = [main_channel]
-        # make figures for each channel
-        data_path = pathlib.Path(_wt5.data_filepath)
-        data_folder = data_path.parent
-        # make all images
-        for channel_name in channels:
-            channel_path = data_folder / channel_name
-            output_path = data_folder
-            if data.ndim > 2:
-                output_path = channel_path
-                channel_path.mkdir()
-            channel_index = data.channel_names.index(channel_name)
-            image_fname = channel_name
-            if data.ndim == 1:
-                outs = wt.artists.quick1D(
-                    data,
-                    channel=channel_index,
-                    autosave=True,
-                    save_directory=output_path,
-                    fname=image_fname,
-                    verbose=False,
-                )
+        with _wt5.data_container as data:
+            # decide which channels to make plots for
+            main_channel = self.aqn.read("processing", "main channel")
+            if self.aqn.read("processing", "process all channels"):
+                channels = data.channel_names
             else:
-                outs = wt.artists.quick2D(
-                    data,
-                    -1,
-                    -2,
-                    channel=channel_index,
-                    autosave=True,
-                    save_directory=output_path,
-                    fname=image_fname,
-                    verbose=False,
-                )
-            if channel_name == main_channel:
-                outputs = outs
-        # get output image
-        if len(outputs) == 1:
-            output_image_path = outputs[0]
-        else:
-            output_image_path = output_path / "animation.gif"
-            wt.artists.stitch_to_animation(images=outputs, outpath=output_image_path)
-        # upload
-        self.upload(scan_folder, reference_image=str(output_image_path))
+                channels = [main_channel]
+            # make figures for each channel
+            data_path = pathlib.Path(_wt5.data_container.data_filepath)
+            data_folder = data_path.parent
+            # make all images
+            for channel_name in channels:
+                channel_path = data_folder / channel_name
+                output_path = data_folder
+                if data.ndim > 2:
+                    output_path = channel_path
+                    channel_path.mkdir()
+                channel_index = data.channel_names.index(channel_name)
+                image_fname = channel_name
+                if data.ndim == 1:
+                    outs = wt.artists.quick1D(
+                        data,
+                        channel=channel_index,
+                        autosave=True,
+                        save_directory=output_path,
+                        fname=image_fname,
+                        verbose=False,
+                    )
+                else:
+                    outs = wt.artists.quick2D(
+                        data,
+                        -1,
+                        -2,
+                        channel=channel_index,
+                        autosave=True,
+                        save_directory=output_path,
+                        fname=image_fname,
+                        verbose=False,
+                    )
+                if channel_name == main_channel:
+                    outputs = outs
+            # get output image
+            if len(outputs) == 1:
+                output_image_path = outputs[0]
+            else:
+                output_image_path = output_path / "animation.gif"
+                wt.artists.stitch_to_animation(images=outputs, outpath=output_image_path)
+            # upload
+            self.upload(scan_folder, reference_image=str(output_image_path))
 
     def run(self):
         # axes

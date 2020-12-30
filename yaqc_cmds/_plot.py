@@ -4,6 +4,7 @@ from PySide2 import QtCore, QtWidgets
 import numpy as np
 
 import WrightTools as wt
+import yaqc_cmds
 import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.sensors as sensors
 import yaqc_cmds.project.widgets as pw
@@ -99,59 +100,57 @@ class GUI(QtCore.QObject):
         self.channel.set_allowed_values(new)
 
     def on_data_file_created(self):
-        if self.data is not None:
-            self.data.close()
-        self.data = somatic._wt5.get_data_readonly()
-        allowed = [x.split()[0] for x in self.data.attrs["axes"]]
-        if "wa" in allowed:
-            allowed.remove("wa")
-        self.axis.set_allowed_values(allowed)
-        self.on_axis_updated()
+        with somatic._wt5.data_container as data:
+            allowed = [x.split()[0] for x in data.attrs["axes"]]
+            if "wa" in allowed:
+                allowed.remove("wa")
+            self.axis.set_allowed_values(allowed)
+            self.on_axis_updated()
 
     def on_axis_updated(self):
-        axis = self.data[self.axis.read()]
-        units = axis.attrs.get("units")
-        units = [units] + list(wt.units.get_valid_conversions(units))
-        self.axis_units.set_allowed_values(units)
+        with somatic._wt5.data_container as data:
+            axis = data[self.axis.read()]
+            units = axis.attrs.get("units")
+            units = [units] + list(wt.units.get_valid_conversions(units))
+            self.axis_units.set_allowed_values(units)
 
     def on_data_file_written(self):
-        try:
-            for dset in self.data.values():
-                dset.id.refresh()
-        except TypeError:
-            # happens when done writing
-            self.on_data_file_created()
-        last_idx_written = somatic._wt5.last_idx_written
-        self.idx_string.write(str(last_idx_written))
-        if self.data is None or last_idx_written is None:
-            return
-        # data
-        x_units = self.axis_units.read()
-        idx = last_idx_written
-        axis = self.data[self.axis.read()]
-        limits = list(
-            wt.units.convert([np.min(axis), np.max(axis)], axis.attrs.get("units"), x_units)
-        )
-        channel = self.data[self.channel.read()]
-        plot_idx = list(last_idx_written + (0,) * (channel.ndim - len(last_idx_written)))
-        plot_idx[self.axis.read_index()] = slice(None)
-
-        plot_idx = tuple(plot_idx)
-        try:
-            xi = wt.units.convert(
-                axis[wt.kit.valid_index(plot_idx, axis.shape)], axis.attrs.get("units"), x_units
+        with somatic._wt5.data_container as data:
+            last_idx_written = somatic._wt5.data_container.last_idx_written
+            self.idx_string.write(str(last_idx_written))
+            if data is None or last_idx_written is None:
+                return
+            # data
+            x_units = self.axis_units.read()
+            idx = last_idx_written
+            axis = data[self.axis.read()]
+            limits = list(
+                wt.units.convert(
+                    [np.min(axis.full), np.max(axis.full)], axis.attrs.get("units"), x_units
+                )
             )
-            yi = channel[wt.kit.valid_index(plot_idx, channel.shape)]
-            self.plot_scatter.setData(xi, yi)
-        except (TypeError, ValueError) as e:
-            print(e)
-            pass
-        # limits
-        try:
-            self.plot_widget.set_xlim(min(limits), max(limits))
-            self.plot_widget.set_ylim(np.min(channel), np.max(channel))
-        except Exception:
-            pass
+            channel = data[self.channel.read()]
+            plot_idx = list(last_idx_written + (0,) * (channel.ndim - len(last_idx_written)))
+            plot_idx[self.axis.read_index()] = slice(None)
+
+            plot_idx = tuple(plot_idx)
+            try:
+                xi = wt.units.convert(
+                    axis[wt.kit.valid_index(plot_idx, axis.shape)],
+                    axis.attrs.get("units"),
+                    x_units,
+                )
+                yi = channel[wt.kit.valid_index(plot_idx, channel.shape)]
+                self.plot_scatter.setData(xi, yi)
+            except (TypeError, ValueError) as e:
+                print(e)
+                pass
+            # limits
+            try:
+                self.plot_widget.set_xlim(min(limits), max(limits))
+                self.plot_widget.set_ylim(np.min(channel), np.max(channel))
+            except Exception:
+                pass
 
     def on_sensors_changed(self):
         for s in sensors.sensors:
@@ -159,7 +158,7 @@ class GUI(QtCore.QObject):
         self.on_channels_changed()
 
     def on_shutdown(self):
-        self.data.close()
+        pass
 
     def stop(self):
         pass

@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Freerun throttle:  In freerun mode, the GUI sensor reading will update after 0.1 seconds or after one measurement, whichever is longer
 - Sensors busy states are polled more frequently (10 --> 100 Hz), which can significantly speed up acquisitions with fast measurements
 
+## Fixed
+- hard crashes caused by multithread access to data, data access now regulated by explicit lock
+
 # [2020.12.1]
 
 ## Fixed
