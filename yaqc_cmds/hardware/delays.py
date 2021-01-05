@@ -45,6 +45,7 @@ class Driver(hw.Driver):
         self.motor_limits.write(*self.motor.get_limits())
         self.motor_position = self.hardware.motor_position
         self.zero_position = self.hardware.zero_position
+        self.set_zero(self.zero_position.read())
         self.update_recorded()
 
     def initialize(self):
@@ -64,7 +65,7 @@ class Driver(hw.Driver):
         position = self.motor.get_position()
         self.motor_position.write(position)
         delay = (
-            (position - self.zero_position.read(self.motor_units))
+            (position - wt.units.convert(self.zero_position.read(), "mm_delay", self.motor_units))
             * self.native_per_motor
             * self.factor.read()
         )
@@ -73,7 +74,7 @@ class Driver(hw.Driver):
 
     def get_state(self):
         state = super().get_state()
-        state["zero_position"] = float(self.zero_position.read(self.motor_units))
+        state["zero_position"] = float(self.zero_position.read())
         return state
 
     def load_state(self, state):
@@ -90,9 +91,9 @@ class Driver(hw.Driver):
         self.get_position()
 
     def set_position(self, destination):
-        destination_motor = self.zero_position.read(self.motor_units) + destination / (
-            self.native_per_motor * self.factor.read()
-        )
+        destination_motor = wt.units.convert(
+            self.zero_position.read(), "mm_delay", self.motor_units
+        ) + destination / (self.native_per_motor * self.factor.read())
         self.set_motor_position(destination_motor)
 
     def set_offset(self, offset):
@@ -100,7 +101,10 @@ class Driver(hw.Driver):
         # update zero
         offset_from_here = offset - self.offset.read(self.native_units)
         offset_motor = offset_from_here / (self.native_per_motor * self.factor.read())
-        new_zero = self.zero_position.read(self.motor_units) + offset_motor
+        new_zero = (
+            wt.units.convert(self.zero_position.read(), "mm_delay", self.motor_units)
+            + offset_motor
+        )
         self.set_zero(new_zero)
         self.offset.write(offset, self.native_units)
         print("new offset", self.name, self.offset.read())
