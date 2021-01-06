@@ -85,8 +85,8 @@ class Driver(hw.Driver):
     def set_motor_position(self, motor_position):
         print("set_motor_position", self.name, motor_position)
         self.motor.set_position(motor_position)
-        time.sleep(0.01)
         while self.is_busy():
+            time.sleep(0.01)
             self.get_position()
         self.get_position()
 
