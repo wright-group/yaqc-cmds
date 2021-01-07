@@ -305,7 +305,7 @@ class Worker(QtCore.QObject):
         self.update_ui.emit()
         self.scan_complete.emit()
         for s in yaqc_cmds.sensors.sensors:
-            s.loop()
+            s.on_freerun_updated()
         # process scan --------------------------------------------------------
         try:
             getattr(self, processing_method)(scan_folder)
