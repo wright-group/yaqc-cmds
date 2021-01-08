@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - hard crashes caused by multithread access to data, data access now regulated by explicit lock
 - set zero position at initialization time to ensure limits are set
 - handling of zero position units to remove warning
+- throttle delay poll (sleep 10 ms) during travel to decrease CPU workload
 
 # [2020.12.1]
 
