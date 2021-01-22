@@ -32,7 +32,7 @@ import yaqc_cmds.hardware.delays as delays
 import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.filters as filters
 
-from yaqc_cmds.somatic._wt5 import create_data, write_data
+from yaqc_cmds.somatic._wt5 import create_data, write_data, copy_dump_data
 from yaqc_cmds.somatic.order import ndindex as order
 from .signals import data_file_written
 
@@ -301,6 +301,7 @@ class Worker(QtCore.QObject):
         self.going.write(False)
         g.queue_control.write(False)
         g.logger.log("info", "Scan done", "")
+        copy_dump_data()
         data_file_written.emit()
         self.update_ui.emit()
         self.scan_complete.emit()

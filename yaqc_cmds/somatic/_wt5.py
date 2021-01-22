@@ -13,16 +13,21 @@ import yaqc_cmds.somatic as somatic
 
 class DataContainer(object):
     def __init__(self):
-        self.data = None
+        self._data = None
         self.data_filepath = None
         self.last_idx_written = None
         self.lock = threading.RLock()
 
     def __enter__(self):
         self.lock.acquire()
-        return self.data
+        if self.data_filepath:
+            self._data = wt.open(self.data_filepath, edit_local=True)
+        return self._data
 
     def __exit__(self, exc_type, exc_value, traceback):
+        if self._data:
+            self._data.close()
+        self._data = None
         self.lock.release()
 
 
@@ -52,11 +57,6 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     f = h5py.File(path, "w", libver="latest")
     global data_container
     with data_container as data:
-
-        if data_container.data is not None:
-            data_container.data.close()
-            data_container.data = None
-
         data = wt.Data(f, name=headers["name"], edit_local=True)
         data_container.data_filepath = path
 
@@ -150,7 +150,6 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
             # TODO signed?
             # TODO labels?
 
-        data_container.data = data
         somatic.signals.data_file_created.emit()
 
 
@@ -170,3 +169,12 @@ def write_data(idx, hardware, sensors):
                 data["wa"][idx] = s.driver.client.get_map(data["wm"][idx])
         data.flush()
         data_container.last_idx_written = in_idx
+
+
+def copy_dump_data():
+    global data_container
+    with data_container as data:
+        print("copy_dump_data AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        data_container._data = data.copy()
+        data.close()
+        data_container._data.save(data_container.data_filepath, overwrite=True)
