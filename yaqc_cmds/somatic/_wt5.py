@@ -54,7 +54,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
     sensors: list of yaqc_cmds._sensors.Sensor objects
         all active sensors
     """
-    f = h5py.File(path, "w", libver="latest")
+    f = h5py.File(path, "w")
     global data_container
     with data_container as data:
         data = wt.Data(f, name=headers["name"], edit_local=True)
@@ -169,12 +169,3 @@ def write_data(idx, hardware, sensors):
                 data["wa"][idx] = s.driver.client.get_map(data["wm"][idx])
         data.flush()
         data_container.last_idx_written = in_idx
-
-
-def copy_dump_data():
-    global data_container
-    with data_container as data:
-        print("copy_dump_data AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-        data_container._data = data.copy()
-        data.close()
-        data_container._data.save(data_container.data_filepath, overwrite=True)
