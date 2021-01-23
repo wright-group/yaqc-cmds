@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- Properly close files prior to new data file creation (fix file inconsistency)
+- Do not use h5py libver="latest" (fix segfault upon copying)
+
 ## [2021.1.0]
 
 ### Added
