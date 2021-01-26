@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [2021.1.1]
+
 ### Fixed
 - Properly close files prior to new data file creation (fix file inconsistency)
 - Do not use h5py libver="latest" (fix segfault upon copying)
@@ -34,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - previously released under the name "PyCMDS" via github, never packaged.
 
 [Unreleased]: https://github.com/wright-group/yaqc-cmds/compare/2021.1.0...master
+[2021.1.1]: https://github.com/wright-group/yaqc-cmds/compare/2021.1.0...2021.1.1
 [2021.1.0]: https://github.com/wright-group/yaqc-cmds/compare/2020.12.1...2021.1.0
 [2020.12.1]: https://github.com/wright-group/yaqc-cmds/compare/2020.12.0...2020.12.1
 [2020.12.0]: https://github.com/wright-group/yaqc-cmds/releases/tag/2020.12.0
