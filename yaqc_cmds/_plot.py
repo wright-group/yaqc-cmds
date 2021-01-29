@@ -111,7 +111,7 @@ class GUI(QtCore.QObject):
         with somatic._wt5.data_container as data:
             axis = data[self.axis.read()]
             units = axis.attrs.get("units")
-            units = [units] + list(wt.units.get_valid_conversions(units))
+            units = list(wt.units.get_valid_conversions(units))
             self.axis_units.set_allowed_values(units)
 
     def on_data_file_written(self):

@@ -191,15 +191,14 @@ class Worker(QtCore.QObject):
                 expression = constant.expression
                 arr = np.full(arrs[0].shape, np.nan)
                 units = constant.units
-                units_kind = wt.units.kind(units)
                 vals = {}
                 # populate all hardwares not scanned here
                 for hardware in all_hardwares:
-                    if wt.units.kind(hardware.units) == units_kind:
+                    if wt.units.is_valid_conversion(hardware.units, units):
                         vals[hardware.name] = hardware.get_position(units)
                 for idx in np.ndindex(arrs[0].shape):
                     for destination in destinations_list:
-                        if wt.units.kind(destination.units) == units_kind:
+                        if wt.units.is_valid_conversion(hardware.units, units):
                             val = wt.units.converter(
                                 destination.arr[idx], destination.units, units
                             )

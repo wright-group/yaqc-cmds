@@ -4,6 +4,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- Update for pint version of WrightTools (3.4.0)
+
 ## [2021.1.1]
 
 ### Fixed

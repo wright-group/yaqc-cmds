@@ -401,11 +401,6 @@ class Number(PyCMDS_Object):
         self.set_control_steps(single_step, decimals)
         # units
         self.units = units
-        self.units_kind = None
-        for kind, dic in wt_units.dicts.items():
-            if self.units in dic.keys():
-                self.units_dic = dic
-                self.units_kind = kind
         # limits
         self.limits = limits
         if self.limits is None:
@@ -525,7 +520,7 @@ class Number(PyCMDS_Object):
     def give_units_combo(self, units_combo_widget):
         self.units_widget = units_combo_widget
         # add items
-        unit_types = list(self.units_dic.keys())
+        unit_types = list(wt_units.get_valid_conversions(self.units))
         self.units_widget.addItems(unit_types)
         # set current item
         self.units_widget.setCurrentIndex(unit_types.index(self.units))
