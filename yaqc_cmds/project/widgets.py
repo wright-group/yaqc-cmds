@@ -244,7 +244,7 @@ class InputTable(QtWidgets.QWidget):
         global_object.give_control(control)
         layout.addWidget(control)
         # units combobox
-        if not global_object.units_kind is None:
+        if not global_object.units is None:
             control.setMinimumWidth(self.width_input - 55)
             control.setMaximumWidth(self.width_input - 55)
             units = QtWidgets.QComboBox()

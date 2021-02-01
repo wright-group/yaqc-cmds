@@ -37,24 +37,22 @@ module_name = "SCAN"
 
 
 class Axis:
-    def __init__(self, units_kind, axis_index):
-        self.units_kind = units_kind
-        if self.units_kind == "energy":
-            self.units = "wn"
+    def __init__(self, units, axis_index):
+        self.units = units
+        # TODO better defaults system...
+        if self.units == "wn":
             initial_start = 1500
             initial_stop = 1200
-        elif self.units_kind == "delay":
-            self.units = "ps"
+        elif self.units == "ps":
             initial_start = -1
             initial_stop = 1
-        elif self.units_kind == "angle":
-            self.units = "deg"
+        elif self.units == "deg":
             initial_start = 0.0
             initial_stop = 360.0
         else:
-            raise ValueError(f"unexpected units kind: {self.units_kind}")
+            raise ValueError(f"unexpected units: {self.units}")
         self.widget = pw.InputTable()
-        self.widget.add(str(axis_index) + " (" + self.units_kind + ")", None)
+        self.widget.add(str(axis_index) + " (" + self.units + ")", None)
         # start
         self.start = pc.Number(initial_value=initial_start, units=self.units)
         self.start.set_disabled_units(True)
@@ -67,11 +65,11 @@ class Axis:
         self.number = pc.Number(initial_value=51, decimals=0)
         self.widget.add("Number", self.number)
         # hardwares
-        if self.units_kind == "energy":
+        if self.units == "wn":
             hardware_objs = opas.hardwares + spectrometers.hardwares
-        elif self.units_kind == "delay":
+        elif self.units == "ps":
             hardware_objs = delays.hardwares
-        elif self.units_kind == "angle":
+        elif self.units == "deg":
             hardware_objs = filters.hardwares
         self.hardwares = {}
         for hw in hardware_objs:
@@ -180,8 +178,10 @@ class Worker(acquisition.Worker):
             for hardware in all_hardwares:
                 if hardware.name == constant_name:
                     units = hardware.units
-                    if wt.units.kind(units) == "energy":
+                    if wt.units.is_valid_conversion(units, "wn"):
                         units = "wn"
+                    if wt.units.is_valid_conversion(units, "ps"):
+                        units = "ps"
                     break
             name = constant_name
             expression = self.aqn.read(constant_name, "expression")
@@ -198,8 +198,8 @@ class Worker(acquisition.Worker):
 
 
 class GUI(acquisition.GUI):
-    def add_axis(self, units_kind):
-        axis = Axis(units_kind, len(self.axes))
+    def add_axis(self, units):
+        axis = Axis(units, len(self.axes))
         self.axes_container_widget.layout().addWidget(axis.widget)
         self.axes.append(axis)
 
@@ -248,13 +248,13 @@ class GUI(acquisition.GUI):
         self.axes_container_widget.layout().setMargin(0)
         self.layout.addWidget(self.axes_container_widget)
         add_energy_axis_button = pw.SetButton("ADD ENERGY AXIS")
-        add_energy_axis_button.clicked.connect(lambda: self.add_axis("energy"))
+        add_energy_axis_button.clicked.connect(lambda: self.add_axis("wn"))
         self.layout.addWidget(add_energy_axis_button)
         add_delay_axis_button = pw.SetButton("ADD DELAY AXIS")
-        add_delay_axis_button.clicked.connect(lambda: self.add_axis("delay"))
+        add_delay_axis_button.clicked.connect(lambda: self.add_axis("ps"))
         self.layout.addWidget(add_delay_axis_button)
         add_delay_axis_button = pw.SetButton("ADD ANGLE AXIS")
-        add_delay_axis_button.clicked.connect(lambda: self.add_axis("angle"))
+        add_delay_axis_button.clicked.connect(lambda: self.add_axis("deg"))
         self.layout.addWidget(add_delay_axis_button)
         remove_axis_button = pw.SetButton("REMOVE AXIS", "stop")
         remove_axis_button.clicked.connect(self.remove_axis)
@@ -308,11 +308,13 @@ class GUI(acquisition.GUI):
         axis_names = aqn.read("scan", "axis names")
         for axis_index, axis_name in enumerate(axis_names):
             units = aqn.read(axis_name, "units")
-            units_kind = None
-            for kind, d in wt.units.dicts.items():
-                if units in d.keys():
-                    units_kind = kind
-            axis = Axis(units_kind, axis_index)
+            if wt.units.is_valid_conversion(units, "wn"):
+                units = "wn"
+            elif wt.units.is_valid_conversion(units, "ps"):
+                units = "ps"
+            elif wt.units.is_valid_conversion(units, "deg"):
+                units = "deg"
+            axis = Axis(units, axis_index)
             axis.start.write(aqn.read(axis_name, "start"))
             axis.stop.write(aqn.read(axis_name, "stop"))
             axis.number.write(aqn.read(axis_name, "number"))

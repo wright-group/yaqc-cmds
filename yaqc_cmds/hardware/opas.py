@@ -189,7 +189,7 @@ class GUI(hw.GUI):
         self.plot_motor = pc.Combo(allowed_values=self.driver.curve.arrangements[arr].keys())
         self.plot_motor.updated.connect(self.update_plot)
         input_table.add("Motor", self.plot_motor)
-        allowed_values = list(wt.units.energy.keys())
+        allowed_values = list(wt.units.get_valid_conversions("wn"))
         self.plot_units = pc.Combo(
             initial_value=self.driver.native_units, allowed_values=allowed_values
         )
