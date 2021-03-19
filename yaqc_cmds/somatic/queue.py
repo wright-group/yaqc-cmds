@@ -762,7 +762,7 @@ class GUI(QtCore.QObject):
         labels[-1] = ""
         labels[-2] = ""
         self.table.setHorizontalHeaderLabels(labels)
-        self.table.horizontalHeader().setResizeMode(5, QtWidgets.QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.Stretch)
         self.table.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         for i, width in enumerate(self.table_cols.values()):
             self.table.setColumnWidth(i, width)
