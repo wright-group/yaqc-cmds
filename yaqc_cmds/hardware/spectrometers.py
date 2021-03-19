@@ -17,22 +17,7 @@ class Driver(hw.Driver):
     def __init__(self, *args, **kwargs):
         self._yaqd_port = kwargs.pop("yaqd_port")
         super().__init__(*args, **kwargs)
-        self.grating_index = pc.Combo(
-            name="Grating",
-            allowed_values=[1, 2],
-            section=self.name,
-            option="grating_index",
-            display=True,
-            set_method="set_turret",
-        )
-        self.exposed.append(self.grating_index)
 
-    def get_position(self):
-        native_position = self.ctrl.get_position()
-        self.position.write(native_position, self.native_units)
-        return self.position.read()
-
-    def initialize(self, *args, **kwargs):
         # open control
         self.ctrl = yaqc.Client(self._yaqd_port)
         # import some information from control
@@ -47,6 +32,21 @@ class Driver(hw.Driver):
         self.initialized.write(True)
         self.initialized_signal.emit()
 
+        self.grating = pc.Combo(
+            name="Grating",
+            allowed_values=self.ctrl.get_turret_options(),
+            section=self.name,
+            option="grating",
+            display=True,
+            set_method="set_turret",
+        )
+        self.exposed.append(self.grating)
+
+    def get_position(self):
+        native_position = self.ctrl.get_position()
+        self.position.write(native_position, self.native_units)
+        return self.position.read()
+
     def is_busy(self):
         return self.ctrl.busy()
 
@@ -54,13 +54,11 @@ class Driver(hw.Driver):
         self.ctrl.set_position(float(destination))
         self.wait_until_still()
 
-    def set_turret(self, destination_index):
-        if type(destination_index) == list:
-            destination_index = destination_index[0]
-        # turret index on ActiveX call starts from zero
-        destination_index_zero_based = int(destination_index) - 1
-        self.ctrl.set_turret(destination_index_zero_based)
-        self.grating_index.write(destination_index)
+    def set_turret(self, destination):
+        if type(destination) == list:
+            destination = destination[0]
+        self.ctrl.set_turret(destination)
+        self.grating.write(destination)
         self.wait_until_still()
         self.limits.write(*self.ctrl.get_limits(), self.native_units)
 

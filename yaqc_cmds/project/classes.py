@@ -520,7 +520,7 @@ class Number(PyCMDS_Object):
     def give_units_combo(self, units_combo_widget):
         self.units_widget = units_combo_widget
         # add items
-        unit_types = list(wt_units.get_valid_conversions(self.units))
+        unit_types = [self.units] + list(wt_units.get_valid_conversions(self.units))
         self.units_widget.addItems(unit_types)
         # set current item
         self.units_widget.setCurrentIndex(unit_types.index(self.units))
