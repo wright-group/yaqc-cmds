@@ -162,9 +162,10 @@ class Driver(pc.Driver):
         timer = wt.kit.Timer(verbose=False)
         with timer:
             self.busy.write(True)
-            self.client.measure(loop=False)
-            while self.client.busy():
-                time.sleep(0.01)
+            if "has-measure-trigger" in self.client.traits:
+                self.client.measure(loop=False)
+                while self.client.busy():
+                    time.sleep(0.01)
             out = self.client.get_measured()
             del out["measurement_id"]
             signed = [False for _ in out]
