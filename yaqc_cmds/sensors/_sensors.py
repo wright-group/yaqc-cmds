@@ -168,6 +168,11 @@ class Driver(pc.Driver):
                     time.sleep(0.01)
             out = self.client.get_measured()
             del out["measurement_id"]
+            try:
+                del out["mapping_id"]
+            except KeyError:
+                # No mapping
+                pass
             signed = [False for _ in out]
             self.data.write_properties(self.shape, out, signed)
             self.busy.write(False)
