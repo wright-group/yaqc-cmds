@@ -262,6 +262,8 @@ class GUI(hw.GUI):
         arr = self.arrangement_combo.read()
         motor_name = self.plot_motor.read()
         tune = self.driver.curve.arrangements[arr][motor_name]
+        if not isinstance(tune, attune.Tune):
+            return
         # units
         units = self.plot_units.read()
         # xi
