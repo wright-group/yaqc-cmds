@@ -95,8 +95,6 @@ class GUI(QtCore.QObject):
 
     def on_channels_changed(self):
         new = list(sensors.get_channels_dict())
-        if "ingaas" in new:
-            new.remove("ingaas")
         self.channel.set_allowed_values(new)
 
     def on_data_file_created(self):

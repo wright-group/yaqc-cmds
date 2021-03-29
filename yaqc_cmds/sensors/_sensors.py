@@ -24,11 +24,8 @@ class Data(QtCore.QMutex):
     def __init__(self):
         QtCore.QMutex.__init__(self)
         self.WaitCondition = QtCore.QWaitCondition()
-        self.shape = (1,)
-        self.size = 1
         self.channels = {}
         self.signed = []
-        self.map = None
 
     def read(self):
         return self.channels
@@ -39,15 +36,12 @@ class Data(QtCore.QMutex):
         self.WaitCondition.wakeAll()
         self.unlock()
 
-    def write_properties(self, shape, channels, signed=False, map=None):
+    def write_properties(self, channels, signed=False):
         self.lock()
-        self.shape = shape
-        self.size = np.prod(shape)
         self.channels = channels
         self.signed = signed
         if not signed:
             self.signed = [False] * len(self.channels)
-        self.map = map
         self.WaitCondition.wakeAll()
         self.unlock()
 
@@ -66,17 +60,6 @@ class Sensor(pc.Hardware):
         self.Widget = kwargs.pop("Widget")
         self.data = Data()
         self.active = True
-        # shape
-        if "shape" in args[1]:
-            self.shape = args[1].pop("shape")
-        else:
-            self.shape = (1,)
-        # map
-        if "has_map" in args[1]:
-            self.has_map = args[1].pop("has_map")
-        else:
-            self.has_map = False
-        self.has_map = False  # turning this feature off for now  --Blaise 2020-09-25
         self.measure_time = pc.Number(initial_value=np.nan, display=True, decimals=3)
         super().__init__(*args, **kwargs)
         self.settings_updated.emit()
@@ -100,7 +83,7 @@ class Sensor(pc.Hardware):
         self.gui.create_frame(widget)
 
     def initialize(self):
-        self.wait_until_still()
+        # self.wait_until_still()
         self.freerun.updated.connect(self.on_freerun_updated)
         self.update_ui.emit()
         self.driver.update_ui.connect(self.on_driver_update_ui)
@@ -141,7 +124,6 @@ class Driver(pc.Driver):
         self.busy = sensor.busy
         self.freerun = sensor.freerun
         self.data = sensor.data
-        self.shape = sensor.shape
         self.measure_time = sensor.measure_time
         self.thread = sensor.thread
 
@@ -174,7 +156,7 @@ class Driver(pc.Driver):
                 # No mapping
                 pass
             signed = [False for _ in out]
-            self.data.write_properties(self.shape, out, signed)
+            self.data.write_properties(out, signed)
             self.busy.write(False)
         self.measure_time.write(timer.interval)
         self.update_ui.emit()
