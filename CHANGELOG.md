@@ -50,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - previously released under the name "PyCMDS" via github, never packaged.
 
 [Unreleased]: https://github.com/wright-group/yaqc-cmds/compare/2021.3.0...master
-[2021.1.1]: https://github.com/wright-group/yaqc-cmds/compare/2021.1.1...2021.3.0
+[2021.3.0]: https://github.com/wright-group/yaqc-cmds/compare/2021.1.1...2021.3.0
 [2021.1.1]: https://github.com/wright-group/yaqc-cmds/compare/2021.1.0...2021.1.1
 [2021.1.0]: https://github.com/wright-group/yaqc-cmds/compare/2020.12.1...2021.1.0
 [2020.12.1]: https://github.com/wright-group/yaqc-cmds/compare/2020.12.0...2020.12.1
