@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - Update for pint version of WrightTools (3.4.0)
 - Use string based update of has-turret trait for spectrometers
+- Add protection for DiscreteTune plotting
 
 ### Fixed
 - Deprecated Qt function call
