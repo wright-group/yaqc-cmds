@@ -91,27 +91,43 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         channel_shapes = {}
         channel_units = {}
 
+        transform_extras = []
+
         for sensor in sensors:
             # TODO allow sensors to be inactive
-            # TODO allow multi-D sensors
             sensor.active = True
 
-            # InGaAs array detector
-            if hasattr(sensor.driver.client, "get_map"):
-                map_shape = full_scan_shape + tuple(sensor.shape)
-                full_scan_shape = full_scan_shape + (1,)
-                for k, v in variable_shapes.items():
-                    variable_shapes[k] = v + (1,)
-                for k, v in channel_shapes.items():
-                    channel_shapes[k] = v + (1,)
+            if "has-mapping" in sensor.driver.client.traits:
+                channel_mappings = sensor.driver.client.get_channel_mappings()
+                shapes = sensor.driver.client.get_channel_shapes()
+                chs_left = set(channel_mappings.keys())
 
-                variable_shapes["wa"] = map_shape
-                variable_units["wa"] = "nm"
-                variable_labels["wa"] = "a"
+                variable_units.update(sensor.driver.client.get_mapping_units())
+                channel_units.update(sensor.driver.client.get_channel_units())
+                mappings = sensor.driver.client.get_mappings()
 
-                for ch in sensor.channel_names:
-                    channel_shapes[ch] = map_shape
-                    channel_units[ch] = None
+                while chs_left:
+                    chs_broad = [chs_left.pop()]
+                    maps_broad = channel_mappings[chs_broad[0]]
+                    ndim = len(shapes[chs_broad[0]])
+                    for ch in chs_left:
+                        if any(i in mappings[ch] for i in maps_broad):
+                            maps_broad.extend(channel_mappings[ch])
+                            chs_broad.append(ch)
+                            chs_left.remove(ch)
+                    for k, v in variable_shapes.items():
+                        variable_shapes[k] = v + (1,) * ndim
+                    for k, v in channel_shapes.items():
+                        channel_shapes[k] = v + (1,) * ndim
+                    variable_shapes.update(
+                        {m: full_scan_shape + mappings[m].shape for m in maps_broad}
+                    )
+                    transform_extras.extend(maps_broad)
+                    channel_shapes.update(
+                        {ch: full_scan_shape + tuple(shapes[ch]) for ch in chs_broad}
+                    )
+                    full_scan_shape += (1,) * ndim
+                # TODO channels with _no_ mapping?
 
             else:
                 for ch in sensor.channel_names:
@@ -140,8 +156,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         # When we have some better hinting in WT itself, this should likely be reverted
         # KFS 2020-11-13
         transform = [f"{a.name}_points" if hasattr(a, "points") else a.name for a in axes]
-        if "wa" in variable_shapes:
-            transform += ["wa"]
+        transform.extend(transform_extras)
         data.transform(*transform)
 
         for ch, sh in channel_shapes.items():
@@ -163,9 +178,26 @@ def write_data(idx, hardware, sensors):
             for rec, (obj, *_) in hw.recorded.items():
                 data[rec][idx] = obj.read(data[rec].units)
         for s in sensors:
-            for ch, val in s.channels.items():
-                data[ch][idx] = val
-            if s.shape[0] > 1:
-                data["wa"][idx] = s.driver.client.get_map(data["wm"][idx])
+            if "has-mapping" in s.driver.client.traits:
+                for ch, val in s.channels.items():
+                    idx_ch = list(data[ch].shape)
+                    print(idx_ch)
+                    idx_ch = [slice(None) if i != 1 else 1 for i in idx_ch]
+                    idx_ch[: len(in_idx)] = in_idx
+                    idx_ch = tuple(idx_ch)
+                    print(data[ch].shape, idx_ch, val.shape)
+                    data[ch][idx_ch] = val
+                for var, val in s.driver.client.get_mappings().items():
+                    if var == "mapping_id":
+                        continue
+                    idx_map = list(data[var].shape)
+                    idx_map = [slice(None) if i != 1 else 1 for i in idx_map]
+                    idx_map[: len(in_idx)] = in_idx
+                    idx_map = tuple(idx_map)
+                    print(data[var].shape, idx_map, val.shape)
+                    data[var][idx_map] = val
+            else:
+                for ch, val in s.channels.items():
+                    data[ch][idx] = val
         data.flush()
         data_container.last_idx_written = in_idx

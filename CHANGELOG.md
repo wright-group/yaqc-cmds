@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - support for sensors without `has-measure-trigger` trait
+- support for sensors that implement `has-mapping` trait
 
 ### Changed
 - Update for pint version of WrightTools (3.4.0)

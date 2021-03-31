@@ -95,8 +95,6 @@ class GUI(QtCore.QObject):
 
     def on_channels_changed(self):
         new = list(sensors.get_channels_dict())
-        if "ingaas" in new:
-            new.remove("ingaas")
         self.channel.set_allowed_values(new)
 
     def on_data_file_created(self):
@@ -111,7 +109,7 @@ class GUI(QtCore.QObject):
         with somatic._wt5.data_container as data:
             axis = data[self.axis.read()]
             units = axis.attrs.get("units")
-            units = list(wt.units.get_valid_conversions(units))
+            units = [units] + list(wt.units.get_valid_conversions(units))
             self.axis_units.set_allowed_values(units)
 
     def on_data_file_written(self):
@@ -126,7 +124,7 @@ class GUI(QtCore.QObject):
             axis = data[self.axis.read()]
             limits = list(
                 wt.units.convert(
-                    [np.min(axis.full), np.max(axis.full)], axis.attrs.get("units"), x_units
+                    [np.nanmin(axis.full), np.nanmax(axis.full)], axis.attrs.get("units"), x_units
                 )
             )
             channel = data[self.channel.read()]
@@ -149,7 +147,8 @@ class GUI(QtCore.QObject):
             try:
                 self.plot_widget.set_xlim(min(limits), max(limits))
                 self.plot_widget.set_ylim(np.min(channel), np.max(channel))
-            except Exception:
+            except Exception as e:
+                print(e)
                 pass
 
     def on_sensors_changed(self):
