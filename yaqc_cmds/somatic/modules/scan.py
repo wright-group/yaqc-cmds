@@ -125,12 +125,24 @@ class Worker(acquisition.Worker):
             for channel_name in channels:
                 channel_path = data_folder / channel_name
                 output_path = data_folder
-                if data.ndim > 2:
+                orig_transform = data.axis_names
+                print(data.axis_names)
+                axes = []
+                for a in orig_transform:
+                    print(data[channel_name].shape, data[a].shape)
+                    if all(
+                        ch_sh >= a_sh
+                        for ch_sh, a_sh in zip(data[channel_name].shape, data[a].shape)
+                    ):
+                        axes.append(a)
+                data.transform(*axes)
+                print(data.axis_names)
+                if sum(a > 1 for a in data[channel_name].shape) > 2:
                     output_path = channel_path
                     channel_path.mkdir()
                 channel_index = data.channel_names.index(channel_name)
                 image_fname = channel_name
-                if data.ndim == 1:
+                if sum(a > 1 for a in data[channel_name].shape) == 1:
                     outs = wt.artists.quick1D(
                         data,
                         channel=channel_index,
@@ -152,6 +164,7 @@ class Worker(acquisition.Worker):
                     )
                 if channel_name == main_channel:
                     outputs = outs
+                data.transform(*orig_transform)
             # get output image
             if len(outputs) == 1:
                 output_image_path = outputs[0]
