@@ -111,6 +111,7 @@ class Driver(hw.Driver):
         """
         if units:
             destination = wt.units.convert(destination, units, self.native_units)
+        destination = float(destination)
         self.hardware.destination.write(destination, self.native_units)
         self.position.write(destination, self.native_units)
         self.client.set_position_except(destination, exceptions)

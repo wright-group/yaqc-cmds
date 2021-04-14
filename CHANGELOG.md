@@ -4,6 +4,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- Ensure float passed in `set_position_except` (rather than scalar ndarray)
+
 ## [2021.3.0]
 
 ### Added
