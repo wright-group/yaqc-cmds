@@ -4,6 +4,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- Motortune collecting tune points with discrete tunes
+
 ## [2021.3.0]
 
 ### Added

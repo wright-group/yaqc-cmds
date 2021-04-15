@@ -430,13 +430,14 @@ def get_tune_points(instrument, arrangement, scanned_motors):
         scanned_motors = arrangement.keys()
     inds = []
     for scanned in scanned_motors:
-        if scanned in arrangement.keys():
+        if scanned in arrangement.keys() and hasattr(arrangement[scanned], "independent"):
             inds += [arrangement[scanned].independent]
             continue
         for name in arrangement.keys():
             if (
                 name in instrument.arrangements
                 and scanned in instrument(instrument[name].ind_min, name).keys()
+                and hasattr(arrangement[scanned], "independent")
             ):
                 inds += [arrangement[scanned].independent]
     if len(inds) > 1:
