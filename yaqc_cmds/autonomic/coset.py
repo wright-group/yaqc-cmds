@@ -111,13 +111,12 @@ class CoSetHW:
         for control in self.instrument.arrangements.keys():
             if not self.control_arrangement_bools[control].read():
                 continue
-            position = all_hardwares[control].get_position(all_hardwares[control].native_units)
-            note = self.instrument(position, arrangement_name=control)
+            position = all_hardwares[control].get_destination(all_hardwares[control].native_units)
             try:
                 key = all_hardwares[control].driver.client.get_arrangement()
-                new += note[key]
             except Exception as e:  # TODO: better exception handling
-                new += note["auto"]  # default key
+                key = "auto"
+            new += self.instrument[control][key](position)
         if g.hardware_initialized.read():
             self.hardware.set_offset(new, self.hardware.native_units)
 
