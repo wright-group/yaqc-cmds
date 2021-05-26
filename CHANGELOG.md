@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Ensure float passed in `set_position_except` (rather than scalar ndarray)
 - Motortune collecting tune points with discrete tunes
 - Better consistency of autonomic system
+- Ensure correct units used in acquisition
 
 ## [2021.3.0]
 

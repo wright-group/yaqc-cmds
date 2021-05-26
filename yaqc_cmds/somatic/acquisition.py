@@ -198,7 +198,7 @@ class Worker(QtCore.QObject):
                         vals[hardware.name] = hardware.get_position(units)
                 for idx in np.ndindex(arrs[0].shape):
                     for destination in destinations_list:
-                        if wt.units.is_valid_conversion(hardware.units, units):
+                        if wt.units.is_valid_conversion(destination.units, units):
                             val = wt.units.converter(
                                 destination.arr[idx], destination.units, units
                             )
