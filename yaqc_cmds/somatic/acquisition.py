@@ -60,7 +60,7 @@ class Axis:
         # fill hardware dictionary with defaults
         # Not sure if this re.split does what we want now, getting rid of identity
         # KFS 200-10-13
-        names = re.split("[=F]+", self.name)
+        names = re.split("=+", self.name)
         for name in names:
             if name not in self.hardware_dict.keys():
                 hardware_object = next(h for h in all_hardwares if h.name == name)
