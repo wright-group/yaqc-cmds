@@ -147,10 +147,11 @@ class Worker(acquisition.Worker):
         arrangement = opa_hardware.curve.arrangements[opa_hardware.arrangement]
         motor_names = self.aqn.read("motortune", "motor names")
         scanned_motors = [m for m in motor_names if self.aqn.read(m, "method") == "Scan"]
-        tune_points = get_tune_points(curve, arrangement, scanned_motors)
+
         tune_units = "nm"  # needs update if/when attune supports other units for independents
         # tune points
         if self.aqn.read("motortune", "use tune points"):
+            tune_points = get_tune_points(curve, arrangement, scanned_motors)
             motors_excepted = []  # list of indicies
             for motor_name in motor_names:
                 if not self.aqn.read(motor_name, "method") == "Set":
