@@ -9,12 +9,14 @@ import datetime
 import dateutil
 import collections
 import pathlib
+import pprint
 
 from PySide2 import QtCore, QtWidgets
 
 import appdirs
 import toml
 
+from bluesky_queueserver.manager.comms import zmq_single_request
 import WrightTools as wt
 
 import yaqc_cmds.__main__
@@ -349,25 +351,13 @@ class Queue:
         self.gui = gui
         self.status = gui.queue_status
         self.timestamp = wt.kit.TimeStamp()
-        # create queue folder
-        if folder is None:
-            folder_name = " ".join([self.timestamp.path, self.name])
-            self.folder = pc.Value(os.path.join(g.main_window.read().data_folder, folder_name))
-            os.mkdir(self.folder.read())
-        else:
-            self.folder = pc.Value(folder)
-            folder_name = os.path.basename(self.folder.read())
-        # create queue file
-        self.ini_path = os.path.abspath(os.path.join(self.folder.read(), "queue.ini"))
-        if not os.path.isfile(self.ini_path):
-            with open(self.ini_path, "a"):
-                os.utime(self.ini_path, None)  # quickly create empty file
-        self.ini = wt.kit.INI(self.ini_path)  # I don't use ini_handler here
         # parameters and status indicators
         self.items = []
         self.index = pc.Value(0)
         self.going = pc.Busy()
         self.paused = pc.Busy()
+        self.folder = None
+        """  Ignoring gdrive while deving bluesky integration
         # create storage folder on google drive
         if url is None:
             if g.google_drive_enabled.read():
@@ -383,7 +373,10 @@ class Queue:
                 self.url = None
         else:
             self.url = url
+        """
+        self.url = None
         # initialize worker
+        """ worker goes away right?
         self.worker_enqueued = pc.Enqueued()
         self.worker_busy = pc.Busy()
         self.worker = Worker(
@@ -401,10 +394,13 @@ class Queue:
         g.shutdown.read().connect(self.worker_thread.quit)
         self.worker_thread.start()
         self.worker_q = pc.Q(self.worker_enqueued, self.worker_busy, self.worker)
+        """
+        """ Ignore slack while devving bluesky
         # message on slack
         if g.slack_enabled.read():
             message = ":baby: new queue created - {0} - {1}".format(folder_name, self.url)
             g.slack_control.read().send_message(message)
+        """
 
     def _start_next_action(self):
         self.status.pause.write(False)
@@ -448,40 +444,8 @@ class Queue:
         if update:
             self.update()
 
-    def append_device(self):
-        # TODO:
-        print("append_device")
-
-    def append_hardware(self, hardwares, value, units, name, info, description, update=True):
-        hardware = Hardware(hardwares, value, units, name=name, info=info, description=description)
-        self.items.append(hardware)
-        if update:
-            self.update()
-
-    def append_script(self):
-        # TODO:
-        print("append_script")
-
-    def append_wait(self, operation, amount, name, info, description):
-        # create item
-        wait = Wait(operation, amount, name=name, info=info, description=description)
-        # append and update
-        self.items.append(wait)
-        self.update()
-
-    def append_interrupt(self, name, info, description):
-        # create item
-        interrupt = Interrupt(name=name, info=info, description=description)
-        # append and update
-        self.items.append(interrupt)
-        self.update()
-
     def change_index(self, current_index, new_index):
-        item = self.items.pop(current_index)
-        if new_index < self.index.read():
-            new_index = self.index.read() + 1
-        self.items.insert(new_index, item)
-        self.update()
+        item = self.queue[current_index]
         return item
 
     def exit(self):
@@ -645,7 +609,12 @@ class GUI(QtCore.QObject):
         )
         # queue
         self.queue = None
+        self.queue_get = {"plan_queue_uid": None}
         self.queue_status = QueueStatus()
+        self.update_ui()
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update_ui)
+        self.timer.start(100)
 
     def add_button_to_table(self, i, j, text, color, method):
         # for some reason, my lambda function does not work when called outside
@@ -836,23 +805,14 @@ class GUI(QtCore.QObject):
         ]
         allowed_values.remove("Device")  # not ready yet
         allowed_values.remove("Script")  # not ready yet
-        self.type_combo = pc.Combo(allowed_values=allowed_values)
-        self.type_combo.updated.connect(self.update_type)
         input_table.add("Add to Queue", None)
-        input_table.add("Type", self.type_combo)
         settings_layout.addWidget(input_table)
         # frames
         self.type_frames = collections.OrderedDict()
         self.type_frames["Acquisition"] = self.create_acquisition_frame()
-        self.type_frames["Wait"] = self.create_wait_frame()
-        self.type_frames["Interrupt"] = self.create_interrupt_frame()
-        self.type_frames["Hardware"] = self.create_hardware_frame()
-        self.type_frames["Device"] = self.create_device_frame()
-        self.type_frames["Script"] = self.create_script_frame()
         for frame in self.type_frames.values():
             settings_layout.addWidget(frame)
             frame.hide()
-        self.update_type()
         # append button
         self.append_button = pw.SetButton("APPEND TO QUEUE")
         self.append_button.setDisabled(True)
@@ -860,31 +820,6 @@ class GUI(QtCore.QObject):
         settings_layout.addWidget(self.append_button)
         # finish --------------------------------------------------------------
         settings_layout.addStretch(1)
-
-    def create_hardware_frame(self):
-        frame = QtWidgets.QWidget()
-        frame.setLayout(QtWidgets.QVBoxLayout())
-        layout = frame.layout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        # name and info
-        input_table = pw.InputTable()
-        self.hardware_name = pc.String(max_length=10)
-        input_table.add("Name", self.hardware_name)
-        self.hardware_info = pc.String()
-        input_table.add("Info", self.hardware_info)
-        layout.addWidget(input_table)
-        self.hardware_hardwares = {}
-        for hw in all_hardwares:
-            checkbox = pc.Bool()
-            input_table.add(hw.name, checkbox)
-            self.hardware_hardwares[hw.name] = checkbox
-
-        self.hardware_value = pc.Number()
-        input_table.add("Value", self.hardware_value)
-        self.hardware_units = pc.String()
-        input_table.add("Units", self.hardware_units)
-
-        return frame
 
     def create_new_queue(self):
         # exit old queue
@@ -993,36 +928,8 @@ class GUI(QtCore.QObject):
                 )
             return message, attachments
 
-    def load_modules(self):
-        # called by MainWindow.__init__
-        g.queue_control.write(False)
-        if g.debug.read():
-            print("load modules")
-        # create acquisition thread
-        acquisition_thread = QtCore.QThread()
-        g.scan_thread.write(acquisition_thread)
-        acquisition_thread.start()
-        g.shutdown.read().connect(acquisition_thread.quit)
-        # import modules
-        # done from modules.ini
-        # modules appear in order of import (order of appearance in ini)
-        config = yaqc_cmds.__main__.config
-        self.modules = {}
-        for name, load in config["modules"].items():
-            if load:
-                path = os.path.join(somatic_folder, "modules", name + ".py")
-                module = imp.load_source(name, path)
-                if module.load():
-                    module.mkGUI()
-                    self.modules[module.module_name] = module
-                    self.module_container_widget.layout().addWidget(module.gui.frame)
-        if len(self.modules) > 0:
-            # update module combo
-            self.module_combobox.set_allowed_values(list(self.modules.keys()))
-            self.module_combobox.updated.connect(self.on_module_combobox_updated)
-            self.on_module_combobox_updated()
-
     def on_append_to_queue(self):
+        return
         current_type = self.type_combo.read()
         if current_type == "Acquisition":
             p = self.save_aqn(self.queue.folder.read())
@@ -1051,12 +958,6 @@ class GUI(QtCore.QObject):
             self.queue.append_hardware(
                 hardwares, value, units, name=name, info=info, description=description
             )
-        elif current_type == "Device":
-            # TODO:
-            self.queue.append_device()
-        elif current_type == "Script":
-            # TODO:
-            self.queue.append_script()
         else:
             raise Warning("current_type not recognized in on_append_to_queue")
         # run queue
@@ -1068,9 +969,7 @@ class GUI(QtCore.QObject):
             self.queue.interrupt()
         else:  # queue not currently running
             self.queue.status.go.write(not self.queue.status.go.read())
-            queue_full = len(self.queue.items) == self.queue.index.value
-            if not queue_full and self.queue.status.go.read():
-                self.queue.run()
+            self.queue.run()
         self.update_ui()
 
     def on_queue_finished(self):
@@ -1081,9 +980,11 @@ class GUI(QtCore.QObject):
             index = row
         else:
             index = row.toInt()[0]  # given as QVariant
-        self.queue.change_index(index, new_index)
+        item = self.queue[row]
+        zmq_single_request("queue_item_move", {"uid": item["item_uid"], "pos_dest": new_index})
 
     def on_load_aqn(self):
+        return
         # get path from user
         caption = "Choose an aqn file"
         options = "AQN (*.aqn);;All Files (*.*)"
@@ -1099,6 +1000,7 @@ class GUI(QtCore.QObject):
         self.modules[self.module_combobox.read()].gui.load(p)
 
     def on_load_item(self, row):
+        return
         if isinstance(row, int):
             index = row
         else:
@@ -1146,11 +1048,13 @@ class GUI(QtCore.QObject):
             raise Exception("item.type not recognized in queue.GUI.on_load_item")
 
     def on_module_combobox_updated(self):
+        return
         for module in self.modules.values():
             module.gui.hide()
         self.modules[self.module_combobox.read()].gui.show()
 
     def on_open_queue(self):
+        return
         # get queue folder
         caption = "Choose Queue directory"
         directory = data_folder
@@ -1257,9 +1161,11 @@ class GUI(QtCore.QObject):
             index = row
         else:
             index = row.toInt()[0]  # given as QVariant
-        self.queue.pop(index)
+        item = self.queue[row]
+        zmq_single_request("queue_item_remove", {"uid": item["item_uid"]})
 
     def save_aqn(self, folder):
+        return
         # all aqn files are first created using this method
         # get filepath
         module_name = self.module_combobox.read()
@@ -1303,53 +1209,56 @@ class GUI(QtCore.QObject):
             # append button
             self.append_button.setDisabled(False)
         # table ---------------------------------------------------------------
+
+        queue_get = zmq_single_request("queue_get")[0]
+        if self.queue_get["plan_queue_uid"] == queue_get["plan_queue_uid"]:
+            return
+        self.queue_get = queue_get
+        self.queue = self.queue_get.get("items", [])
+        self.running = self.queue_get.get("running_item", {})
+
         # clear table
         for _ in range(self.table.rowCount()):
             self.table.removeRow(0)
+
         # add elements from queue
-        for i, item in enumerate(self.queue.items):
+        for i, item in enumerate([self.running] + self.queue):
+            if item == {}:
+                continue
+            i -= 1
             self.table.insertRow(i)
             # index
-            index = self.add_index_to_table(i, len(self.queue.items) - 1)
-            if not item.status == "ENQUEUED":
-                index.setDisabled(True)
+            index = self.add_index_to_table(i, len(self.queue) - 1)
             # type
-            label = pw.Label(item.type)
+            label = pw.Label(item["name"])
             label.setAlignment(QtCore.Qt.AlignCenter)
             label.setMargin(3)
             self.table.setCellWidget(i, 1, label)
             # status
-            label = pw.Label(item.status)
+            label = pw.Label("RUNNING" if item == self.running else "ENQUEUED")
             label.setAlignment(QtCore.Qt.AlignCenter)
             label.setMargin(3)
             self.table.setCellWidget(i, 2, label)
             # started
-            if item.started is not None:
+            if False:  # item.started is not None:
                 text = item.started.hms
                 label = pw.Label(text)
                 label.setAlignment(QtCore.Qt.AlignCenter)
                 label.setMargin(3)
                 self.table.setCellWidget(i, 3, label)
             # exited
-            if item.exited is not None:
+            if False:  # item.exited is not None:
                 text = item.exited.hms
                 label = pw.Label(text)
                 label.setAlignment(QtCore.Qt.AlignCenter)
                 label.setMargin(3)
                 self.table.setCellWidget(i, 4, label)
             # description
-            label = pw.Label(item.description)
+            label = pw.Label(repr(item.get("args", [])) + repr(item.get("kwargs", {})))
             label.setMargin(3)
-            label.setToolTip(item.description)
+            label.setToolTip(repr(item))
             self.table.setCellWidget(i, 5, label)
             # remove
             button = self.add_button_to_table(i, 6, "REMOVE", "stop", self.on_remove_item)
-            if not item.status == "ENQUEUED":
-                button.setDisabled(True)
             # load
             self.add_button_to_table(i, 7, "LOAD", "go", self.on_load_item)
-
-    def update_type(self):
-        for frame in self.type_frames.values():
-            frame.hide()
-        self.type_frames[self.type_combo.read()].show()
