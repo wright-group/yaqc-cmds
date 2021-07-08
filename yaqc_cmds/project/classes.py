@@ -415,8 +415,14 @@ class Number(PyCMDS_Object):
     def _set_limits(self):
         min_value, max_value = self.limits.read()
         limits_units = self.limits.units
-        min_value = wt_units.converter(min_value, limits_units, self.units)
-        max_value = wt_units.converter(max_value, limits_units, self.units)
+        try:
+            min_value = wt_units.converter(min_value, limits_units, self.units)
+        except ZeroDivisionError:
+            min_value = np.inf
+        try:
+            max_value = wt_units.converter(max_value, limits_units, self.units)
+        except ZeroDivisionError:
+            max_value = np.inf
         # ensure order
         min_value, max_value = [
             min([min_value, max_value]),
