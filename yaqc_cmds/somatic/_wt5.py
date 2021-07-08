@@ -97,7 +97,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
         for sensor in sensors:
             # TODO allow sensors to be inactive
             sensor.active = True
-            
+
             if hasattr(sensor.driver.client, "get_channel_signs"):
                 channel_signs.update(sensor.driver.client.get_channel_signs())
 
