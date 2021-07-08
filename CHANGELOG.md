@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+- Ensure limits are computed when one bound should be inf
 - Ensure float passed in `set_position_except` (rather than scalar ndarray)
 - Motortune collecting tune points with discrete tunes
 - Better consistency of autonomic system
