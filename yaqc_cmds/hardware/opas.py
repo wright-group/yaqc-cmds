@@ -109,7 +109,6 @@ class Driver(hw.Driver):
 
         does not wait until still...
         """
-        print("set_position input ", destination, exceptions, units)
         if units:
             destination = wt.units.convert(destination, units, self.native_units)
         destination = float(destination)
