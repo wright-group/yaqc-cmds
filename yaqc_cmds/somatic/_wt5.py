@@ -90,12 +90,16 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
 
         channel_shapes = {}
         channel_units = {}
+        channel_signs = {}
 
         transform_extras = []
 
         for sensor in sensors:
             # TODO allow sensors to be inactive
             sensor.active = True
+
+            if hasattr(sensor.driver.client, "get_channel_signs"):
+                channel_signs.update(sensor.driver.client.get_channel_signs())
 
             if "has-mapping" in sensor.driver.client.traits:
                 channel_mappings = sensor.driver.client.get_channel_mappings()
@@ -161,7 +165,7 @@ def create_data(path, headers, destinations, axes, constants, hardware, sensors)
 
         for ch, sh in channel_shapes.items():
             units = channel_units[ch]
-            data.create_channel(ch, shape=sh, units=units)
+            data.create_channel(ch, shape=sh, units=units, signed=channel_signs.get(ch, False))
             # TODO signed?
             # TODO labels?
 
