@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Motortune collecting tune points with discrete tunes
 - Better consistency of autonomic system
 - Ensure correct units used in acquisition
+- axes with whitespace don't necessarily fail
+- Motortune Tunepoints only calculated if the checkbox is checked
+- old "identity" behavior removed which caused splitting on "F" in axis names
+
+### Added
+- Widgets to control slit widths and mirror positions of monochromator
 
 ## [2021.3.0]
 
