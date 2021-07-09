@@ -55,9 +55,7 @@ class GUI(QtCore.QObject):
         self.queue = None
         self.queue_get = {"plan_queue_uid": None}
         self.update_ui()
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_ui)
-        self.timer.start(100)
+        somatic.signals.queue_updated.connect(self.update_ui)
 
     def add_button_to_table(self, i, j, text, color, method):
         # for some reason, my lambda function does not work when called outside
@@ -138,19 +136,28 @@ class GUI(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        # new queue name
-        input_table = pw.InputTable()
-        self.new_queue_name = pc.String("queue", max_length=10)
-        settings_layout.addWidget(input_table)
         # adjust queue label
         input_table = pw.InputTable()
         input_table.add("Control Queue", None)
         settings_layout.addWidget(input_table)
         # go button
-        self.queue_control = pw.QueueControl()
-        self.queue_control.clicked.connect(self.on_queue_control_clicked)
-        settings_layout.addWidget(self.queue_control)
-        self.queue_control.setDisabled(True)
+        self.queue_start = pw.SetButton("START QUEUE")
+        self.queue_start.clicked.connect(self.on_queue_start_clicked)
+        settings_layout.addWidget(self.queue_start)
+        self.queue_stop = pw.SetButton("STOP QUEUE", "advanced")
+        self.queue_stop.clicked.connect(self.on_queue_stop_clicked)
+        settings_layout.addWidget(self.queue_stop)
+        self.interrupt = pw.SetButton("INTERRUPT", "stop")
+        self.interrupt.clicked.connect(self.on_interrupt_clicked)
+        settings_layout.addWidget(self.interrupt)
+        line = pw.Line("H")
+        settings_layout.addWidget(line)
+        self.clear = pw.SetButton("CLEAR QUEUE", "stop")
+        self.clear.clicked.connect(self.on_clear_clicked)
+        settings_layout.addWidget(self.clear)
+        self.clear_history = pw.SetButton("CLEAR HISTORY", "stop")
+        self.clear_history.clicked.connect(self.on_clear_history_clicked)
+        settings_layout.addWidget(self.clear_history)
         # horizontal line
         line = pw.Line("H")
         settings_layout.addWidget(line)
@@ -170,15 +177,32 @@ class GUI(QtCore.QObject):
     def on_append_to_queue(self):
         return
 
-    def on_queue_control_clicked(self):
-        if self.queue_status.going.read():
-            self.queue.interrupt()
-        else:  # queue not currently running
-            self.queue.status.go.write(not self.queue.status.go.read())
-            self.queue.run()
-        self.update_ui()
+    def on_queue_start_clicked(self):
+        zmq_single_request("queue_start")
 
-        self.queue_control.set_style("RUN QUEUE", "go")
+    def on_queue_stop_clicked(self):
+        zmq_single_request("queue_stop")
+
+    def on_interrupt_clicked(self):
+        zmq_single_request("re_pause", {"option": "immediate"})
+        self.interrupt_choice_window.set_text("Please choose how to proceed.")
+        index = self.interrupt_choice_window.show()
+        if index == 0:  # RESUME
+            zmq_single_request("re_resume")
+        elif index == 1:  # SKIP
+            zmq_single_request("re_abort")
+            time.sleep(0.2)
+            zmq_single_request("queue_item_remove", {"pos": "front"})
+            time.sleep(0.2)
+            zmq_single_request("queue_start")
+        elif index == 2:  # HALT
+            zmq_single_request("re_abort")
+
+    def on_clear_clicked(self):
+        zmq_single_request("queue_clear")
+
+    def on_clear_history_clicked(self):
+        zmq_single_request("history_clear")
 
     def on_index_changed(self, row, new_index):
         if isinstance(row, int):

@@ -29,6 +29,7 @@ import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.hardware.delays as delays
 import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.filters as filters
+import yaqc_cmds.somatic as somatic
 
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
@@ -51,13 +52,9 @@ class GUI(QtCore.QObject):
             "QUEUE INTERRUPTED", button_labels=["RESUME", "SKIP", "STOP"]
         )
         # queue
-        self.queue = []
-        self.queue_get = {"plan_history_uid": None}
-        # self.queue_status = QueueStatus()
         self.update_ui()
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_ui)
-        self.timer.start(100)
+        somatic.signals.history_updated.connect(self.update_ui)
+        somatic.signals.manager_state_updated.connect(self.message_widget.setText)
 
     def add_button_to_table(self, i, j, text, color, method):
         # for some reason, my lambda function does not work when called outside
@@ -91,9 +88,6 @@ class GUI(QtCore.QObject):
         index.setAlignment(QtCore.Qt.AlignCenter)
         index.setValue(i)
         index.setProperty("TableRowIndex", i)
-        index.editingFinished.connect(
-            lambda: self.on_index_changed(index.property("TableRowIndex"), int(index.value()))
-        )
         self.table.setCellWidget(i, 0, index)
         return index
 
@@ -114,7 +108,6 @@ class GUI(QtCore.QObject):
         self.table_cols["Started"] = 110
         self.table_cols["Exited"] = 110
         self.table_cols["Description"] = 200  # expanding
-        self.table_cols["Remove"] = 75
         self.table_cols["Load"] = 75
         for i in range(len(self.table_cols.keys())):
             self.table.insertColumn(i)
@@ -140,22 +133,28 @@ class GUI(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
-        line = pw.line("H")
-        settings_layout.addWidget(line)
         # adjust queue label
         input_table = pw.InputTable()
         input_table.add("Control Queue", None)
         settings_layout.addWidget(input_table)
         # go button
-        self.queue_control = pw.QueueControl()
-        self.queue_control.clicked.connect(self.on_queue_control_clicked)
-        settings_layout.addWidget(self.queue_control)
-        self.queue_control.setDisabled(True)
-        # queue runtime
-        input_table = pw.InputTable()
-        self.runtime = pc.String(initial_value="000:00:00", display=True)
-        input_table.add("Queue Runtime", self.runtime)
-        settings_layout.addWidget(input_table)
+        self.queue_start = pw.SetButton("START QUEUE")
+        self.queue_start.clicked.connect(self.on_queue_start_clicked)
+        settings_layout.addWidget(self.queue_start)
+        self.queue_stop = pw.SetButton("STOP QUEUE", "advanced")
+        self.queue_stop.clicked.connect(self.on_queue_stop_clicked)
+        settings_layout.addWidget(self.queue_stop)
+        self.interrupt = pw.SetButton("INTERRUPT", "stop")
+        self.interrupt.clicked.connect(self.on_interrupt_clicked)
+        settings_layout.addWidget(self.interrupt)
+        line = pw.Line("H")
+        settings_layout.addWidget(line)
+        self.clear = pw.SetButton("CLEAR QUEUE", "stop")
+        self.clear.clicked.connect(self.on_clear_clicked)
+        settings_layout.addWidget(self.clear)
+        self.clear_history = pw.SetButton("CLEAR HISTORY", "stop")
+        self.clear_history.clicked.connect(self.on_clear_history_clicked)
+        settings_layout.addWidget(self.clear_history)
         # horizontal line
         line = pw.Line("H")
         settings_layout.addWidget(line)
@@ -180,49 +179,52 @@ class GUI(QtCore.QObject):
     def on_append_to_queue(self):
         return
 
-    def on_queue_control_clicked(self):
-        return
-
     def on_load_item(self, row):
         return
 
-    def update_ui(self):
-        """
-        # buttons -------------------------------------------------------------
-        if self.queue:
-            queue_go = self.queue_status.go.read()
-            queue_going = self.queue_status.going.read()
-            # queue control
-            self.queue_control.setDisabled(False)
-            if queue_go:
-                if queue_going:
-                    self.queue_control.set_style("INTERRUPT QUEUE", "stop")
-                else:
-                    self.queue_control.set_style("STOP QUEUE", "stop")
-                    self.message_widget.setText("QUEUE WAITING")
-            else:
-                self.queue_control.set_style("RUN QUEUE", "go")
-                self.message_widget.setText("QUEUE STOPPED")
-            # append button
-            self.append_button.setDisabled(False)
-        """
-        # table ---------------------------------------------------------------
+    def on_queue_start_clicked(self):
+        zmq_single_request("queue_start")
 
+    def on_queue_stop_clicked(self):
+        zmq_single_request("queue_stop")
+
+    def on_queue_stop_cancel_clicked(self):
+        zmq_single_request("queue_stop_cancel")
+
+    def on_interrupt_clicked(self):
+        zmq_single_request("re_pause", {"option": "immediate"})
+        self.interrupt_choice_window.set_text("Please choose how to proceed.")
+        index = self.interrupt_choice_window.show()
+        if index == 0:  # RESUME
+            zmq_single_request("re_resume")
+        elif index == 1:  # SKIP
+            zmq_single_request("re_abort")
+            time.sleep(0.2)
+            zmq_single_request("queue_item_remove", {"pos": "front"})
+            time.sleep(0.2)
+            zmq_single_request("queue_start")
+        elif index == 2:  # HALT
+            zmq_single_request("re_abort")
+
+    def on_clear_clicked(self):
+        zmq_single_request("queue_clear")
+
+    def on_clear_history_clicked(self):
+        zmq_single_request("history_clear")
+
+    def update_ui(self):
         queue_get = zmq_single_request("history_get")[0]
-        if self.queue_get["plan_history_uid"] == queue_get["plan_history_uid"]:
-            return
-        self.queue_get = queue_get
-        self.queue = self.queue_get.get("items", [])
+        queue = queue_get.get("items", [])
 
         # clear table
         for _ in range(self.table.rowCount()):
             self.table.removeRow(0)
 
         # add elements from queue
-        for i, item in enumerate(self.queue):
+        for i, item in enumerate(queue):
             self.table.insertRow(i)
             # index
-            index = self.add_index_to_table(i, len(self.queue) - 1)
+            index = self.add_index_to_table(i, len(queue) - 1)
             # type
             label = pw.Label(item["name"])
             label.setAlignment(QtCore.Qt.AlignCenter)
@@ -253,4 +255,4 @@ class GUI(QtCore.QObject):
             label.setToolTip(pprint.pformat(item))
             self.table.setCellWidget(i, 5, label)
             # load
-            self.add_button_to_table(i, 7, "LOAD", "go", self.on_load_item)
+            self.add_button_to_table(i, 6, "LOAD", "go", self.on_load_item)

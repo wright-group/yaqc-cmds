@@ -124,7 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # time elapsed/remaining, queue message
         progress_bar.setLayout(QtWidgets.QHBoxLayout())
         time_elapsed = QtWidgets.QLabel("00:00:00")
-        self.queue_message = QtWidgets.QLabel("NO QUEUE")
+        self.queue_message = QtWidgets.QLabel("")
         time_remaining = QtWidgets.QLabel("00:00:00")
         StyleSheet = "QLabel{color: custom_color; font: bold 14px}".replace(
             "custom_color", g.colors_dict.read()["text_light"]
