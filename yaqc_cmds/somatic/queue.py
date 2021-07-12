@@ -31,8 +31,7 @@ import yaqc_cmds.hardware.opas as opas
 import yaqc_cmds.hardware.filters as filters
 import yaqc_cmds.somatic as somatic
 
-all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
-
+from . import plan_ui
 
 ### GUI #######################################################################
 
@@ -134,6 +133,7 @@ class GUI(QtCore.QObject):
         settings_scroll_area.setMaximumWidth(300)
         settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
+        self.settings_layout = settings_layout
         settings_layout.setMargin(5)
         self.layout.addWidget(settings_scroll_area)
         # adjust queue label
@@ -163,19 +163,76 @@ class GUI(QtCore.QObject):
         settings_layout.addWidget(line)
         # type combobox
         input_table = pw.InputTable()
+        allowed_values = ["plan", "instruction"]
+        self.type_combo = pc.Combo(allowed_values=allowed_values)
+        self.type_combo.updated.connect(self.update_type)
         input_table.add("Add to Queue", None)
+        input_table.add("Type", self.type_combo)
         settings_layout.addWidget(input_table)
         # frames
+        self.type_frames = {
+            "plan": self.create_plan_frame(),
+            "instruction": self.create_instruction_frame(),
+        }
+        for frame in self.type_frames.values():
+            settings_layout.addWidget(frame)
+            frame.hide()
+        self.update_type()
         # append button
         self.append_button = pw.SetButton("APPEND TO QUEUE")
-        self.append_button.setDisabled(True)
         self.append_button.clicked.connect(self.on_append_to_queue)
         settings_layout.addWidget(self.append_button)
         # finish --------------------------------------------------------------
         settings_layout.addStretch(1)
 
+    def create_instruction_frame(self):
+        button = pw.SetButton("Append Queue Stop")
+        button.clicked.connect(
+            lambda: zmq_single_request(
+                "queue_item_add",
+                {
+                    "item": {"item_type": "instruction", "name": "queue_stop"},
+                    "user_group": "admin",
+                    "user": "yaqc-cmds",
+                },
+            )
+        )
+        return button
+
+    def create_plan_frame(self):
+        frame = QtWidgets.QWidget()
+        frame.setLayout(QtWidgets.QVBoxLayout())
+        layout = frame.layout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        input_table = pw.InputTable()
+        allowed_plans = zmq_single_request("plans_allowed", {"user_group": "admin"})[0]
+        allowed_values = allowed_plans["plans_allowed"].keys()
+        self.plan_combo = pc.Combo(allowed_values=allowed_values)
+        self.plan_combo.updated.connect(self.on_plan_selected)
+        input_table.add("Plan", self.plan_combo)
+        layout.addWidget(input_table)
+        self.plan_widgets = {x: plan_ui.PlanUI() for x in allowed_values}
+        self.on_plan_selected()
+        for widget in self.plan_widgets.values():
+            layout.addWidget(widget.frame)
+        return frame
+
     def on_append_to_queue(self):
-        return
+        plan_name = self.plan_combo.read()
+        widget = self.plan_widgets[plan_name]
+        zmq_single_request(
+            "queue_item_add",
+            {
+                "item": {
+                    "item_type": "plan",
+                    "name": plan_name,
+                    "args": widget.args,
+                    "kwargs": widget.kwargs,
+                },
+                "user_group": "admin",
+                "user": "yaqc-cmds",
+            },
+        )
 
     def on_queue_start_clicked(self):
         zmq_single_request("queue_start")
@@ -219,6 +276,16 @@ class GUI(QtCore.QObject):
             index = row.toInt()[0]  # given as QVariant
         item = self.queue[row]
         zmq_single_request("queue_item_remove", {"uid": item["item_uid"]})
+
+    def update_type(self):
+        for frame in self.type_frames.values():
+            frame.hide()
+        self.type_frames[self.type_combo.read()].show()
+
+    def on_plan_selected(self):
+        for frame in self.plan_widgets.values():
+            frame.frame.hide()
+        self.plan_widgets[self.plan_combo.read()].frame.show()
 
     def update_ui(self):
         # table ---------------------------------------------------------------
