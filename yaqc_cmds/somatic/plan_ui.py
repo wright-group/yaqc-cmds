@@ -8,15 +8,15 @@ from yaqc_cmds.project import classes as pc
 
 
 class PlanUI:
-    def __init__(self):
-        self.items = [
-            MetadataWidget(),
-            ArgsWidget(),
-            KwargsWidget(),
-            BoolWidget("bool"),
-            StrWidget("str"),
-            EnumWidget("enum", {"hi": "hi", "lo": "lo", "diff": "else"}),
-        ]
+    def __init__(self, items=None):
+        if items is None:
+            self.items = [
+                MetadataWidget(),
+                ArgsWidget(),
+                KwargsWidget(),
+            ]
+        else:
+            self.items = items
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(QtWidgets.QVBoxLayout())
         layout = self.frame.layout()
@@ -53,6 +53,18 @@ class MetadataWidget:
         self.args = []
         self.kwargs = {}
         self.frame = pw.InputTable()
+
+    @property
+    def args(self):
+        return []
+
+    @args.setter
+    def args(self, arg):
+        pass
+
+    @property
+    def kwargs(self):
+        return {"md": {}}
 
 
 class ArgsWidget:
@@ -103,74 +115,65 @@ class KwargsWidget:
         pass
 
 
-class BoolWidget:
-    def __init__(self, name):
+class SingleWidget:
+    def __init__(self, name, kwarg=None):
         self.nargs = 1
         self.frame = pw.InputTable()
+        self.frame.add(name, self.input)
+        self.kwarg = kwarg
+
+    @property
+    def args(self):
+        return [self.input.read()] if not self.kwarg else []
+
+    @args.setter
+    def args(self, arg):
+        if not self.kwarg:
+            self.input.write(arg)
+
+    @property
+    def kwargs(self):
+        return {self.kwarg: self.input.read()} if self.kwarg else {}
+
+    @kwargs.setter
+    def kwargs(self, **kwargs):
+        if self.kwarg in kwargs:
+            self.input.write(kwargs[self.kwarg])
+
+
+class BoolWidget(SingleWidget):
+    def __init__(self, name, kwarg=None):
         self.input = pc.Bool()
-        self.frame.add(name, self.input)
-
-    @property
-    def args(self):
-        return [self.input.read()]
-
-    @args.setter
-    def args(self, arg):
-        self.input.write(arg)
-
-    @property
-    def kwargs(self):
-        return {}
-
-    @kwargs.setter
-    def kwargs(self, **kwargs):
-        pass
+        super().__init__(name, kwarg)
 
 
-class StrWidget:
-    def __init__(self, name):
-        self.nargs = 1
-        self.frame = pw.InputTable()
+class StrWidget(SingleWidget):
+    def __init__(self, name, kwarg=None):
         self.input = pc.String()
-        self.frame.add(name, self.input)
-
-    @property
-    def args(self):
-        return [self.input.read()]
-
-    @args.setter
-    def args(self, arg):
-        self.input.write(arg)
-
-    @property
-    def kwargs(self):
-        return {}
-
-    @kwargs.setter
-    def kwargs(self, **kwargs):
-        pass
+        super().__init__(name, kwarg)
 
 
-class EnumWidget:
-    def __init__(self, name, options: dict):
-        self.nargs = 1
-        self.frame = pw.InputTable()
+class EnumWidget(SingleWidget):
+    def __init__(self, name, options: dict, kwarg=None):
         self.input = pc.Combo(options.keys())
+        super().__init__(name, kwarg)
         self.options = options
-        self.frame.add(name, self.input)
 
     @property
     def args(self):
-        return [self.options[self.input.read()]]
+        return [self.options[self.input.read()]] if not self.kwarg else []
 
     @args.setter
     def args(self, arg):
-        self.input.write(next([k for k, v in self.options.items() if arg == v]))
+        if not self.kwarg:
+            self.input.write(next([k for k, v in self.options.items() if arg == v]))
 
     @property
     def kwargs(self):
-        return {}
+        return {self.kwarg: self.options[self.input.read()]} if self.kwarg else {}
 
     @kwargs.setter
     def kwargs(self, **kwargs):
-        pass
+        if self.kwarg in kwargs:
+            arg = kwargs[kwarg]
+            self.input.write(next([k for k, v in self.options.items() if arg == v]))
