@@ -211,7 +211,7 @@ class GUI(QtCore.QObject):
         self.plan_combo.updated.connect(self.on_plan_selected)
         input_table.add("Plan", self.plan_combo)
         layout.addWidget(input_table)
-        self.plan_widgets = {x: plan_ui.PlanUI() for x in allowed_values}
+        self.plan_widgets = {x: plan_ui.plan_ui_lookup[x] for x in allowed_values}
         self.on_plan_selected()
         for widget in self.plan_widgets.values():
             layout.addWidget(widget.frame)
@@ -220,6 +220,7 @@ class GUI(QtCore.QObject):
     def on_append_to_queue(self):
         plan_name = self.plan_combo.read()
         widget = self.plan_widgets[plan_name]
+        print(widget.args, widget.kwargs)
         zmq_single_request(
             "queue_item_add",
             {
