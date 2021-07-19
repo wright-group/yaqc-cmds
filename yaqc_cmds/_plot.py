@@ -99,7 +99,12 @@ class GUI(QtCore.QObject):
 
     def on_data_file_created(self):
         with somatic._wt5.data_container as data:
-            allowed = [x.split("{")[0].strip() for x in data.attrs["axes"]]
+            try:
+                allowed = [x.decode().split("{")[0].strip() for x in data.attrs["axes"]]
+            except AttributeError:
+                allowed = [x.split("{")[0].strip() for x in data.attrs["axes"]]
+            except:
+                allowed = [None]
             if "wa" in allowed:
                 allowed.remove("wa")
             self.axis.set_allowed_values(allowed)
