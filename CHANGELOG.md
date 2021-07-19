@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [2021.7.0]
+
 ### Fixed
 - Ensure limits are computed when one bound should be inf
 - Ensure float passed in `set_position_except` (rather than scalar ndarray)
@@ -64,7 +66,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - initial release
 - previously released under the name "PyCMDS" via github, never packaged.
 
-[Unreleased]: https://github.com/wright-group/yaqc-cmds/compare/2021.3.0...master
+[Unreleased]: https://github.com/wright-group/yaqc-cmds/compare/2021.7.0...master
+[2021.7.0]: https://github.com/wright-group/yaqc-cmds/compare/2021.3.0...2021.7.0
 [2021.3.0]: https://github.com/wright-group/yaqc-cmds/compare/2021.1.1...2021.3.0
 [2021.1.1]: https://github.com/wright-group/yaqc-cmds/compare/2021.1.0...2021.1.1
 [2021.1.0]: https://github.com/wright-group/yaqc-cmds/compare/2020.12.1...2021.1.0
