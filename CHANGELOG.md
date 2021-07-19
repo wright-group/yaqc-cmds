@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - axes with whitespace don't necessarily fail
 - Motortune Tunepoints only calculated if the checkbox is checked
 - old "identity" behavior removed which caused splitting on "F" in axis names
+- Decode when needed for axis dropdown in plot tab
 
 ### Added
 - Widgets to control slit widths and mirror positions of monochromator
