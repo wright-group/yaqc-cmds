@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+- Ensure limits are computed when one bound should be inf
 - Ensure float passed in `set_position_except` (rather than scalar ndarray)
 - Motortune collecting tune points with discrete tunes
 - Better consistency of autonomic system
@@ -13,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Motortune Tunepoints only calculated if the checkbox is checked
 - old "identity" behavior removed which caused splitting on "F" in axis names
 - Use expressions rather than names for processing of scan
+- Decode when needed for axis dropdown in plot tab
 
 ### Added
 - Widgets to control slit widths and mirror positions of monochromator
