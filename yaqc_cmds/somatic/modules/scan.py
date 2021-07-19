@@ -125,8 +125,7 @@ class Worker(acquisition.Worker):
             for channel_name in channels:
                 channel_path = data_folder / channel_name
                 output_path = data_folder
-                orig_transform = data.axis_names
-                print(data.axis_names)
+                orig_transform = data.axis_expressions
                 axes = []
                 for a in orig_transform:
                     print(data[channel_name].shape, data[a].shape)
