@@ -159,7 +159,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(coset_widget, "Autonomic")
         self.tabs.addTab(self.queue_widget, "Queue")
         self.tabs.addTab(self.history_widget, "History")
-        # self.tabs.addTab(self.plot_widget, "Plot")
+        self.tabs.addTab(self.plot_widget, "Plot")
         self.tabs.setCurrentIndex(2)  # start on queue tab
         self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
         box.addWidget(self.tabs)
@@ -189,7 +189,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # import widgets
         import yaqc_cmds.autonomic.coset
 
-        # import yaqc_cmds._plot
+        import yaqc_cmds._plot
 
     def _load_google_drive(self):
         g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))

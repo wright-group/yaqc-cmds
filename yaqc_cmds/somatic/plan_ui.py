@@ -326,7 +326,7 @@ class GridScanArgsWidget:
         self.nargs = -1
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(QtWidgets.QVBoxLayout())
-        self.frame.layout().setMargin(0)
+        # self.frame.layout().setMargin(0)
         label = pw.InputTable()
         label.add("Axes", None)
         self.frame.layout().addWidget(label)
@@ -400,7 +400,7 @@ class Axis(pw.InputTable):
             self.hardware.read(),
             self.start.read(),
             self.stop.read(),
-            self.npts.read(),
+            int(self.npts.read()),
             self.units.read(),
         ]
 

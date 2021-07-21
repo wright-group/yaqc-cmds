@@ -9,6 +9,8 @@ class SignalContainer(QtCore.QObject):
     plans_allowed_updated = QtCore.Signal()
     manager_state_updated = QtCore.Signal(str)
 
+    update_plot = QtCore.Signal()
+
     queue_relinquishing_control = QtCore.Signal()
     queue_taking_control = QtCore.Signal()
     updated_attune_store = QtCore.Signal()
@@ -18,7 +20,7 @@ class SignalContainer(QtCore.QObject):
         self.status = {}
         self.heartbeat = QtCore.QTimer()
         self.heartbeat.timeout.connect(self.process_status)
-        self.heartbeat.start(100)
+        self.heartbeat.start(500)
 
     def process_status(self):
         status = zmq_single_request("status")[0]
@@ -48,6 +50,7 @@ history_updated = _signal_container.history_updated
 devices_allowed_updated = _signal_container.devices_allowed_updated
 plans_allowed_updated = _signal_container.plans_allowed_updated
 manager_state_updated = _signal_container.manager_state_updated
+update_plot = _signal_container.update_plot
 queue_relinquishing_control = _signal_container.queue_relinquishing_control
 queue_taking_control = _signal_container.queue_taking_control
 updated_attune_store = _signal_container.updated_attune_store
