@@ -220,7 +220,6 @@ class GUI(QtCore.QObject):
     def on_append_to_queue(self):
         plan_name = self.plan_combo.read()
         widget = self.plan_widgets[plan_name]
-        print(widget.args, widget.kwargs)
         zmq_single_request(
             "queue_item_add",
             {
@@ -278,6 +277,16 @@ class GUI(QtCore.QObject):
         item = self.queue[row]
         zmq_single_request("queue_item_remove", {"uid": item["item_uid"]})
 
+    def on_load_item(self, row):
+        if isinstance(row, int):
+            index = row
+        else:
+            index = row.toInt()[0]  # given as QVariant
+        item = self.queue[row]
+        self.plan_combo.write(item["name"])
+        self.plan_widgets[item["name"]].args = item.get("args", [])
+        self.plan_widgets[item["name"]].kwargs = item.get("kwargs", [])
+
     def update_type(self):
         for frame in self.type_frames.values():
             frame.hide()
@@ -322,9 +331,9 @@ class GUI(QtCore.QObject):
             # description
             label = pw.Label(repr(item.get("args", [])) + repr(item.get("kwargs", {})))
             label.setMargin(3)
-            label.setToolTip(repr(item))
+            label.setToolTip(pprint.pformat(item))
             self.table.setCellWidget(i, 3, label)
             # remove
             button = self.add_button_to_table(i, 4, "REMOVE", "stop", self.on_remove_item)
             # load
-            # self.add_button_to_table(i, 7, "LOAD", "go", self.on_load_item)
+            self.add_button_to_table(i, 5, "LOAD", "go", self.on_load_item)

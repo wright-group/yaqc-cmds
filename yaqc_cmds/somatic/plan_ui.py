@@ -37,12 +37,32 @@ class PlanUI:
     def args(self):
         return list(itertools.chain(*[x.args for x in self.items]))
 
+    @args.setter
+    def args(self, args):
+        for item in self.items:
+            if item.nargs < 0:
+                item.args = args
+                break
+            elif item.nargs > 0:
+                item.args = args[: item.nargs]
+                args = args[item.nargs :]
+
     @property
     def kwargs(self):
         out = {}
         for x in self.items:
             out.update(x.kwargs)
         return out
+
+    @kwargs.setter
+    def kwargs(self, kwargs):
+        for item in self.items:
+            item.kwargs = kwargs
+        if "args" in kwargs:
+            for item in self.items:
+                if item.nargs < 0:
+                    item.args = kwargs["args"]
+                    break
 
     def load(self, *args, **kwargs):
         for x in self.items:
@@ -104,7 +124,7 @@ class ArgsWidget:
         return json.loads(self.args_input.read() or "[]")
 
     @args.setter
-    def args(self, *args):
+    def args(self, args):
         self.args_input.write(json.dumps(args))
 
     @property
@@ -112,7 +132,7 @@ class ArgsWidget:
         return {}
 
     @kwargs.setter
-    def kwargs(self, **kwargs):
+    def kwargs(self, kwargs):
         pass
 
 
@@ -128,7 +148,7 @@ class KwargsWidget:
         return json.loads(self.kwargs_input.read() or "{}")
 
     @kwargs.setter
-    def kwargs(self, **kwargs):
+    def kwargs(self, kwargs):
         self.kwargs_input.write(json.dumps(kwargs))
 
     @property
@@ -136,13 +156,15 @@ class KwargsWidget:
         return []
 
     @args.setter
-    def args(self, *args):
+    def args(self, args):
         pass
 
 
 class SingleWidget:
-    def __init__(self, name, kwarg=None):
+    def __init__(self, name, kwarg=None, kw_only=False):
         self.nargs = 1
+        if kw_only:
+            self.nargs = 0
         self.frame = pw.InputTable()
         self.frame.add(name, self.input)
         self.kwarg = kwarg
@@ -153,17 +175,17 @@ class SingleWidget:
 
     @args.setter
     def args(self, arg):
-        if not self.kwarg:
-            self.input.write(arg)
+        if arg:
+            self.input.write(arg[0])
 
     @property
     def kwargs(self):
         return {self.kwarg: self.input.read()} if self.kwarg else {}
 
     @kwargs.setter
-    def kwargs(self, **kwargs):
+    def kwargs(self, kwargs):
         if self.kwarg in kwargs:
-            self.input.write(kwargs[self.kwarg])
+            self.args = [kwargs[self.kwarg]]
 
 
 class BoolWidget(SingleWidget):
@@ -190,18 +212,12 @@ class EnumWidget(SingleWidget):
 
     @args.setter
     def args(self, arg):
-        if not self.kwarg:
+        if arg:
             self.input.write(next([k for k, v in self.options.items() if arg == v]))
 
     @property
     def kwargs(self):
         return {self.kwarg: self.options[self.input.read()]} if self.kwarg else {}
-
-    @kwargs.setter
-    def kwargs(self, **kwargs):
-        if self.kwarg in kwargs:
-            arg = kwargs[kwarg]
-            self.input.write(next([k for k, v in self.options.items() if arg == v]))
 
 
 class DeviceListWidget:
@@ -286,7 +302,7 @@ class ConstantWidget:
 
     @kwargs.setter
     def kwargs(self, kwargs):
-        while self.constants.count():
+        while self.constants:
             self.remove_constant()
         for c in kwargs.get("constants", []):
             self.add_constant(*c)
@@ -363,7 +379,7 @@ class GridScanArgsWidget:
 
     @args.setter
     def args(self, args):
-        while self.axis.count():
+        while self.axes:
             self.remove_axis()
         for c in toolz.partition(5, args):
             self.add_axis(*c)
