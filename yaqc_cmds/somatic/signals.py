@@ -24,6 +24,8 @@ class SignalContainer(QtCore.QObject):
 
     def process_status(self):
         status = zmq_single_request("status")[0]
+        if not status:
+            return
         if not status.get("worker_environment_exists"):
             zmq_single_request("environment_open")
         if self.status.get("devices_allowed_uid") != status.get("devices_allowed_uid"):

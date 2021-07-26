@@ -145,13 +145,17 @@ class GUI(QtCore.QObject):
                 pass
 
         start = 0
+        cidx = 0
+        colors = "gbmyw"
         idx = plot_callback.events[-1].get("seq_num", len(plot_callback.events))
         if len(plot_callback.events) == plot_callback.events.maxlen:
-            plot(0, idx % plot_callback.slice_size, "r")
-            start = idx % plot_callback.slice_size
+            start = plot_callback.slice_size - idx % plot_callback.slice_size
+            plot(0, start, "r")
         while start < len(plot_callback.events):
-            plot(start, start + plot_callback.slice_size, "y")
+            plot(start, start + plot_callback.slice_size, colors[cidx])
             start += plot_callback.slice_size
+            cidx += 1
+            cidx %= len(colors)
 
         # limits
         """
