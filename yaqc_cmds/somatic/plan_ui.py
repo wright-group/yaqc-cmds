@@ -200,6 +200,16 @@ class StrWidget(SingleWidget):
         super().__init__(name, kwarg)
 
 
+class IntWidget(SingleWidget):
+    def __init__(self, name, kwarg=None, default=0):
+        self.input = pc.Number(decimals=0, initial_value=default)
+        super().__init__(name, kwarg)
+
+    @property
+    def args(self):
+        return [int(self.input.read())] if not self.kwarg else []
+
+
 class EnumWidget(SingleWidget):
     def __init__(self, name, options: dict, kwarg=None):
         self.input = pc.Combo(options.keys())
@@ -337,9 +347,10 @@ class Constant(pw.InputTable):
         return [[float(coeff), i.name if i != 1 else None] for i, coeff in coeffs.items()]
 
 
-class GridScanArgsWidget:
-    def __init__(self):
+class GenericScanArgsWidget:
+    def __init__(self, partition):
         self.nargs = -1
+        self.partition = partition
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(QtWidgets.QVBoxLayout())
         # self.frame.layout().setMargin(0)
@@ -359,11 +370,8 @@ class GridScanArgsWidget:
         self.frame.layout().addWidget(remove_button)
         self.add_axis()
 
-    def add_axis(self, hardware="d0", start=0, stop=1, npts=11, units="mm"):
-        # TODO better default
-        axis = Axis(hardware, start, stop, npts, units)
-        self.axes.append(axis)
-        self.axis_container_widget.layout().addWidget(axis)
+    def add_axis(self, *args):
+        raise NotImplementedError
 
     def remove_axis(self):
         if not self.axes:
@@ -381,7 +389,7 @@ class GridScanArgsWidget:
     def args(self, args):
         while self.axes:
             self.remove_axis()
-        for c in toolz.partition(5, args):
+        for c in toolz.partition(self.partition, args):
             self.add_axis(*c)
 
     @property
@@ -393,7 +401,7 @@ class GridScanArgsWidget:
         pass
 
 
-class Axis(pw.InputTable):
+class GridscanAxis(pw.InputTable):
     def __init__(self, hardware, start, stop, npts, units):
         super().__init__()
         self.add("Axis", None)
@@ -421,12 +429,93 @@ class Axis(pw.InputTable):
         ]
 
 
+class GridscanArgsWidget(GenericScanArgsWidget):
+    def __init__(self):
+        super().__init__(5)
+
+    def add_axis(self, hardware="d0", start=0, stop=1, npts=11, units="mm"):
+        # TODO better default
+        axis = GridscanAxis(hardware, start, stop, npts, units)
+        self.axes.append(axis)
+        self.axis_container_widget.layout().addWidget(axis)
+
+
+class ScanAxis(pw.InputTable):
+    def __init__(self, hardware, start, stop, units):
+        super().__init__()
+        self.add("Axis", None)
+        self.hardware = pc.Combo(devices_movable)
+        self.hardware.write(hardware)
+        self.add("Hardware", self.hardware)
+        self.start = pc.Number(start)
+        self.add("Start", self.start)
+        self.stop = pc.Number(stop)
+        self.add("Stop", self.stop)
+        self.units = pc.Combo(wt.units.blessed_units)
+        self.units.write(units)
+        self.add("Units", self.units)
+
+    @property
+    def args(self):
+        return [
+            self.hardware.read(),
+            self.start.read(),
+            self.stop.read(),
+            self.units.read(),
+        ]
+
+
+class ScanArgsWidget(GenericScanArgsWidget):
+    def __init__(self):
+        super().__init__(4)
+
+    def add_axis(self, hardware="d0", start=0, stop=1, units="mm"):
+        # TODO better default
+        axis = ScanAxis(hardware, start, stop, units)
+        self.axes.append(axis)
+        self.axis_container_widget.layout().addWidget(axis)
+
+
+class ListAxis(pw.InputTable):
+    def __init__(self, hardware, list, units):
+        super().__init__()
+        self.add("Axis", None)
+        self.hardware = pc.Combo(devices_movable)
+        self.hardware.write(hardware)
+        self.add("Hardware", self.hardware)
+        self.list = pc.String()
+        self.list.write(json.dumps(list) or "[]")
+        self.add("List", self.list)
+        self.units = pc.Combo(wt.units.blessed_units)
+        self.units.write(units)
+        self.add("Units", self.units)
+
+    @property
+    def args(self):
+        return [
+            self.hardware.read(),
+            json.loads(self.list.read()) or [],
+            self.units.read(),
+        ]
+
+
+class ListscanArgsWidget(GenericScanArgsWidget):
+    def __init__(self):
+        super().__init__(3)
+
+    def add_axis(self, hardware="d0", list=[], units="mm"):
+        # TODO better default
+        axis = ListAxis(hardware, list, units)
+        self.axes.append(axis)
+        self.axis_container_widget.layout().addWidget(axis)
+
+
 plan_ui_lookup = defaultdict(PlanUI)
 plan_ui_lookup["grid_scan"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
-        GridScanArgsWidget(),
+        GridscanArgsWidget(),
         ConstantWidget(),
     ]
 )
@@ -434,7 +523,57 @@ plan_ui_lookup["rel_grid_scan"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
-        GridScanArgsWidget(),
+        GridscanArgsWidget(),
+        ConstantWidget(),
+    ]
+)
+plan_ui_lookup["scan"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        ScanArgsWidget(),
+        IntWidget("Npts", "num", 11),
+        ConstantWidget(),
+    ]
+)
+plan_ui_lookup["rel_scan"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        ScanArgsWidget(),
+        IntWidget("Npts", "num"),
+        ConstantWidget(),
+    ]
+)
+plan_ui_lookup["list_scan"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        ListscanArgsWidget(),
+        ConstantWidget(),
+    ]
+)
+plan_ui_lookup["rel_list_scan"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        ListscanArgsWidget(),
+        ConstantWidget(),
+    ]
+)
+plan_ui_lookup["list_grid_scan"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        ListscanArgsWidget(),
+        ConstantWidget(),
+    ]
+)
+plan_ui_lookup["rel_list_grid_scan"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        ListscanArgsWidget(),
         ConstantWidget(),
     ]
 )
