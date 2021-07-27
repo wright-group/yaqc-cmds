@@ -117,6 +117,8 @@ class GUI(QtCore.QObject):
 
     def update_plot(self):
         # data
+        if not plot_callback.events:
+            return
         x_units = self.axis_units.read()
         axis = self.axis.read()
         channel = self.channel.read()
@@ -204,11 +206,13 @@ class PlotCallback(CallbackBase):
         self.dimensions = []
         self.units_map = {}
         self.slice_size = 2 ** 64
+        self.progress_bar = g.progress_bar
 
     def start(self, doc):
-        print("start doc")
         self.start_doc = doc
         super().start(doc)
+        self.progress_bar.begin_new_scan_timer()
+        self.expected_events = doc.get("num_points", -1)
         # Set X-axis to last dimension as available options, first one as default
         # Currently assuming only one stream, because otherwise too complicated for MVP
         if self.start_doc.get("hints", {}).get("dimensions"):
@@ -221,7 +225,6 @@ class PlotCallback(CallbackBase):
             # Default if the hints are not given
             self.dimensions = ["time"]
             self.all_dimensions = ["time"]
-        print(self.all_dimensions)
         gui.axis.set_allowed_values(self.dimensions)
 
         if self.start_doc.get("shape"):
@@ -235,7 +238,6 @@ class PlotCallback(CallbackBase):
             self.slice_size = 2 ** 64
 
     def descriptor(self, doc):
-        print("descriptor doc")
         # Currently assuming only one stream, thus only one descriptor doc
         # A more full representation would account for multiple descriptors
         self.descriptor_doc = doc
@@ -255,14 +257,20 @@ class PlotCallback(CallbackBase):
         gui.channel.set_allowed_values(self.channels)
 
     def event(self, doc):
-        print("event doc")
+        super().event(doc)
+        if self.expected_events > 0:
+            self.progress_bar.set_fraction(doc["seq_num"] / self.expected_events)
         self.events.append(doc)
-        index = doc.get("seq_num") - 1
+        index = doc["seq_num"] - 1
         if self.shape and index:
             index = np.unravel_index(index, self.shape)
         gui.idx_string.write(str(index))
 
         somatic.signals.update_plot.emit()
+
+    def end(self, doc):
+        super().end(doc)
+        self.progress_bar.set_fraction(1)
 
 
 # TODO config rather than hardcode address
