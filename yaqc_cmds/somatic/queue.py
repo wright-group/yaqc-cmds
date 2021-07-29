@@ -48,7 +48,7 @@ class GUI(QtCore.QObject):
         self.layout = parent_widget.layout()
         self.create_frame()
         self.interrupt_choice_window = pw.ChoiceWindow(
-            "QUEUE INTERRUPTED", button_labels=["RESUME", "SKIP", "STOP"]
+            "QUEUE INTERRUPTED", button_labels=["RESUME", "STOP AFTER PLAN", "STOP NOW"]
         )
         # queue
         self.queue = None
@@ -144,12 +144,13 @@ class GUI(QtCore.QObject):
         self.queue_start = pw.SetButton("START QUEUE")
         self.queue_start.clicked.connect(self.on_queue_start_clicked)
         settings_layout.addWidget(self.queue_start)
-        self.queue_stop = pw.SetButton("STOP QUEUE", "advanced")
-        self.queue_stop.clicked.connect(self.on_queue_stop_clicked)
-        settings_layout.addWidget(self.queue_stop)
+        somatic.signals.queue_relinquishing_control.connect(self.queue_start.show)
+        somatic.signals.queue_taking_control.connect(self.queue_start.hide)
         self.interrupt = pw.SetButton("INTERRUPT", "stop")
         self.interrupt.clicked.connect(self.on_interrupt_clicked)
         settings_layout.addWidget(self.interrupt)
+        somatic.signals.queue_relinquishing_control.connect(self.interrupt.hide)
+        somatic.signals.queue_taking_control.connect(self.interrupt.show)
         line = pw.Line("H")
         settings_layout.addWidget(line)
         self.clear = pw.SetButton("CLEAR QUEUE", "stop")
@@ -237,9 +238,6 @@ class GUI(QtCore.QObject):
     def on_queue_start_clicked(self):
         zmq_single_request("queue_start")
 
-    def on_queue_stop_clicked(self):
-        zmq_single_request("queue_stop")
-
     def on_interrupt_clicked(self):
         zmq_single_request("re_pause", {"option": "immediate"})
         self.interrupt_choice_window.set_text("Please choose how to proceed.")
@@ -247,13 +245,11 @@ class GUI(QtCore.QObject):
         if index == 0:  # RESUME
             zmq_single_request("re_resume")
         elif index == 1:  # SKIP
-            zmq_single_request("re_abort")
-            time.sleep(0.2)
-            zmq_single_request("queue_item_remove", {"pos": "front"})
-            time.sleep(0.2)
-            zmq_single_request("queue_start")
+            zmq_single_request("re_resume")
+            zmq_single_request("queue_stop")
         elif index == 2:  # HALT
             zmq_single_request("re_abort")
+        # TODO Recover skip behavior... may require upstream change to be sane
 
     def on_clear_clicked(self):
         zmq_single_request("queue_clear")
