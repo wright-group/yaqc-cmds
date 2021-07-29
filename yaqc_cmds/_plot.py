@@ -122,7 +122,7 @@ class GUI(QtCore.QObject):
         x_units = self.axis_units.read()
         axis = self.axis.read()
         channel = self.channel.read()
-        self.plot_scatter.clear()
+        self.plot_widget.clear()
 
         def plot(start, stop, color="c"):
             stop = min(stop, len(plot_callback.events))
@@ -139,8 +139,16 @@ class GUI(QtCore.QObject):
                     self._units_map.get(axis),
                     x_units,
                 )
-                self.plot_scatter.addPoints(
-                    xi, y, size=10, pen=pg.mkPen(color), brush=pg.mkBrush(color)
+                self.plot_widget.plot_object.plot(
+                    # self.plot_scatter.addPoints(
+                    xi,
+                    y,
+                    size=5,
+                    pen=pg.mkPen(color),
+                    brush=pg.mkBrush(color),
+                    symbol="o",
+                    symbolPen=pg.mkPen(color),
+                    symbolBrush=pg.mkBrush(color),
                 )
             except (TypeError, ValueError) as e:
                 print(e)
@@ -148,11 +156,14 @@ class GUI(QtCore.QObject):
 
         start = 0
         cidx = 0
-        colors = "gbmyw"
+        print(len(plot_callback.events), plot_callback.slice_size)
+        ncolors = int(np.ceil(len(plot_callback.events) / plot_callback.slice_size))
+        colors = np.linspace([60, 60, 60], [0, 180, 180], ncolors, dtype="u1")
+
         idx = plot_callback.events[-1].get("seq_num", len(plot_callback.events))
         if len(plot_callback.events) == plot_callback.events.maxlen:
             start = plot_callback.slice_size - idx % plot_callback.slice_size
-            plot(0, start, "r")
+            plot(0, start, [60, 60, 60])
         while start < len(plot_callback.events):
             plot(start, start + plot_callback.slice_size, colors[cidx])
             start += plot_callback.slice_size
