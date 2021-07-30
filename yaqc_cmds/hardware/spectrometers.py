@@ -29,7 +29,6 @@ class Driver(hw.Driver):
         # recorded
         self.recorded[self.name] = [self.position, self.native_units, 1.0, "m", False]
         self.limits.write(*self.ctrl.get_limits())
-        self.wait_until_still()
 
         self.grating = pc.Combo(
             name="Grating",
@@ -53,14 +52,12 @@ class Driver(hw.Driver):
 
     def set_position(self, destination):
         self.ctrl.set_position(float(destination))
-        self.wait_until_still()
 
     def set_turret(self, destination):
         if type(destination) == list:
             destination = destination[0]
         self.ctrl.set_turret(destination)
         self.grating.write(destination)
-        self.wait_until_still()
         self.limits.write(*self.ctrl.get_limits(), self.native_units)
 
     def set_exit_mirror(self, destination):

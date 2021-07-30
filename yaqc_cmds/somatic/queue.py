@@ -25,10 +25,6 @@ import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.file_dialog_handler as file_dialog_handler
 
-import yaqc_cmds.hardware.spectrometers as spectrometers
-import yaqc_cmds.hardware.delays as delays
-import yaqc_cmds.hardware.opas as opas
-import yaqc_cmds.hardware.filters as filters
 import yaqc_cmds.somatic as somatic
 
 from . import plan_ui

@@ -704,12 +704,6 @@ class Hardware(QtCore.QObject):
         # wait for driver shutdown to complete
         start_time = time.time()
         self.q.push("check_busy")
-        while self.busy.read():
-            if time.time() - start_time < self.shutdown_timeout:
-                self.busy.wait_for_update()
-            else:
-                g.logger.log("warning", "Wait until done timed out", self.name)
-                break
         # quit thread
         self.thread.exit()
         self.thread.quit()

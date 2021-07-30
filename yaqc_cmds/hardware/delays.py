@@ -56,7 +56,6 @@ class Driver(hw.Driver):
 
     def home(self):
         self.motor.home()
-        self.wait_until_still()
 
     def is_busy(self):
         return self.motor.busy()

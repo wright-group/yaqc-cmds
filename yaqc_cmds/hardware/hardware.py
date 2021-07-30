@@ -63,7 +63,6 @@ class Driver(pc.Driver):
         # attributes for 'exposure'
         self.exposed = [self.position]
         self.recorded = collections.OrderedDict()
-        print(self.name, type(self.name))
         self.recorded[self.name] = [
             self.position,
             self.native_units,
@@ -72,9 +71,13 @@ class Driver(pc.Driver):
             False,
         ]
         # self.queue_emptied.connect(self.save_status)
+        self._poll_timer = QtCore.QTimer()
+        self._poll_timer.setInterval(100)
+        self._poll_timer.timeout.connect(self.poll)
+        self._poll_timer.start()
 
     def close(self):
-        pass
+        self._poll_timer.stop()
 
     def get_position(self):
         self.update_ui.emit()
@@ -103,7 +106,7 @@ class Driver(pc.Driver):
         polling only gets enqueued by Hardware when not in module control
         """
         self.get_position()
-        self.is_busy()
+        self.check_busy()
 
     def get_state(self):
         return {
@@ -113,7 +116,6 @@ class Driver(pc.Driver):
         }
 
     def save_status(self):
-        print(self.name, "STATE", self.get_state())
         with open(self.state_filepath, "w") as f:
             toml.dump(self.get_state(), f)
 
@@ -133,16 +135,8 @@ class Driver(pc.Driver):
         self.offset.write(offset, self.native_units)
 
     def set_position(self, destination):
-        time.sleep(0.01)  # rate limiter for virtual hardware behavior
         self.position.write(destination, self.native_units)
-        self.get_position()
         self.save_status()
-
-    def wait_until_still(self):
-        while self.is_busy():
-            self.get_position()
-            time.sleep(0.01)
-        self.get_position()
 
 
 ### gui #######################################################################
@@ -255,7 +249,6 @@ class Hardware(pc.Hardware):
         pc.Hardware.close(self)
 
     def get_destination(self, output_units="same"):
-        print("get_destination", self.name, self.destination.read(output_units))
         return self.destination.read(output_units=output_units)
 
     def get_position(self, output_units="same"):

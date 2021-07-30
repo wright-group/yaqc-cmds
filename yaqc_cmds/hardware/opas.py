@@ -39,7 +39,6 @@ class Driver(hw.Driver):
         if self.shutter_port:
             self.shutter_position = pc.Bool(name="Shutter", display=True, set_method="set_shutter")
             self.shutter = yaqc.Client(self.shutter_port)
-            self.shutter.set_identifier("closed")
             self.exposed += [self.shutter_position]
         self.on_updated_attune_store()
 
@@ -86,20 +85,15 @@ class Driver(hw.Driver):
 
     def set_motor(self, motor_name, destination, wait=True):
         self.client.set_setable_positions({motor_name: destination})
-        if wait:
-            self.wait_until_still()
 
     def set_motors(self, motor_names, motor_positions, wait=True):
         destinations = {n: p for n, p in zip(motor_names, motor_positions)}
         self.client.set_setable_positions(destinations)
-        if wait:
-            self.wait_until_still()
 
     def set_position(self, destination, units=None):
         if units:
             destination = wt.units.convert(destination, units, self.native_units)
         self.client.set_position(destination)
-        self.wait_until_still()
         self.get_position()
         self.save_status()
 
@@ -118,14 +112,6 @@ class Driver(hw.Driver):
         self.get_position()
         self.save_status()
 
-    def wait_until_still(self):
-        while self.is_busy():
-            time.sleep(0.01)
-            self.get_motor_positions()
-            self.get_position()
-        self.get_motor_positions()
-        self.get_position()
-
     def set_arrangement(self, arrangement):
         self.client.set_arrangement(arrangement)
         self.limits.write(*self.client.get_limits(), self.native_units)
@@ -142,10 +128,6 @@ class Driver(hw.Driver):
         error = self.shutter.set_position(shutter_state)
         self.shutter_position.write(shutter_state)
         return error
-
-    def close(self):
-        if self.shutter_port:
-            self.set_shutter([0])
 
 
 ### gui #######################################################################

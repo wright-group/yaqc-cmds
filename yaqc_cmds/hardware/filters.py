@@ -58,7 +58,6 @@ class Driver(hw.Driver):
 
     def home(self):
         self.motor.home()
-        self.wait_until_still()
 
     def is_busy(self):
         return self.motor.busy()
@@ -87,7 +86,6 @@ class Driver(hw.Driver):
     def set_motor_position(self, motor_position):
         self.motor.set_position(motor_position)
         time.sleep(0.01)
-        self.wait_until_still()
         self.get_position()
 
     def set_position(self, destination):
