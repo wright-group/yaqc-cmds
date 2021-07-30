@@ -14,7 +14,6 @@ from bluesky_widgets.qt.zmq_dispatcher import RemoteDispatcher
 import WrightTools as wt
 import yaqc_cmds
 import yaqc_cmds.project.project_globals as g
-import yaqc_cmds.sensors as sensors
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.somatic as somatic
@@ -25,7 +24,6 @@ class GUI(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.create_frame()
         self.create_settings()
-        self.on_sensors_changed()
         self.data = None
         self._units_map = {}
 
@@ -87,13 +85,7 @@ class GUI(QtCore.QObject):
         self.settings_layout.addWidget(input_table)
         # global daq settings
         input_table = pw.InputTable()
-        input_table.add("Settings", None)
         # input_table.add("ms Wait", ms_wait)
-        for sensor in sensors.sensors:
-            input_table.add(sensor.name, None)
-            input_table.add("Status", sensor.busy)
-            input_table.add("Freerun", sensor.freerun)
-            input_table.add("Time", sensor.measure_time)
         input_table.add("Scan", None)
         # input_table.add("Loop Time", loop_time)
         self.idx_string = pc.String(initial_value="None", display=True)
@@ -101,10 +93,6 @@ class GUI(QtCore.QObject):
         self.settings_layout.addWidget(input_table)
         # stretch
         self.settings_layout.addStretch(1)
-
-    def on_channels_changed(self):
-        new = list(sensors.get_channels_dict())
-        self.channel.set_allowed_values(new)
 
     def set_units_map(self, units_map):
         self._units_map = units_map
@@ -170,6 +158,12 @@ class GUI(QtCore.QObject):
             cidx += 1
             cidx %= len(colors)
 
+        num = plot_callback.events[-1]["data"][channel]
+        if not np.isscalar(num):
+            channel = f"max({channel})"
+            num = np.max(num)
+        self.big_channel.setText(channel)
+        self.big_display.setValue(num)
         # limits
         """
         try:
@@ -180,29 +174,11 @@ class GUI(QtCore.QObject):
             pass
         """
 
-    def on_sensors_changed(self):
-        for s in sensors.sensors:
-            s.update_ui.connect(self.update_big_number)
-        self.on_channels_changed()
-
     def on_shutdown(self):
         pass
 
     def stop(self):
         pass
-
-    def update_big_number(self):
-        return
-        channel = self.channel.read()
-        if channel == "None":
-            return
-        sensor = sensors.get_channels_dict()[channel]
-        num = sensor.channels[channel]
-        if not np.isscalar(num):
-            channel = f"max({channel})"
-            num = np.max(num)
-        self.big_channel.setText(channel)
-        self.big_display.setValue(num)
 
 
 gui = GUI()
@@ -294,8 +270,6 @@ dispatcher.start()
 
 somatic.signals.update_plot.connect(gui.update_plot)
 # somatic.signals.data_file_created.connect(gui.on_data_file_created)
-# sensors.signals.channels_changed.connect(gui.on_channels_changed)
-# sensors.signals.sensors_changed.connect(gui.on_sensors_changed)
 gui.axis.updated.connect(gui.on_axis_updated)
 gui.axis.updated.connect(gui.update_plot)
 gui.axis_units.updated.connect(gui.update_plot)

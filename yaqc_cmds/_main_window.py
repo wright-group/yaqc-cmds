@@ -181,7 +181,6 @@ class MainWindow(QtWidgets.QMainWindow):
         from .hardware import spectrometers
         from .hardware import delays
         from .hardware import filters
-        import yaqc_cmds.sensors
 
     def _initialize_widgets(self):
         if g.debug.read():
