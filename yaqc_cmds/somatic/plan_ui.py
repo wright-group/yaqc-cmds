@@ -541,7 +541,7 @@ plan_ui_lookup["rel_scan"] = PlanUI(
         MetadataWidget(),
         DeviceListWidget(),
         ScanArgsWidget(),
-        IntWidget("Npts", "num"),
+        IntWidget("Npts", "num", 11),
         ConstantWidget(),
     ]
 )
