@@ -44,8 +44,6 @@ directory = os.path.abspath(os.path.dirname(__file__))
 
 from .__version__ import __version__
 
-g.version.write(__version__)
-
 
 ### main window ###############################################################
 

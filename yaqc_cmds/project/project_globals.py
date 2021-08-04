@@ -19,14 +19,6 @@ class SimpleGlobal:
 debug = SimpleGlobal(False)
 
 
-class PollTimer(SimpleGlobal):
-    def connect_to_timeout(self, slot):
-        QtWidgets.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
-
-
-poll_timer = PollTimer()
-
-
 class logger:  # must come before other globals
     def __init__(self):
         pass
@@ -114,8 +106,6 @@ main_thread = SimpleGlobal(QtCore.QThread.currentThread())
 
 main_window = SimpleGlobal()
 
-scan_thread = SimpleGlobal()
-
 
 class QueueControl(QtCore.QObject):
     def __init__(self):
@@ -200,5 +190,3 @@ class shutdown(SimpleGlobal):
 shutdown = shutdown()
 
 system_name = SimpleGlobal()
-
-version = SimpleGlobal()
