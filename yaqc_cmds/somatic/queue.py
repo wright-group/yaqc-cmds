@@ -47,47 +47,37 @@ class GUI(QtCore.QObject):
             "QUEUE INTERRUPTED", button_labels=["RESUME", "STOP AFTER PLAN", "STOP NOW"]
         )
         # queue
-        self.queue = None
-        self.queue_get = {"plan_queue_uid": None}
+        self.queue = []
+        self.history = []
+        self.running = {}
         self.update_ui()
-        somatic.signals.queue_updated.connect(self.update_ui)
+        somatic.signals.queue_updated.connect(self.update_queue)
+        somatic.signals.history_updated.connect(self.update_history)
 
-    def add_button_to_table(self, i, j, text, color, method):
-        # for some reason, my lambda function does not work when called outside
-        # of a dedicated method - Blaise 2016-09-14
+    def add_button_to_table(self, i, j, text, color):
         button = pw.SetButton(text, color=color)
         button.setProperty("TableRowIndex", i)
-        button.clicked.connect(lambda: method(button.property("TableRowIndex")))
         self.table.setCellWidget(i, j, button)
         return button
 
-    def add_index_to_table(self, i, max_value):
+    def add_index_to_table(self, table_index, queue_index, max_value):
         # for some reason, my lambda function does not work when called outside
         # of a dedicated method - Blaise 2016-09-14
-        index = QtWidgets.QDoubleSpinBox()
-        StyleSheet = "QDoubleSpinBox{color: custom_color; font: 14px;}".replace(
-            "custom_color", g.colors_dict.read()["text_light"]
-        )
-        StyleSheet += "QScrollArea, QWidget{background: custom_color;  border-color: black; border-radius: 0px;}".replace(
-            "custom_color", g.colors_dict.read()["background"]
-        )
-        StyleSheet += "QWidget:disabled{color: custom_color_1; font: 14px; border: 0px solid black; border-radius: 0px;}".replace(
-            "custom_color_1", g.colors_dict.read()["text_disabled"]
-        ).replace(
-            "custom_color_2", g.colors_dict.read()["widget_background"]
-        )
+        index = QtWidgets.QSpinBox()
+        colors = g.colors_dict.read()
+        StyleSheet = f"QSpinBox{{color: {colors['text_light']}; font: 14px;}}"
+        StyleSheet += f"QScrollArea, QWidget{{background: {colors['background']};  border-color: black; border-radius: 0px;}}"
+        StyleSheet += f"QWidget:disabled{{color: {colors['text_disabled']}; font: 14px; border: 0px solid black; border-radius: 0px;}}"
         index.setStyleSheet(StyleSheet)
-        index.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-        index.setSingleStep(1)
-        index.setDecimals(0)
+        # index.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         index.setMaximum(max_value)
         index.setAlignment(QtCore.Qt.AlignCenter)
-        index.setValue(i)
-        index.setProperty("TableRowIndex", i)
+        index.setValue(queue_index)
+        index.setProperty("TableRowIndex", table_index)
         index.editingFinished.connect(
-            lambda: self.on_index_changed(index.property("TableRowIndex"), int(index.value()))
+            lambda: self.on_index_changed(queue_index, int(index.value()))
         )
-        self.table.setCellWidget(i, 0, index)
+        self.table.setCellWidget(table_index, 0, index)
         return index
 
     def create_frame(self):
@@ -102,7 +92,7 @@ class GUI(QtCore.QObject):
         self.table.verticalHeader().hide()
         self.table_cols = collections.OrderedDict()
         self.table_cols["Index"] = 50
-        self.table_cols["Type"] = 75
+        self.table_cols["Type"] = 150
         self.table_cols["Status"] = 85
         self.table_cols["Description"] = 200  # expanding
         self.table_cols["Remove"] = 75
@@ -269,12 +259,7 @@ class GUI(QtCore.QObject):
         item = self.queue[row]
         zmq_single_request("queue_item_remove", {"uid": item["item_uid"]})
 
-    def on_load_item(self, row):
-        if isinstance(row, int):
-            index = row
-        else:
-            index = row.toInt()[0]  # given as QVariant
-        item = self.queue[row]
+    def on_load_item(self, item):
         self.plan_combo.write(item["name"])
         self.plan_widgets[item["name"]].args = item.get("args", [])
         self.plan_widgets[item["name"]].kwargs = item.get("kwargs", [])
@@ -289,43 +274,71 @@ class GUI(QtCore.QObject):
             frame.frame.hide()
         self.plan_widgets[self.plan_combo.read()].frame.show()
 
-    def update_ui(self):
-        # table ---------------------------------------------------------------
-
-        queue_get = zmq_single_request("queue_get")[0]
-        if self.queue_get["plan_queue_uid"] == queue_get["plan_queue_uid"]:
-            return
-        self.queue_get = queue_get
+    def update_queue(self):
+        self.queue_get = zmq_single_request("queue_get")[0]
         self.queue = self.queue_get.get("items", [])
         self.running = self.queue_get.get("running_item", {})
+        self.update_ui()
 
+    def update_history(self):
+        self.history_get = zmq_single_request("history_get")[0]
+        self.history = self.history_get.get("items", [])
+        self.update_ui()
+
+    def update_ui(self):
         # clear table
         for _ in range(self.table.rowCount()):
             self.table.removeRow(0)
+
+        def add_item(item, status=None, queue_index=None, append=False):
+            table_index = self.table.rowCount() if append else 0
+            self.table.insertRow(table_index)
+            if queue_index is not None:
+                self.add_index_to_table(table_index, queue_index, len(self.queue) - 1)
+            # type
+            label = pw.Label(item["name"])
+            label.setAlignment(QtCore.Qt.AlignCenter)
+            label.setMargin(3)
+            self.table.setCellWidget(table_index, 1, label)
+            # status
+            label = pw.Label(item.get("result", {}).get("exit_status", status))
+            label.setAlignment(QtCore.Qt.AlignCenter)
+            label.setMargin(3)
+            self.table.setCellWidget(table_index, 2, label)
+            # description
+            label = pw.Label(repr(item.get("args", [])) + repr(item.get("kwargs", {})))
+            label.setMargin(3)
+            label.setToolTip(pprint.pformat(item))
+            label.setDisabled(True)
+            self.table.setCellWidget(table_index, 3, label)
+            # remove
+            if status == "enqueued":
+                button = self.add_button_to_table(table_index, 4, "REMOVE", "stop")
+
+                def rem():
+                    self.on_remove_item(queue_index)
+
+                button.clicked.connect(rem)
+            if status in ("enqueued", "RUNNING"):
+                label.setDisabled(False)
+            # load
+            def load():
+                self.on_load_item(item)
+
+            button = self.add_button_to_table(table_index, 5, "LOAD", "go")
+            button.clicked.connect(load)
+
+        # add elements from history
+        for i, item in enumerate(self.history):
+            if item == {}:
+                continue
+            item = add_item(item)
+
+        if self.running:
+            add_item(self.running, "RUNNING")
 
         # add elements from queue
         for i, item in enumerate(self.queue):
             if item == {}:
                 continue
-            self.table.insertRow(i)
-            # index
-            index = self.add_index_to_table(i, len(self.queue) - 1)
-            # type
-            label = pw.Label(item["name"])
-            label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setMargin(3)
-            self.table.setCellWidget(i, 1, label)
-            # status
-            label = pw.Label("RUNNING" if item == self.running else "ENQUEUED")
-            label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setMargin(3)
-            self.table.setCellWidget(i, 2, label)
-            # description
-            label = pw.Label(repr(item.get("args", [])) + repr(item.get("kwargs", {})))
-            label.setMargin(3)
-            label.setToolTip(pprint.pformat(item))
-            self.table.setCellWidget(i, 3, label)
-            # remove
-            button = self.add_button_to_table(i, 4, "REMOVE", "stop", self.on_remove_item)
-            # load
-            self.add_button_to_table(i, 5, "LOAD", "go", self.on_load_item)
+            add_item(item, "enqueued", i)

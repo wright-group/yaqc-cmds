@@ -441,9 +441,8 @@ class Label(QtWidgets.QLabel):
             bold_status = "bold"
         else:
             bold_status = ""
-        StyleSheet = f"QLabel{{color: {colors[color]}; font: {font_size}px;}}".replace(
-            "bold_status", bold_status
-        )
+        StyleSheet = f"QLabel{{color: {colors[color]}; font: {font_size}px;}}"
+        StyleSheet += f"QLabel:disabled{{color: {colors['text_disabled']}; font: {font_size}px;}}"
         self.setStyleSheet(StyleSheet)
 
 

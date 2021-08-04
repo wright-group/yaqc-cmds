@@ -82,10 +82,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.data_folder.mkdir(exist_ok=True)
         # somatic system
         from yaqc_cmds.somatic import queue
-        from yaqc_cmds.somatic import history
 
         self.queue_gui = queue.GUI(self.queue_widget, self.queue_message)
-        self.history_gui = history.GUI(self.history_widget, self.queue_message)
         # self.queue_gui.load_modules()
         # log completion
         if g.debug.read():
@@ -150,7 +148,6 @@ class MainWindow(QtWidgets.QMainWindow):
         g.coset_widget.write(coset_widget)
         # sonomic box
         self.queue_widget = QtWidgets.QWidget(parent=self.main_frame)
-        self.history_widget = QtWidgets.QWidget(parent=self.main_frame)
         # plot box
         self.plot_widget = QtWidgets.QWidget(parent=self.main_frame)
         # tab widget
@@ -158,7 +155,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(hardware_advanced_widget, "Hardware")
         self.tabs.addTab(coset_widget, "Autonomic")
         self.tabs.addTab(self.queue_widget, "Queue")
-        self.tabs.addTab(self.history_widget, "History")
         self.tabs.addTab(self.plot_widget, "Plot")
         self.tabs.setCurrentIndex(2)  # start on queue tab
         self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
