@@ -16,6 +16,8 @@ import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.somatic as somatic
 
+from pprint import pprint
+
 
 class GUI(QtCore.QObject):
     def __init__(self):
@@ -68,7 +70,6 @@ class GUI(QtCore.QObject):
         self.settings_layout = settings_container_widget.layout()
         self.settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
-        g.shutdown.read().connect(self.on_shutdown)
 
     def create_settings(self):
         # display settings
@@ -110,10 +111,8 @@ class GUI(QtCore.QObject):
         channel = self.channel.read()
         self.plot_widget.clear()
 
-        def plot(start, stop, color="c"):
+        def plot_0d(start, stop, color="c"):
             stop = min(stop, len(plot_callback.events))
-            if stop == len(plot_callback.events):
-                color = "c"
             if axis == "time":
                 x = [plot_callback.events[i]["time"] for i in range(start, stop)]
             else:
@@ -140,21 +139,49 @@ class GUI(QtCore.QObject):
                 print(e)
                 pass
 
-        start = 0
-        cidx = 0
-        print(len(plot_callback.events), plot_callback.slice_size)
-        ncolors = int(np.ceil(len(plot_callback.events) / plot_callback.slice_size))
-        colors = np.linspace([60, 60, 60], [0, 180, 180], ncolors, dtype="u1")
+        def plot_1d(event, color="c"):
+            x = event["data"][axis]
+            y = event["data"][channel]
+            try:
+                xi = wt.units.convert(
+                    x,
+                    self._units_map.get(axis),
+                    x_units,
+                )
+                self.plot_widget.plot_object.plot(
+                    # self.plot_scatter.addPoints(
+                    xi,
+                    y,
+                    pen=pg.mkPen(color),
+                    brush=pg.mkBrush(color),
+                )
+            except (TypeError, ValueError) as e:
+                print(e)
+                pass
 
-        idx = plot_callback.events[-1].get("seq_num", len(plot_callback.events))
-        if len(plot_callback.events) == plot_callback.events.maxlen:
-            start = plot_callback.slice_size - idx % plot_callback.slice_size
-            plot(0, start, [60, 60, 60])
-        while start < len(plot_callback.events):
-            plot(start, start + plot_callback.slice_size, colors[cidx])
-            start += plot_callback.slice_size
-            cidx += 1
-            cidx %= len(colors)
+        num = plot_callback.events[-1]["data"][channel]
+        if np.isscalar(num):
+            start = 0
+            cidx = 0
+            ncolors = int(np.ceil(len(plot_callback.events) / plot_callback.slice_size))
+            colors = np.linspace([60, 60, 60], [0, 255, 255], ncolors, dtype="u1")
+            if ncolors == 1:
+                colors = ["c"]
+
+            idx = plot_callback.events[-1].get("seq_num", len(plot_callback.events))
+            if len(plot_callback.events) == plot_callback.events.maxlen:
+                start = plot_callback.slice_size - idx % plot_callback.slice_size
+                plot_0d(0, start, [60, 60, 60])
+            while start < len(plot_callback.events):
+                plot_0d(start, start + plot_callback.slice_size, colors[cidx])
+                start += plot_callback.slice_size
+                cidx += 1
+        elif np.array(num).ndim == 1:
+            ncolors = min(len(plot_callback.events), 5)
+            colors = np.linspace([60, 60, 60], [0, 160, 160], ncolors, dtype="u1")
+            colors[-1] = [0, 255, 255]
+            for e, c in zip(range(-5, 0), colors):
+                plot_1d(plot_callback.events[e], c)
 
         num = plot_callback.events[-1]["data"][channel]
         if not np.isscalar(num):
@@ -162,21 +189,6 @@ class GUI(QtCore.QObject):
             num = np.max(num)
         self.big_channel.setText(channel)
         self.big_display.setValue(num)
-        # limits
-        """
-        try:
-            self.plot_widget.set_xlim(min(limits), max(limits))
-            self.plot_widget.set_ylim(np.min(channel), np.max(channel))
-        except Exception as e:
-            print(e)
-            pass
-        """
-
-    def on_shutdown(self):
-        pass
-
-    def stop(self):
-        pass
 
 
 gui = GUI()
@@ -194,6 +206,7 @@ class PlotCallback(CallbackBase):
         self.progress_bar = g.progress_bar
 
     def start(self, doc):
+        pprint(doc)
         self.start_doc = doc
         super().start(doc)
         self.progress_bar.begin_new_scan_timer()
@@ -210,6 +223,7 @@ class PlotCallback(CallbackBase):
             # Default if the hints are not given
             self.dimensions = ["time"]
             self.all_dimensions = ["time"]
+        self.dimensions.append("wa_wavelengths")
         gui.axis.set_allowed_values(self.dimensions)
 
         if self.start_doc.get("shape"):
@@ -225,6 +239,7 @@ class PlotCallback(CallbackBase):
     def descriptor(self, doc):
         # Currently assuming only one stream, thus only one descriptor doc
         # A more full representation would account for multiple descriptors
+        pprint(doc)
         self.descriptor_doc = doc
         super().descriptor(doc)
         self.units_map = {
