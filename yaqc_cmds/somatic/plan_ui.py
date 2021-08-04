@@ -296,7 +296,6 @@ class ConstantWidget:
         const = self.constants[-1]
         self.constants = self.constants[:-1]
         self.constants_container_widget.layout().removeWidget(const)
-        del const
 
     @property
     def args(self):
@@ -376,10 +375,9 @@ class GenericScanArgsWidget:
     def remove_axis(self):
         if not self.axes:
             return
-        const = self.axes[-1]
+        ax = self.axes[-1]
         self.axes = self.axes[:-1]
-        self.axis_container_widget.layout().removeWidget(const)
-        del const
+        self.axis_container_widget.layout().removeWidget(ax)
 
     @property
     def args(self):

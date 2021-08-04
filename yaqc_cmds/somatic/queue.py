@@ -1,29 +1,15 @@
 ### import ####################################################################
 
-
-import os
-import traceback
-import imp
-import time
-import datetime
-import dateutil
 import collections
-import pathlib
 import pprint
 
 from PySide2 import QtCore, QtWidgets
 
-import appdirs
-import toml
-
 from bluesky_queueserver.manager.comms import zmq_single_request
-import WrightTools as wt
 
-import yaqc_cmds.__main__
 import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
-import yaqc_cmds.project.file_dialog_handler as file_dialog_handler
 
 import yaqc_cmds.somatic as somatic
 
@@ -244,18 +230,10 @@ class GUI(QtCore.QObject):
         zmq_single_request("history_clear")
 
     def on_index_changed(self, row, new_index):
-        if isinstance(row, int):
-            index = row
-        else:
-            index = row.toInt()[0]  # given as QVariant
         item = self.queue[row]
         zmq_single_request("queue_item_move", {"uid": item["item_uid"], "pos_dest": new_index})
 
     def on_remove_item(self, row):
-        if isinstance(row, int):
-            index = row
-        else:
-            index = row.toInt()[0]  # given as QVariant
         item = self.queue[row]
         zmq_single_request("queue_item_remove", {"uid": item["item_uid"]})
 
@@ -332,7 +310,7 @@ class GUI(QtCore.QObject):
         for i, item in enumerate(self.history):
             if item == {}:
                 continue
-            item = add_item(item)
+            add_item(item)
 
         if self.running:
             add_item(self.running, "RUNNING")

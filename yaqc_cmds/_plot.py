@@ -1,7 +1,6 @@
 """GUI for displaying scans in progress, current slice etc."""
 
 from collections import deque
-from contextlib import contextmanager
 import itertools
 
 from PySide2 import QtCore, QtWidgets
@@ -12,7 +11,6 @@ from bluesky.callbacks import CallbackBase
 from bluesky_widgets.qt.zmq_dispatcher import RemoteDispatcher
 
 import WrightTools as wt
-import yaqc_cmds
 import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc

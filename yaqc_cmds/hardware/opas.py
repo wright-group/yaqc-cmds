@@ -1,7 +1,6 @@
 ## import ####################################################################
 
 
-import time
 import pathlib
 
 import appdirs

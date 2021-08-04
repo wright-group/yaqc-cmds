@@ -701,9 +701,6 @@ class Hardware(QtCore.QObject):
     def close(self):
         # begin driver shutdown
         self.q.push("close")
-        # wait for driver shutdown to complete
-        start_time = time.time()
-        self.q.push("check_busy")
         # quit thread
         self.thread.exit()
         self.thread.quit()
