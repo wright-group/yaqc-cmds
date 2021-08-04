@@ -25,7 +25,6 @@ class PollTimer(SimpleGlobal):
 
 
 poll_timer = PollTimer()
-slack_poll_timer = PollTimer()
 
 
 class logger:  # must come before other globals
@@ -66,10 +65,6 @@ coset_widget = SimpleGlobal()
 hardware_advanced_box = SimpleGlobal()
 
 hardware_initialized = SimpleGlobal(False)
-
-google_drive_control = SimpleGlobal()
-
-google_drive_enabled = SimpleGlobal()
 
 
 class hardware_waits:
@@ -203,10 +198,6 @@ class shutdown(SimpleGlobal):
 
 
 shutdown = shutdown()
-
-slack_control = SimpleGlobal()
-
-slack_enabled = SimpleGlobal()
 
 system_name = SimpleGlobal()
 

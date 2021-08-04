@@ -1,8 +1,5 @@
 system_name = "argon"
 
-[google_drive]
-enable=false
-port=39200
 
 [sensors]
 

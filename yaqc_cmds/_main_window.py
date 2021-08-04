@@ -74,9 +74,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # initialize program
         self._initialize_hardware()
         self._initialize_widgets()
-        # open internet things
-        self._load_google_drive()
-        self._load_witch()
         # populate self
         self.data_folder = pathlib.Path.home() / "yaqc-cmds-data"
         self.data_folder.mkdir(exist_ok=True)
@@ -186,26 +183,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         import yaqc_cmds._plot
 
-    def _load_google_drive(self):
-        g.google_drive_enabled.write(self.config.get("google_drive", {}).get("enable", False))
-        if g.google_drive_enabled.read():
-            g.google_drive_control.write(yaqc.Client(self.config["google_drive"]["port"]))
-
-    def _load_witch(self):
-        # check if witch is enabled
-        g.slack_enabled.write(self.config.get("slack", {}).get("enable", False))
-        if g.slack_enabled.read():
-            import yaqc_cmds.project.slack as slack
-
-            # create witch
-            self.witch = slack.control
-            # begin poll timer
-            timer = QtCore.QTimer()
-            timer.start(500)  # milliseconds
-            self.shutdown.connect(timer.stop)
-            g.slack_poll_timer.write(timer)
-            g.slack_poll_timer.connect_to_timeout(self.witch.poll)
-
     def _shutdown(self):
         """
         attempt a clean shutdown
@@ -223,5 +200,4 @@ class MainWindow(QtWidgets.QMainWindow):
         self.move((screen.width() - size.width()) / 2, (screen.height() - size.height()) / 2)
 
     def get_status(self, full=False):
-        # called by slack
         return self.queue_gui.get_status(full)
