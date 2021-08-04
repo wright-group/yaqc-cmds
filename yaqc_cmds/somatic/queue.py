@@ -299,7 +299,7 @@ class GUI(QtCore.QObject):
                 button.clicked.connect(rem)
             if status in ("enqueued", "RUNNING"):
                 label.setDisabled(False)
-            # load
+
             def load():
                 self.on_load_item(item)
 

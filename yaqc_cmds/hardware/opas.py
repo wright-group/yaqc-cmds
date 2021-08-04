@@ -1,11 +1,6 @@
 ## import ####################################################################
 
 
-import pathlib
-
-import appdirs
-import toml
-
 from PySide2 import QtWidgets
 
 import WrightTools as wt

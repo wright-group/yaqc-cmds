@@ -1,12 +1,6 @@
 # --- import --------------------------------------------------------------------------------------
 
 
-import pathlib
-import time
-
-import appdirs
-import toml
-
 import WrightTools as wt
 import yaqc
 
@@ -84,10 +78,6 @@ class Driver(hw.Driver):
     def set_motor_position(self, motor_position):
         print("set_motor_position", self.name, motor_position)
         self.motor.set_position(motor_position)
-        while self.is_busy():
-            time.sleep(0.01)
-            self.get_position()
-        self.get_position()
 
     def set_position(self, destination):
         destination_motor = wt.units.convert(

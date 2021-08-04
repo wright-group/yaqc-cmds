@@ -1,9 +1,7 @@
 ### import ####################################################################
 
 
-import os
 import time
-import pathlib
 
 import numpy as np
 
@@ -12,9 +10,6 @@ from PySide2 import QtCore
 from . import project_globals as g
 
 import WrightTools.units as wt_units
-
-
-__here__ = pathlib.Path(__file__).parent
 
 
 ### mutex #####################################################################

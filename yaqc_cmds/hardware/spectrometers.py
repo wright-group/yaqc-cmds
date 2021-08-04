@@ -6,9 +6,6 @@ import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.hardware.hardware as hw
 import yaqc_cmds.project.project_globals as g
-import pathlib
-import appdirs
-import toml
 import yaqc
 
 
@@ -97,7 +94,6 @@ class GUI(hw.GUI):
         super().initialize()
         # self.layout.addWidget(self.scroll_area)
         # attributes
-        mirror_list = ["front", "side"]
         input_table = pw.InputTable()
         self.scroll_layout.addWidget(pw.line("H"))
 

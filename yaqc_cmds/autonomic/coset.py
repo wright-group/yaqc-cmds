@@ -1,12 +1,8 @@
-import os
 import pathlib
-import ast
 
 import appdirs
-import numpy as np
 import toml
 from PySide2 import QtWidgets, QtCore
-import WrightTools as wt
 import attune
 
 import yaqc_cmds.project.classes as pc
@@ -114,7 +110,7 @@ class CoSetHW:
             position = all_hardwares[control].get_destination(all_hardwares[control].native_units)
             try:
                 key = all_hardwares[control].driver.client.get_arrangement()
-            except Exception as e:  # TODO: better exception handling
+            except Exception:  # TODO: better exception handling
                 key = "auto"
             new += self.instrument[control][key](position)
         if g.hardware_initialized.read():
