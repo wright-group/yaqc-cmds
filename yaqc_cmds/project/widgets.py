@@ -523,57 +523,6 @@ class BusyDisplay(QtWidgets.QPushButton):
             self.setStyleSheet(StyleSheet)
 
 
-class Hardware_control_table(QtWidgets.QWidget):
-    def __init__(self, hardware_names, combobox=False, combobox_label=""):
-        QtWidgets.QWidget.__init__(self)
-        self.setLayout(QtWidgets.QGridLayout())
-        self.layout().setMargin(0)
-        self.comboboxes = []
-        self.current_position_displays = []
-        self.new_position_controls = []
-        self.set_buttons = []
-        for i in range(len(hardware_names)):
-            # names
-            collumn = 0
-            label = QtWidgets.QLabel(hardware_names[i])
-            StyleSheet = "QLabel{color: custom_color; font: bold 14px;}".replace(
-                "custom_color", colors["heading_0"]
-            )
-            label.setStyleSheet(StyleSheet)
-            self.layout().addWidget(label, i, collumn)
-            # comboboxes
-            if combobox:
-                collumn += 1
-                combobox_obj = QtWidgets.QComboBox()
-                self.layout().addWidget(combobox_obj, i, collumn)
-                self.comboboxes.append(combobox_obj)
-            # current
-            collumn += 1
-            current_position = QtWidgets.QDoubleSpinBox()
-            current_position.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-            current_position.setDisabled(True)
-            self.layout().addWidget(current_position, i, collumn)
-            self.current_position_displays.append(current_position)
-            # new
-            collumn += 1
-            new_position = QtWidgets.QDoubleSpinBox()
-            new_position.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-            self.layout().addWidget(new_position, i, collumn)
-            self.new_position_controls.append(new_position)
-            self.set_allowed_values(i, 0, 10000, 2, 10)
-
-    def set_allowed_values(self, index, min_val, max_val, decimals=2, single_step=1.00):
-        controls = [
-            self.current_position_displays[index],
-            self.new_position_controls[index],
-        ]
-        for control in controls:
-            control.setMinimum(min_val)
-            control.setMaximum(max_val)
-            control.setDecimals(decimals)
-            control.setSingleStep(single_step)
-
-
 class HardwareLayoutWidget(QtWidgets.QGroupBox):
     def __init__(self, name):
         QtWidgets.QGroupBox.__init__(self)
@@ -762,25 +711,6 @@ class HardwareAdvancedPanel(QtCore.QObject):
 
 
 ### queue #####################################################################
-
-
-class QueueControl(QtWidgets.QPushButton):
-    launch_scan = QtCore.Signal()
-    stop_scan = QtCore.Signal()
-
-    def __init__(self):
-        QtWidgets.QPushButton.__init__(self)
-        self.clicked.connect(self.update)
-        self.setMinimumHeight(25)
-        self.set_style("RUN QUEUE", "go")
-        self.value = False
-
-    def set_style(self, text, color):
-        self.setText(text)
-        StyleSheet = "QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}".replace(
-            "custom_color", colors[color]
-        )
-        self.setStyleSheet(StyleSheet)
 
 
 class ChoiceWindow(QtWidgets.QMessageBox):

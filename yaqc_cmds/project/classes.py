@@ -20,28 +20,6 @@ __here__ = pathlib.Path(__file__).parent
 ### mutex #####################################################################
 
 
-class Mutex(QtCore.QMutex):
-    def __init__(self, initial_value=None):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = initial_value
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-
-    def wait_for_update(self, timeout=5000):
-        if self.value:
-            self.lock()
-            self.WaitCondition.wait(self, timeout)
-            self.unlock()
-
-
 class Busy(QtCore.QMutex):
     def __init__(self):
         """
@@ -675,10 +653,3 @@ class Q(QtCore.QObject):
         self.busy.write(True)
         # send Qt SIGNAL to address thread
         self.signal.emit(method, [args, kwargs])
-        """
-        self.queue.invokeMethod(self.driver,
-                                'dequeue',
-                                QtCore.Qt.QueuedConnection,
-                                QtCore.Q_ARG('str', method),
-                                QtCore.Q_ARG('list', [args, kwargs]))
-                                """
