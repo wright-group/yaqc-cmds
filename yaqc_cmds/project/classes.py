@@ -285,62 +285,6 @@ class Combo(PyCMDS_Object):
         self.has_widget = True
 
 
-class Filepath(PyCMDS_Object):
-    def __init__(self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs):
-        """
-        holds the filepath as a string \n
-
-        Kind one in {'file', 'directory'}
-        """
-        PyCMDS_Object.__init__(self, *args, **kwargs)
-        self.type = "filepath"
-        self.caption = caption
-        self.directory = directory
-        self.options = options
-        self.kind = kind
-
-    def give_control(self, control_widget):
-        self.widget = control_widget
-        if self.read() is not None:
-            self.widget.setText(self.read())
-        # connect signals and slots
-        self.updated.connect(lambda: self.widget.setText(self.read()))
-        self.widget.setToolTip(str(self.read()))
-        self.updated.connect(lambda: self.widget.setToolTip(self.read()))
-        self.has_widget = True
-
-    def give_button(self, button_widget):
-        self.button = button_widget
-        self.button.clicked.connect(self.on_load)
-
-    def on_load(self):
-        from project import file_dialog_handler
-
-        # directory
-        if self.directory is not None:
-            directory_string = self.directory
-        else:
-            if self.read() is not None:
-                directory_string = self.read()
-            else:
-                directory_string = __here__.parent
-        # filter
-
-        if self.kind == "file":
-            filter_string = ";;".join(self.options + ["All Files (*.*)"])
-            out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
-            if os.path.isfile(out):
-                self.write(out)
-        elif self.kind == "directory":
-            out = file_dialog_handler.dir_dialog(self.caption, directory_string, "")
-            if os.path.isdir(out):
-                self.write(out)
-
-    def read(self):
-        # want python string, not QString
-        return str(PyCMDS_Object.read(self))
-
-
 class NumberLimits(PyCMDS_Object):
     def __init__(self, min_value=-1e6, max_value=1e6, units=None):
         """

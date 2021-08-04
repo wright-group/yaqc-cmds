@@ -10,7 +10,6 @@ from PySide2 import QtWidgets, QtCore
 
 app = QtWidgets.QApplication(sys.argv)
 
-import os
 import pathlib
 
 
@@ -27,17 +26,6 @@ g.logger.log("info", "Startup", "Yaqc_cmds is attempting startup")
 from .project import widgets as pw
 
 from .hardware.hardware import all_initialized
-
-import appdirs
-import toml
-
-import yaqc
-
-
-### define ####################################################################
-
-
-directory = os.path.abspath(os.path.dirname(__file__))
 
 
 ### version information #######################################################
