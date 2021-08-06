@@ -9,6 +9,7 @@ import pyqtgraph as pg
 
 from bluesky.callbacks import CallbackBase
 from bluesky_widgets.qt.zmq_dispatcher import RemoteDispatcher
+from bluesky_widgets.qt.threading import wait_for_workers_to_quit
 
 import WrightTools as wt
 import yaqc_cmds.project.project_globals as g
@@ -278,7 +279,7 @@ dispatcher = RemoteDispatcher("localhost:5568")
 plot_callback = PlotCallback()
 dispatcher.subscribe(plot_callback)
 dispatcher.start()
-# TODO ensure workers quit
+g.shutdown.add_method(wait_for_workers_to_quit)
 
 
 somatic.signals.update_plot.connect(gui.update_plot)
