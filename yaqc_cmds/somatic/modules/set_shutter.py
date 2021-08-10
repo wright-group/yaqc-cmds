@@ -38,7 +38,9 @@ class GUI(acquisition.GUI):
     def create_frame(self):
         # shared settings
         input_table = pw.InputTable()
-        self.shutter_state = {hardware.name: pc.Bool() for hardware in opas.hardwares if hardware.driver.shutter_port}
+        self.shutter_state = {
+            hardware.name: pc.Bool() for hardware in opas.hardwares if hardware.driver.shutter_port
+        }
         for k, v in self.shutter_state.items():
             input_table.add(k, v)
         self.layout.addWidget(input_table)
@@ -53,7 +55,7 @@ class GUI(acquisition.GUI):
         aqn.write(
             "info",
             "description",
-            f"SHUTTER: {', '.join(k for k, v in self.shutter_state.items() if v.read())}"
+            f"SHUTTER: {', '.join(k for k, v in self.shutter_state.items() if v.read())}",
         )
         # shared settings
         aqn.add_section("shutter")
