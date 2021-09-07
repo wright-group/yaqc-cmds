@@ -209,6 +209,16 @@ class IntWidget(SingleWidget):
     def args(self):
         return [int(self.input.read())] if not self.kwarg else []
 
+    @property
+    def kwargs(self):
+        return {self.kwarg: int(self.input.read())} if self.kwarg else {}
+
+
+class FloatWidget(SingleWidget):
+    def __init__(self, name, kwarg=None, default=0):
+        self.input = pc.Number(initial_value=default)
+        super().__init__(name, kwarg)
+
 
 class EnumWidget(SingleWidget):
     def __init__(self, name, options: dict, kwarg=None):
@@ -573,5 +583,13 @@ plan_ui_lookup["rel_list_grid_scan"] = PlanUI(
         DeviceListWidget(),
         ListscanArgsWidget(),
         ConstantWidget(),
+    ]
+)
+plan_ui_lookup["count"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        IntWidget("Npts", "num", 1),
+        FloatWidget("Delay", "delay", 0),
     ]
 )
