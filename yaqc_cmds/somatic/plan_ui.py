@@ -519,7 +519,7 @@ class ListscanArgsWidget(GenericScanArgsWidget):
 
 
 plan_ui_lookup = defaultdict(PlanUI)
-plan_ui_lookup["grid_scan"] = PlanUI(
+plan_ui_lookup["grid_scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
@@ -527,7 +527,7 @@ plan_ui_lookup["grid_scan"] = PlanUI(
         ConstantWidget(),
     ]
 )
-plan_ui_lookup["rel_grid_scan"] = PlanUI(
+plan_ui_lookup["rel_grid_scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
@@ -535,7 +535,7 @@ plan_ui_lookup["rel_grid_scan"] = PlanUI(
         ConstantWidget(),
     ]
 )
-plan_ui_lookup["scan"] = PlanUI(
+plan_ui_lookup["scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
@@ -544,7 +544,7 @@ plan_ui_lookup["scan"] = PlanUI(
         ConstantWidget(),
     ]
 )
-plan_ui_lookup["rel_scan"] = PlanUI(
+plan_ui_lookup["rel_scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
@@ -553,7 +553,7 @@ plan_ui_lookup["rel_scan"] = PlanUI(
         ConstantWidget(),
     ]
 )
-plan_ui_lookup["list_scan"] = PlanUI(
+plan_ui_lookup["list_scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
@@ -561,7 +561,7 @@ plan_ui_lookup["list_scan"] = PlanUI(
         ConstantWidget(),
     ]
 )
-plan_ui_lookup["rel_list_scan"] = PlanUI(
+plan_ui_lookup["rel_list_scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
@@ -569,7 +569,7 @@ plan_ui_lookup["rel_list_scan"] = PlanUI(
         ConstantWidget(),
     ]
 )
-plan_ui_lookup["list_grid_scan"] = PlanUI(
+plan_ui_lookup["list_grid_scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
@@ -577,7 +577,7 @@ plan_ui_lookup["list_grid_scan"] = PlanUI(
         ConstantWidget(),
     ]
 )
-plan_ui_lookup["rel_list_grid_scan"] = PlanUI(
+plan_ui_lookup["rel_list_grid_scan_wp"] = PlanUI(
     [
         MetadataWidget(),
         DeviceListWidget(),
