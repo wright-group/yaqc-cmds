@@ -240,6 +240,8 @@ class PlotCallback(CallbackBase):
     def descriptor(self, doc):
         # Currently assuming only one stream, thus only one descriptor doc
         # A more full representation would account for multiple descriptors
+        if doc["name"] != "primary":
+            return
         pprint(doc)
         self.descriptor_doc = doc
         super().descriptor(doc)
@@ -258,6 +260,8 @@ class PlotCallback(CallbackBase):
         gui.channel.set_allowed_values(self.channels)
 
     def event(self, doc):
+        if doc["descriptor"] != self.descriptor_doc["uid"]:
+            return
         super().event(doc)
         if self.expected_events > 0:
             self.progress_bar.set_fraction(doc["seq_num"] / self.expected_events)
