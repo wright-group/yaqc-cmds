@@ -72,7 +72,6 @@ class GUI(QtCore.QObject):
         display_container_widget = pw.ExpandingWidget()
         display_layout = display_container_widget.layout()
         display_layout.setMargin(0)
-        self.layout.addWidget(display_container_widget)
         # table
         self.table = pw.TableWidget()
         self.table.verticalHeader().hide()
@@ -93,10 +92,6 @@ class GUI(QtCore.QObject):
         self.table.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         for i, width in enumerate(self.table_cols.values()):
             self.table.setColumnWidth(i, width)
-        display_layout.addWidget(self.table)
-        # line ----------------------------------------------------------------
-        line = pw.Line("V")
-        self.layout.addWidget(line)
         # controls ------------------------------------------------------------
         settings_container_widget = QtWidgets.QWidget()
         settings_scroll_area = pw.scroll_area()
@@ -107,7 +102,6 @@ class GUI(QtCore.QObject):
         settings_layout = settings_container_widget.layout()
         self.settings_layout = settings_layout
         settings_layout.setMargin(5)
-        self.layout.addWidget(settings_scroll_area)
         # adjust queue label
         input_table = pw.InputTable()
         input_table.add("Control Queue", None)
@@ -157,6 +151,12 @@ class GUI(QtCore.QObject):
         settings_layout.addWidget(self.append_button)
         # finish --------------------------------------------------------------
         settings_layout.addStretch(1)
+        # line ----------------------------------------------------------------
+        self.layout.addWidget(settings_scroll_area)
+        line = pw.Line("V")
+        self.layout.addWidget(line)
+        self.layout.addWidget(display_container_widget)
+        display_layout.addWidget(self.table)
 
     def create_instruction_frame(self):
         button = pw.SetButton("Append Queue Stop")

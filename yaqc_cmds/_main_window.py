@@ -25,8 +25,6 @@ g.logger.log("info", "Startup", "Yaqc_cmds is attempting startup")
 
 from .project import widgets as pw
 
-from .hardware.hardware import all_initialized
-
 
 ### version information #######################################################
 
@@ -47,9 +45,6 @@ class MainWindow(QtWidgets.QMainWindow):
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
         self.setWindowTitle("yaqc-cmds %s" % __version__)
-        # disable 'x'
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
         # set size, position
         self.window_verti_size = 600
         self.window_horiz_size = 1000
@@ -58,7 +53,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(self.window_horiz_size, self.window_verti_size)
         self._create_main_frame()
         # initialize program
-        self._initialize_hardware()
         self._initialize_widgets()
         # populate self
         self.data_folder = pathlib.Path.home() / "yaqc-cmds-data"
@@ -72,28 +66,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if g.debug.read():
             print("Yaqc_cmds_ui.MainWindow.__init__ complete")
         g.logger.log("info", "Startup", "Yaqc_cmds MainWindow __init__ finished")
-        all_initialized()
 
     def _create_main_frame(self):
         self.main_frame = QtWidgets.QWidget(parent=self)
         hbox = QtWidgets.QHBoxLayout()
-        # hardware ------------------------------------------------------------
-        hardware_box = QtWidgets.QVBoxLayout()
-        # exit button
-        exit_button = pw.Shutdown_button()
-        exit_button.setMinimumWidth(300)
-        exit_button.setMinimumHeight(30)
-        exit_button.shutdown_go.connect(self._shutdown)
-        hardware_box.addWidget(exit_button)
-        g.queue_control.disable_when_true(exit_button)
-        # hardware container widget
-        hardware_widget = QtWidgets.QWidget(parent=self.main_frame)
-        g.hardware_widget.write(hardware_widget)
-        # hardware scroll area
-        hardware_scroll_area = pw.scroll_area()
-        hardware_scroll_area.setWidget(hardware_widget)
-        hardware_box.addWidget(hardware_scroll_area)
-        hbox.addLayout(hardware_box)
         # box -----------------------------------------------------------------
         box = QtWidgets.QVBoxLayout()
         box.setMargin(0)
@@ -119,27 +95,14 @@ class MainWindow(QtWidgets.QMainWindow):
         progress_bar.layout().addStretch(1)
         progress_bar.layout().addWidget(time_remaining)
         g.progress_bar.give_time_display_elements(time_elapsed, time_remaining)
-        # hardware box
-        hardware_advanced_widget = QtWidgets.QWidget(parent=self.main_frame)
-        hardware_advanced_box = QtWidgets.QVBoxLayout()
-        hardware_advanced_box.setContentsMargins(0, 10, 0, 0)
-        hardware_advanced_widget.setLayout(hardware_advanced_box)
-        g.hardware_advanced_box.write(hardware_advanced_box)
-        self.hardware_advanced_box = hardware_advanced_box
-        # autonomic box
-        coset_widget = QtWidgets.QWidget(parent=self.main_frame)
-        g.coset_widget.write(coset_widget)
         # sonomic box
         self.queue_widget = QtWidgets.QWidget(parent=self.main_frame)
         # plot box
         self.plot_widget = QtWidgets.QWidget(parent=self.main_frame)
         # tab widget
         self.tabs = pw.TabWidget()
-        self.tabs.addTab(hardware_advanced_widget, "Hardware")
-        self.tabs.addTab(coset_widget, "Autonomic")
         self.tabs.addTab(self.queue_widget, "Queue")
         self.tabs.addTab(self.plot_widget, "Plot")
-        self.tabs.setCurrentIndex(2)  # start on queue tab
         self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
         box.addWidget(self.tabs)
         # vertical stretch
@@ -151,17 +114,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.main_frame.setLayout(hbox)
         self.setCentralWidget(self.main_frame)
 
-    def _initialize_hardware(self):
-        if g.debug.read():
-            print("initialize hardware")
-        from . import hardware
-
     def _initialize_widgets(self):
         if g.debug.read():
             print("initialize widgets")
         # import widgets
-        import yaqc_cmds.autonomic.coset
-
         import yaqc_cmds._plot
 
     def _shutdown(self):
