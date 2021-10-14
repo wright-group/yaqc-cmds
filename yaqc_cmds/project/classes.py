@@ -12,44 +12,6 @@ from . import project_globals as g
 import WrightTools.units as wt_units
 
 
-### mutex #####################################################################
-
-
-class Busy(QtCore.QMutex):
-    def __init__(self):
-        """
-        QMutex object to communicate between threads that need to wait \n
-        while busy.read(): busy.wait_for_update()
-        """
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-        self.type = "busy"
-        self.update_signal = None
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        """
-        bool value
-        """
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-
-    def wait_for_update(self, timeout=5000):
-        """
-        wait in calling thread for any thread to call 'write' method \n
-        int timeout in milliseconds
-        """
-        if self.value:
-            self.lock()
-            self.WaitCondition.wait(self, timeout)
-            self.unlock()
-
-
 ### gui items #################################################################
 
 
@@ -488,46 +450,3 @@ class String(PyCMDS_Object):
             value = value[: self.max_length]
         self.value.write(value)
         self.updated.emit()
-
-
-### part ######################################################################
-
-
-class Enqueued(QtCore.QMutex):
-    def __init__(self):
-        """
-        Holds list of enqueued options.
-        """
-        QtCore.QMutex.__init__(self)
-        self.value = []
-
-    def read(self):
-        return self.value
-
-    def push(self, value):
-        self.lock()
-        self.value.append(value)
-        self.unlock()
-
-    def pop(self):
-        self.lock()
-        self.value = self.value[1:]
-        self.unlock()
-
-
-class Q(QtCore.QObject):
-    signal = QtCore.Signal(str, list)
-
-    def __init__(self, enqueued, busy, driver):
-        self.enqueued = enqueued
-        self.busy = busy
-        self.driver = driver
-        super(Q, self).__init__()
-        # self.queue = QtCore.QMetaObject()
-        self.signal.connect(self.driver.dequeue, type=QtCore.Qt.QueuedConnection)
-
-    def push(self, method, *args, **kwargs):
-        self.enqueued.push([method, time.time()])
-        self.busy.write(True)
-        # send Qt SIGNAL to address thread
-        self.signal.emit(method, [args, kwargs])

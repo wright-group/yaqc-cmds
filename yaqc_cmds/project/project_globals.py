@@ -50,58 +50,6 @@ app = SimpleGlobal()
 
 colors_dict = SimpleGlobal()
 
-coset_control = SimpleGlobal()
-
-coset_widget = SimpleGlobal()
-
-hardware_advanced_box = SimpleGlobal()
-
-hardware_initialized = SimpleGlobal(False)
-
-
-class hardware_waits:
-    def __init__(self):
-        """
-        holds value, a list of hardware wait_until_still methods
-        """
-        self.value = []
-
-    def add(self, method):
-        self.value.append(method)
-
-    def give_coset_control(self, control):
-        self.coset_control = control
-
-    def wait(self, coset=True):
-        if coset:
-            self.coset_control.launch()
-        for method in self.value:
-            method()
-
-
-hardware_waits = hardware_waits()
-
-
-class hardware_widget(SimpleGlobal):
-    def __init__(self, initial_value=None):
-        super().__init__(initial_value)
-        self.number_of_widgets = 0
-
-    def write(self, value):
-        super().write(value)
-        self.value.setLayout(QtWidgets.QVBoxLayout())
-        self.value.layout().setMargin(5)
-        self.value.layout().addStretch(1)
-
-    def add_to(self, widget):
-        self.value.layout().takeAt(self.number_of_widgets)
-        self.value.layout().addWidget(widget)
-        self.number_of_widgets += 1
-        self.value.layout().addStretch(1)
-
-
-hardware_widget = hardware_widget()
-
 main_thread = SimpleGlobal(QtCore.QThread.currentThread())
 
 main_window = SimpleGlobal()

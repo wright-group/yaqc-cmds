@@ -144,27 +144,6 @@ class InputTable(QtWidgets.QWidget):
             self._dict[key] = global_object
         getattr(self, global_type)(name, global_object)
 
-    def busy(self, name, global_object):
-        # heading
-        heading = QtWidgets.QLabel(name)
-        if name in ["DAQ status", "Status"]:  # hardcoded exceptions
-            StyleSheet = "QLabel{color: custom_color; font: 14px;}".replace(
-                "custom_color", colors["text_light"]
-            )
-        else:
-            StyleSheet = "QLabel{color: custom_color; font: bold 14px;}".replace(
-                "custom_color", colors["heading_0"]
-            )
-        heading.setStyleSheet(StyleSheet)
-        self.layout().addWidget(heading, self.row_number, 0)
-        # control
-        control = QtWidgets.QCheckBox()
-        local_busy_display = BusyDisplay(global_object, global_object.update_signal)
-        # finish
-        self.layout().addWidget(local_busy_display, self.row_number, 1)
-        self.controls.append(control)
-        self.row_number += 1
-
     def heading(self, name, global_object):
         # heading
         heading = QtWidgets.QLabel(name)
