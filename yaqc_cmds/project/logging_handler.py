@@ -14,33 +14,6 @@ from yaqc_cmds.project import project_globals as g
 
 app = g.app.read()
 
-# cpu watcher####################################################################
-
-
-class busy(QtCore.QMutex):
-    def __init__(self):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = False
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-
-    def wait_for_update(self):
-        if self.value:
-            self.lock()
-            self.WaitCondition.wait(self)
-            self.unlock()
-
-
-busy = busy()
-
 
 # logger#########################################################################
 
