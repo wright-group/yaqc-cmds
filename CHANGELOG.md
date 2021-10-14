@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - yaqc dependency
 - custom built orchestration layer
 - direct hardware interfacing
+- unused code
 
 ### Changed
 - Completely rearchitect to use [bluesky-queueserver](https://github.com/bluesky/bluesky-queueserver)
