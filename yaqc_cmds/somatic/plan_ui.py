@@ -368,7 +368,7 @@ class GenericScanArgsWidget:
         self.frame.layout().addWidget(label)
         self.axis_container_widget = QtWidgets.QWidget()
         self.axis_container_widget.setLayout(QtWidgets.QVBoxLayout())
-        self.axis_container_widget.layout().setMargin(0)
+        # self.axis_container_widget.layout().setMargin(0)
         self.axes = []
         self.frame.layout().addWidget(self.axis_container_widget)
         add_button = pw.SetButton("ADD")
@@ -518,6 +518,72 @@ class ListscanArgsWidget(GenericScanArgsWidget):
         self.axis_container_widget.layout().addWidget(axis)
 
 
+class OpaSelectorWidget(EnumWidget):
+    def __init__(self, name="opa"):
+        super().__init__(name, options={"w1": "w1", "w2": "w2"})
+        # TODO dynamically fill out options
+
+
+class OpaMotorSelectorWidget(EnumWidget):
+    def __init__(self, name="motor"):
+        motors = {
+            x: x
+            for x in filter(lambda x: x.startswith("w1_") or x.startswith("w2_"), devices_movable)
+        }
+        super().__init__(name, options=motors)
+        # TODO dynamically fill out options, mutual exclusion
+
+
+class OpaMotorFullWidget:
+    def __init__(self):
+        self.frame = QtWidgets.QWidget()
+        self.frame.setLayout(QtWidgets.QVBoxLayout())
+
+    @property
+    def args(self):
+        return []
+
+    @property
+    def kwargs(self):
+        return {}
+
+
+class SpectrometerWidget(pw.InputTable):
+    def __init__(self):
+        super().__init__()
+        self.nargs = 1
+        self.frame = self
+        self.device = pc.Combo(["None"] + devices_movable)
+        self.add("Device", self.device)
+        self.method = pc.Combo(["none", "static", "zero", "track", "set", "scan"])
+        self.add("Method", self.method)
+        self.center = pc.Number()
+        self.add("Center", self.center)
+        self.width = pc.Number(-250)
+        self.add("Width", self.width)
+        self.npts = pc.Number(11, decimals=0)
+        self.add("Npts", self.npts)
+
+    @property
+    def args(self):
+        device = self.device.read()
+        if device == "None":
+            device = None
+        return [
+            {
+                "device": device,
+                "method": self.method.read(),
+                "center": self.center.read(),
+                "width": self.width.read(),
+                "npts": int(self.npts.read()),
+            }
+        ]
+
+    @property
+    def kwargs(self):
+        return {}
+
+
 plan_ui_lookup = defaultdict(PlanUI)
 plan_ui_lookup["grid_scan_wp"] = PlanUI(
     [
@@ -591,5 +657,56 @@ plan_ui_lookup["count"] = PlanUI(
         DeviceListWidget(),
         IntWidget("Npts", "num", 1),
         FloatWidget("Delay", "delay", 0),
+    ]
+)
+plan_ui_lookup["run_tune_test"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        OpaSelectorWidget(),
+        SpectrometerWidget(),
+    ]
+)
+plan_ui_lookup["run_setpoint"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        OpaSelectorWidget(),
+        OpaMotorSelectorWidget(),
+        FloatWidget("Width", "width", 1),
+        IntWidget("Npts", "npts", 11),
+        SpectrometerWidget(),
+    ]
+)
+plan_ui_lookup["run_intensity"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        OpaSelectorWidget(),
+        OpaMotorSelectorWidget(),
+        FloatWidget("Width", "width", 1),
+        IntWidget("Npts", "npts", 11),
+        SpectrometerWidget(),
+    ]
+)
+plan_ui_lookup["run_holistic"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        OpaSelectorWidget(),
+        OpaMotorSelectorWidget(),
+        OpaMotorSelectorWidget(),
+        FloatWidget("Width", "width", 1),
+        IntWidget("Npts", "npts", 11),
+        SpectrometerWidget(),
+    ]
+)
+plan_ui_lookup["motortune"] = PlanUI(
+    [
+        MetadataWidget(),
+        DeviceListWidget(),
+        OpaSelectorWidget(),
+        OpaMotorFullWidget(),
+        SpectrometerWidget(),
     ]
 )

@@ -147,7 +147,7 @@ class InputTable(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QGridLayout())
         self.layout().setColumnMinimumWidth(0, width)
         self.layout().setColumnMinimumWidth(1, width)
-        self.layout().setMargin(0)
+        # self.layout().setMargin(0)
         self.row_number = 0
         self.controls = []
         self._dict = collections.OrderedDict()
