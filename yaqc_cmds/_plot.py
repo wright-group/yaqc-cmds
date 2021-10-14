@@ -1,15 +1,23 @@
 """GUI for displaying scans in progress, current slice etc."""
 
+from collections import deque
+import itertools
+
 from PySide2 import QtCore, QtWidgets
 import numpy as np
+import pyqtgraph as pg
+
+from bluesky.callbacks import CallbackBase
+from bluesky_widgets.qt.zmq_dispatcher import RemoteDispatcher
+from bluesky_widgets.qt.threading import wait_for_workers_to_quit
 
 import WrightTools as wt
-import yaqc_cmds
 import yaqc_cmds.project.project_globals as g
-import yaqc_cmds.sensors as sensors
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.somatic as somatic
+
+from pprint import pprint
 
 
 class GUI(QtCore.QObject):
@@ -17,8 +25,8 @@ class GUI(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.create_frame()
         self.create_settings()
-        self.on_sensors_changed()
         self.data = None
+        self._units_map = {}
 
     def create_frame(self):
         self.main_widget = g.main_window.read().plot_widget
@@ -63,7 +71,6 @@ class GUI(QtCore.QObject):
         self.settings_layout = settings_container_widget.layout()
         self.settings_layout.setMargin(5)
         layout.addWidget(settings_scroll_area)
-        g.shutdown.read().connect(self.on_shutdown)
 
     def create_settings(self):
         # display settings
@@ -78,13 +85,7 @@ class GUI(QtCore.QObject):
         self.settings_layout.addWidget(input_table)
         # global daq settings
         input_table = pw.InputTable()
-        input_table.add("Settings", None)
         # input_table.add("ms Wait", ms_wait)
-        for sensor in sensors.sensors:
-            input_table.add(sensor.name, None)
-            input_table.add("Status", sensor.busy)
-            input_table.add("Freerun", sensor.freerun)
-            input_table.add("Time", sensor.measure_time)
         input_table.add("Scan", None)
         # input_table.add("Loop Time", loop_time)
         self.idx_string = pc.String(initial_value="None", display=True)
@@ -93,86 +94,97 @@ class GUI(QtCore.QObject):
         # stretch
         self.settings_layout.addStretch(1)
 
-    def on_channels_changed(self):
-        new = list(sensors.get_channels_dict())
-        self.channel.set_allowed_values(new)
-
-    def on_data_file_created(self):
-        with somatic._wt5.data_container as data:
-            try:
-                allowed = [x.decode().split("{")[0].strip() for x in data.attrs["axes"]]
-            except AttributeError:
-                allowed = [x.split("{")[0].strip() for x in data.attrs["axes"]]
-            except:
-                allowed = [None]
-            if "wa" in allowed:
-                allowed.remove("wa")
-            self.axis.set_allowed_values(allowed)
-            self.on_axis_updated()
+    def set_units_map(self, units_map):
+        self._units_map = units_map
+        self.on_axis_updated()
 
     def on_axis_updated(self):
-        with somatic._wt5.data_container as data:
-            axis = data[self.axis.read()]
-            units = axis.attrs.get("units")
-            units = [units] + list(wt.units.get_valid_conversions(units))
-            self.axis_units.set_allowed_values(units)
+        units = self._units_map.get(self.axis.read())
+        units = [units] + list(wt.units.get_valid_conversions(units))
+        self.axis_units.set_allowed_values(units)
 
-    def on_data_file_written(self):
-        with somatic._wt5.data_container as data:
-            last_idx_written = somatic._wt5.data_container.last_idx_written
-            self.idx_string.write(str(last_idx_written))
-            if data is None or last_idx_written is None:
-                return
-            # data
-            x_units = self.axis_units.read()
-            idx = last_idx_written
-            axis = data[self.axis.read()]
-            limits = list(
-                wt.units.convert(
-                    [np.nanmin(axis.full), np.nanmax(axis.full)], axis.attrs.get("units"), x_units
-                )
-            )
-            channel = data[self.channel.read()]
-            plot_idx = list(last_idx_written + (0,) * (channel.ndim - len(last_idx_written)))
-            plot_idx[self.axis.read_index()] = slice(None)
+    def update_plot(self):
+        # data
+        if not plot_callback.events:
+            return
+        x_units = self.axis_units.read()
+        axis = self.axis.read()
+        channel = self.channel.read()
+        self.plot_widget.clear()
 
-            plot_idx = tuple(plot_idx)
+        def plot_0d(start, stop, color="c"):
+            stop = min(stop, len(plot_callback.events))
+            if axis == "time":
+                x = [plot_callback.events[i]["time"] for i in range(start, stop)]
+            else:
+                x = [plot_callback.events[i]["data"][axis] for i in range(start, stop)]
+            y = [plot_callback.events[i]["data"][channel] for i in range(start, stop)]
             try:
                 xi = wt.units.convert(
-                    axis[wt.kit.valid_index(plot_idx, axis.shape)],
-                    axis.attrs.get("units"),
+                    x,
+                    self._units_map.get(axis),
                     x_units,
                 )
-                yi = channel[wt.kit.valid_index(plot_idx, channel.shape)]
-                self.plot_scatter.setData(xi, yi)
+                self.plot_widget.plot_object.plot(
+                    # self.plot_scatter.addPoints(
+                    xi,
+                    y,
+                    size=5,
+                    pen=pg.mkPen(color),
+                    brush=pg.mkBrush(color),
+                    symbol="o",
+                    symbolPen=pg.mkPen(color),
+                    symbolBrush=pg.mkBrush(color),
+                )
             except (TypeError, ValueError) as e:
                 print(e)
                 pass
-            # limits
+
+        def plot_1d(event, color="c"):
+            x = event["data"][axis]
+            y = event["data"][channel]
             try:
-                self.plot_widget.set_xlim(min(limits), max(limits))
-                self.plot_widget.set_ylim(np.min(channel), np.max(channel))
-            except Exception as e:
+                xi = wt.units.convert(
+                    x,
+                    self._units_map.get(axis),
+                    x_units,
+                )
+                self.plot_widget.plot_object.plot(
+                    # self.plot_scatter.addPoints(
+                    xi,
+                    y,
+                    pen=pg.mkPen(color),
+                    brush=pg.mkBrush(color),
+                )
+            except (TypeError, ValueError) as e:
                 print(e)
                 pass
 
-    def on_sensors_changed(self):
-        for s in sensors.sensors:
-            s.update_ui.connect(self.update_big_number)
-        self.on_channels_changed()
+        num = plot_callback.events[-1]["data"][channel]
+        if np.isscalar(num):
+            start = 0
+            cidx = 0
+            ncolors = int(np.ceil(len(plot_callback.events) / plot_callback.slice_size))
+            colors = np.linspace([60, 60, 60], [0, 255, 255], ncolors, dtype="u1")
+            if ncolors == 1:
+                colors = ["c"]
 
-    def on_shutdown(self):
-        pass
+            idx = plot_callback.events[-1].get("seq_num", len(plot_callback.events))
+            if len(plot_callback.events) == plot_callback.events.maxlen:
+                start = plot_callback.slice_size - idx % plot_callback.slice_size
+                plot_0d(0, start, [60, 60, 60])
+            while start < len(plot_callback.events):
+                plot_0d(start, start + plot_callback.slice_size, colors[cidx])
+                start += plot_callback.slice_size
+                cidx += 1
+        elif np.array(num).ndim == 1:
+            ncolors = min(len(plot_callback.events), 5)
+            colors = np.linspace([60, 60, 60], [0, 160, 160], ncolors, dtype="u1")
+            colors[-1] = [0, 255, 255]
+            for e, c in zip(range(-5, 0), colors):
+                plot_1d(plot_callback.events[e], c)
 
-    def stop(self):
-        pass
-
-    def update_big_number(self):
-        channel = self.channel.read()
-        if channel == "None":
-            return
-        sensor = sensors.get_channels_dict()[channel]
-        num = sensor.channels[channel]
+        num = plot_callback.events[-1]["data"][channel]
         if not np.isscalar(num):
             channel = f"max({channel})"
             num = np.max(num)
@@ -181,10 +193,102 @@ class GUI(QtCore.QObject):
 
 
 gui = GUI()
-somatic.signals.data_file_written.connect(gui.on_data_file_written)
-somatic.signals.data_file_created.connect(gui.on_data_file_created)
-sensors.signals.channels_changed.connect(gui.on_channels_changed)
-sensors.signals.sensors_changed.connect(gui.on_sensors_changed)
+
+
+class PlotCallback(CallbackBase):
+    def __init__(self):
+        self.start_doc = None
+        self.stop_doc = None
+        self.events = None
+        self.descriptor_doc = None
+        self.dimensions = []
+        self.units_map = {}
+        self.slice_size = 2 ** 64
+        self.progress_bar = g.progress_bar
+
+    def start(self, doc):
+        pprint(doc)
+        self.start_doc = doc
+        super().start(doc)
+        self.progress_bar.begin_new_scan_timer()
+        self.expected_events = doc.get("num_points", -1)
+        # Set X-axis to last dimension as available options, first one as default
+        # Currently assuming only one stream, because otherwise too complicated for MVP
+        if self.start_doc.get("hints", {}).get("dimensions"):
+            # Get the list of hinted dimension fields for the last (scanned) dimension
+            self.dimensions = self.start_doc["hints"]["dimensions"][-1][0]
+            self.all_dimensions = list(
+                itertools.chain(*[dim[0] for dim in self.start_doc["hints"]["dimensions"]])
+            )
+        else:
+            # Default if the hints are not given
+            self.dimensions = ["time"]
+            self.all_dimensions = ["time"]
+        self.dimensions.append("wa_wavelengths")
+        gui.axis.set_allowed_values(self.dimensions)
+
+        if self.start_doc.get("shape"):
+            self.shape = self.start_doc["shape"]
+            # TODO not hardcode number of slices
+            self.events = deque(maxlen=5 * self.shape[-1])
+            self.slice_size = self.shape[-1]
+        else:
+            self.events = deque()
+            self.shape = None
+            self.slice_size = 2 ** 64
+
+    def descriptor(self, doc):
+        # Currently assuming only one stream, thus only one descriptor doc
+        # A more full representation would account for multiple descriptors
+        if doc["name"] != "primary":
+            return
+        pprint(doc)
+        self.descriptor_doc = doc
+        super().descriptor(doc)
+        self.units_map = {
+            dim: self.descriptor_doc.get("data_keys", {}).get(dim, {}).get("units")
+            for dim in self.dimensions
+        }
+
+        gui.set_units_map(self.units_map)
+
+        self.channels = []
+        for hint in self.descriptor_doc.get("hints", {}).values():
+            for field in hint.get("fields", []):
+                if field not in self.all_dimensions:
+                    self.channels.append(field)
+        gui.channel.set_allowed_values(self.channels)
+
+    def event(self, doc):
+        if doc["descriptor"] != self.descriptor_doc["uid"]:
+            return
+        super().event(doc)
+        if self.expected_events > 0:
+            self.progress_bar.set_fraction(doc["seq_num"] / self.expected_events)
+        self.events.append(doc)
+        index = doc["seq_num"] - 1
+        if self.shape and index:
+            index = np.unravel_index(index, self.shape)
+        gui.idx_string.write(str(index))
+
+        somatic.signals.update_plot.emit()
+
+    def end(self, doc):
+        super().end(doc)
+        self.progress_bar.set_fraction(1)
+
+
+# TODO config rather than hardcode address
+dispatcher = RemoteDispatcher("localhost:5568")
+plot_callback = PlotCallback()
+dispatcher.subscribe(plot_callback)
+dispatcher.start()
+g.shutdown.add_method(wait_for_workers_to_quit)
+
+
+somatic.signals.update_plot.connect(gui.update_plot)
+# somatic.signals.data_file_created.connect(gui.on_data_file_created)
 gui.axis.updated.connect(gui.on_axis_updated)
-gui.axis.updated.connect(gui.on_data_file_written)
-gui.axis_units.updated.connect(gui.on_data_file_written)
+gui.axis.updated.connect(gui.update_plot)
+gui.axis_units.updated.connect(gui.update_plot)
+gui.channel.updated.connect(gui.update_plot)

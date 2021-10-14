@@ -1,9 +1,7 @@
 ### import ####################################################################
 
 
-import os
 import time
-import pathlib
 
 import numpy as np
 
@@ -14,32 +12,7 @@ from . import project_globals as g
 import WrightTools.units as wt_units
 
 
-__here__ = pathlib.Path(__file__).parent
-
-
 ### mutex #####################################################################
-
-
-class Mutex(QtCore.QMutex):
-    def __init__(self, initial_value=None):
-        QtCore.QMutex.__init__(self)
-        self.WaitCondition = QtCore.QWaitCondition()
-        self.value = initial_value
-
-    def read(self):
-        return self.value
-
-    def write(self, value):
-        self.lock()
-        self.value = value
-        self.WaitCondition.wakeAll()
-        self.unlock()
-
-    def wait_for_update(self, timeout=5000):
-        if self.value:
-            self.lock()
-            self.WaitCondition.wait(self, timeout)
-            self.unlock()
 
 
 class Busy(QtCore.QMutex):
@@ -285,62 +258,6 @@ class Combo(PyCMDS_Object):
         self.has_widget = True
 
 
-class Filepath(PyCMDS_Object):
-    def __init__(self, caption="Open", directory=None, options=[], kind="file", *args, **kwargs):
-        """
-        holds the filepath as a string \n
-
-        Kind one in {'file', 'directory'}
-        """
-        PyCMDS_Object.__init__(self, *args, **kwargs)
-        self.type = "filepath"
-        self.caption = caption
-        self.directory = directory
-        self.options = options
-        self.kind = kind
-
-    def give_control(self, control_widget):
-        self.widget = control_widget
-        if self.read() is not None:
-            self.widget.setText(self.read())
-        # connect signals and slots
-        self.updated.connect(lambda: self.widget.setText(self.read()))
-        self.widget.setToolTip(str(self.read()))
-        self.updated.connect(lambda: self.widget.setToolTip(self.read()))
-        self.has_widget = True
-
-    def give_button(self, button_widget):
-        self.button = button_widget
-        self.button.clicked.connect(self.on_load)
-
-    def on_load(self):
-        from project import file_dialog_handler
-
-        # directory
-        if self.directory is not None:
-            directory_string = self.directory
-        else:
-            if self.read() is not None:
-                directory_string = self.read()
-            else:
-                directory_string = __here__.parent
-        # filter
-
-        if self.kind == "file":
-            filter_string = ";;".join(self.options + ["All Files (*.*)"])
-            out = file_dialog_handler.open_dialog(self.caption, directory_string, filter_string)
-            if os.path.isfile(out):
-                self.write(out)
-        elif self.kind == "directory":
-            out = file_dialog_handler.dir_dialog(self.caption, directory_string, "")
-            if os.path.isdir(out):
-                self.write(out)
-
-    def read(self):
-        # want python string, not QString
-        return str(PyCMDS_Object.read(self))
-
-
 class NumberLimits(PyCMDS_Object):
     def __init__(self, min_value=-1e6, max_value=1e6, units=None):
         """
@@ -576,60 +493,6 @@ class String(PyCMDS_Object):
 ### part ######################################################################
 
 
-class Driver(QtCore.QObject):
-    update_ui = QtCore.Signal()
-    queue_emptied = QtCore.Signal()
-    initialized = Bool()
-
-    def check_busy(self):
-        """
-        Handles writing of busy to False.
-
-        Must always write to busy.
-        """
-        if self.is_busy():
-            if g.debug.read():
-                print(self.name, " busy")
-            time.sleep(0.01)  # don't loop like crazy
-            self.busy.write(True)
-        elif self.enqueued.read():
-            if g.debug.read():
-                print(self.name, " not empty")
-                print(self.enqueued.value)
-            time.sleep(0.1)  # don't loop like crazy
-            self.busy.write(True)
-        else:
-            if g.debug.read():
-                print(self.name, " not busy")
-            self.busy.write(False)
-            self.update_ui.emit()
-
-    @QtCore.Slot(str, list)
-    def dequeue(self, method, inputs):
-        """
-        Slot to accept enqueued commands from main thread.
-
-        Method passed as qstring, inputs as list of [args, kwargs].
-
-        Calls own method with arguments from inputs.
-        """
-        self.update_ui.emit()
-        method = str(method)  # method passed as qstring
-        args, kwargs = inputs
-        if g.debug.read():
-            print(self.name, " dequeue:", method, inputs, self.busy.read())
-        self.enqueued.pop()
-        getattr(self, method)(*args, **kwargs)
-        if not self.enqueued.read():
-            if g.debug.read():
-                print(self.name, " queue empty")
-            self.queue_emptied.emit()
-            self.check_busy()
-
-    def is_busy(self):
-        return False
-
-
 class Enqueued(QtCore.QMutex):
     def __init__(self):
         """
@@ -652,78 +515,6 @@ class Enqueued(QtCore.QMutex):
         self.unlock()
 
 
-class Hardware(QtCore.QObject):
-    update_ui = QtCore.Signal()
-    initialized_signal = QtCore.Signal()
-
-    def __init__(self, driver_class, driver_arguments, gui_class, name, model, serial=None):
-        """
-        Hardware representation object living in the main thread.
-
-        Parameters
-        driver_class : Driver class
-            Class of driver.
-        driver_arguments : dictionary
-            Arguments passed to driver upon initialization.
-        name : string
-            Name. Must be unique.
-        model : string
-            Model. Need not be unique.
-        serial : string or None (optional)
-            Serial, if desired. Default is None.
-        """
-        QtCore.QObject.__init__(self)
-        self.name = name
-        self.model = model
-        self.serial = serial
-        # create objects
-        self.thread = QtCore.QThread()
-        self.enqueued = Enqueued()
-        self.busy = Busy()
-        self.driver = driver_class(self, **driver_arguments)
-        self.initialized = self.driver.initialized
-        if gui_class:
-            self.gui = gui_class(self)
-        self.q = Q(self.enqueued, self.busy, self.driver)
-        # start thread
-        self.driver.moveToThread(self.thread)
-        self.thread.start()
-        # connect to address object signals
-        self.driver.update_ui.connect(self.update)
-        self.busy.update_signal = self.driver.update_ui
-        # initialize drivers
-        self.q.push("initialize")
-        # integrate close into PyCMDS shutdown
-        self.shutdown_timeout = 30  # seconds
-        g.shutdown.add_method(self.close)
-        g.hardware_waits.add(self.wait_until_still)
-
-    def close(self):
-        # begin driver shutdown
-        self.q.push("close")
-        # wait for driver shutdown to complete
-        start_time = time.time()
-        self.q.push("check_busy")
-        while self.busy.read():
-            if time.time() - start_time < self.shutdown_timeout:
-                self.busy.wait_for_update()
-            else:
-                g.logger.log("warning", "Wait until done timed out", self.name)
-                break
-        # quit thread
-        self.thread.exit()
-        self.thread.quit()
-
-    def update(self):
-        self.update_ui.emit()
-
-    def wait_until_still(self):
-        while self.busy.read():
-            if not self.q.enqueued.value:
-                self.q.push("check_busy")
-            self.busy.wait_for_update()
-
-
 class Q(QtCore.QObject):
     signal = QtCore.Signal(str, list)
 
@@ -740,10 +531,3 @@ class Q(QtCore.QObject):
         self.busy.write(True)
         # send Qt SIGNAL to address thread
         self.signal.emit(method, [args, kwargs])
-        """
-        self.queue.invokeMethod(self.driver,
-                                'dequeue',
-                                QtCore.Qt.QueuedConnection,
-                                QtCore.Q_ARG('str', method),
-                                QtCore.Q_ARG('list', [args, kwargs]))
-                                """

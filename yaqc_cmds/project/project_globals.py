@@ -19,15 +19,6 @@ class SimpleGlobal:
 debug = SimpleGlobal(False)
 
 
-class PollTimer(SimpleGlobal):
-    def connect_to_timeout(self, slot):
-        QtWidgets.QAction.connect(self.value, QtCore.SIGNAL("timeout()"), slot)
-
-
-poll_timer = PollTimer()
-slack_poll_timer = PollTimer()
-
-
 class logger:  # must come before other globals
     def __init__(self):
         pass
@@ -66,10 +57,6 @@ coset_widget = SimpleGlobal()
 hardware_advanced_box = SimpleGlobal()
 
 hardware_initialized = SimpleGlobal(False)
-
-google_drive_control = SimpleGlobal()
-
-google_drive_enabled = SimpleGlobal()
 
 
 class hardware_waits:
@@ -118,8 +105,6 @@ hardware_widget = hardware_widget()
 main_thread = SimpleGlobal(QtCore.QThread.currentThread())
 
 main_window = SimpleGlobal()
-
-scan_thread = SimpleGlobal()
 
 
 class QueueControl(QtCore.QObject):
@@ -204,10 +189,4 @@ class shutdown(SimpleGlobal):
 
 shutdown = shutdown()
 
-slack_control = SimpleGlobal()
-
-slack_enabled = SimpleGlobal()
-
 system_name = SimpleGlobal()
-
-version = SimpleGlobal()

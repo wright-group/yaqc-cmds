@@ -4,6 +4,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Removed
+- yaqc dependency
+- custom built orchestration layer
+- direct hardware interfacing
+
+### Changed
+- Completely rearchitect to use [bluesky-queueserver](https://github.com/bluesky/bluesky-queueserver)
+
 ## [2021.7.0]
 
 ### Fixed

@@ -116,24 +116,6 @@ class SpinboxAsDisplay(QtWidgets.QDoubleSpinBox):
         self.setStyleSheet(StyleSheet)
 
 
-class Shutdown_button(QtWidgets.QPushButton):
-    shutdown_go = QtCore.Signal()
-
-    def __init__(self):
-        QtWidgets.QPushButton.__init__(self)
-        self.clicked.connect(self.initiate_shutdown)
-        self.setText("SHUT DOWN")
-        StyleSheet = "QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}".replace(
-            "custom_color", colors["stop"]
-        )
-        self.setStyleSheet(StyleSheet)
-
-    def initiate_shutdown(self):
-        self.setText("SHUTTING DOWN")
-        g.app.read().processEvents()
-        self.shutdown_go.emit()
-
-
 class InputTable(QtWidgets.QWidget):
     def __getitem__(self, key):
         return self._dict[key]
@@ -147,7 +129,7 @@ class InputTable(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QGridLayout())
         self.layout().setColumnMinimumWidth(0, width)
         self.layout().setColumnMinimumWidth(1, width)
-        self.layout().setMargin(0)
+        # self.layout().setMargin(0)
         self.row_number = 0
         self.controls = []
         self._dict = collections.OrderedDict()
@@ -244,7 +226,7 @@ class InputTable(QtWidgets.QWidget):
         global_object.give_control(control)
         layout.addWidget(control)
         # units combobox
-        if not global_object.units is None:
+        if global_object.units is not None:
             control.setMinimumWidth(self.width_input - 55)
             control.setMaximumWidth(self.width_input - 55)
             units = QtWidgets.QComboBox()
@@ -441,9 +423,8 @@ class Label(QtWidgets.QLabel):
             bold_status = "bold"
         else:
             bold_status = ""
-        StyleSheet = f"QLabel{{color: {colors[color]}; font: {font_size}px;}}".replace(
-            "bold_status", bold_status
-        )
+        StyleSheet = f"QLabel{{color: {colors[color]}; font: {bold_status} {font_size}px;}}"
+        StyleSheet += f"QLabel:disabled{{color: {colors['text_disabled']}; font: {font_size}px;}}"
         self.setStyleSheet(StyleSheet)
 
 
@@ -478,310 +459,7 @@ class TabWidget(QtWidgets.QTabWidget):
         self.setStyleSheet(StyleSheet)
 
 
-### hardware ##################################################################
-
-
-class BusyDisplay(QtWidgets.QPushButton):
-    """
-    access value object to get state
-
-    True: scan running
-
-    pause methods are built in to this object
-    """
-
-    def __init__(self, busy_object, update_signal):
-        QtWidgets.QPushButton.__init__(self)
-        self.busy_object = busy_object
-        update_signal.connect(self.update)
-        self.setText("READY")
-        self.setMinimumHeight(15)
-        self.setMaximumHeight(15)
-        StyleSheet = "QPushButton{background:background_color; border-width:0px;  border-radius: 0px; font: bold 14px; color: text_color}".replace(
-            "background_color", colors["background"]
-        ).replace(
-            "text_color", colors["background"]
-        )
-        self.setStyleSheet(StyleSheet)
-        self.update()
-
-    def update(self):
-        if self.busy_object.read():
-            self.setText("BUSY")
-            StyleSheet = "QPushButton{background:background_color; border-width:0px;  border-radius: 0px; font: bold 14px; color: text_color; text-align: left}".replace(
-                "background_color", colors["background"]
-            ).replace(
-                "text_color", colors["stop"]
-            )
-            self.setStyleSheet(StyleSheet)
-        else:
-            self.setText("READY")
-            StyleSheet = "QPushButton{background:background_color; border-width:0px;  border-radius: 0px; font: bold 14px; color: text_color}".replace(
-                "background_color", colors["background"]
-            ).replace(
-                "text_color", colors["background"]
-            )
-            self.setStyleSheet(StyleSheet)
-
-
-class Hardware_control_table(QtWidgets.QWidget):
-    def __init__(self, hardware_names, combobox=False, combobox_label=""):
-        QtWidgets.QWidget.__init__(self)
-        self.setLayout(QtWidgets.QGridLayout())
-        self.layout().setMargin(0)
-        self.comboboxes = []
-        self.current_position_displays = []
-        self.new_position_controls = []
-        self.set_buttons = []
-        for i in range(len(hardware_names)):
-            # names
-            collumn = 0
-            label = QtWidgets.QLabel(hardware_names[i])
-            StyleSheet = "QLabel{color: custom_color; font: bold 14px;}".replace(
-                "custom_color", colors["heading_0"]
-            )
-            label.setStyleSheet(StyleSheet)
-            self.layout().addWidget(label, i, collumn)
-            # comboboxes
-            if combobox:
-                collumn += 1
-                combobox_obj = QtWidgets.QComboBox()
-                self.layout().addWidget(combobox_obj, i, collumn)
-                self.comboboxes.append(combobox_obj)
-            # current
-            collumn += 1
-            current_position = QtWidgets.QDoubleSpinBox()
-            current_position.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-            current_position.setDisabled(True)
-            self.layout().addWidget(current_position, i, collumn)
-            self.current_position_displays.append(current_position)
-            # new
-            collumn += 1
-            new_position = QtWidgets.QDoubleSpinBox()
-            new_position.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-            self.layout().addWidget(new_position, i, collumn)
-            self.new_position_controls.append(new_position)
-            self.set_allowed_values(i, 0, 10000, 2, 10)
-
-    def set_allowed_values(self, index, min_val, max_val, decimals=2, single_step=1.00):
-        controls = [
-            self.current_position_displays[index],
-            self.new_position_controls[index],
-        ]
-        for control in controls:
-            control.setMinimum(min_val)
-            control.setMaximum(max_val)
-            control.setDecimals(decimals)
-            control.setSingleStep(single_step)
-
-
-class HardwareLayoutWidget(QtWidgets.QGroupBox):
-    def __init__(self, name):
-        QtWidgets.QGroupBox.__init__(self)
-        # layout
-        self.setLayout(QtWidgets.QVBoxLayout())
-        self.layout().setMargin(5)
-        # container
-        heading_container = QtWidgets.QWidget()
-        heading_container.setLayout(QtWidgets.QHBoxLayout())
-        heading_container.layout().setMargin(0)
-        # add heading
-        heading = QtWidgets.QLabel(name)
-        StyleSheet = "QLabel{color: custom_color; font: bold 14px;}".replace(
-            "custom_color", colors["heading_1"]
-        )
-        heading.setStyleSheet(StyleSheet)
-        heading_container.layout().addWidget(heading)
-        self.layout().addWidget(heading_container)
-
-    def add_buttons(self, set_method, advanced_method, hardwares=[]):
-        # layout
-        button_container = QtWidgets.QWidget()
-        button_container.setLayout(QtWidgets.QHBoxLayout())
-        button_container.layout().setMargin(0)
-        # advanced
-        advanced_button = QtWidgets.QPushButton()
-        advanced_button.setText("ADVANCED")
-        advanced_button.setMinimumHeight(25)
-        StyleSheet = "QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}".replace(
-            "custom_color", colors["advanced"]
-        )
-        advanced_button.setStyleSheet(StyleSheet)
-        button_container.layout().addWidget(advanced_button)
-        advanced_button.clicked.connect(advanced_method)
-        # set
-        set_button = QtWidgets.QPushButton()
-        set_button.setText("SET")
-        set_button.setMinimumHeight(25)
-        StyleSheet = "QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}".replace(
-            "custom_color", colors["set"]
-        )
-        set_button.setStyleSheet(StyleSheet)
-        # add
-        self.layout().addWidget(button_container)
-        # connect to signals
-        g.queue_control.disable_when_true(set_button)
-        button_container.layout().addWidget(set_button)
-        set_button.clicked.connect(set_method)
-        for hardware in hardwares:
-            set_button.setDisabled(hardware.busy.read())  # first time
-            hardware.update_ui.connect(lambda: set_button_decide(set_button, hardwares))
-        return [advanced_button, set_button]
-
-
-def set_button_decide(set_button, hardwares):
-    if g.queue_control.read():
-        set_button.setDisabled(True)
-    else:
-        set_button.setDisabled(False)
-        for hardware in hardwares:
-            if hardware.busy.read():
-                set_button.setDisabled(hardware.busy.read())
-
-
-class HardwareFrontPanel(QtCore.QObject):
-    advanced = QtCore.Signal()
-
-    def __init__(self, hardwares, name="Hardware"):
-        QtCore.QObject.__init__(self)
-        self.name = name
-        # link hardware object signals
-        self.hardwares = hardwares
-        for hardware in self.hardwares:
-            hardware.update_ui.connect(self.update)
-        # create gui
-        self.create_frame()
-
-    def create_frame(self):
-        layout_widget = HardwareLayoutWidget(self.name)
-        layout = layout_widget.layout()
-        # layout table
-        input_table = InputTable(130)
-        self.front_panel_elements = []
-        for hardware in self.hardwares:
-            name = " ".join([hardware.name, "(" + hardware.model + ")"])
-            input_table.add(name, hardware.busy)
-            current_objects = hardware.exposed
-            destination_objects = []
-            for obj in hardware.exposed:
-                input_table.add(obj.label, obj)
-                dest_obj = obj.associate(display=False, pre_name="Dest. ")
-                destination_objects.append(dest_obj)
-                if hasattr(obj, "units_updated"):
-                    obj.units_updated.connect(self.on_position_units_updated)
-                    dest_obj.units_updated.connect(self.on_destination_units_updated)
-            for obj in destination_objects:
-                input_table.add(obj.label, obj)
-            self.front_panel_elements.append([current_objects, destination_objects])
-            hardware.initialized.updated.connect(self.initialize)
-        layout.addWidget(input_table)
-        self.advanced_button, self.set_button = layout_widget.add_buttons(
-            self.on_set, self.show_advanced, self.hardwares
-        )
-        g.hardware_widget.add_to(layout_widget)
-
-    def initialize(self):
-        # will fire each time ANY hardware contained within finishes initialize
-        # not ideal behavior, but good enough
-        for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
-            if hardware.initialized:
-                for current_object, destination_object in zip(
-                    front_panel_elements[0], front_panel_elements[1]
-                ):
-                    position = current_object.read()
-                    destination_object.write(position)
-
-    def update(self):
-        pass
-
-    def show_advanced(self):
-        self.advanced.emit()
-
-    def on_destination_units_updated(self):
-        for pl, dl in self.front_panel_elements:
-            if hasattr(pl[0], "units"):
-                pl[0].set_units(dl[0].units)
-
-    def on_position_units_updated(self):
-        for pl, dl in self.front_panel_elements:
-            if hasattr(pl[0], "units"):
-                dl[0].set_units(pl[0].units)
-
-    def on_set(self):
-        for hardware, front_panel_elements in zip(self.hardwares, self.front_panel_elements):
-            for current_object, destination_object in zip(
-                front_panel_elements[0], front_panel_elements[1]
-            ):
-                if current_object.set_method == "set_position":
-                    hardware.set_position(
-                        destination_object.read(),
-                        destination_object.units,
-                        force_send=True,
-                    )
-                else:
-                    hardware.q.push(current_object.set_method, [destination_object.read()])
-        g.coset_control.read().launch()
-
-    def stop(self):
-        pass
-
-
-hardware_advanced_panels = []
-
-
-class HardwareAdvancedPanel(QtCore.QObject):
-    def __init__(self, hardwares, advanced_button):
-        QtCore.QObject.__init__(self)
-        self.tabs = QtWidgets.QTabWidget()
-        for hardware in hardwares:
-            widget = QtWidgets.QWidget()
-            box = QtWidgets.QHBoxLayout()
-            hardware.gui.create_frame(box)
-            widget.setLayout(box)
-            self.tabs.addTab(widget, hardware.name)
-        # box
-        self.box = QtWidgets.QVBoxLayout()
-        hardware_advanced_box = g.hardware_advanced_box.read()
-        hardware_advanced_box.addWidget(self.tabs)
-        # link into advanced button press
-        self.advanced_button = advanced_button
-        self.advanced_button.clicked.connect(self.on_advanced)
-        main_window = g.main_window.read()
-        self.advanced_button.clicked.connect(lambda: main_window.tabs.setCurrentIndex(0))
-        hardware_advanced_panels.append(self)
-        self.hide()
-
-    def hide(self):
-        self.tabs.hide()
-        self.advanced_button.setDisabled(False)
-
-    def on_advanced(self):
-        for panel in hardware_advanced_panels:
-            panel.hide()
-        self.tabs.show()
-        # self.advanced_button.setDisabled(True)
-
-
 ### queue #####################################################################
-
-
-class QueueControl(QtWidgets.QPushButton):
-    launch_scan = QtCore.Signal()
-    stop_scan = QtCore.Signal()
-
-    def __init__(self):
-        QtWidgets.QPushButton.__init__(self)
-        self.clicked.connect(self.update)
-        self.setMinimumHeight(25)
-        self.set_style("RUN QUEUE", "go")
-        self.value = False
-
-    def set_style(self, text, color):
-        self.setText(text)
-        StyleSheet = "QPushButton{background:custom_color; border-width:0px;  border-radius: 0px; font: bold 14px}".replace(
-            "custom_color", colors[color]
-        )
-        self.setStyleSheet(StyleSheet)
 
 
 class ChoiceWindow(QtWidgets.QMessageBox):
