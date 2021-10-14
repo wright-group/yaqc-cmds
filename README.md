@@ -6,7 +6,7 @@
 
 A qt-based graphical client for [bluesky-queueserver](https://blueskyproject.io/bluesky-queueserver/) with a focus on coherent multidimensional spectroscopy in the Wright Group.
 
-[!screenshot](./plot_screenshot.png)
+![screenshot](./plot_screenshot.png)
 
 ## installation
 
