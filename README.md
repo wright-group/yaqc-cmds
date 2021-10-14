@@ -4,7 +4,7 @@
 [![Conda](https://img.shields.io/conda/vn/conda-forge/yaqc-cmds)](https://anaconda.org/conda-forge/yaqc-cmds)
 [![black](https://img.shields.io/badge/code--style-black-black)](https://black.readthedocs.io/)
 
-A qt-based graphical client for [bluesky-queueserver](https://blueskyproject.io/bluesky-queueserver/) with a focus on coherent multidimensional spectroscopy in the Wright Group. 
+A qt-based graphical client for [bluesky-queueserver](https://blueskyproject.io/bluesky-queueserver/) with a focus on coherent multidimensional spectroscopy in the Wright Group.
 
 [!screenshot](./plot_screenshot.png)
 
