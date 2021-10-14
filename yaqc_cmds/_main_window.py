@@ -41,7 +41,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, config):
         QtWidgets.QMainWindow.__init__(self, parent=None)
         self.config = config
-        g.system_name.write(self.config["system_name"])
         g.main_window.write(self)
         g.shutdown.write(self.shutdown)
         self.setWindowTitle("yaqc-cmds %s" % __version__)
