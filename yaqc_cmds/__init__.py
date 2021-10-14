@@ -1,4 +1,4 @@
-"""Unified software for controlling hardware and collecting data in the Wright group."""
+"""Custom interface to bluesky-queueserver used by the Wright Group"""
 
 
 from .__version__ import *

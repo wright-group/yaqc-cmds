@@ -11,19 +11,12 @@ home-page = "https://github.com/wright-group/yaqc-cmds"
 classifiers = ["License :: OSI Approved :: MIT License"]
 requires-python = ">=3.7"
 requires = ["appdirs",
-            "attune",
             "click",
-            "numexpr",
 	    "pyqtgraph",
 	    "pyside2",
-	    "pyserial",
 	    "qtpy",
-	    "slackclient<2",
-	    "slacker",
-	    "sympy",
 	    "toml",
 	    "wrighttools",
-	    "yaqc",
 	    ]
 
 [tool.flit.scripts]
