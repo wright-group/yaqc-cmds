@@ -71,7 +71,7 @@ class GUI(QtCore.QObject):
         # container widget
         display_container_widget = pw.ExpandingWidget()
         display_layout = display_container_widget.layout()
-        display_layout.setContentsMargin(0, 0, 0, 0)
+        display_layout.setContentsMargins(0, 0, 0, 0)
         # table
         self.table = pw.TableWidget()
         self.table.verticalHeader().hide()
@@ -101,7 +101,7 @@ class GUI(QtCore.QObject):
         settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         settings_layout = settings_container_widget.layout()
         self.settings_layout = settings_layout
-        settings_layout.setContentsMargin(5, 5, 5, 5)
+        settings_layout.setContentsMargins(5, 5, 5, 5)
         # adjust queue label
         input_table = pw.InputTable()
         input_table.add("Control Queue", None)
@@ -276,16 +276,16 @@ class GUI(QtCore.QObject):
             # type
             label = pw.Label(item["name"])
             label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setContentsMargin(3, 3, 3, 3)
+            label.setContentsMargins(3, 3, 3, 3)
             self.table.setCellWidget(table_index, 1, label)
             # status
             label = pw.Label(item.get("result", {}).get("exit_status", status))
             label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setContentsMargin(3, 3, 3, 3)
+            label.setContentsMargins(3, 3, 3, 3)
             self.table.setCellWidget(table_index, 2, label)
             # description
             label = pw.Label(repr(item.get("args", [])) + repr(item.get("kwargs", {})))
-            label.setContentsMargin(3, 3, 3, 3)
+            label.setContentsMargins(3, 3, 3, 3)
             label.setToolTip(pprint.pformat(item))
             label.setDisabled(True)
             self.table.setCellWidget(table_index, 3, label)
