@@ -3,7 +3,7 @@
 from collections import deque
 import itertools
 
-from PySide2 import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets
 import numpy as np
 import pyqtgraph as pg
 
@@ -40,13 +40,13 @@ class GUI(QtCore.QObject):
         display_container_widget = pw.ExpandingWidget()
         display_container_widget.setLayout(QtWidgets.QVBoxLayout())
         display_layout = display_container_widget.layout()
-        display_layout.setMargin(0)
+        display_layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(display_container_widget)
         # big number
         big_number_container_widget = QtWidgets.QWidget()
         big_number_container_widget.setLayout(QtWidgets.QHBoxLayout())
         big_number_container_layout = big_number_container_widget.layout()
-        big_number_container_layout.setMargin(0)
+        big_number_container_layout.setContentsMargins(0, 0, 0, 0)
         self.big_display = pw.SpinboxAsDisplay(font_size=100)
         self.big_channel = pw.Label("channel", font_size=72)
         big_number_container_layout.addWidget(self.big_channel)
@@ -69,7 +69,7 @@ class GUI(QtCore.QObject):
         settings_scroll_area.setMaximumWidth(300)
         settings_container_widget.setLayout(QtWidgets.QVBoxLayout())
         self.settings_layout = settings_container_widget.layout()
-        self.settings_layout.setMargin(5)
+        self.settings_layout.setContentsMargins(5, 5, 5, 5)
         layout.addWidget(settings_scroll_area)
 
     def create_settings(self):

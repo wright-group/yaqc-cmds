@@ -1,6 +1,6 @@
 import time
 
-from PySide2 import QtWidgets, QtCore
+from qtpy import QtWidgets, QtCore
 
 ### global classes ############################################################
 

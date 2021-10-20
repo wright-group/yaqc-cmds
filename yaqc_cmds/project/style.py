@@ -1,6 +1,6 @@
 __all__ = ["colors", "set_style"]
 
-from PySide2 import QtWidgets
+from qtpy import QtWidgets
 from . import project_globals as g
 
 # see http://www.google.com/design/spec/style/color.html#color-color-palette

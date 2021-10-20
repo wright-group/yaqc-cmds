@@ -4,7 +4,7 @@
 import collections
 import pathlib
 
-from PySide2 import QtWidgets, QtCore
+from qtpy import QtWidgets, QtCore
 
 import pyqtgraph as pg
 
@@ -129,7 +129,7 @@ class InputTable(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QGridLayout())
         self.layout().setColumnMinimumWidth(0, width)
         self.layout().setColumnMinimumWidth(1, width)
-        # self.layout().setMargin(0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.row_number = 0
         self.controls = []
         self._dict = collections.OrderedDict()
@@ -169,7 +169,6 @@ class InputTable(QtWidgets.QWidget):
         container_widget = QtWidgets.QWidget()
         container_widget.setLayout(QtWidgets.QHBoxLayout())
         layout = container_widget.layout()
-        layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
         # control
@@ -355,7 +354,6 @@ class InputTable(QtWidgets.QWidget):
         container_widget = QtWidgets.QWidget()
         container_widget.setLayout(QtWidgets.QHBoxLayout())
         layout = container_widget.layout()
-        layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
         # push button

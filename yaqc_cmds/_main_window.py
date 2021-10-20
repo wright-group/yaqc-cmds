@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("ps")  # important - images will be generated in worker threads
 
 import sys
-from PySide2 import QtWidgets, QtCore
+from qtpy import QtWidgets, QtCore
 
 app = QtWidgets.QApplication(sys.argv)
 
@@ -71,7 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
         hbox = QtWidgets.QHBoxLayout()
         # box -----------------------------------------------------------------
         box = QtWidgets.QVBoxLayout()
-        box.setMargin(0)
+        box.setContentsMargins(0, 0, 0, 0)
         # module progress bar
         progress_bar = QtWidgets.QProgressBar()
         progress_bar.setTextVisible(False)
