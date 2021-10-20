@@ -10,9 +10,6 @@ A qt-based graphical client for [bluesky-queueserver](https://blueskyproject.io/
 
 ## installation
 
-Please note that at this time yaqc-cmds requires `pyside2` and is incompatable with `pyqt5`.
-We are working to resolve this, PRs welcome!
-
 Install the latest released version from PyPI:
 
 ```bash

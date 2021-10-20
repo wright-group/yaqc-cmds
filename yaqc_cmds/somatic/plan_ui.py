@@ -28,7 +28,6 @@ class PlanUI:
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(QtWidgets.QVBoxLayout())
         layout = self.frame.layout()
-        layout.setMargin(0)
         layout.setContentsMargins(0, 0, 0, 0)
         for x in self.items:
             layout.addWidget(x.frame)
@@ -276,13 +275,13 @@ class ConstantWidget:
         self.nargs = 0
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(QtWidgets.QVBoxLayout())
-        self.frame.layout().setMargin(0)
+        self.frame.layout().setContentsMargins(0, 0, 0, 0)
         label = pw.InputTable()
         label.add("Constants", None)
         self.frame.layout().addWidget(label)
         self.constants_container_widget = QtWidgets.QWidget()
         self.constants_container_widget.setLayout(QtWidgets.QVBoxLayout())
-        self.constants_container_widget.layout().setMargin(0)
+        self.constants_container_widget.layout().setContentsMargins(0, 0, 0, 0)
         self.constants = []
         self.frame.layout().addWidget(self.constants_container_widget)
         add_button = pw.SetButton("ADD")
@@ -362,13 +361,13 @@ class GenericScanArgsWidget:
         self.partition = partition
         self.frame = QtWidgets.QWidget()
         self.frame.setLayout(QtWidgets.QVBoxLayout())
-        # self.frame.layout().setMargin(0)
+        self.frame.layout().setContentsMargins(0, 0, 0, 0)
         label = pw.InputTable()
         label.add("Axes", None)
         self.frame.layout().addWidget(label)
         self.axis_container_widget = QtWidgets.QWidget()
         self.axis_container_widget.setLayout(QtWidgets.QVBoxLayout())
-        # self.axis_container_widget.layout().setMargin(0)
+        self.axis_container_widget.layout().setContentsMargins(0, 0, 0, 0)
         self.axes = []
         self.frame.layout().addWidget(self.axis_container_widget)
         add_button = pw.SetButton("ADD")

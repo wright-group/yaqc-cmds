@@ -8,7 +8,7 @@ import threading
 import pathlib
 import appdirs
 
-from PySide2 import QtCore
+from qtpy import QtCore
 
 from yaqc_cmds.project import project_globals as g
 

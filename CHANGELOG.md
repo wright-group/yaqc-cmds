@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - Completely rearchitect to use [bluesky-queueserver](https://github.com/bluesky/bluesky-queueserver)
 
+### Added
+- support for pyqt5 (via qtpy)
+
 ## [2021.7.0]
 
 ### Fixed

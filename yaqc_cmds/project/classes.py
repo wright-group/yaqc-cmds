@@ -5,7 +5,7 @@ import time
 
 import numpy as np
 
-from PySide2 import QtCore
+from qtpy import QtCore
 
 from . import project_globals as g
 
