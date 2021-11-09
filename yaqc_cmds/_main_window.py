@@ -1,37 +1,16 @@
 #! /usr/bin/env python
-### ensure folders exist ######################################################
-
-import matplotlib
-
-matplotlib.use("ps")  # important - images will be generated in worker threads
 
 import sys
-from qtpy import QtWidgets, QtCore
-
-app = QtWidgets.QApplication(sys.argv)
-
 import pathlib
 
-
-#### import ###################################################################
-# BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
-
-from .project import project_globals as g
-
-g.app.write(app)
-g.logger.load()
-
-g.logger.log("info", "Startup", "Yaqc_cmds is attempting startup")
-
-from .project import widgets as pw
-
-
-### version information #######################################################
+from qtpy import QtWidgets, QtCore
 
 from .__version__ import __version__
+from .project import project_globals as g
 
-
-### main window ###############################################################
+app = QtWidgets.QApplication(sys.argv)
+g.app.write(app)
+g.logger.load()
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -95,11 +74,11 @@ class MainWindow(QtWidgets.QMainWindow):
         progress_bar.layout().addWidget(time_remaining)
         g.progress_bar.give_time_display_elements(time_elapsed, time_remaining)
         # sonomic box
-        self.queue_widget = QtWidgets.QWidget(parent=self.main_frame)
+        self.queue_widget = QtWidgets.QSplitter(parent=self.main_frame)
         # plot box
-        self.plot_widget = QtWidgets.QWidget(parent=self.main_frame)
+        self.plot_widget = QtWidgets.QSplitter(parent=self.main_frame)
         # tab widget
-        self.tabs = pw.TabWidget()
+        self.tabs = QtWidgets.QTabWidget()
         self.tabs.addTab(self.queue_widget, "Queue")
         self.tabs.addTab(self.plot_widget, "Plot")
         self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
