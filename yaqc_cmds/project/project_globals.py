@@ -16,7 +16,7 @@ class SimpleGlobal:
         self.value = value
 
 
-debug = SimpleGlobal(True)
+debug = SimpleGlobal(False)
 
 
 class PollTimer(SimpleGlobal):
