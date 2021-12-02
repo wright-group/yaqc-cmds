@@ -199,7 +199,6 @@ class GUI(hw.GUI):
         self.driver.set_zero(new_zero)
         self.driver.offset.write(0)
         name = self.hardware.name
-        g.coset_control.read().zero(name)
         self.driver.get_position()
         self.driver.save_status()
 

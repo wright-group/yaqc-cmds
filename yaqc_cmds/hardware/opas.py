@@ -50,6 +50,7 @@ class Driver(hw.Driver):
         self.get_position()
 
     def is_busy(self):
+        print("is_busy", self.name)
         return self.client.busy()
 
     def get_position(self):

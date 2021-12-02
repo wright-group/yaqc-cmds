@@ -720,7 +720,6 @@ class HardwareFrontPanel(QtCore.QObject):
                     )
                 else:
                     hardware.q.push(current_object.set_method, [destination_object.read()])
-        g.coset_control.read().launch()
 
     def stop(self):
         pass

@@ -143,9 +143,6 @@ class MainWindow(QtWidgets.QMainWindow):
         hardware_advanced_widget.setLayout(hardware_advanced_box)
         g.hardware_advanced_box.write(hardware_advanced_box)
         self.hardware_advanced_box = hardware_advanced_box
-        # autonomic box
-        coset_widget = QtWidgets.QWidget(parent=self.main_frame)
-        g.coset_widget.write(coset_widget)
         # sonomic box
         self.queue_widget = QtWidgets.QWidget(parent=self.main_frame)
         # plot box
@@ -153,10 +150,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # tab widget
         self.tabs = pw.TabWidget()
         self.tabs.addTab(hardware_advanced_widget, "Hardware")
-        self.tabs.addTab(coset_widget, "Autonomic")
         self.tabs.addTab(self.queue_widget, "Queue")
         self.tabs.addTab(self.plot_widget, "Plot")
-        self.tabs.setCurrentIndex(2)  # start on queue tab
+        self.tabs.setCurrentIndex(1)  # start on queue tab
         self.tabs.setContentsMargins(0.0, 0.0, 0.0, 0.0)
         box.addWidget(self.tabs)
         # vertical stretch
@@ -183,7 +179,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if g.debug.read():
             print("initialize widgets")
         # import widgets
-        import yaqc_cmds.autonomic.coset
         import yaqc_cmds._plot
 
     def _load_google_drive(self):

@@ -255,7 +255,6 @@ class Hardware(pc.Hardware):
         pc.Hardware.close(self)
 
     def get_destination(self, output_units="same"):
-        print("get_destination", self.name, self.destination.read(output_units))
         return self.destination.read(output_units=output_units)
 
     def get_position(self, output_units="same"):
