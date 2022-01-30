@@ -4,6 +4,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Removed
+- autonomic cosetting system is removed in favor of attune-delay daemon which handles SDC
+
 ## [2021.7.0]
 
 ### Fixed

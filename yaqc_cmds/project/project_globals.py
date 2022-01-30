@@ -59,10 +59,6 @@ app = SimpleGlobal()
 
 colors_dict = SimpleGlobal()
 
-coset_control = SimpleGlobal()
-
-coset_widget = SimpleGlobal()
-
 hardware_advanced_box = SimpleGlobal()
 
 hardware_initialized = SimpleGlobal(False)
@@ -82,12 +78,7 @@ class hardware_waits:
     def add(self, method):
         self.value.append(method)
 
-    def give_coset_control(self, control):
-        self.coset_control = control
-
-    def wait(self, coset=True):
-        if coset:
-            self.coset_control.launch()
+    def wait(self):
         for method in self.value:
             method()
 
