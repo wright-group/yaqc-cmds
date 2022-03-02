@@ -16,6 +16,7 @@ import yaqc_cmds.project.project_globals as g
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.somatic.acquisition as acquisition
+import yaqc_cmds.sensors.signals as sensor_signals
 
 import yaqc_cmds
 import yaqc_cmds.hardware.spectrometers as spectrometers
@@ -128,14 +129,12 @@ class Worker(acquisition.Worker):
                 orig_transform = data.axis_expressions
                 axes = []
                 for a in orig_transform:
-                    print(data[channel_name].shape, data[a].shape)
                     if all(
                         ch_sh >= a_sh
                         for ch_sh, a_sh in zip(data[channel_name].shape, data[a].shape)
                     ):
                         axes.append(a)
                 data.transform(*axes)
-                print(data.axis_names)
                 if sum(a > 1 for a in data[channel_name].shape) > 2:
                     output_path = channel_path
                     channel_path.mkdir()
@@ -304,6 +303,7 @@ class GUI(acquisition.GUI):
         self.process_all_channels.updated.connect(self.save_state)
         input_table.add("Process All Channels", self.process_all_channels)
         self.layout.addWidget(input_table)
+        sensor_signals.channels_changed.connect(self.on_device_settings_updated)
 
     def load(self, aqn_path):
         # clear old
@@ -353,7 +353,8 @@ class GUI(acquisition.GUI):
         # self.device_widget.load(aqn_path)
 
     def on_device_settings_updated(self):
-        self.channel_combo.set_allowed_values(record.control.channel_names)
+        channel_names = list(yaqc_cmds.sensors.get_channels_dict().keys())
+        self.channel_combo.set_allowed_values(channel_names)
 
     def remove_axis(self):
         # remove trailing axis

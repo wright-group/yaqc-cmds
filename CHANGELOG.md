@@ -4,6 +4,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- hook in signals which update the "main channel" combo box when sensors update/initialize
+
 ### Removed
 - autonomic cosetting system is removed in favor of attune-delay daemon which handles SDC
 

@@ -14,6 +14,7 @@ import WrightTools as wt
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.somatic.acquisition as acquisition
+import yaqc_cmds.sensors.signals as sensor_signals
 
 import yaqc_cmds
 import yaqc_cmds.hardware.opas as opas
@@ -318,6 +319,7 @@ class GUI(acquisition.GUI):
         )
         input_table.add("Channel", self.main_channel)
         self.layout.addWidget(input_table)
+        sensor_signals.channels_changed.connect(self.on_device_settings_updated)
 
     def load(self, aqn_path):
         aqn = wt.kit.INI(aqn_path)
@@ -343,7 +345,8 @@ class GUI(acquisition.GUI):
         # self.device_widget.load(aqn_path)
 
     def on_device_settings_updated(self):
-        self.main_channel.set_allowed_values(sensors.control.channel_names)
+        channel_names = list(yaqc_cmds.sensors.get_channels_dict().keys())
+        self.main_channel.set_allowed_values(channel_names)
 
     def on_opa_combo_updated(self):
         self.show_opa_gui(self.opa_combo.read_index())
