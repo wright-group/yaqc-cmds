@@ -22,7 +22,6 @@ g.colors_dict.write(colors)
 
 
 def set_style():
-
     # Style Sheet----------------------------------------------------------------
 
     StyleSheet = ""
