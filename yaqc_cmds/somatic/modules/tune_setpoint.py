@@ -10,7 +10,6 @@ class Worker(abstract_tuning.Worker):
     reference_image = "setpoint.png"
 
     def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
-
         opa = config["OPA"]["opa"]
         spec = config["Spectral Axis"]["axis"]
         dep = config["Motor"]["motor"]
