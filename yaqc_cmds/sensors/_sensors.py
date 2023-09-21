@@ -117,7 +117,11 @@ class Driver(pc.Driver):
 
     def __init__(self, sensor, yaqd_port):
         super().__init__()
-        self.client = yaqc.Client(yaqd_port)
+        host = "localhost"
+        if isinstance(yaqd_port, str):
+            host, yaqd_port = yaqd_port.split(":", 1)
+            yaqd_port = int(yaqd_port)
+        self.client = yaqc.Client(yaqd_port, host=host)
         # attributes
         self.name = self.client.id()["name"]
         self.enqueued = sensor.enqueued
