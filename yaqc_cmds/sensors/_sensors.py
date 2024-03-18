@@ -1,6 +1,5 @@
 """Sensors."""
 
-
 import appdirs
 import pathlib
 import time

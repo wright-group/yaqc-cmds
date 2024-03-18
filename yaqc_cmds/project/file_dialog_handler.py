@@ -2,7 +2,6 @@
 QFileDialog objects can only be run in the main thread.
 """
 
-
 ### imports ###################################################################
 
 

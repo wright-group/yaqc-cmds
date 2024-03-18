@@ -2,7 +2,6 @@
 Acquisition infrastructure shared by all modules.
 """
 
-
 ### import ####################################################################
 
 
