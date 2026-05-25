@@ -7,7 +7,6 @@ import yaqc_cmds.project.widgets as pw
 import somatic.acquisition as acquisition
 import yaqc_cmds.hardware.opas as opas
 
-
 ### define ####################################################################
 
 

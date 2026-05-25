@@ -3,7 +3,6 @@ import WrightTools as wt
 
 import somatic.modules.abstract_tuning as abstract_tuning
 
-
 module_name = "TUNE INTENSITY"
 
 

@@ -20,7 +20,6 @@ import yaqc_cmds.project.classes as pc
 from yaqc_cmds.hardware import hardware as hw
 from yaqc_cmds.somatic import signals
 
-
 ### driver ####################################################################
 
 

@@ -13,7 +13,6 @@ app = QtWidgets.QApplication(sys.argv)
 import os
 import pathlib
 
-
 #### import ###################################################################
 # BEWARE OF CHANGING ORDER OF IMPORTS!!!!!!!!!
 
@@ -32,7 +31,6 @@ import appdirs
 import toml
 
 import yaqc
-
 
 ### define ####################################################################
 
