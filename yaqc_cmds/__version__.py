@@ -1,9 +1,7 @@
 """Define version."""
 
-
 import pathlib
 import subprocess
-
 
 here = pathlib.Path(__file__).resolve().parent
 

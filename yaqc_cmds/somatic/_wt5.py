@@ -1,6 +1,5 @@
 """wt5 data file functions"""
 
-
 import time
 import threading
 
