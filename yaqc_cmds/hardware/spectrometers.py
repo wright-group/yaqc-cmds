@@ -11,7 +11,6 @@ import appdirs
 import toml
 import yaqc
 
-
 ### driver ####################################################################
 
 

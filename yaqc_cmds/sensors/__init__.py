@@ -7,7 +7,6 @@ from . import signals
 from ._sensors import Sensor, Driver, SensorWidget
 import yaqc_cmds.__main__
 
-
 sensors = []
 config = yaqc_cmds.__main__.config
 

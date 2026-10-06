@@ -2,7 +2,6 @@
 Acquisition infrastructure shared by all modules.
 """
 
-
 ### import ####################################################################
 
 
@@ -39,7 +38,6 @@ from .signals import data_file_written
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 
 from . import constant_resolver
-
 
 ### define ####################################################################
 

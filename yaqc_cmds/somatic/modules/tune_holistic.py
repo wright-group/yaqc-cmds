@@ -4,7 +4,6 @@ import somatic.modules.abstract_tuning as abstract_tuning
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.hardware.opas as opas
 
-
 ### define ####################################################################
 
 
