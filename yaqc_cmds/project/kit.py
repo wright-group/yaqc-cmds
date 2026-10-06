@@ -2,12 +2,10 @@
 a collection of small, general purpose objects and methods
 """
 
-
 ### import ####################################################################
 
 
 import numpy as np
-
 
 ### math ######################################################################
 

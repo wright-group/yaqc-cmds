@@ -26,7 +26,6 @@ import yaqc_cmds.hardware.filters.filters as filters
 all_hardwares = opas.hardwares + spectrometers.hardwares + delays.hardwares + filters.hardwares
 import yaqc_cmds.devices.devices as devices
 
-
 ### define ####################################################################
 
 

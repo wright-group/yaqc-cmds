@@ -16,7 +16,6 @@ import yaqc_cmds.project.widgets as pw
 import yaqc_cmds.project.classes as pc
 import yaqc_cmds.hardware.hardware as hw
 
-
 # --- driver --------------------------------------------------------------------------------------
 
 

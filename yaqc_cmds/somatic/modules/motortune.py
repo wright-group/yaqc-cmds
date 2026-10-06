@@ -22,7 +22,6 @@ import yaqc_cmds.hardware.spectrometers as spectrometers
 import yaqc_cmds.sensors as sensors
 from yaqc_cmds.somatic import _wt5
 
-
 ### define ####################################################################
 
 

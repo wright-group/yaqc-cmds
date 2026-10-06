@@ -16,7 +16,6 @@ import yaqc_cmds.project.logging_handler as logging_handler
 import yaqc_cmds.project.project_globals as g
 from . import bots
 
-
 ### container objects #########################################################
 
 

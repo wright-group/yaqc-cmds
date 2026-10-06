@@ -2,7 +2,6 @@
 QFileDialog objects can only be run in the main thread.
 """
 
-
 ### imports ###################################################################
 
 
@@ -14,7 +13,6 @@ from PySide2 import QtWidgets
 
 from yaqc_cmds.project import project_globals as g
 from yaqc_cmds.project import classes as pc
-
 
 ### FileDialog object #########################################################
 

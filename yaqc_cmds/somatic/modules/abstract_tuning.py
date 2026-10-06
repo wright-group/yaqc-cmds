@@ -32,8 +32,7 @@ class Worker(acquisition.Worker):
             reference_image=str(pathlib.Path(scan_folder) / self.reference_image),
         )
 
-    def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config):
-        ...
+    def _process(self, data, curve, channel, gtol, ltol, level, scan_folder, config): ...
 
     @property
     def config_dictionary(self):

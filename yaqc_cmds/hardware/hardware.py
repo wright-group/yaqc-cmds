@@ -1,6 +1,7 @@
 """
 Parent hardware class and associated.
 """
+
 __all__ = ["Driver", "GUI", "Hardware", "import_hardwares"]
 
 
@@ -22,7 +23,6 @@ import WrightTools as wt
 from yaqc_cmds.project import classes as pc
 from yaqc_cmds.project import widgets as pw
 from yaqc_cmds.project import project_globals as g
-
 
 __here__ = pathlib.Path(__file__)
 
